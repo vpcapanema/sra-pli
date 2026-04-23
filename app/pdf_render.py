@@ -1,9 +1,8 @@
 import base64
 from datetime import date
-from io import BytesIO
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML, CSS
+from weasyprint import HTML
 from sqlalchemy.orm import Session
 from .models import Relatorio, Figura
 
@@ -41,6 +40,9 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
             elif b.tipo == "tabela":
                 tab_counter += 1
                 item["numero"] = tab_counter
+            elif b.tipo == "lista":
+                itens = [ln.strip() for ln in (b.conteudo or "").splitlines() if ln.strip()]
+                item["lista_html"] = "<ul>" + "".join(f"<li>{i}</li>" for i in itens) + "</ul>"
             blocos_render.append(item)
         secoes.append({
             "numero": sec.numero,
@@ -49,9 +51,19 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
         })
 
     template = _env.get_template("pdf/relatorio.html")
+    sumario_html = (
+        "<ol>"
+        + "".join(
+            f'<li><span class="num">{s["numero"]}</span><span class="ttl">{s["titulo"]}</span></li>'
+            for s in secoes
+        )
+        + '<li><span class="num">—</span><span class="ttl">Página de assinaturas</span></li>'
+        + "</ol>"
+    )
     html_str = template.render(
         rel=rel,
         secoes=secoes,
+        sumario_html=sumario_html,
         hoje=date.today(),
     )
     pdf_bytes = HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()

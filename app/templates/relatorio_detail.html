@@ -43,7 +43,7 @@
   <div class="ss-hdr"><span class="sn">⚙</span><span class="st">Ações de coordenação</span></div>
   <div class="sb2 actions-row">
     <form method="post" action="/relatorios/{{ rel.id }}/status">
-      <select name="status">
+      <select name="status" title="Status do relatório">
         <option value="aberto" {% if rel.status=='aberto' %}selected{% endif %}>Aberto</option>
         <option value="em_revisao" {% if rel.status=='em_revisao' %}selected{% endif %}>Em revisão</option>
         <option value="finalizado" {% if rel.status=='finalizado' %}selected{% endif %}>Finalizado</option>

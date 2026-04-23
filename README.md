@@ -15,7 +15,7 @@ visual Concremat e gera o PDF final pronto para assinatura eletrônica.
 
 ## Estrutura
 
-```
+```text
 app/
   main.py            # FastAPI + middlewares + rotas
   config.py          # Settings via env
@@ -44,9 +44,11 @@ uvicorn app.main:app --reload
 ```
 
 Para Postgres local (Docker):
+
 ```powershell
 docker run -d --name sra-pg -e POSTGRES_PASSWORD=sra -e POSTGRES_DB=sra -p 5432:5432 postgres:16
 ```
+
 Definir `DATABASE_URL=postgresql+psycopg2://postgres:sra@localhost:5432/sra`.
 
 Acessar `http://localhost:8000` e logar com o admin definido em `.env`.

@@ -11,11 +11,11 @@
   <div class="sb2">
     {% if error %}<div class="alert">{{ error }}</div>{% endif %}
     <form method="post" action="/usuarios" class="grid-form">
-      <div><label>Nome</label><input name="nome" required></div>
-      <div><label>E-mail</label><input type="email" name="email" required></div>
-      <div><label>Senha</label><input type="password" name="password" required></div>
+      <div><label>Nome</label><input name="nome" title="Nome completo" placeholder="Nome do usuário" required></div>
+      <div><label>E-mail</label><input type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required></div>
+      <div><label>Senha</label><input type="password" name="password" title="Senha" placeholder="defina uma senha" required></div>
       <div><label>Perfil</label>
-        <select name="role">
+        <select name="role" title="Perfil de acesso">
           <option value="autor">Autor</option>
           <option value="coordenador">Coordenador</option>
           <option value="admin">Admin</option>

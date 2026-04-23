@@ -1,0 +1,31 @@
+[tool.pylint.MASTER]
+ignore = [".venv", "venv", "_extracted_text", "relatorios_entregues"]
+extension-pkg-allow-list = ["pydantic", "bcrypt"]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "import-error",
+    "no-name-in-module",
+    "line-too-long",
+    "broad-exception-caught",
+    "broad-except",
+    "too-few-public-methods",
+    "unused-argument",
+    "invalid-name",
+    "fixme",
+]
+
+[tool.pylint.FORMAT]
+max-line-length = 120
+
+[tool.pyright]
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E501", "E402", "W503", "E203"]
+exclude = [".venv", "venv", "_extracted_text", "relatorios_entregues"]

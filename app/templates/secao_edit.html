@@ -13,7 +13,7 @@
   <div class="sb2 actions-row">
     <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
       <label>Responsável</label>
-      <select name="responsavel_id">
+      <select name="responsavel_id" title="Responsável pela seção">
         <option value="">—</option>
         {% for a in autores %}
           <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
@@ -23,7 +23,7 @@
     </form>
     <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
       <label>Status</label>
-      <select name="status">
+      <select name="status" title="Status da seção">
         <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
         <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
         <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
@@ -48,34 +48,34 @@
         <div class="det-body">
           <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/editar">
             <label>Título</label>
-            <input name="titulo" value="{{ b.titulo or '' }}">
+            <input name="titulo" title="Título do bloco" placeholder="Título opcional" value="{{ b.titulo or '' }}">
             {% if b.tipo == 'figura' %}
               <label>Figura</label>
-              <select name="figura_id">
+              <select name="figura_id" title="Figura associada">
                 <option value="">—</option>
                 {% for f in figuras %}
                   <option value="{{ f.id }}" {% if b.figura_id==f.id %}selected{% endif %}>{{ f.nome }}</option>
                 {% endfor %}
               </select>
               {% if b.figura %}
-                <img src="/figuras/{{ b.figura.id }}" alt="" style="max-width:280px;display:block;margin:8px 0;border:1px solid #d5dce6;border-radius:4px">
+                <img src="/figuras/{{ b.figura.id }}" alt="{{ b.figura.nome }}" class="fig-thumb">
               {% endif %}
-              <label>Legenda</label><input name="legenda" value="{{ b.legenda or '' }}">
-              <label>Fonte</label><input name="fonte" value="{{ b.fonte or '' }}">
+              <label>Legenda</label><input name="legenda" title="Legenda da figura" placeholder="Texto da legenda" value="{{ b.legenda or '' }}">
+              <label>Fonte</label><input name="fonte" title="Fonte da figura" placeholder="Origem dos dados" value="{{ b.fonte or '' }}">
             {% elif b.tipo == 'tabela' %}
               <label>Tabela (HTML simples ou CSV — use linhas separadas por quebra e colunas por <code>|</code>)</label>
-              <textarea name="conteudo" rows="6">{{ b.conteudo or '' }}</textarea>
-              <label>Legenda</label><input name="legenda" value="{{ b.legenda or '' }}">
-              <label>Fonte</label><input name="fonte" value="{{ b.fonte or '' }}">
+              <textarea name="conteudo" rows="6" title="Conteúdo da tabela" placeholder="col1|col2|col3">{{ b.conteudo or '' }}</textarea>
+              <label>Legenda</label><input name="legenda" title="Legenda da tabela" placeholder="Texto da legenda" value="{{ b.legenda or '' }}">
+              <label>Fonte</label><input name="fonte" title="Fonte da tabela" placeholder="Origem dos dados" value="{{ b.fonte or '' }}">
             {% else %}
               <label>Conteúdo (texto / lista — uma linha por item para listas)</label>
-              <textarea name="conteudo" rows="8">{{ b.conteudo or '' }}</textarea>
+              <textarea name="conteudo" rows="8" title="Conteúdo do bloco" placeholder="Texto livre ou itens da lista">{{ b.conteudo or '' }}</textarea>
             {% endif %}
             <div class="actions-row">
               <button type="submit">Salvar</button>
             </div>
           </form>
-          <div class="actions-row" style="margin-top:8px">
+          <div class="actions-row mt-8">
             <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/mover">
               <input type="hidden" name="direcao" value="cima"><button class="secondary" type="submit">↑</button>
             </form>
@@ -101,25 +101,25 @@
   <div class="sb2">
     <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form">
       <div><label>Tipo</label>
-        <select name="tipo" required>
+        <select name="tipo" title="Tipo do bloco" required>
           <option value="texto">Texto</option>
           <option value="lista">Lista (uma linha por item)</option>
           <option value="figura">Figura</option>
           <option value="tabela">Tabela</option>
         </select>
       </div>
-      <div class="full"><label>Título</label><input name="titulo"></div>
+      <div class="full"><label>Título</label><input name="titulo" title="Título do bloco" placeholder="Título opcional"></div>
       <div class="full"><label>Conteúdo (texto, lista ou tabela <code>col|col</code>)</label>
-        <textarea name="conteudo" rows="6"></textarea>
+        <textarea name="conteudo" rows="6" title="Conteúdo do bloco" placeholder="Conteúdo do bloco"></textarea>
       </div>
       <div><label>Figura (se tipo=figura)</label>
-        <select name="figura_id">
+        <select name="figura_id" title="Figura associada">
           <option value="">—</option>
           {% for f in figuras %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}
         </select>
       </div>
-      <div><label>Legenda</label><input name="legenda"></div>
-      <div><label>Fonte</label><input name="fonte"></div>
+      <div><label>Legenda</label><input name="legenda" title="Legenda" placeholder="Texto da legenda"></div>
+      <div><label>Fonte</label><input name="fonte" title="Fonte" placeholder="Origem dos dados"></div>
       <div class="full"><button type="submit">Adicionar bloco</button></div>
     </form>
   </div>
@@ -130,10 +130,10 @@
   <div class="sb2">
     <form method="post" action="/relatorios/{{ rel.id }}/figuras" enctype="multipart/form-data" class="grid-form">
       <div class="full"><label>Arquivo (PNG/JPG/SVG, até 8 MB)</label>
-        <input type="file" name="arquivo" accept="image/*" required>
+        <input type="file" name="arquivo" accept="image/*" title="Arquivo de imagem" required>
       </div>
-      <div><label>Legenda</label><input name="legenda"></div>
-      <div><label>Fonte</label><input name="fonte"></div>
+      <div><label>Legenda</label><input name="legenda" title="Legenda da figura" placeholder="Texto da legenda"></div>
+      <div><label>Fonte</label><input name="fonte" title="Fonte da figura" placeholder="Origem dos dados"></div>
       <div class="full"><button type="submit">Enviar figura</button></div>
     </form>
     {% if figuras %}

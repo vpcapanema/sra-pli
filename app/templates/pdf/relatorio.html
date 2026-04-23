@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ rel.codigo }} – {{ rel.titulo }}</title>
 <style>
 @page {
@@ -84,6 +85,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
 .bloco p{ text-align: justify; margin-bottom: 6pt; }
 .bloco ul{ padding-left: 18pt; margin: 4pt 0 8pt; }
 .bloco ul li{ margin-bottom: 3pt; line-height:1.55; }
+.empty-section{ color:#7a8694; font-style:italic; }
 .figura{ text-align:center; margin: 10pt 0 14pt; page-break-inside: avoid; }
 .figura img{ max-width: 100%; max-height: 110mm; border: 0.5pt solid #d5dce6; }
 .figura .cap{ font-size: 9pt; color:#4f5d6e; margin-top: 4pt; font-style: italic; }
@@ -142,12 +144,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
 <!-- ===================== SUMÁRIO ===================== -->
 <section class="sumario">
   <h2>Sumário</h2>
-  <ol>
-    {% for s in secoes %}
-      <li><span class="num">{{ s.numero }}</span><span class="ttl">{{ s.titulo }}</span></li>
-    {% endfor %}
-    <li><span class="num">—</span><span class="ttl">Página de assinaturas</span></li>
-  </ol>
+  {{ sumario_html|safe }}
 </section>
 
 <!-- ===================== SEÇÕES ===================== -->
@@ -163,11 +160,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
             {% if par.strip() %}<p>{{ par.strip() }}</p>{% endif %}
           {% endfor %}
         {% elif b.tipo == 'lista' %}
-          <ul>
-            {% for it in (b.conteudo or '').splitlines() if it.strip() %}
-              <li>{{ it.strip() }}</li>
-            {% endfor %}
-          </ul>
+          {{ b.lista_html|safe }}
         {% elif b.tipo == 'figura' and b.src %}
           <div class="figura">
             <img src="{{ b.src }}" alt="">
@@ -194,7 +187,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
       </div>
     {% endfor %}
   {% else %}
-    <p style="color:#7a8694;font-style:italic">— sem conteúdo nesta seção —</p>
+    <p class="empty-section">— sem conteúdo nesta seção —</p>
   {% endif %}
 </section>
 {% endfor %}

@@ -1,6 +1,6 @@
-from datetime import datetime, date
+from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date, ForeignKey, LargeBinary, Boolean, UniqueConstraint
+    Column, Integer, String, Text, DateTime, Date, ForeignKey, LargeBinary, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from .db import Base
