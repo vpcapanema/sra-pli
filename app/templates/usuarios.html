@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block header %}Usuários{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Equipe e permissões</h1>
+  <div class="subtitle">Cadastro de autores, coordenadores e administradores</div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo usuário</span></div>
+  <div class="sb2">
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/usuarios" class="grid-form">
+      <div><label>Nome</label><input name="nome" required></div>
+      <div><label>E-mail</label><input type="email" name="email" required></div>
+      <div><label>Senha</label><input type="password" name="password" required></div>
+      <div><label>Perfil</label>
+        <select name="role">
+          <option value="autor">Autor</option>
+          <option value="coordenador">Coordenador</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="full"><button type="submit">Cadastrar</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">●</span><span class="st">Equipe cadastrada</span></div>
+  <div class="sb2">
+    <table>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Criado em</th></tr></thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td><strong>{{ u.nome }}</strong></td>
+          <td>{{ u.email }}</td>
+          <td><span class="tag accent">{{ u.role }}</span></td>
+          <td>{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

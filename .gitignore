@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.sqlite
+*.db
+.vscode/
+_extracted_text/
+relatorios_entregues/
+_extract_pdfs.py
+uploads/
+*.log
+.DS_Store
+.pytest_cache/

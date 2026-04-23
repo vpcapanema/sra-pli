@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: sra-pli
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sra-pli-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@concremat.local
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: APP_ENV
+        value: production
+
+databases:
+  - name: sra-pli-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"

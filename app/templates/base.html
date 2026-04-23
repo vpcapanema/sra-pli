@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% block title %}{{ user and user.nome or 'SRA' }}{% endblock %} · SRA</title>
+<link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+{% if user %}
+<aside id="sb">
+  <div id="sb-hdr">
+    <h1>SRA · PLI-SP</h1>
+    <p>Sistema de Relatórios de Atividades<br>Concremat–Transplan</p>
+  </div>
+  <nav>
+    <span class="sb-sep">Navegação</span>
+    <a class="ni {% if request.url.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+      <span class="num">01</span><span class="nlbl">Relatórios</span>
+    </a>
+    {% if user.role in ['admin','coordenador'] %}
+    <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
+      <span class="num">02</span><span class="nlbl">Usuários</span>
+    </a>
+    {% endif %}
+  </nav>
+  <div id="sb-foot">
+    {{ user.nome }}<br>
+    <span style="color:rgba(255,255,255,.55)">{{ user.role }}</span><br>
+    <a href="/logout" style="color:#3ec26e">Sair</a>
+  </div>
+</aside>
+<div id="main">
+  <header id="dh">
+    <h2>{% block header %}{% endblock %}</h2>
+    <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
+  </header>
+  <div id="content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+{% else %}
+<div id="auth-wrap">
+  {% block auth %}{% endblock %}
+</div>
+{% endif %}
+</body>
+</html>

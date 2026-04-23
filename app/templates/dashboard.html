@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block header %}Relatórios mensais D20{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Relatórios mensais</h1>
+  <div class="subtitle">Compilação semi-automática · padrão visual PLI-SP 2050</div>
+  <p>Cada autor preenche apenas a sua seção; o sistema valida, compila e gera o PDF final.</p>
+</section>
+
+{% if user.role in ['admin','coordenador'] %}
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo relatório</span></div>
+  <div class="sb2">
+    <form method="post" action="/relatorios" class="grid-form">
+      <div><label>Código</label><input name="codigo" placeholder="D20-13" required></div>
+      <div><label>Mês de referência</label><input name="mes_referencia" placeholder="Abril/2026" required></div>
+      <div class="full"><label>Título</label><input name="titulo" placeholder="Relatório Mensal D20-13" required></div>
+      <div><label>Período início</label><input type="date" name="periodo_inicio" required></div>
+      <div><label>Período fim</label><input type="date" name="periodo_fim" required></div>
+      <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1"></div>
+      <div class="full"><button type="submit">Criar relatório</button></div>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">●</span><span class="st">Relatórios cadastrados</span></div>
+  <div class="sb2">
+    {% if relatorios %}
+    <table>
+      <thead><tr><th>Código</th><th>Mês</th><th>Período</th><th>Versão</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for r in relatorios %}
+        <tr>
+          <td><strong>{{ r.codigo }}</strong></td>
+          <td>{{ r.mes_referencia }}</td>
+          <td>{{ r.periodo_inicio.strftime('%d/%m/%Y') }} – {{ r.periodo_fim.strftime('%d/%m/%Y') }}</td>
+          <td><span class="tag accent">{{ r.versao }}</span></td>
+          <td>
+            {% if r.status == 'finalizado' %}<span class="sbadge s-completo">finalizado</span>
+            {% elif r.status == 'em_revisao' %}<span class="sbadge s-andamento">em revisão</span>
+            {% else %}<span class="sbadge s-pendente">aberto</span>{% endif %}
+          </td>
+          <td><a href="/relatorios/{{ r.id }}">abrir →</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="sdesc">Nenhum relatório cadastrado ainda.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

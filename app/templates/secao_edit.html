@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block header %}{{ rel.codigo }} · Seção {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
+  <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }}</div>
+  <p><a href="/relatorios/{{ rel.id }}">← voltar ao sumário</a></p>
+</section>
+
+{% if user.role in ['admin','coordenador'] %}
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">⚙</span><span class="st">Coordenação da seção</span></div>
+  <div class="sb2 actions-row">
+    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
+      <label>Responsável</label>
+      <select name="responsavel_id">
+        <option value="">—</option>
+        {% for a in autores %}
+          <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Atribuir</button>
+    </form>
+    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
+      <label>Status</label>
+      <select name="status">
+        <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
+        <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
+        <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
+      </select>
+      <button type="submit">Atualizar</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">●</span><span class="st">Blocos de conteúdo</span></div>
+  <div class="sb2">
+    {% if sec.blocos %}
+    {% for b in sec.blocos %}
+      <details class="bloco">
+        <summary>
+          <span class="tag accent">{{ b.tipo }}</span>
+          <strong>{{ b.titulo or '(sem título)' }}</strong>
+          <span class="meta-inline">por {{ b.autor.nome if b.autor else '—' }} · {{ b.updated_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        </summary>
+        <div class="det-body">
+          <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/editar">
+            <label>Título</label>
+            <input name="titulo" value="{{ b.titulo or '' }}">
+            {% if b.tipo == 'figura' %}
+              <label>Figura</label>
+              <select name="figura_id">
+                <option value="">—</option>
+                {% for f in figuras %}
+                  <option value="{{ f.id }}" {% if b.figura_id==f.id %}selected{% endif %}>{{ f.nome }}</option>
+                {% endfor %}
+              </select>
+              {% if b.figura %}
+                <img src="/figuras/{{ b.figura.id }}" alt="" style="max-width:280px;display:block;margin:8px 0;border:1px solid #d5dce6;border-radius:4px">
+              {% endif %}
+              <label>Legenda</label><input name="legenda" value="{{ b.legenda or '' }}">
+              <label>Fonte</label><input name="fonte" value="{{ b.fonte or '' }}">
+            {% elif b.tipo == 'tabela' %}
+              <label>Tabela (HTML simples ou CSV — use linhas separadas por quebra e colunas por <code>|</code>)</label>
+              <textarea name="conteudo" rows="6">{{ b.conteudo or '' }}</textarea>
+              <label>Legenda</label><input name="legenda" value="{{ b.legenda or '' }}">
+              <label>Fonte</label><input name="fonte" value="{{ b.fonte or '' }}">
+            {% else %}
+              <label>Conteúdo (texto / lista — uma linha por item para listas)</label>
+              <textarea name="conteudo" rows="8">{{ b.conteudo or '' }}</textarea>
+            {% endif %}
+            <div class="actions-row">
+              <button type="submit">Salvar</button>
+            </div>
+          </form>
+          <div class="actions-row" style="margin-top:8px">
+            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/mover">
+              <input type="hidden" name="direcao" value="cima"><button class="secondary" type="submit">↑</button>
+            </form>
+            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/mover">
+              <input type="hidden" name="direcao" value="baixo"><button class="secondary" type="submit">↓</button>
+            </form>
+            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir"
+                  onsubmit="return confirm('Excluir este bloco?')">
+              <button class="danger" type="submit">Excluir</button>
+            </form>
+          </div>
+        </div>
+      </details>
+    {% endfor %}
+    {% else %}
+      <p class="sdesc">Nenhum bloco ainda. Adicione abaixo.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">+</span><span class="st">Adicionar bloco</span></div>
+  <div class="sb2">
+    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form">
+      <div><label>Tipo</label>
+        <select name="tipo" required>
+          <option value="texto">Texto</option>
+          <option value="lista">Lista (uma linha por item)</option>
+          <option value="figura">Figura</option>
+          <option value="tabela">Tabela</option>
+        </select>
+      </div>
+      <div class="full"><label>Título</label><input name="titulo"></div>
+      <div class="full"><label>Conteúdo (texto, lista ou tabela <code>col|col</code>)</label>
+        <textarea name="conteudo" rows="6"></textarea>
+      </div>
+      <div><label>Figura (se tipo=figura)</label>
+        <select name="figura_id">
+          <option value="">—</option>
+          {% for f in figuras %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Legenda</label><input name="legenda"></div>
+      <div><label>Fonte</label><input name="fonte"></div>
+      <div class="full"><button type="submit">Adicionar bloco</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">↑</span><span class="st">Upload de figuras (compartilhadas no relatório)</span></div>
+  <div class="sb2">
+    <form method="post" action="/relatorios/{{ rel.id }}/figuras" enctype="multipart/form-data" class="grid-form">
+      <div class="full"><label>Arquivo (PNG/JPG/SVG, até 8 MB)</label>
+        <input type="file" name="arquivo" accept="image/*" required>
+      </div>
+      <div><label>Legenda</label><input name="legenda"></div>
+      <div><label>Fonte</label><input name="fonte"></div>
+      <div class="full"><button type="submit">Enviar figura</button></div>
+    </form>
+    {% if figuras %}
+    <div class="fig-grid">
+      {% for f in figuras %}
+        <div class="fig-card">
+          <img src="/figuras/{{ f.id }}" alt="{{ f.nome }}">
+          <div class="fig-meta"><strong>#{{ f.id }}</strong> {{ f.nome }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

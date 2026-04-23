@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>{{ rel.codigo }} – {{ rel.titulo }}</title>
+<style>
+@page {
+  size: A4;
+  margin: 28mm 18mm 22mm 18mm;
+  @top-left {
+    content: "PLI/SP-2050 · Plano de Logística e Investimentos do Estado de São Paulo";
+    font-family: 'Helvetica', sans-serif; font-size: 8pt; color: #1c3d59;
+    border-bottom: 0.5pt solid #1c3d59; padding-bottom: 4pt; width: 100%;
+  }
+  @top-right {
+    content: "{{ rel.codigo }} · {{ rel.versao }}";
+    font-family: 'Helvetica', sans-serif; font-size: 8pt; color: #1c3d59;
+    border-bottom: 0.5pt solid #1c3d59; padding-bottom: 4pt;
+  }
+  @bottom-left {
+    content: "Consórcio Concremat–Transplan";
+    font-family: 'Helvetica', sans-serif; font-size: 7.5pt; color: #4f5d6e;
+    border-top: 0.5pt solid #d5dce6; padding-top: 4pt;
+  }
+  @bottom-right {
+    content: "página " counter(page) " de " counter(pages);
+    font-family: 'Helvetica', sans-serif; font-size: 7.5pt; color: #4f5d6e;
+    border-top: 0.5pt solid #d5dce6; padding-top: 4pt;
+  }
+}
+@page :first {
+  margin: 0;
+  @top-left { content: ""; border: none; }
+  @top-right { content: ""; border: none; }
+  @bottom-left { content: ""; border: none; }
+  @bottom-right { content: ""; border: none; }
+}
+@page sumario {
+  @top-left { content: "PLI/SP-2050 · Sumário"; }
+}
+body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-height: 1.55; color: #1a1a2e; }
+
+/* Capa */
+.capa{
+  page: capa; height: 297mm; width: 210mm; margin: 0; padding: 0;
+  background: linear-gradient(160deg,#003b5a 0%,#1c3d59 55%,#116593 100%);
+  color: #fff; position: relative; page-break-after: always;
+}
+.capa .faixa-topo{ position:absolute; top:0; left:0; right:0; height:14mm; background:#3ec26e; }
+.capa .faixa-base{ position:absolute; bottom:0; left:0; right:0; height:8mm; background:#3ec26e; }
+.capa .marca{ position:absolute; top:30mm; left:18mm; font-size:11pt; letter-spacing:3pt; text-transform:uppercase; color:#3ec26e; font-weight:700; }
+.capa .programa{ position:absolute; top:38mm; left:18mm; font-size:9pt; color:rgba(255,255,255,.75); letter-spacing:1pt; }
+.capa .titulo-principal{ position:absolute; top:90mm; left:18mm; right:18mm; font-size:32pt; font-weight:700; line-height:1.15; color:#fff; }
+.capa .subt{ position:absolute; top:160mm; left:18mm; right:18mm; font-size:14pt; color:rgba(255,255,255,.85); line-height:1.4; }
+.capa .meta{ position:absolute; bottom:30mm; left:18mm; right:18mm; font-size:10pt; color:rgba(255,255,255,.85); line-height:1.7; }
+.capa .meta strong{ color:#3ec26e; text-transform:uppercase; letter-spacing:1pt; font-size:8.5pt; display:block; }
+.capa .grid-meta{ display:flex; gap:18mm; flex-wrap:wrap; }
+.capa .grid-meta > div{ flex:1 1 60mm; }
+
+/* Ficha técnica */
+.ficha{ page-break-after: always; padding-top: 8mm; }
+.ficha h2{ color:#1c3d59; font-size:14pt; border-bottom:2pt solid #3ec26e; padding-bottom:4pt; margin-bottom:14pt; }
+.ficha table{ width:100%; border-collapse:collapse; font-size:10pt; }
+.ficha td{ padding:7pt 10pt; border-bottom:0.5pt solid #d5dce6; vertical-align:top; }
+.ficha td:first-child{ width:38mm; font-weight:700; color:#1c3d59; background:#f0f5fa; }
+
+/* Sumário */
+.sumario{ page: sumario; page-break-after: always; padding-top: 6mm; }
+.sumario h2{ color:#1c3d59; font-size:14pt; border-bottom:2pt solid #3ec26e; padding-bottom:4pt; margin-bottom:14pt; }
+.sumario ol{ list-style:none; padding:0; margin:0; counter-reset:item; }
+.sumario li{ display:flex; padding:5pt 0; border-bottom:0.3pt dotted #d5dce6; font-size:10.5pt; }
+.sumario li .num{ width:18mm; font-weight:700; color:#116593; }
+.sumario li .ttl{ flex:1; }
+
+/* Seções */
+.secao{ page-break-before: always; }
+.secao h1{
+  font-size: 16pt; color:#1c3d59; padding: 10pt 0 6pt; margin-bottom: 10pt;
+  border-bottom: 2pt solid #3ec26e;
+}
+.secao h1 .num{ color:#116593; margin-right:8pt; }
+.bloco{ margin: 8pt 0 14pt; }
+.bloco h3{ font-size: 11.5pt; color:#1c3d59; margin: 6pt 0 4pt; font-weight:700; }
+.bloco p{ text-align: justify; margin-bottom: 6pt; }
+.bloco ul{ padding-left: 18pt; margin: 4pt 0 8pt; }
+.bloco ul li{ margin-bottom: 3pt; line-height:1.55; }
+.figura{ text-align:center; margin: 10pt 0 14pt; page-break-inside: avoid; }
+.figura img{ max-width: 100%; max-height: 110mm; border: 0.5pt solid #d5dce6; }
+.figura .cap{ font-size: 9pt; color:#4f5d6e; margin-top: 4pt; font-style: italic; }
+.figura .src{ font-size: 8.5pt; color:#7a8694; }
+.tabela{ margin: 8pt 0 14pt; page-break-inside: avoid; }
+.tabela .cap{ font-size:9pt; color:#1c3d59; font-weight:700; margin-bottom:4pt; }
+.tabela table{ width:100%; border-collapse:collapse; font-size:9.5pt; }
+.tabela th{ background:#1c3d59; color:#fff; padding:5pt 7pt; text-align:left; font-size:8.5pt; text-transform:uppercase; }
+.tabela td{ padding:5pt 7pt; border-bottom:0.4pt solid #d5dce6; vertical-align:top; }
+.tabela .src{ font-size:8.5pt; color:#7a8694; margin-top:3pt; }
+
+/* Página de assinaturas */
+.assinaturas{ page-break-before: always; padding-top: 10mm; }
+.assinaturas h2{ color:#1c3d59; font-size:14pt; border-bottom:2pt solid #3ec26e; padding-bottom:4pt; margin-bottom:18pt; }
+.assinaturas .sig-row{ margin-top: 30pt; }
+.assinaturas .linha{ border-top: 1pt solid #1c3d59; width: 80mm; margin-top: 35pt; padding-top: 4pt; font-size: 9.5pt; }
+.assinaturas .nota{ margin-top: 30pt; font-size: 8.5pt; color:#4f5d6e; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- ===================== CAPA ===================== -->
+<section class="capa">
+  <div class="faixa-topo"></div>
+  <div class="marca">Concremat · Transplan</div>
+  <div class="programa">Plano de Logística e Investimentos do Estado de São Paulo · PLI/SP-2050</div>
+  <div class="titulo-principal">{{ rel.titulo }}</div>
+  <div class="subt">{{ rel.codigo }} — Relatório Mensal de Atividades<br>{{ rel.mes_referencia }}</div>
+  <div class="meta">
+    <div class="grid-meta">
+      <div><strong>Período</strong>{{ rel.periodo_inicio.strftime('%d/%m/%Y') }} a {{ rel.periodo_fim.strftime('%d/%m/%Y') }}</div>
+      <div><strong>Versão</strong>{{ rel.versao }}</div>
+      {% if rel.numero_medicao %}<div><strong>Medição</strong>nº {{ rel.numero_medicao }}</div>{% endif %}
+      <div><strong>Emissão</strong>{{ hoje.strftime('%d/%m/%Y') }}</div>
+    </div>
+  </div>
+  <div class="faixa-base"></div>
+</section>
+
+<!-- ===================== FICHA TÉCNICA ===================== -->
+<section class="ficha">
+  <h2>Ficha técnica do documento</h2>
+  <table>
+    <tr><td>Contratante</td><td>Secretaria de Meio Ambiente, Infraestrutura e Logística (SEMIL) — DER/SP</td></tr>
+    <tr><td>Contratada</td><td>Consórcio Concremat–Transplan</td></tr>
+    <tr><td>Contrato</td><td>22.607-5 · PLI/SP-2050 (financiamento BID)</td></tr>
+    <tr><td>Documento</td><td>{{ rel.codigo }} — {{ rel.titulo }}</td></tr>
+    <tr><td>Mês de referência</td><td>{{ rel.mes_referencia }}</td></tr>
+    <tr><td>Período</td><td>{{ rel.periodo_inicio.strftime('%d/%m/%Y') }} a {{ rel.periodo_fim.strftime('%d/%m/%Y') }}</td></tr>
+    <tr><td>Versão</td><td>{{ rel.versao }}</td></tr>
+    <tr><td>Status</td><td>{{ rel.status }}</td></tr>
+    <tr><td>Data de emissão</td><td>{{ hoje.strftime('%d/%m/%Y') }}</td></tr>
+  </table>
+</section>
+
+<!-- ===================== SUMÁRIO ===================== -->
+<section class="sumario">
+  <h2>Sumário</h2>
+  <ol>
+    {% for s in secoes %}
+      <li><span class="num">{{ s.numero }}</span><span class="ttl">{{ s.titulo }}</span></li>
+    {% endfor %}
+    <li><span class="num">—</span><span class="ttl">Página de assinaturas</span></li>
+  </ol>
+</section>
+
+<!-- ===================== SEÇÕES ===================== -->
+{% for s in secoes %}
+<section class="secao">
+  <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
+  {% if s.blocos %}
+    {% for b in s.blocos %}
+      <div class="bloco">
+        {% if b.titulo %}<h3>{{ b.titulo }}</h3>{% endif %}
+        {% if b.tipo == 'texto' %}
+          {% for par in (b.conteudo or '').split('\n\n') %}
+            {% if par.strip() %}<p>{{ par.strip() }}</p>{% endif %}
+          {% endfor %}
+        {% elif b.tipo == 'lista' %}
+          <ul>
+            {% for it in (b.conteudo or '').splitlines() if it.strip() %}
+              <li>{{ it.strip() }}</li>
+            {% endfor %}
+          </ul>
+        {% elif b.tipo == 'figura' and b.src %}
+          <div class="figura">
+            <img src="{{ b.src }}" alt="">
+            <div class="cap">Figura {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}</div>
+            {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
+          </div>
+        {% elif b.tipo == 'tabela' %}
+          <div class="tabela">
+            {% if b.legenda %}<div class="cap">Tabela {{ b.numero }} — {{ b.legenda }}</div>{% endif %}
+            <table>
+              {% set linhas = (b.conteudo or '').splitlines() %}
+              {% for ln in linhas if ln.strip() %}
+                {% if loop.first %}
+                  <thead><tr>{% for c in ln.split('|') %}<th>{{ c.strip() }}</th>{% endfor %}</tr></thead><tbody>
+                {% else %}
+                  <tr>{% for c in ln.split('|') %}<td>{{ c.strip() }}</td>{% endfor %}</tr>
+                {% endif %}
+              {% endfor %}
+              </tbody>
+            </table>
+            {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:#7a8694;font-style:italic">— sem conteúdo nesta seção —</p>
+  {% endif %}
+</section>
+{% endfor %}
+
+<!-- ===================== ASSINATURAS ===================== -->
+<section class="assinaturas">
+  <h2>Página de assinaturas</h2>
+  <p>Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime('%d/%m/%Y') }}, e está pronto para assinatura eletrônica via plataforma D4Sign.</p>
+  <div class="sig-row">
+    <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
+  </div>
+  <div class="sig-row">
+    <div class="linha">Fiscalização — SEMIL/DER-SP</div>
+  </div>
+  <div class="nota">
+    Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
+    Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
+  </div>
+</section>
+
+</body>
+</html>

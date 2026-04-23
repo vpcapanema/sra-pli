@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>{{ rel.titulo }}</h1>
+  <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }} · versão {{ rel.versao }}</div>
+  <div class="chips">
+    <span class="chip">{{ rel.periodo_inicio.strftime('%d/%m/%Y') }} – {{ rel.periodo_fim.strftime('%d/%m/%Y') }}</span>
+    {% if rel.numero_medicao %}<span class="chip">Medição nº {{ rel.numero_medicao }}</span>{% endif %}
+    <span class="chip">Status: {{ rel.status }}</span>
+  </div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">●</span><span class="st">Sumário do relatório</span>
+    <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Gerar PDF</a>
+  </div>
+  <div class="sb2">
+    <table>
+      <thead><tr><th>#</th><th>Seção</th><th>Responsável</th><th>Blocos</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for s in rel.secoes %}
+        <tr>
+          <td><strong>{{ s.numero }}</strong></td>
+          <td>{{ s.titulo }}</td>
+          <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
+          <td>{{ s.blocos|length }}</td>
+          <td>
+            {% if s.status == 'aprovada' %}<span class="sbadge s-completo">aprovada</span>
+            {% elif s.status == 'em_andamento' %}<span class="sbadge s-andamento">em andamento</span>
+            {% else %}<span class="sbadge s-pendente">pendente</span>{% endif %}
+          </td>
+          <td><a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if user.role in ['admin','coordenador'] %}
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">⚙</span><span class="st">Ações de coordenação</span></div>
+  <div class="sb2 actions-row">
+    <form method="post" action="/relatorios/{{ rel.id }}/status">
+      <select name="status">
+        <option value="aberto" {% if rel.status=='aberto' %}selected{% endif %}>Aberto</option>
+        <option value="em_revisao" {% if rel.status=='em_revisao' %}selected{% endif %}>Em revisão</option>
+        <option value="finalizado" {% if rel.status=='finalizado' %}selected{% endif %}>Finalizado</option>
+      </select>
+      <button type="submit">Atualizar status</button>
+    </form>
+    <form method="post" action="/relatorios/{{ rel.id }}/versao">
+      <button type="submit" class="secondary">Nova versão (+1)</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
