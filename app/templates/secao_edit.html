@@ -151,7 +151,7 @@
       <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
 
       <div class="full add-bloco-grid">
-        <div class="add-bloco-conteudo-col">
+        <div class="add-bloco-conteudo-head">
           <label>Conteúdo</label>
           <div class="bloco-toolbar" role="toolbar" aria-label="Formatação do conteúdo">
             <button type="button" data-act="titulo" title="Inserir título (# )">H1</button>
@@ -160,6 +160,8 @@
             <button type="button" data-act="lista" title="Marcar como lista (uma linha por item)">≣ Lista</button>
             <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
           </div>
+        </div>
+        <div class="add-bloco-conteudo-body">
           <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
           <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
             <span class="bs-lbl">Linha atual:</span>
@@ -607,10 +609,11 @@
 .bloco-toolbar { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
 .bloco-toolbar button { padding:5px 10px; font-size:12px; cursor:pointer; }
 
-.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:14px; align-items:stretch; }
-@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; align-items:start; } }
-.add-bloco-conteudo-col { display:flex; flex-direction:column; min-width:0; }
-.add-bloco-conteudo-col textarea { width:100%; flex:1; min-height:520px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; line-height:1.5; tab-size:2; white-space:pre; overflow:auto; }
+.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; grid-template-rows: auto 1fr; gap:8px 14px; align-items:stretch; }
+@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; grid-template-rows: auto auto auto; } .add-bloco-side { grid-column: 1 !important; grid-row: auto !important; } }
+.add-bloco-conteudo-head { grid-column: 1; grid-row: 1; }
+.add-bloco-conteudo-body { grid-column: 1; grid-row: 2; display:flex; flex-direction:column; min-width:0; }
+.add-bloco-conteudo-body textarea { width:100%; flex:1; min-height:520px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; line-height:1.5; tab-size:2; white-space:pre; overflow:auto; }
 .bloco-status-bar { display:flex; gap:8px; align-items:center; padding:5px 12px; font-size:11.5px; background:#eef2f7; border:1px solid var(--border); border-top:none; border-radius:0 0 4px 4px; color:#3a4a5e; }
 .bloco-status-bar .bs-lbl { font-weight:600; color:var(--navy); }
 .bloco-status-bar .bs-tag { padding:1px 9px; border-radius:10px; background:var(--blue); color:#fff; font-weight:600; font-size:11px; letter-spacing:.02em; }
@@ -648,7 +651,7 @@
 .tab-editor-foot button { font-size:12px; padding:7px 16px; }
 
 /* Aside equalizado: dois cards preenchem a coluna lateral sem espaço morto */
-.add-bloco-side { display:grid; grid-template-rows: 1fr 1fr; gap:10px; min-height:520px; }
+.add-bloco-side { grid-column: 2; grid-row: 2; display:grid; grid-template-rows: 1fr 1fr; gap:10px; min-height:520px; }
 .mini-card { border:1px solid var(--border); border-radius:5px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
 .mini-card-figura .mini-card-hdr { background:#eaf3ff; color:var(--navy); }
 .mini-card-tabela .mini-card-hdr { background:#eaf3ff; color:var(--navy); }
