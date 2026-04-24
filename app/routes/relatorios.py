@@ -327,3 +327,25 @@ def excluir_subsecao(
     db.delete(sec)
     db.commit()
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
+
+
+@router.post("/{rel_id}/secoes/{sec_id}/renomear")
+def renomear_secao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    titulo: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = _require(request, db)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    sec = db.get(Secao, sec_id)
+    if not sec or sec.relatorio_id != rel_id:
+        raise HTTPException(404)
+    titulo = titulo.strip()
+    if not titulo:
+        raise HTTPException(400, detail="Título não pode ser vazio")
+    sec.titulo = titulo
+    db.commit()
+    return RedirectResponse(f"/relatorios/{rel_id}/secoes/{sec_id}", status_code=303)

@@ -108,35 +108,343 @@
 </section>
 
 <section class="ss active-tab">
-  <div class="ss-hdr"><span class="sn">+</span><span class="st">Adicionar bloco</span></div>
+  <div class="ss-hdr"><span class="sn">+</span><span class="st">Adicionar bloco · Seção {{ sec.numero }} – {{ sec.titulo }}</span></div>
   <div class="sb2">
-    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form">
-      <div><label>Tipo</label>
-        <select name="tipo" title="Tipo do bloco" required>
-          <option value="texto">Texto</option>
-          <option value="lista">Lista (uma linha por item)</option>
-          <option value="figura">Figura</option>
-          <option value="tabela">Tabela</option>
+    {% if user.role in ['admin','coordenador'] %}
+    <div class="sec-control">
+      <div class="sec-control-row">
+        <label for="sec-nav">Seção atual</label>
+        <select id="sec-nav" title="Trocar de seção">
+          {% for s in rel.secoes %}
+            <option value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
+          {% endfor %}
         </select>
+        <button type="button" class="secondary" id="btn-renomear-sec" title="Renomear esta seção">✎ Renomear</button>
+        <button type="button" class="secondary" id="btn-nova-sub" title="Criar nova subseção">+ Subseção</button>
+        {% if '.' in sec.numero %}
+        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir" onsubmit="return confirm('Excluir a seção {{ sec.numero }} – {{ sec.titulo }} e todos os seus blocos?')" class="sec-control-inline">
+          <button type="submit" class="danger">🗑 Excluir</button>
+        </form>
+        {% endif %}
       </div>
-      <div class="full"><label>Título</label><input name="titulo" title="Título do bloco" placeholder="Título opcional"></div>
-      <div class="full"><label>Conteúdo (texto, lista ou tabela <code>col|col</code>)</label>
-        <textarea name="conteudo" rows="6" title="Conteúdo do bloco" placeholder="Conteúdo do bloco"></textarea>
-      </div>
-      <div><label>Figura (se tipo=figura)</label>
-        <select name="figura_id" title="Figura associada">
-          <option value="">—</option>
-          {% for f in figuras %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}
+
+      <form id="form-renomear-sec" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear">
+        <label>Novo título da seção {{ sec.numero }}</label>
+        <input type="text" name="titulo" value="{{ sec.titulo }}" required>
+        <button type="submit">Salvar</button>
+        <button type="button" class="secondary" data-cancel="form-renomear-sec">Cancelar</button>
+      </form>
+
+      <form id="form-nova-sub" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes">
+        <label>Número (ex.: {{ sec.numero }}.1)</label>
+        <input type="text" name="numero" placeholder="{{ sec.numero }}.1" required>
+        <label>Título da subseção</label>
+        <input type="text" name="titulo" placeholder="Título" required>
+        <button type="submit">Criar subseção</button>
+        <button type="button" class="secondary" data-cancel="form-nova-sub">Cancelar</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
+      <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
+      <div class="full">
+        <label for="add-bloco-titulo-sel">Título</label>
+        <select id="add-bloco-titulo-sel" title="Título do bloco">
+          <option value="__atual__" selected>{{ sec.numero }} – {{ sec.titulo }}</option>
+          <option value="__novo__">Novo título…</option>
         </select>
+        <input type="hidden" name="titulo" id="add-bloco-titulo">
+        <input type="text" id="add-bloco-titulo-novo" class="add-bloco-novo-input is-hidden" placeholder="Digite o novo título">
       </div>
-      <div><label>Legenda</label><input name="legenda" title="Legenda" placeholder="Texto da legenda"></div>
-      <div><label>Fonte</label><input name="fonte" title="Fonte" placeholder="Origem dos dados"></div>
+
+      <div class="full add-bloco-grid">
+        <div class="add-bloco-conteudo-col">
+          <label>Conteúdo</label>
+          <div class="bloco-toolbar" role="toolbar" aria-label="Formatação do conteúdo">
+            <button type="button" data-act="titulo" title="Inserir título (# )">H1</button>
+            <button type="button" data-act="subtitulo" title="Inserir subtítulo (## )">H2</button>
+            <button type="button" data-act="paragrafo" title="Marcar como parágrafo (texto livre)">¶</button>
+            <button type="button" data-act="lista" title="Marcar como lista (uma linha por item)">≣ Lista</button>
+            <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
+          </div>
+          <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
+        </div>
+
+        <aside class="add-bloco-side">
+          <div class="mini-card mini-card-figura">
+            <div class="mini-card-hdr"><span>🖼 Figura</span></div>
+            <div class="mini-card-body">
+              <label class="mini-label" for="ins-fig-sel">Figura</label>
+              <select id="ins-fig-sel" title="Figura disponível">
+                <option value="">— escolher —</option>
+                {% for f in figuras %}<option value="{{ f.id }}" data-nome="{{ f.nome }}">#{{ f.id }} {{ f.nome }}</option>{% endfor %}
+              </select>
+              <div id="ins-fig-preview" class="mini-fig-preview is-hidden"><img alt="prévia da figura" id="ins-fig-img"></div>
+              <label class="mini-label" for="ins-fig-leg">Legenda</label>
+              <input type="text" id="ins-fig-leg" placeholder="Ex.: Vista aérea da obra">
+              <div class="mini-actions">
+                <button type="button" id="ins-fig-btn" class="primary-mini">Inserir no cursor</button>
+                <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Fazer upload de uma figura nova e inserir no cursor">↑ Upload e inserir</button>
+              </div>
+              <input type="file" id="ins-fig-upload-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="is-hidden">
+              <p class="mini-hint">A indexação (Figura N) e a posição da legenda são geradas automaticamente no relatório.</p>
+            </div>
+          </div>
+
+          <div class="mini-card mini-card-tabela">
+            <div class="mini-card-hdr"><span>▦ Tabela</span></div>
+            <div class="mini-card-body">
+              <div class="mini-row">
+                <div>
+                  <label class="mini-label" for="ins-tab-rows">Linhas</label>
+                  <input type="number" id="ins-tab-rows" min="1" max="50" value="3" title="Linhas de dados (sem contar cabeçalho)">
+                </div>
+                <div>
+                  <label class="mini-label" for="ins-tab-cols">Colunas</label>
+                  <input type="number" id="ins-tab-cols" min="1" max="12" value="3" title="Número de colunas">
+                </div>
+              </div>
+              <label class="mini-label" for="ins-tab-leg">Legenda</label>
+              <input type="text" id="ins-tab-leg" placeholder="Ex.: Quantitativo de serviços">
+              <div class="mini-actions">
+                <button type="button" id="ins-tab-btn" class="primary-mini">Inserir no cursor</button>
+              </div>
+              <p class="mini-hint">Será inserida uma tabela vazia com cabeçalho. Edite as células direto no conteúdo. Estilo Concremat e numeração automáticos no relatório.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
       <div class="full"><button type="submit">Adicionar bloco</button></div>
     </form>
   </div>
 </section>
 
-<section class="ss active-tab">
+<script>
+(function(){
+  const form = document.getElementById('form-add-bloco'); if (!form) return;
+  const tipoIn = document.getElementById('add-bloco-tipo');
+  const tituloSel = document.getElementById('add-bloco-titulo-sel');
+  const tituloHidden = document.getElementById('add-bloco-titulo');
+  const tituloNovo = document.getElementById('add-bloco-titulo-novo');
+  const ta = document.getElementById('add-bloco-conteudo');
+  const tituloAtual = {{ ((sec.numero ~ ' – ' ~ (sec.titulo or '')))|tojson }};
+  const relId = {{ rel.id|tojson }};
+
+  function syncTitulo(){
+    if (tituloSel.value === '__novo__') {
+      tituloNovo.classList.remove('is-hidden');
+      tituloHidden.value = tituloNovo.value.trim();
+    } else {
+      tituloNovo.classList.add('is-hidden');
+      tituloHidden.value = tituloAtual;
+    }
+  }
+  tituloSel.addEventListener('change', syncTitulo);
+
+  function applyTituloMarker(novoTitulo){
+    const lines = ta.value.split('\n');
+    if (lines.length && /^#\s+/.test(lines[0])) lines.shift();
+    if (novoTitulo) lines.unshift('# ' + novoTitulo);
+    ta.value = lines.join('\n');
+  }
+  tituloNovo.addEventListener('input', () => {
+    tituloHidden.value = tituloNovo.value.trim();
+    applyTituloMarker(tituloHidden.value);
+  });
+  syncTitulo();
+
+  // Guarda última posição do cursor no textarea (perdida quando clicamos fora).
+  let lastCursor = { start: 0, end: 0 };
+  ta.addEventListener('blur', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
+  ta.addEventListener('keyup', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
+  ta.addEventListener('mouseup', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
+
+  function insertText(text, opts){
+    opts = opts || {};
+    const pos = (document.activeElement === ta) ? { start: ta.selectionStart, end: ta.selectionEnd } : lastCursor;
+    let before = ta.value.slice(0, pos.start);
+    let after = ta.value.slice(pos.end);
+    // Garante que blocos (figura/tabela) entrem em linha própria.
+    if (opts.blockLine) {
+      if (before.length && !before.endsWith('\n')) before += '\n';
+      if (after.length && !after.startsWith('\n')) text = text + '\n';
+    }
+    ta.value = before + text + after;
+    const newPos = before.length + text.length;
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = newPos;
+    lastCursor = { start: newPos, end: newPos };
+  }
+
+  // Toolbar de formatação
+  function insertAtCursor(prefix, perLine){
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const before = ta.value.slice(0, start), sel = ta.value.slice(start, end), after = ta.value.slice(end);
+    let inserted;
+    if (perLine && sel) {
+      inserted = sel.split('\n').map(l => l ? prefix + l : l).join('\n');
+    } else {
+      inserted = prefix + sel;
+    }
+    ta.value = before + inserted + after;
+    ta.focus();
+    ta.selectionStart = start + prefix.length;
+    ta.selectionEnd = start + inserted.length;
+  }
+  document.querySelectorAll('.bloco-toolbar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      if (act === 'titulo')         { insertAtCursor('# ');  tipoIn.value = 'texto'; }
+      else if (act === 'subtitulo') { insertAtCursor('## '); tipoIn.value = 'texto'; }
+      else if (act === 'paragrafo') { tipoIn.value = 'texto'; }
+      else if (act === 'lista')     { tipoIn.value = 'lista'; insertAtCursor('- ', true); }
+      else if (act === 'bullet')    { insertAtCursor('- ', true); }
+    });
+  });
+
+  // Painel Figura
+  const figSel = document.getElementById('ins-fig-sel');
+  const figPrev = document.getElementById('ins-fig-preview');
+  const figImg = document.getElementById('ins-fig-img');
+  const figLeg = document.getElementById('ins-fig-leg');
+  const figBtn = document.getElementById('ins-fig-btn');
+  figSel.addEventListener('change', () => {
+    if (figSel.value) {
+      figImg.src = '/figuras/' + figSel.value;
+      figPrev.classList.remove('is-hidden');
+    } else {
+      figPrev.classList.add('is-hidden');
+      figImg.removeAttribute('src');
+    }
+  });
+  figBtn.addEventListener('click', () => {
+    if (!figSel.value) { alert('Selecione uma figura ou faça upload primeiro.'); return; }
+    const leg = (figLeg.value || '').trim().replace(/\|/g, '/');
+    const marker = '[[FIGURA:' + figSel.value + (leg ? '|' + leg : '') + ']]';
+    insertText(marker, { blockLine: true });
+    figLeg.value = '';
+  });
+
+  // Painel Tabela
+  const tabRows = document.getElementById('ins-tab-rows');
+  const tabCols = document.getElementById('ins-tab-cols');
+  const tabLeg = document.getElementById('ins-tab-leg');
+  const tabBtn = document.getElementById('ins-tab-btn');
+  tabBtn.addEventListener('click', () => {
+    const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
+    const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
+    const leg = (tabLeg.value || '').trim().replace(/\|/g, '/');
+    const header = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1)).join(' | ');
+    const sep    = Array.from({length: c}, () => '---').join(' | ');
+    const dataRow = Array.from({length: c}, () => '   ').join(' | ');
+    const rows = Array.from({length: r}, () => dataRow).join('\n');
+    const marker = '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + header + '\n' + sep + '\n' + rows + '\n[[/TABELA]]';
+    insertText(marker, { blockLine: true });
+    tabLeg.value = '';
+  });
+
+  form.addEventListener('submit', () => { syncTitulo(); });
+
+  // ---- Painel de controle de seção ----
+  const secNav = document.getElementById('sec-nav');
+  if (secNav) {
+    secNav.addEventListener('change', () => { if (secNav.value) window.location.href = secNav.value; });
+  }
+  function toggleForm(id, show){
+    const el = document.getElementById(id); if (!el) return;
+    el.classList.toggle('is-hidden', !show);
+  }
+  const btnRen = document.getElementById('btn-renomear-sec');
+  if (btnRen) btnRen.addEventListener('click', () => toggleForm('form-renomear-sec', document.getElementById('form-renomear-sec').classList.contains('is-hidden')));
+  const btnNova = document.getElementById('btn-nova-sub');
+  if (btnNova) btnNova.addEventListener('click', () => toggleForm('form-nova-sub', document.getElementById('form-nova-sub').classList.contains('is-hidden')));
+  document.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => toggleForm(b.dataset.cancel, false)));
+
+  // ---- Upload e inserir (figura) ----
+  const upBtn = document.getElementById('ins-fig-upload-btn');
+  const upFile = document.getElementById('ins-fig-upload-file');
+  if (upBtn && upFile) {
+    upBtn.addEventListener('click', () => upFile.click());
+    upFile.addEventListener('change', async () => {
+      const file = upFile.files && upFile.files[0]; if (!file) return;
+      const leg = (figLeg.value || '').trim();
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      if (leg) fd.append('legenda', leg);
+      upBtn.disabled = true; const oldTxt = upBtn.textContent; upBtn.textContent = 'Enviando…';
+      try {
+        const r = await fetch('/relatorios/' + relId + '/figuras', {
+          method: 'POST', body: fd, headers: { 'Accept': 'application/json' }, credentials: 'same-origin',
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        // adiciona ao select e seleciona
+        const opt = document.createElement('option');
+        opt.value = data.id; opt.textContent = '#' + data.id + ' ' + (data.nome || 'figura');
+        figSel.appendChild(opt); figSel.value = String(data.id);
+        figSel.dispatchEvent(new Event('change'));
+        // insere marcador
+        const legEsc = leg.replace(/\|/g, '/');
+        insertText('[[FIGURA:' + data.id + (legEsc ? '|' + legEsc : '') + ']]', { blockLine: true });
+        figLeg.value = '';
+      } catch (e) {
+        alert('Falha no upload: ' + e.message);
+      } finally {
+        upBtn.disabled = false; upBtn.textContent = oldTxt; upFile.value = '';
+      }
+    });
+  }
+})();
+</script>
+
+<style>
+.bloco-toolbar { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+.bloco-toolbar button { padding:4px 10px; font-size:0.85rem; cursor:pointer; }
+.add-bloco-novo-input { margin-top:6px; }
+.add-bloco-novo-input.is-hidden { display:none; }
+
+.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:14px; align-items:start; }
+@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; } }
+.add-bloco-conteudo-col textarea { width:100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.add-bloco-side { display:flex; flex-direction:column; gap:10px; }
+
+.mini-card { border:1px solid #d6dde6; border-radius:6px; background:#fafbfc; overflow:hidden; }
+.mini-card-figura .mini-card-hdr { background:#eaf3ff; }
+.mini-card-tabela .mini-card-hdr { background:#fff4e0; }
+.mini-card-hdr { padding:6px 10px; font-weight:600; font-size:0.85rem; border-bottom:1px solid #d6dde6; }
+.mini-card-body { padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
+.mini-card-body select, .mini-card-body input[type=text], .mini-card-body input[type=number] { width:100%; box-sizing:border-box; padding:3px 6px; font-size:0.85rem; }
+.mini-label { font-size:0.75rem; color:#566; margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+.mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.mini-actions { display:flex; align-items:center; gap:8px; margin-top:4px; }
+.primary-mini { padding:4px 10px; font-size:0.8rem; cursor:pointer; background:#1f5fa8; color:#fff; border:1px solid #1a4f8a; border-radius:4px; }
+.primary-mini:hover { background:#194e8a; }
+.link-mini { font-size:0.75rem; color:#1f5fa8; text-decoration:none; }
+.link-mini:hover { text-decoration:underline; }
+.mini-hint { font-size:0.7rem; color:#7a8493; margin:4px 0 0; line-height:1.3; }
+.mini-fig-preview { border:1px dashed #c8d0d9; border-radius:4px; padding:4px; background:#fff; text-align:center; }
+.mini-fig-preview img { max-width:100%; max-height:90px; object-fit:contain; }
+.mini-fig-preview.is-hidden { display:none; }
+
+.secondary-mini { padding:4px 10px; font-size:0.8rem; cursor:pointer; background:#fff; color:#1f5fa8; border:1px solid #1f5fa8; border-radius:4px; }
+.secondary-mini:hover { background:#eaf3ff; }
+#ins-fig-upload-file.is-hidden { display:none; }
+
+.sec-control { background:#f5f8fc; border:1px solid #d5dce6; border-radius:6px; padding:8px 10px; margin-bottom:12px; }
+.sec-control-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.sec-control-row label { font-weight:600; font-size:0.85rem; color:#1c3d59; }
+.sec-control-row select { flex:1 1 320px; min-width:240px; padding:4px 6px; }
+.sec-control-row button, .sec-control-inline button { padding:4px 10px; font-size:0.85rem; cursor:pointer; }
+.sec-control-inline { margin:0; display:inline; }
+.sec-sub-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed #d5dce6; }
+.sec-sub-form.is-hidden { display:none; }
+.sec-sub-form label { font-size:0.8rem; color:#1c3d59; font-weight:600; }
+.sec-sub-form input[type=text] { flex:1 1 200px; padding:4px 6px; }
+</style>
+
+<section class="ss active-tab" id="upload-figuras">
   <div class="ss-hdr"><span class="sn">↑</span><span class="st">Upload de figuras (compartilhadas no relatório)</span></div>
   <div class="sb2">
     <form method="post" action="/relatorios/{{ rel.id }}/figuras" enctype="multipart/form-data" class="grid-form">

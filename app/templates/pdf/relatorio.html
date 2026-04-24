@@ -168,9 +168,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
       <div class="bloco">
         {% if b.titulo %}<h3>{{ b.titulo }}</h3>{% endif %}
         {% if b.tipo == 'texto' %}
-          {% for par in (b.conteudo or '').split('\n\n') %}
-            {% if par.strip() %}<p>{{ par.strip() }}</p>{% endif %}
-          {% endfor %}
+          {{ b.html|safe }}
         {% elif b.tipo == 'lista' %}
           {{ b.lista_html|safe }}
         {% elif b.tipo == 'figura' and b.src %}

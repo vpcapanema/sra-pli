@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response, JSONResponse
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -39,6 +39,10 @@ def upload_figura(
     )
     db.add(fig)
     db.commit()
+    db.refresh(fig)
+    accept = (request.headers.get("accept") or "").lower()
+    if "application/json" in accept:
+        return JSONResponse({"id": fig.id, "nome": fig.nome})
     next_url = request.headers.get("referer") or f"/relatorios/{rel_id}"
     return RedirectResponse(next_url, status_code=303)
 
