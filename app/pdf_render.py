@@ -18,7 +18,7 @@ def _figura_data_uri(fig: Figura) -> str:
     return f"data:{fig.mime};base64,{b64}"
 
 
-def render_pdf(db: Session, rel: Relatorio) -> bytes:
+def _montar_contexto(rel: Relatorio):
     secoes = []
     fig_counter = 0
     tab_counter = 0
@@ -48,8 +48,6 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
             "titulo": sec.titulo,
             "blocos": blocos_render,
         })
-
-    template = _env.get_template("pdf/relatorio.html")
     sumario_items = []
     for s in secoes:
         nivel = s["numero"].count(".") + 1
@@ -62,12 +60,15 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
         '<span class="ttl">Página de assinaturas</span></li>'
     )
     sumario_html = "<ol>" + "".join(sumario_items) + "</ol>"
-    html_str = template.render(
-        rel=rel,
-        secoes=secoes,
-        sumario_html=sumario_html,
-        hoje=date.today(),
-    )
+    return {"rel": rel, "secoes": secoes, "sumario_html": sumario_html, "hoje": date.today()}
+
+
+def render_html(db: Session, rel: Relatorio) -> str:
+    template = _env.get_template("pdf/relatorio.html")
+    return template.render(**_montar_contexto(rel))
+
+
+def render_pdf(db: Session, rel: Relatorio) -> bytes:
+    html_str = render_html(db, rel)
     from weasyprint import HTML  # import tardio: GTK não necessário fora do /pdf
-    pdf_bytes = HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()
-    return pdf_bytes
+    return HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()
