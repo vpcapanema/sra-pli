@@ -183,16 +183,20 @@
               <div id="ins-fig-preview" class="mini-fig-preview is-hidden"><img alt="prévia da figura" id="ins-fig-img"></div>
               <label class="mini-label" for="ins-fig-leg">Legenda</label>
               <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
-              <fieldset class="mini-fmt">
-                <legend class="mini-label">Estilo de indexação</legend>
-                <label><input type="radio" name="fig-est" value="R" checked> Por seção (Ex: <span id="fig-ex-R">FIGURA {{ sec.numero.split('.')[0] }}.1</span>)</label>
-                <label><input type="radio" name="fig-est" value="C"> Sequencial (Ex: <span id="fig-ex-C">FIGURA 1</span>)</label>
-              </fieldset>
-              <fieldset class="mini-fmt">
-                <legend class="mini-label">Posição da legenda</legend>
-                <label><input type="radio" name="fig-pos" value="S" checked> Superior</label>
-                <label><input type="radio" name="fig-pos" value="I"> Inferior</label>
-              </fieldset>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="fig-est">Estilo de indexação</label>
+                <select id="fig-est">
+                  <option id="fig-opt-R" value="R">Por seção (Ex: FIGURA {{ sec.numero.split('.')[0] }}.1)</option>
+                  <option id="fig-opt-C" value="C">Sequencial (Ex: FIGURA 1)</option>
+                </select>
+              </div>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="fig-pos">Posição da legenda</label>
+                <select id="fig-pos">
+                  <option value="S">Superior</option>
+                  <option value="I">Inferior</option>
+                </select>
+              </div>
               <div class="mini-actions">
                 <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
                 <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
@@ -216,16 +220,20 @@
               </div>
               <label class="mini-label" for="ins-tab-leg">Legenda</label>
               <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
-              <fieldset class="mini-fmt">
-                <legend class="mini-label">Estilo de indexação</legend>
-                <label><input type="radio" name="tab-est" value="R" checked> Por seção (Ex: <span id="tab-ex-R">TABELA {{ sec.numero.split('.')[0] }}.1</span>)</label>
-                <label><input type="radio" name="tab-est" value="C"> Sequencial (Ex: <span id="tab-ex-C">TABELA 1</span>)</label>
-              </fieldset>
-              <fieldset class="mini-fmt">
-                <legend class="mini-label">Posição da legenda</legend>
-                <label><input type="radio" name="tab-pos" value="S" checked> Superior</label>
-                <label><input type="radio" name="tab-pos" value="I"> Inferior</label>
-              </fieldset>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="tab-est">Estilo de indexação</label>
+                <select id="tab-est">
+                  <option id="tab-opt-R" value="R">Por seção (Ex: TABELA {{ sec.numero.split('.')[0] }}.1)</option>
+                  <option id="tab-opt-C" value="C">Sequencial (Ex: TABELA 1)</option>
+                </select>
+              </div>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="tab-pos">Posição da legenda</label>
+                <select id="tab-pos">
+                  <option value="S">Superior</option>
+                  <option value="I">Inferior</option>
+                </select>
+              </div>
               <div class="mini-actions">
                 <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
                 <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
@@ -316,16 +324,16 @@
     const n = (estilo === 'C' ? tabGlobalBase : tabBase) + _countTaTab() + 1;
     return estilo === 'C' ? String(n) : (secTop + '.' + n);
   }
-  function _figEst(){ const r = document.querySelector('input[name="fig-est"]:checked'); return r ? r.value : 'R'; }
-  function _figPos(){ const r = document.querySelector('input[name="fig-pos"]:checked'); return r ? r.value : 'S'; }
-  function _tabEst(){ const r = document.querySelector('input[name="tab-est"]:checked'); return r ? r.value : 'R'; }
-  function _tabPos(){ const r = document.querySelector('input[name="tab-pos"]:checked'); return r ? r.value : 'S'; }
+  function _figEst(){ const s = document.getElementById('fig-est'); return s ? s.value : 'R'; }
+  function _figPos(){ const s = document.getElementById('fig-pos'); return s ? s.value : 'S'; }
+  function _tabEst(){ const s = document.getElementById('tab-est'); return s ? s.value : 'R'; }
+  function _tabPos(){ const s = document.getElementById('tab-pos'); return s ? s.value : 'S'; }
   // Atualiza os exemplos das legendas conforme se digita / contagem muda
   function _atualizaExemplos(){
-    const fr = document.getElementById('fig-ex-R'); if (fr) fr.textContent = 'FIGURA ' + (secTop + '.' + (figBase + _countTaFig() + 1));
-    const fc = document.getElementById('fig-ex-C'); if (fc) fc.textContent = 'FIGURA ' + (figGlobalBase + _countTaFig() + 1);
-    const tr = document.getElementById('tab-ex-R'); if (tr) tr.textContent = 'TABELA ' + (secTop + '.' + (tabBase + _countTaTab() + 1));
-    const tc = document.getElementById('tab-ex-C'); if (tc) tc.textContent = 'TABELA ' + (tabGlobalBase + _countTaTab() + 1);
+    const fr = document.getElementById('fig-opt-R'); if (fr) fr.textContent = 'Por seção (Ex: FIGURA ' + (secTop + '.' + (figBase + _countTaFig() + 1)) + ')';
+    const fc = document.getElementById('fig-opt-C'); if (fc) fc.textContent = 'Sequencial (Ex: FIGURA ' + (figGlobalBase + _countTaFig() + 1) + ')';
+    const tr = document.getElementById('tab-opt-R'); if (tr) tr.textContent = 'Por seção (Ex: TABELA ' + (secTop + '.' + (tabBase + _countTaTab() + 1)) + ')';
+    const tc = document.getElementById('tab-opt-C'); if (tc) tc.textContent = 'Sequencial (Ex: TABELA ' + (tabGlobalBase + _countTaTab() + 1) + ')';
   }
   function syncTitulo(){ /* título fixo da seção atual */ }
 
@@ -760,11 +768,8 @@
 .mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
 .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:2px 4px; margin:0; display:flex; flex-direction:column; gap:0; background:#f7f9fc; font-family:inherit; font-size:9.5px; line-height:1.15; }
-.mini-fmt > legend { padding:0 2px; font-size:9px; font-weight:600; color:var(--navy); font-family:inherit; margin-bottom:1px; }
-.mini-fmt label { display:flex; align-items:center; gap:3px; font-size:9.5px; line-height:1.15; color:var(--text); cursor:pointer; font-family:inherit; }
-.mini-fmt input[type="radio"] { margin:0; transform:scale(0.8); }
-.mini-fmt span[id$="-R"], .mini-fmt span[id$="-C"] { color:var(--navy); font-weight:600; }
+.mini-fmt-sel { display:flex; flex-direction:column; gap:3px; }
+.mini-fmt-sel select { font-size:10.5px; padding:3px 6px; }
 /* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
 .mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
 .mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }
