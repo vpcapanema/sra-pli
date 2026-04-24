@@ -205,7 +205,8 @@
               <label class="mini-label" for="ins-tab-leg">Legenda</label>
               <input type="text" id="ins-tab-leg" placeholder="Ex.: Quantitativo de serviços">
               <div class="mini-actions">
-                <button type="button" id="ins-tab-btn" class="primary-mini">Inserir tabela</button>
+                <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela…</button>
+                <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor">Editar tabela atual</button>
               </div>
             </div>
           </div>
@@ -214,6 +215,34 @@
 
       <div class="full"><button type="submit">Adicionar bloco</button></div>
     </form>
+
+    <!-- Editor visual de tabela (modal) -->
+    <div id="tab-editor" class="tab-editor-overlay is-hidden" role="dialog" aria-modal="true" aria-labelledby="tab-editor-title">
+      <div class="tab-editor-box">
+        <div class="tab-editor-hdr">
+          <strong id="tab-editor-title">Editor de tabela</strong>
+          <button type="button" class="tab-editor-close" id="tab-editor-close" aria-label="Fechar">×</button>
+        </div>
+        <div class="tab-editor-body">
+          <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
+          <input type="text" id="tab-editor-leg" placeholder="Ex.: Quantitativo de serviços">
+          <div class="tab-editor-toolbar">
+            <button type="button" data-tab-act="add-row">+ Linha</button>
+            <button type="button" data-tab-act="del-row">− Linha</button>
+            <button type="button" data-tab-act="add-col">+ Coluna</button>
+            <button type="button" data-tab-act="del-col">− Coluna</button>
+            <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+          </div>
+          <div class="tab-editor-scroll">
+            <table id="tab-editor-table" class="tab-editor-table"><thead></thead><tbody></tbody></table>
+          </div>
+        </div>
+        <div class="tab-editor-foot">
+          <button type="button" class="secondary-mini" id="tab-editor-cancel">Cancelar</button>
+          <button type="button" class="primary-mini" id="tab-editor-confirm">Inserir tabela</button>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -298,37 +327,23 @@
     figLeg.value = '';
   });
 
-  // Painel Tabela
+  // Painel Tabela — abre o editor visual
   const tabRows = document.getElementById('ins-tab-rows');
   const tabCols = document.getElementById('ins-tab-cols');
   const tabLeg = document.getElementById('ins-tab-leg');
   const tabBtn = document.getElementById('ins-tab-btn');
+  const editTabBtn = document.getElementById('edit-tab-btn');
   tabBtn.addEventListener('click', () => {
     const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
     const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
-    const leg = (tabLeg.value || '').trim().replace(/\|/g, '/');
-    // Gera tabela com bordas visíveis em caracteres (ASCII art) para leitura amigável.
-    const colW = 14; // largura interna da célula
-    const pad = (s) => {
-      s = String(s == null ? '' : s);
-      if (s.length >= colW) return ' ' + s.slice(0, colW - 1);
-      return ' ' + s + ' '.repeat(colW - 1 - s.length);
-    };
-    const sepLine = (ch) => '+' + Array.from({length: c}, () => ch.repeat(colW + 1)).join('+') + '+';
-    const headerCells = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
-    const dataCells = Array.from({length: c}, () => '');
-    const rowFor = (cells) => '|' + cells.map(pad).join('|') + '|';
-    const lines = [];
-    lines.push(sepLine('-'));
-    lines.push(rowFor(headerCells));
-    lines.push(sepLine('='));
-    for (let i = 0; i < r; i++) {
-      lines.push(rowFor(dataCells));
-      lines.push(sepLine('-'));
-    }
-    const marker = '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + lines.join('\n') + '\n[[/TABELA]]';
-    insertText(marker, { blockLine: true });
-    tabLeg.value = '';
+    const headers = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
+    const rowsArr = Array.from({length: r}, () => Array.from({length: c}, () => ''));
+    openTableEditor({ legenda: tabLeg.value || '', headers, rows: rowsArr, mode: 'insert' });
+  });
+  if (editTabBtn) editTabBtn.addEventListener('click', () => {
+    const found = findTableMarkerAtCursor();
+    if (!found) { alert('Posicione o cursor dentro de uma tabela existente para editar.'); return; }
+    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range });
   });
 
   form.addEventListener('submit', () => { syncTitulo(); });
@@ -379,6 +394,159 @@
         upBtn.disabled = false; upBtn.textContent = oldTxt; upFile.value = '';
       }
     });
+  }
+
+  // ---- Editor visual de tabela ----
+  const tabModal   = document.getElementById('tab-editor');
+  const tabModalLeg= document.getElementById('tab-editor-leg');
+  const tabModalTbl= document.getElementById('tab-editor-table');
+  const tabModalThead = tabModalTbl.querySelector('thead');
+  const tabModalTbody = tabModalTbl.querySelector('tbody');
+  const tabModalClose  = document.getElementById('tab-editor-close');
+  const tabModalCancel = document.getElementById('tab-editor-cancel');
+  const tabModalConfirm= document.getElementById('tab-editor-confirm');
+  let _tabState = null; // { mode: 'insert'|'replace', range:{start,end}, headers:[], rows:[[...]] }
+
+  function _renderEditorTable() {
+    if (!_tabState) return;
+    const { headers, rows } = _tabState;
+    tabModalThead.innerHTML = '';
+    const trh = document.createElement('tr');
+    headers.forEach((h, ci) => {
+      const th = document.createElement('th');
+      th.contentEditable = 'true';
+      th.spellcheck = false;
+      th.textContent = h;
+      th.dataset.col = ci;
+      th.addEventListener('input', () => { _tabState.headers[ci] = th.textContent; });
+      th.addEventListener('keydown', _onCellKey);
+      trh.appendChild(th);
+    });
+    tabModalThead.appendChild(trh);
+    tabModalTbody.innerHTML = '';
+    rows.forEach((r, ri) => {
+      const tr = document.createElement('tr');
+      r.forEach((v, ci) => {
+        const td = document.createElement('td');
+        td.contentEditable = 'true';
+        td.spellcheck = false;
+        td.textContent = v;
+        td.dataset.row = ri; td.dataset.col = ci;
+        td.addEventListener('input', () => { _tabState.rows[ri][ci] = td.textContent; });
+        td.addEventListener('keydown', _onCellKey);
+        tr.appendChild(td);
+      });
+      tabModalTbody.appendChild(tr);
+    });
+  }
+  function _onCellKey(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const cell = e.currentTarget;
+      const row = cell.parentElement;
+      const cells = Array.from(row.children);
+      const idx = cells.indexOf(cell);
+      const allRows = [tabModalThead.querySelector('tr'), ...Array.from(tabModalTbody.querySelectorAll('tr'))];
+      const rowIdx = allRows.indexOf(row);
+      let nextRowIdx = rowIdx, nextIdx = idx + (e.shiftKey ? -1 : 1);
+      if (nextIdx >= cells.length) { nextIdx = 0; nextRowIdx++; }
+      if (nextIdx < 0) { nextIdx = cells.length - 1; nextRowIdx--; }
+      const target = allRows[nextRowIdx]?.children[nextIdx];
+      if (target) { target.focus(); document.getSelection().selectAllChildren(target); }
+    }
+  }
+  function openTableEditor(opts) {
+    _tabState = {
+      mode: opts.mode || 'insert',
+      range: opts.range || null,
+      headers: opts.headers.slice(),
+      rows: opts.rows.map(r => r.slice()),
+    };
+    tabModalLeg.value = opts.legenda || '';
+    _renderEditorTable();
+    tabModal.classList.remove('is-hidden');
+    setTimeout(() => { tabModalThead.querySelector('th')?.focus(); }, 30);
+  }
+  function closeTableEditor() { tabModal.classList.add('is-hidden'); _tabState = null; }
+  tabModalClose .addEventListener('click', closeTableEditor);
+  tabModalCancel.addEventListener('click', closeTableEditor);
+  tabModal.addEventListener('click', (e) => { if (e.target === tabModal) closeTableEditor(); });
+
+  document.querySelectorAll('[data-tab-act]').forEach(b => b.addEventListener('click', () => {
+    if (!_tabState) return;
+    const act = b.dataset.tabAct;
+    const cols = _tabState.headers.length;
+    if (act === 'add-row') _tabState.rows.push(Array.from({length: cols}, () => ''));
+    else if (act === 'del-row') { if (_tabState.rows.length > 1) _tabState.rows.pop(); }
+    else if (act === 'add-col') {
+      _tabState.headers.push('Cabeçalho ' + (cols + 1));
+      _tabState.rows.forEach(r => r.push(''));
+    }
+    else if (act === 'del-col') {
+      if (cols > 1) { _tabState.headers.pop(); _tabState.rows.forEach(r => r.pop()); }
+    }
+    _renderEditorTable();
+  }));
+
+  function _serializeTabela(state, legenda) {
+    const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '/').replace(/\n/g, ' ').trim();
+    const head = state.headers.map(esc).join(' | ');
+    const sep  = state.headers.map(() => '---').join(' | ');
+    const body = state.rows.map(r => r.map(esc).join(' | ')).join('\n');
+    const leg = (legenda || '').replace(/\|/g, '/').trim();
+    return '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
+  }
+
+  tabModalConfirm.addEventListener('click', () => {
+    if (!_tabState) return;
+    const marker = _serializeTabela(_tabState, tabModalLeg.value);
+    if (_tabState.mode === 'replace' && _tabState.range) {
+      const before = ta.value.slice(0, _tabState.range.start);
+      const after = ta.value.slice(_tabState.range.end);
+      ta.value = before + marker + after;
+      const newPos = before.length + marker.length;
+      ta.focus(); ta.selectionStart = ta.selectionEnd = newPos;
+      lastCursor = { start: newPos, end: newPos };
+    } else {
+      insertText(marker, { blockLine: true });
+      tabLeg.value = '';
+    }
+    closeTableEditor();
+    updateStatus();
+  });
+
+  // Localiza um marcador [[TABELA...]]...[[/TABELA]] que envolva o cursor.
+  function findTableMarkerAtCursor() {
+    const val = ta.value || '';
+    const pos = ta.selectionStart || 0;
+    const reOpen  = /\[\[TABELA(?:\|([^\]]*))?\]\]/g;
+    const reClose = /\[\[\/TABELA\]\]/g;
+    let m, lastOpen = null;
+    while ((m = reOpen.exec(val)) !== null) {
+      if (m.index <= pos) lastOpen = m; else break;
+    }
+    if (!lastOpen) return null;
+    reClose.lastIndex = lastOpen.index;
+    const mc = reClose.exec(val);
+    if (!mc) return null;
+    if (pos > mc.index + mc[0].length) return null; // cursor passou o fechamento
+    const start = lastOpen.index;
+    const end = mc.index + mc[0].length;
+    const inner = val.slice(lastOpen.index + lastOpen[0].length, mc.index);
+    const linhas = inner.split('\n').map(l => l.trim()).filter(Boolean)
+      .filter(l => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))                         // markdown sep
+      .filter(l => !/^\+[-=+\s]+\+?$/.test(l));                                 // ascii sep
+    const splitCells = (ln) => {
+      let s = ln; if (s.startsWith('|')) s = s.slice(1); if (s.endsWith('|')) s = s.slice(0, -1);
+      return s.split('|').map(c => c.trim());
+    };
+    if (!linhas.length) return null;
+    const headers = splitCells(linhas[0]);
+    const rows = linhas.slice(1).map(splitCells).map(r => {
+      while (r.length < headers.length) r.push('');
+      return r.slice(0, headers.length);
+    });
+    return { range: { start, end }, legenda: lastOpen[1] || '', headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
   }
 
   // ---- Status bar: detecta a classe da linha/seleção atual ----
@@ -459,6 +627,29 @@
 .bloco-status-bar .bs-tag[data-cls="vazio"]     { background:#9aa5b3; }
 .bloco-status-bar .bs-sep { color:#9aa5b3; }
 .bloco-status-bar .bs-info { font-variant-numeric: tabular-nums; color:#566; }
+
+/* Editor visual de tabela (modal) */
+.tab-editor-overlay { position:fixed; inset:0; background:rgba(15,25,40,0.45); display:flex; align-items:center; justify-content:center; z-index:9000; }
+.tab-editor-overlay.is-hidden { display:none; }
+.tab-editor-box { background:#fff; border-radius:8px; box-shadow:0 12px 40px rgba(0,0,0,0.25); width:min(900px, 92vw); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
+.tab-editor-hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #e3e8ef; background:#fff4e0; }
+.tab-editor-hdr strong { font-size:0.95rem; color:#7a4a10; }
+.tab-editor-close { background:transparent; border:0; font-size:1.4rem; line-height:1; cursor:pointer; color:#7a4a10; padding:0 4px; }
+.tab-editor-body { padding:12px 14px; overflow:auto; }
+.tab-editor-body .mini-label { display:block; font-size:0.72rem; color:#566; margin-bottom:3px; }
+.tab-editor-body input[type="text"] { width:100%; padding:6px 8px; border:1px solid #d6dde6; border-radius:4px; font-size:0.85rem; margin-bottom:10px; }
+.tab-editor-toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+.tab-editor-toolbar button { font-size:0.78rem; padding:4px 10px; border:1px solid #d6dde6; background:#fafbfc; border-radius:4px; cursor:pointer; }
+.tab-editor-toolbar button:hover { background:#eef2f7; }
+.tab-editor-hint { font-size:0.72rem; color:#7a8696; margin-left:auto; }
+.tab-editor-scroll { overflow:auto; max-height:55vh; border:1px solid #d6dde6; border-radius:4px; }
+.tab-editor-table { border-collapse:collapse; width:100%; background:#fff; font-size:0.85rem; }
+.tab-editor-table th, .tab-editor-table td { border:1px solid #b8c2cf; padding:6px 8px; min-width:90px; vertical-align:top; }
+.tab-editor-table th { background:#fff4e0; color:#7a4a10; font-weight:600; text-align:left; }
+.tab-editor-table td:focus, .tab-editor-table th:focus { outline:2px solid #2a6db0; outline-offset:-2px; background:#eaf3ff; }
+.tab-editor-foot { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; border-top:1px solid #e3e8ef; background:#fafbfc; }
+.tab-editor-foot button { font-size:0.85rem; padding:6px 14px; }
+
 .add-bloco-side { display:flex; flex-direction:column; gap:8px; }
 
 .mini-card { border:1px solid #d6dde6; border-radius:6px; background:#fafbfc; overflow:hidden; }
