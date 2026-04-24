@@ -760,11 +760,11 @@
 .mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
 .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:4px 8px 6px; margin:0; display:flex; flex-direction:column; gap:2px; background:#f7f9fc; }
-.mini-fmt > legend { padding:0 4px; }
-.mini-fmt label { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text); cursor:pointer; }
-.mini-fmt input[type="radio"] { margin:0; }
-.mini-fmt code { font-size:10.5px; background:#fff; padding:1px 4px; border:1px solid var(--border); border-radius:3px; color:var(--navy); }
+.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:2px 6px 3px; margin:0; display:flex; flex-direction:column; gap:0; background:#f7f9fc; font-family:inherit; font-size:10px; line-height:1.25; }
+.mini-fmt > legend { padding:0 3px; font-size:10px; font-weight:600; color:var(--navy); font-family:inherit; }
+.mini-fmt label { display:flex; align-items:center; gap:4px; font-size:10px; line-height:1.25; color:var(--text); cursor:pointer; font-family:inherit; white-space:nowrap; }
+.mini-fmt input[type="radio"] { margin:0; transform:scale(0.85); }
+.mini-fmt code { font-size:9.5px; background:#fff; padding:0 3px; border:1px solid var(--border); border-radius:3px; color:var(--navy); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
 .mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
 .mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }
