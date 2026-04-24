@@ -161,6 +161,12 @@
             <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
           </div>
           <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
+          <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
+            <span class="bs-lbl">Linha atual:</span>
+            <span class="bs-tag" id="bs-tag">Parágrafo</span>
+            <span class="bs-sep">·</span>
+            <span class="bs-info" id="bs-info">linha 1, coluna 1</span>
+          </div>
         </div>
 
         <aside class="add-bloco-side">
@@ -360,12 +366,10 @@
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
-        // adiciona ao select e seleciona
         const opt = document.createElement('option');
         opt.value = data.id; opt.textContent = '#' + data.id + ' ' + (data.nome || 'figura');
         figSel.appendChild(opt); figSel.value = String(data.id);
         figSel.dispatchEvent(new Event('change'));
-        // insere marcador
         const legEsc = leg.replace(/\|/g, '/');
         insertText('[[FIGURA:' + data.id + (legEsc ? '|' + legEsc : '') + ']]', { blockLine: true });
         figLeg.value = '';
@@ -376,41 +380,103 @@
       }
     });
   }
+
+  // ---- Status bar: detecta a classe da linha/seleção atual ----
+  const bsTag = document.getElementById('bs-tag');
+  const bsInfo = document.getElementById('bs-info');
+  const CLASS_LABEL = {
+    titulo: 'Título', subtitulo: 'Subtítulo', paragrafo: 'Parágrafo',
+    lista: 'Item de lista', figura: 'Figura', tabela: 'Tabela', vazio: 'Linha vazia',
+  };
+  function classifyLine(line, ctx) {
+    if (ctx && ctx.insideTabela) return 'tabela';
+    const s = line || '';
+    const t = s.trim();
+    if (!t) return 'vazio';
+    if (/^#\s+/.test(t)) return 'titulo';
+    if (/^##\s+/.test(t)) return 'subtitulo';
+    if (/^-\s+/.test(t)) return 'lista';
+    if (/^\[\[FIGURA:/.test(t)) return 'figura';
+    if (/^\[\[TABELA(\||\]\])/.test(t) || /^\[\[\/TABELA\]\]/.test(t)) return 'tabela';
+    if (/^[+|]/.test(t) && /[+|]$/.test(t)) return 'tabela';
+    return 'paragrafo';
+  }
+  function updateStatus() {
+    if (!bsTag || !bsInfo) return;
+    const val = ta.value || '';
+    const pos = ta.selectionStart || 0;
+    const before = val.slice(0, pos);
+    const lastOpen = before.lastIndexOf('[[TABELA');
+    const lastClose = before.lastIndexOf('[[/TABELA]]');
+    const insideTabela = lastOpen > lastClose;
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const lineEnd = val.indexOf('\n', pos);
+    const line = val.slice(lineStart, lineEnd === -1 ? val.length : lineEnd);
+    const lineNum = (before.match(/\n/g) || []).length + 1;
+    const colNum = pos - lineStart + 1;
+    const cls = classifyLine(line, { insideTabela });
+    bsTag.dataset.cls = cls;
+    bsTag.textContent = CLASS_LABEL[cls] || cls;
+    bsInfo.textContent = 'linha ' + lineNum + ', coluna ' + colNum;
+  }
+  ['keyup','mouseup','click','focus','input','select'].forEach(ev => ta.addEventListener(ev, updateStatus));
+  document.addEventListener('selectionchange', () => { if (document.activeElement === ta) updateStatus(); });
+  updateStatus();
 })();
 </script>
 
 <style>
+/* ---- Escala e largura da página (escopo: editor de seção) ---- */
+#content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
+@media (max-width: 1100px) { #content { width: 94%; } }
+.hero { padding:14px 18px; margin-bottom:14px; }
+.hero h1 { font-size:15px; }
+.hero .subtitle { font-size:11px; }
+.hero p { font-size:11.5px; }
+.ss .ss-hdr { padding:6px 12px; font-size:12px; }
+.ss .sb2 { padding:10px 12px; }
+.ss .sdesc, .ss label { font-size:11.5px; }
+.ss input, .ss select, .ss textarea, .ss button { font-size:12px; }
+
 .bloco-toolbar { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
-.bloco-toolbar button { padding:4px 10px; font-size:0.85rem; cursor:pointer; }
+.bloco-toolbar button { padding:3px 9px; font-size:0.78rem; cursor:pointer; }
 .add-bloco-novo-input { margin-top:6px; }
 .add-bloco-novo-input.is-hidden { display:none; }
 
-.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:14px; align-items:stretch; }
+.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 260px; gap:12px; align-items:stretch; }
 @media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; align-items:start; } }
 .add-bloco-conteudo-col { display:flex; flex-direction:column; min-width:0; }
-.add-bloco-conteudo-col textarea { width:100%; flex:1; min-height:340px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:0.9rem; line-height:1.45; tab-size:2; white-space:pre; overflow:auto; }
-.add-bloco-side { display:flex; flex-direction:column; gap:10px; }
+.add-bloco-conteudo-col textarea { width:100%; flex:1; min-height:520px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:0.85rem; line-height:1.45; tab-size:2; white-space:pre; overflow:auto; }
+.bloco-status-bar { display:flex; gap:8px; align-items:center; padding:4px 10px; font-size:11px; background:#eef2f7; border:1px solid #d5dce6; border-top:none; border-radius:0 0 4px 4px; color:#3a4a5e; }
+.bloco-status-bar .bs-lbl { font-weight:600; color:#1c3d59; }
+.bloco-status-bar .bs-tag { padding:1px 8px; border-radius:10px; background:#1f5fa8; color:#fff; font-weight:600; font-size:10.5px; letter-spacing:.02em; }
+.bloco-status-bar .bs-tag[data-cls="titulo"]    { background:#1c3d59; }
+.bloco-status-bar .bs-tag[data-cls="subtitulo"] { background:#2a6db0; }
+.bloco-status-bar .bs-tag[data-cls="paragrafo"] { background:#5a6b80; }
+.bloco-status-bar .bs-tag[data-cls="lista"]     { background:#2e8b57; }
+.bloco-status-bar .bs-tag[data-cls="figura"]    { background:#1f5fa8; }
+.bloco-status-bar .bs-tag[data-cls="tabela"]    { background:#c97a1a; }
+.bloco-status-bar .bs-tag[data-cls="vazio"]     { background:#9aa5b3; }
+.bloco-status-bar .bs-sep { color:#9aa5b3; }
+.bloco-status-bar .bs-info { font-variant-numeric: tabular-nums; color:#566; }
+.add-bloco-side { display:flex; flex-direction:column; gap:8px; }
 
 .mini-card { border:1px solid #d6dde6; border-radius:6px; background:#fafbfc; overflow:hidden; }
 .mini-card-figura .mini-card-hdr { background:#eaf3ff; }
 .mini-card-tabela .mini-card-hdr { background:#fff4e0; }
-.mini-card-hdr { padding:6px 10px; font-weight:600; font-size:0.85rem; border-bottom:1px solid #d6dde6; }
-.mini-card-body { padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
-.mini-card-body select, .mini-card-body input[type=text], .mini-card-body input[type=number] { width:100%; box-sizing:border-box; padding:3px 6px; font-size:0.85rem; }
-.mini-label { font-size:0.75rem; color:#566; margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-.mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.mini-actions { display:flex; align-items:center; gap:8px; margin-top:4px; }
-.primary-mini { padding:4px 10px; font-size:0.8rem; cursor:pointer; background:#1f5fa8; color:#fff; border:1px solid #1a4f8a; border-radius:4px; }
+.mini-card-hdr { padding:5px 9px; font-weight:600; font-size:0.8rem; border-bottom:1px solid #d6dde6; }
+.mini-card-body { padding:6px 9px; display:flex; flex-direction:column; gap:5px; }
+.mini-card-body select, .mini-card-body input[type=text], .mini-card-body input[type=number] { width:100%; box-sizing:border-box; padding:3px 6px; font-size:0.78rem; }
+.mini-label { font-size:0.68rem; color:#566; margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+.mini-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.mini-actions { display:flex; align-items:center; gap:6px; margin-top:3px; flex-wrap:wrap; }
+.primary-mini { padding:3px 9px; font-size:0.75rem; cursor:pointer; background:#1f5fa8; color:#fff; border:1px solid #1a4f8a; border-radius:4px; }
 .primary-mini:hover { background:#194e8a; }
-.link-mini { font-size:0.75rem; color:#1f5fa8; text-decoration:none; }
-.link-mini:hover { text-decoration:underline; }
-.mini-hint { font-size:0.7rem; color:#7a8493; margin:4px 0 0; line-height:1.3; }
-.mini-fig-preview { border:1px dashed #c8d0d9; border-radius:4px; padding:4px; background:#fff; text-align:center; }
-.mini-fig-preview img { max-width:100%; max-height:90px; object-fit:contain; }
-.mini-fig-preview.is-hidden { display:none; }
-
-.secondary-mini { padding:4px 10px; font-size:0.8rem; cursor:pointer; background:#fff; color:#1f5fa8; border:1px solid #1f5fa8; border-radius:4px; }
+.secondary-mini { padding:3px 9px; font-size:0.75rem; cursor:pointer; background:#fff; color:#1f5fa8; border:1px solid #1f5fa8; border-radius:4px; }
 .secondary-mini:hover { background:#eaf3ff; }
+.mini-fig-preview { border:1px dashed #c8d0d9; border-radius:4px; padding:3px; background:#fff; text-align:center; }
+.mini-fig-preview img { max-width:100%; max-height:80px; object-fit:contain; }
+.mini-fig-preview.is-hidden { display:none; }
 #ins-fig-upload-file.is-hidden { display:none; }
 
 .sec-control { background:#f5f8fc; border:1px solid #d5dce6; border-radius:6px; padding:8px 10px; margin-bottom:12px; }
