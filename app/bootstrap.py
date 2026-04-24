@@ -41,26 +41,32 @@ def ensure_admin(db: Session) -> None:
     db.commit()
 
 
-def criar_secoes_padrao(db: Session, relatorio_id: int) -> None:
+def criar_secoes_padrao(
+    db: Session,
+    relatorio_id: int,
+    secoes_explicitas: "list[tuple[str, str]] | None" = None,
+) -> None:
     """Cria as seções de um relatório novo.
 
-    Estratégia de retroalimentação: se já existir outro relatório no banco,
-    clona a estrutura (numero + titulo, na mesma ordem) do mais recente
-    (created_at DESC). Caso seja o primeiro relatório, usa SECOES_PADRAO.
+    Ordem de prioridade da fonte:
+      1. ``secoes_explicitas`` (quando fornecida — ex.: extraída de um PDF).
+      2. Estrutura do relatório anterior mais recente no banco.
+      3. ``SECOES_PADRAO`` (semente embutida).
     """
     from .models import Secao, Relatorio
-    anterior = (
-        db.query(Relatorio)
-        .filter(Relatorio.id != relatorio_id)
-        .order_by(Relatorio.created_at.desc())
-        .first()
-    )
-    if anterior is not None:
-        base = [(s.numero, s.titulo) for s in sorted(anterior.secoes, key=lambda x: x.ordem)]
-        if not base:
-            base = list(SECOES_PADRAO)
+    if secoes_explicitas:
+        base = list(secoes_explicitas)
     else:
-        base = list(SECOES_PADRAO)
+        anterior = (
+            db.query(Relatorio)
+            .filter(Relatorio.id != relatorio_id)
+            .order_by(Relatorio.created_at.desc())
+            .first()
+        )
+        if anterior is not None and anterior.secoes:
+            base = [(s.numero, s.titulo) for s in sorted(anterior.secoes, key=lambda x: x.ordem)]
+        else:
+            base = list(SECOES_PADRAO)
     for i, (numero, titulo) in enumerate(base):
         ja = db.query(Secao).filter_by(relatorio_id=relatorio_id, numero=numero).first()
         if ja:

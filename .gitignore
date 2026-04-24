@@ -7,7 +7,6 @@ venv/
 *.db
 .vscode/
 _extracted_text/
-relatorios_entregues/
 _extract_pdfs.py
 uploads/
 *.log

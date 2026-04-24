@@ -11,13 +11,40 @@
 <section class="ss active-tab">
   <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo relatório</span></div>
   <div class="sb2">
-    <form method="post" action="/relatorios" class="grid-form">
+    <form method="post" action="/relatorios" class="grid-form" enctype="multipart/form-data">
       <div><label>Código</label><input name="codigo" title="Código" placeholder="D20-13" value="{{ sugestao.codigo }}" required></div>
       <div><label>Mês de referência</label><input name="mes_referencia" title="Mês de referência" placeholder="Abril/2026" value="{{ sugestao.mes_referencia }}" required></div>
       <div class="full"><label>Título</label><input name="titulo" title="Título" placeholder="Relatório Mensal D20-13" value="{{ sugestao.titulo }}" required></div>
       <div><label>Período início</label><input type="date" name="periodo_inicio" title="Período início" placeholder="AAAA-MM-DD" value="{{ sugestao.periodo_inicio }}" required></div>
       <div><label>Período fim</label><input type="date" name="periodo_fim" title="Período fim" placeholder="AAAA-MM-DD" value="{{ sugestao.periodo_fim }}" required></div>
       <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ sugestao.numero_medicao }}"></div>
+
+      <div class="full">
+        <label>Fonte das seções (sumário)</label>
+        <p class="sdesc sdesc-tight">Escolha de onde a estrutura de seções e subseções será extraída.</p>
+        <div class="fonte-secoes">
+          <label class="radio-line">
+            <input type="radio" name="fonte_secoes" value="anterior" checked>
+            <span>Usar a estrutura do <strong>relatório anterior</strong> registrado no sistema (padrão).</span>
+          </label>
+          <label class="radio-line">
+            <input type="radio" name="fonte_secoes" value="pdf_disponivel">
+            <span>Extrair de um <strong>PDF já disponível</strong> em <code>relatorios_entregues/</code>:</span>
+          </label>
+          <select name="pdf_disponivel" title="PDF disponível" class="indent">
+            <option value="">— selecione —</option>
+            {% for nome in pdfs_disponiveis %}
+              <option value="{{ nome }}">{{ nome }}</option>
+            {% endfor %}
+          </select>
+          <label class="radio-line">
+            <input type="radio" name="fonte_secoes" value="upload">
+            <span>Fazer <strong>upload</strong> de um PDF do mês desejado:</span>
+          </label>
+          <input type="file" name="pdf_upload" accept="application/pdf,.pdf" title="PDF do relatório base" class="indent">
+        </div>
+      </div>
+
       <div class="full"><button type="submit">Criar relatório</button></div>
     </form>
   </div>

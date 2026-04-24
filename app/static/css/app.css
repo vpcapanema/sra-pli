@@ -81,6 +81,11 @@ button.danger{background:var(--danger);color:#fff}
 .grid-form{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
 .grid-form .full{grid-column:1/-1}
 .actions-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.fonte-secoes{display:flex;flex-direction:column;gap:.4rem}
+.fonte-secoes .radio-line{display:flex;gap:.5rem;align-items:flex-start}
+.fonte-secoes .indent{margin-left:1.5rem}
+.fonte-secoes select{max-width:480px}
+.sdesc-tight{margin:.25rem 0 .5rem}
 
 details.bloco{margin-bottom:10px;border:1px solid var(--border);border-radius:5px;background:#f8fafc}
 details.bloco[open]{background:#fff}

@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Request, Form, Depends, HTTPException
+from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from dateutil import parser as dateparser
@@ -8,6 +8,10 @@ from ..db import get_db
 from ..models import Relatorio, Secao, User
 from ..auth import current_user
 from ..bootstrap import criar_secoes_padrao
+from ..sumario_extractor import (
+    extrair_sumario,
+    extrair_sumario_pdf_disponivel,
+)
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
@@ -20,7 +24,7 @@ def _require(request: Request, db: Session) -> User:
 
 
 @router.post("")
-def criar_relatorio(
+async def criar_relatorio(
     request: Request,
     codigo: str = Form(...),
     titulo: str = Form(...),
@@ -28,6 +32,9 @@ def criar_relatorio(
     periodo_inicio: str = Form(...),
     periodo_fim: str = Form(...),
     numero_medicao: str = Form(""),
+    fonte_secoes: str = Form("anterior"),
+    pdf_disponivel: str = Form(""),
+    pdf_upload: "UploadFile | None" = File(None),
     db: Session = Depends(get_db),
 ):
     user = _require(request, db)
@@ -35,6 +42,35 @@ def criar_relatorio(
         raise HTTPException(403)
     if db.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
         raise HTTPException(400, detail="Código já existe")
+
+    # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
+    secoes_explicitas: "list[tuple[str, str]] | None" = None
+    fonte = (fonte_secoes or "anterior").strip().lower()
+    if fonte == "pdf_disponivel":
+        nome = (pdf_disponivel or "").strip()
+        if not nome:
+            raise HTTPException(400, detail="Selecione o PDF disponível.")
+        try:
+            secoes_explicitas = extrair_sumario_pdf_disponivel(nome)
+        except ValueError as exc:
+            raise HTTPException(400, detail=str(exc))
+        if not secoes_explicitas:
+            raise HTTPException(400, detail=f"Não foi possível extrair o sumário de {nome}.")
+    elif fonte == "upload":
+        if pdf_upload is None or not pdf_upload.filename:
+            raise HTTPException(400, detail="Envie um arquivo PDF.")
+        if not pdf_upload.filename.lower().endswith(".pdf"):
+            raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
+        dados = await pdf_upload.read()
+        if not dados:
+            raise HTTPException(400, detail="Arquivo PDF vazio.")
+        try:
+            secoes_explicitas = extrair_sumario(dados)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
+        if not secoes_explicitas:
+            raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
+
     rel = Relatorio(
         codigo=codigo.strip(),
         titulo=titulo.strip(),
@@ -46,7 +82,7 @@ def criar_relatorio(
     db.add(rel)
     db.commit()
     db.refresh(rel)
-    criar_secoes_padrao(db, rel.id)
+    criar_secoes_padrao(db, rel.id, secoes_explicitas=secoes_explicitas)
     return RedirectResponse(f"/relatorios/{rel.id}", status_code=303)
 
 

@@ -9,6 +9,7 @@ from datetime import date
 from ..db import get_db
 from ..models import Relatorio, Secao
 from ..auth import current_user
+from ..sumario_extractor import listar_pdfs_disponiveis
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -51,9 +52,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     sugestao = _sugestao_proximo_relatorio(db)
+    pdfs_disponiveis = listar_pdfs_disponiveis()
     return templates.TemplateResponse(
         "dashboard.html",
-        {"request": request, "user": user, "relatorios": relatorios, "sugestao": sugestao},
+        {
+            "request": request,
+            "user": user,
+            "relatorios": relatorios,
+            "sugestao": sugestao,
+            "pdfs_disponiveis": pdfs_disponiveis,
+        },
     )
 
 

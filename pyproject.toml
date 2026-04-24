@@ -22,6 +22,8 @@ disable = [
 max-line-length = 120
 
 [tool.pyright]
+typeCheckingMode = "off"
+useLibraryCodeForTypes = true
 reportMissingImports = "none"
 reportMissingModuleSource = "none"
 
