@@ -13,3 +13,6 @@ uploads/
 *.log
 .DS_Store
 .pytest_cache/
+
+_apply_chk.py
+_t.py
