@@ -20,7 +20,8 @@
       <thead><tr><th>#</th><th>Seção</th><th>Responsável</th><th>Blocos</th><th>Status</th><th></th></tr></thead>
       <tbody>
       {% for s in rel.secoes %}
-        <tr>
+        {% set nivel = s.numero.count('.') + 1 %}
+        <tr class="lvl-{{ nivel }}">
           <td><strong>{{ s.numero }}</strong></td>
           <td>{{ s.titulo }}</td>
           <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
@@ -30,7 +31,14 @@
             {% elif s.status == 'em_andamento' %}<span class="sbadge s-andamento">em andamento</span>
             {% else %}<span class="sbadge s-pendente">pendente</span>{% endif %}
           </td>
-          <td><a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a></td>
+          <td>
+            <a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a>
+            {% if user.role in ['admin','coordenador'] and '.' in s.numero %}
+              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir" class="inline-form" onsubmit="return confirm('Excluir a seção {{ s.numero }}?')">
+                <button type="submit" class="link-danger">excluir</button>
+              </form>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -52,6 +60,18 @@
     </form>
     <form method="post" action="/relatorios/{{ rel.id }}/versao">
       <button type="submit" class="secondary">Nova versão (+1)</button>
+    </form>
+  </div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">+</span><span class="st">Adicionar subseção</span></div>
+  <div class="sb2">
+    <p class="sdesc">Use para incluir níveis variam por mês (ex.: <code>4.3.1</code>, <code>4.4.1</code>, <code>4.4.6.1</code>).</p>
+    <form method="post" action="/relatorios/{{ rel.id }}/secoes" class="grid-form">
+      <div><label>Número</label><input name="numero" title="Número hierárquico" placeholder="4.4.1" required></div>
+      <div class="full"><label>Título</label><input name="titulo" title="Título da subseção" placeholder="Acompanhamento técnico em reuniões" required></div>
+      <div class="full"><button type="submit">Adicionar subseção</button></div>
     </form>
   </div>
 </section>

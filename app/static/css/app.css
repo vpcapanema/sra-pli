@@ -50,6 +50,11 @@ a:hover{text-decoration:underline}
 .sbadge.s-completo{border-color:var(--green-dk);color:var(--green-dk);background:#e8faef}
 .sbadge.s-andamento{border-color:#f0a500;color:var(--warn);background:var(--warn-soft)}
 .sbadge.s-pendente{border-color:var(--danger);color:var(--danger);background:var(--danger-soft)}
+tr.lvl-2 td:nth-child(2){padding-left:18px;color:#2a3a4a}
+tr.lvl-3 td:nth-child(2){padding-left:34px;color:#3a4a5a;font-size:13px}
+tr.lvl-4 td:nth-child(2){padding-left:50px;color:#4a5a6a;font-size:12.5px}
+.inline-form{display:inline;margin-left:8px}
+.link-danger{background:none;border:none;color:var(--danger);cursor:pointer;text-decoration:underline;padding:0;font-size:12px}
 .sb2{padding:18px 20px}
 .sdesc{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.7}
 

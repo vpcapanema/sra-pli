@@ -51,15 +51,18 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
         })
 
     template = _env.get_template("pdf/relatorio.html")
-    sumario_html = (
-        "<ol>"
-        + "".join(
-            f'<li><span class="num">{s["numero"]}</span><span class="ttl">{s["titulo"]}</span></li>'
-            for s in secoes
+    sumario_items = []
+    for s in secoes:
+        nivel = s["numero"].count(".") + 1
+        sumario_items.append(
+            f'<li class="lvl-{nivel}"><span class="num">{s["numero"]}</span>'
+            f'<span class="ttl">{s["titulo"]}</span></li>'
         )
-        + '<li><span class="num">—</span><span class="ttl">Página de assinaturas</span></li>'
-        + "</ol>"
+    sumario_items.append(
+        '<li class="lvl-1"><span class="num">—</span>'
+        '<span class="ttl">Página de assinaturas</span></li>'
     )
+    sumario_html = "<ol>" + "".join(sumario_items) + "</ol>"
     html_str = template.render(
         rel=rel,
         secoes=secoes,
