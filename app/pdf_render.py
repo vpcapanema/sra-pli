@@ -30,14 +30,33 @@ def _esc(s: str) -> str:
 
 def _render_tabela_html(corpo: str, legenda: str, numero: int) -> str:
     linhas_brutas = [ln for ln in corpo.splitlines() if ln.strip()]
-    # Descarta linhas separadoras de markdown (--- | --- ...)
-    linhas = [ln for ln in linhas_brutas if not re.fullmatch(r"\s*-{2,}(\s*\|\s*-{2,})*\s*", ln)]
+
+    def _is_separator(ln: str) -> bool:
+        s = ln.strip()
+        if not s:
+            return True
+        # markdown: --- | --- | ---
+        if re.fullmatch(r"-{2,}(\s*\|\s*-{2,})*", s):
+            return True
+        # ascii art: +---+---+   ou  +===+===+
+        if re.fullmatch(r"\+[-=+\s]+\+?", s):
+            return True
+        return False
+
+    def _split_cells(ln: str) -> list[str]:
+        s = ln.strip()
+        # remove pipes externos: |a|b|c|  ->  a|b|c
+        if s.startswith("|"):
+            s = s[1:]
+        if s.endswith("|"):
+            s = s[:-1]
+        return [c.strip() for c in s.split("|")]
+
+    linhas = [ln for ln in linhas_brutas if not _is_separator(ln)]
     if not linhas:
         return ""
-    cab = [c.strip() for c in linhas[0].split("|")]
-    corpo_linhas = [
-        [c.strip() for c in ln.split("|")] for ln in linhas[1:]
-    ]
+    cab = _split_cells(linhas[0])
+    corpo_linhas = [_split_cells(ln) for ln in linhas[1:]]
     out = ['<div class="tabela">']
     if legenda:
         out.append(f'<div class="cap">Tabela {numero} — {_esc(legenda)}</div>')

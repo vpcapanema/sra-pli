@@ -148,15 +148,7 @@
 
     <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
       <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
-      <div class="full">
-        <label for="add-bloco-titulo-sel">Título</label>
-        <select id="add-bloco-titulo-sel" title="Título do bloco">
-          <option value="__atual__" selected>{{ sec.numero }} – {{ sec.titulo }}</option>
-          <option value="__novo__">Novo título…</option>
-        </select>
-        <input type="hidden" name="titulo" id="add-bloco-titulo">
-        <input type="text" id="add-bloco-titulo-novo" class="add-bloco-novo-input is-hidden" placeholder="Digite o novo título">
-      </div>
+      <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
 
       <div class="full add-bloco-grid">
         <div class="add-bloco-conteudo-col">
@@ -175,20 +167,19 @@
           <div class="mini-card mini-card-figura">
             <div class="mini-card-hdr"><span>🖼 Figura</span></div>
             <div class="mini-card-body">
-              <label class="mini-label" for="ins-fig-sel">Figura</label>
+              <label class="mini-label" for="ins-fig-sel">Figura existente</label>
               <select id="ins-fig-sel" title="Figura disponível">
-                <option value="">— escolher —</option>
+                <option value="">— selecione —</option>
                 {% for f in figuras %}<option value="{{ f.id }}" data-nome="{{ f.nome }}">#{{ f.id }} {{ f.nome }}</option>{% endfor %}
               </select>
               <div id="ins-fig-preview" class="mini-fig-preview is-hidden"><img alt="prévia da figura" id="ins-fig-img"></div>
               <label class="mini-label" for="ins-fig-leg">Legenda</label>
               <input type="text" id="ins-fig-leg" placeholder="Ex.: Vista aérea da obra">
               <div class="mini-actions">
-                <button type="button" id="ins-fig-btn" class="primary-mini">Inserir no cursor</button>
-                <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Fazer upload de uma figura nova e inserir no cursor">↑ Upload e inserir</button>
+                <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
+                <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Enviar nova figura…</button>
               </div>
               <input type="file" id="ins-fig-upload-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="is-hidden">
-              <p class="mini-hint">A indexação (Figura N) e a posição da legenda são geradas automaticamente no relatório.</p>
             </div>
           </div>
 
@@ -208,9 +199,8 @@
               <label class="mini-label" for="ins-tab-leg">Legenda</label>
               <input type="text" id="ins-tab-leg" placeholder="Ex.: Quantitativo de serviços">
               <div class="mini-actions">
-                <button type="button" id="ins-tab-btn" class="primary-mini">Inserir no cursor</button>
+                <button type="button" id="ins-tab-btn" class="primary-mini">Inserir tabela</button>
               </div>
-              <p class="mini-hint">Será inserida uma tabela vazia com cabeçalho. Edite as células direto no conteúdo. Estilo Concremat e numeração automáticos no relatório.</p>
             </div>
           </div>
         </aside>
@@ -225,35 +215,10 @@
 (function(){
   const form = document.getElementById('form-add-bloco'); if (!form) return;
   const tipoIn = document.getElementById('add-bloco-tipo');
-  const tituloSel = document.getElementById('add-bloco-titulo-sel');
   const tituloHidden = document.getElementById('add-bloco-titulo');
-  const tituloNovo = document.getElementById('add-bloco-titulo-novo');
   const ta = document.getElementById('add-bloco-conteudo');
-  const tituloAtual = {{ ((sec.numero ~ ' – ' ~ (sec.titulo or '')))|tojson }};
   const relId = {{ rel.id|tojson }};
-
-  function syncTitulo(){
-    if (tituloSel.value === '__novo__') {
-      tituloNovo.classList.remove('is-hidden');
-      tituloHidden.value = tituloNovo.value.trim();
-    } else {
-      tituloNovo.classList.add('is-hidden');
-      tituloHidden.value = tituloAtual;
-    }
-  }
-  tituloSel.addEventListener('change', syncTitulo);
-
-  function applyTituloMarker(novoTitulo){
-    const lines = ta.value.split('\n');
-    if (lines.length && /^#\s+/.test(lines[0])) lines.shift();
-    if (novoTitulo) lines.unshift('# ' + novoTitulo);
-    ta.value = lines.join('\n');
-  }
-  tituloNovo.addEventListener('input', () => {
-    tituloHidden.value = tituloNovo.value.trim();
-    applyTituloMarker(tituloHidden.value);
-  });
-  syncTitulo();
+  function syncTitulo(){ /* título fixo da seção atual */ }
 
   // Guarda última posição do cursor no textarea (perdida quando clicamos fora).
   let lastCursor = { start: 0, end: 0 };
@@ -336,11 +301,26 @@
     const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
     const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
     const leg = (tabLeg.value || '').trim().replace(/\|/g, '/');
-    const header = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1)).join(' | ');
-    const sep    = Array.from({length: c}, () => '---').join(' | ');
-    const dataRow = Array.from({length: c}, () => '   ').join(' | ');
-    const rows = Array.from({length: r}, () => dataRow).join('\n');
-    const marker = '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + header + '\n' + sep + '\n' + rows + '\n[[/TABELA]]';
+    // Gera tabela com bordas visíveis em caracteres (ASCII art) para leitura amigável.
+    const colW = 14; // largura interna da célula
+    const pad = (s) => {
+      s = String(s == null ? '' : s);
+      if (s.length >= colW) return ' ' + s.slice(0, colW - 1);
+      return ' ' + s + ' '.repeat(colW - 1 - s.length);
+    };
+    const sepLine = (ch) => '+' + Array.from({length: c}, () => ch.repeat(colW + 1)).join('+') + '+';
+    const headerCells = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
+    const dataCells = Array.from({length: c}, () => '');
+    const rowFor = (cells) => '|' + cells.map(pad).join('|') + '|';
+    const lines = [];
+    lines.push(sepLine('-'));
+    lines.push(rowFor(headerCells));
+    lines.push(sepLine('='));
+    for (let i = 0; i < r; i++) {
+      lines.push(rowFor(dataCells));
+      lines.push(sepLine('-'));
+    }
+    const marker = '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + lines.join('\n') + '\n[[/TABELA]]';
     insertText(marker, { blockLine: true });
     tabLeg.value = '';
   });
@@ -405,9 +385,10 @@
 .add-bloco-novo-input { margin-top:6px; }
 .add-bloco-novo-input.is-hidden { display:none; }
 
-.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:14px; align-items:start; }
-@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; } }
-.add-bloco-conteudo-col textarea { width:100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; gap:14px; align-items:stretch; }
+@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; align-items:start; } }
+.add-bloco-conteudo-col { display:flex; flex-direction:column; min-width:0; }
+.add-bloco-conteudo-col textarea { width:100%; flex:1; min-height:340px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:0.9rem; line-height:1.45; tab-size:2; white-space:pre; overflow:auto; }
 .add-bloco-side { display:flex; flex-direction:column; gap:10px; }
 
 .mini-card { border:1px solid #d6dde6; border-radius:6px; background:#fafbfc; overflow:hidden; }
@@ -444,27 +425,7 @@
 .sec-sub-form input[type=text] { flex:1 1 200px; padding:4px 6px; }
 </style>
 
-<section class="ss active-tab" id="upload-figuras">
-  <div class="ss-hdr"><span class="sn">↑</span><span class="st">Upload de figuras (compartilhadas no relatório)</span></div>
-  <div class="sb2">
-    <form method="post" action="/relatorios/{{ rel.id }}/figuras" enctype="multipart/form-data" class="grid-form">
-      <div class="full"><label>Arquivo (PNG/JPG/SVG, até 8 MB)</label>
-        <input type="file" name="arquivo" accept="image/*" title="Arquivo de imagem" required>
-      </div>
-      <div><label>Legenda</label><input name="legenda" title="Legenda da figura" placeholder="Texto da legenda"></div>
-      <div><label>Fonte</label><input name="fonte" title="Fonte da figura" placeholder="Origem dos dados"></div>
-      <div class="full"><button type="submit">Enviar figura</button></div>
-    </form>
-    {% if figuras %}
-    <div class="fig-grid">
-      {% for f in figuras %}
-        <div class="fig-card">
-          <img src="/figuras/{{ f.id }}" alt="{{ f.nome }}">
-          <div class="fig-meta"><strong>#{{ f.id }}</strong> {{ f.nome }}</div>
-        </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
+<section class="ss active-tab" id="upload-figuras" hidden>
+  <div class="ss-hdr"><span class="sn">↑</span><span class="st">Upload de figuras</span></div>
 </section>
 {% endblock %}
