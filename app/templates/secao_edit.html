@@ -182,7 +182,7 @@
               </select>
               <div id="ins-fig-preview" class="mini-fig-preview is-hidden"><img alt="prévia da figura" id="ins-fig-img"></div>
               <label class="mini-label" for="ins-fig-leg">Legenda</label>
-              <input type="text" id="ins-fig-leg" placeholder="Ex.: Vista aérea da obra">
+              <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
               <div class="mini-actions">
                 <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
                 <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
@@ -205,7 +205,7 @@
                 </div>
               </div>
               <label class="mini-label" for="ins-tab-leg">Legenda</label>
-              <input type="text" id="ins-tab-leg" placeholder="Ex.: Quantitativo de serviços">
+              <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
               <div class="mini-actions">
                 <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
                 <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
@@ -658,6 +658,7 @@
 .mini-card-hdr { padding:7px 12px; font-weight:600; font-size:12px; border-bottom:1px solid var(--border); }
 .mini-card-body { padding:10px 12px; display:flex; flex-direction:column; gap:8px; flex:1; }
 .mini-card-body select, .mini-card-body input[type=text], .mini-card-body input[type=number] { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; }
+.mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
 .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 /* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
