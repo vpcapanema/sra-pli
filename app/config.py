@@ -2,7 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./sra.db"
+    # Postgres real (Render). Sem fallback: a aplicação exige DATABASE_URL no .env.
+    DATABASE_URL: str
     SECRET_KEY: str = "dev-secret-change-me"
     ADMIN_EMAIL: str = "admin@concremat.local"
     ADMIN_PASSWORD: str = "admin123"

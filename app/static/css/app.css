@@ -33,6 +33,14 @@ a:hover{text-decoration:underline}
 #dh{background:var(--deep);color:#fff;padding:0 24px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50;height:var(--hh);box-shadow:0 1px 4px rgba(0,0,0,.15)}
 #dh h2{font-size:12.5px;font-weight:600;flex:1;letter-spacing:.15px}
 #dh .meta{font-size:10.5px;color:rgba(255,255,255,.55)}
+.session-bar{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:4px 12px}
+.session-bar .sf{display:flex;flex-direction:column;line-height:1.15}
+.session-bar .sf-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.5);font-weight:600}
+.session-bar .sf-val{font-size:11px;color:#fff;font-weight:500}
+.session-bar .sf-role{color:var(--green);text-transform:capitalize;font-weight:600}
+.muted-dash{color:#9aa5b3}
+.alert-ok{background:#e8faef;border-color:#2a9450;color:#2a9450}
+.btn-cancel{margin-left:12px}
 #content{padding:22px 30px 60px;text-align:left;max-width:1180px;width:100%}
 
 .hero{background:linear-gradient(135deg,#f0f5ff,#e8eef8);border:2px solid var(--navy);border-radius:8px;padding:22px 26px;margin-bottom:20px}
@@ -112,6 +120,23 @@ details.bloco .det-body{padding:14px 16px}
 .login-card .lede{font-size:11.5px;color:var(--muted);margin-bottom:18px;line-height:1.55}
 .login-card button{width:100%;margin-top:18px;padding:11px;background:var(--green-dk)}
 .login-card button:hover{background:var(--green)}
+
+/* coluna Ações da tabela de relatórios */
+.tbl-relatorios .acoes-col{width:1%;white-space:nowrap;text-align:center}
+.tbl-relatorios .acoes-cell{text-align:center;white-space:nowrap;padding:4px 10px;vertical-align:middle}
+.acoes-wrap{display:inline-flex;align-items:center;justify-content:center;gap:14px}
+.acoes-grupo{display:inline-flex;align-items:center;gap:2px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:#f8fafc}
+.ibtn-form{display:inline-flex;margin:0;padding:0}
+.ibtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;line-height:1;transition:background .15s,color .15s,border-color .15s}
+.ibtn:hover:not(:disabled){background:#fff;border-color:var(--border);color:var(--navy);text-decoration:none}
+.ibtn:disabled{opacity:.35;cursor:not-allowed}
+.ibtn svg{display:block;width:12px;height:12px}
+.ibtn-abrir:hover:not(:disabled){color:var(--blue);border-color:var(--blue)}
+.ibtn-revisar:hover:not(:disabled){color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.ibtn-finalizar:hover:not(:disabled){color:var(--green-dk);border-color:var(--green-dk);background:#e8faef}
+.ibtn-duplicar:hover:not(:disabled){color:var(--blue);border-color:var(--blue)}
+.ibtn-reverter:hover:not(:disabled){color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.ibtn-excluir:hover:not(:disabled){color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 
 @media (max-width:760px){
   :root{--sw:0px}

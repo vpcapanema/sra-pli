@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block header %}Editar usuário{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Editar usuário</h1>
+  <div class="subtitle">{{ alvo.nome }} · {{ alvo.email }}</div>
+</section>
+
+<section class="ss active-tab">
+  <div class="ss-hdr"><span class="sn">✎</span><span class="st">Dados do usuário</span></div>
+  <div class="sb2">
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    {% if ok %}<div class="alert alert-ok">Alterações salvas.</div>{% endif %}
+    <form method="post" action="/usuarios/{{ alvo.id }}/editar" class="grid-form" id="form-edit-usuario">
+      <div><label>Nome</label><input name="nome" id="inp-nome-edit" title="Nome" placeholder="Nome completo" value="{{ alvo.nome }}" required
+        pattern="^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+(\s(do|da|de|dos|das|du|e|di|del|la|von|van)|\s[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+)+$"></div>
+      <div><label>E-mail</label><input type="email" name="email" title="E-mail" placeholder="voce@empresa.com" value="{{ alvo.email }}" required></div>
+      <div><label>Perfil</label>
+        {% if user.role == 'admin' %}
+        <select name="role" title="Perfil de acesso">
+          <option value="autor" {% if alvo.role == 'autor' %}selected{% endif %}>Autor</option>
+          <option value="coordenador" {% if alvo.role == 'coordenador' %}selected{% endif %}>Coordenador</option>
+          <option value="admin" {% if alvo.role == 'admin' %}selected{% endif %}>Admin</option>
+        </select>
+        {% else %}
+        <input title="Perfil" placeholder="Perfil" value="{{ alvo.role }}" disabled>
+        <input type="hidden" name="role" value="{{ alvo.role }}">
+        {% endif %}
+      </div>
+      <div><label>Nova senha (opcional)</label><input type="password" name="password" placeholder="deixe em branco para manter" minlength="6"></div>
+      <div class="full">
+        <button type="submit">Salvar</button>
+        <a href="/usuarios" class="btn-cancel">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</section>
+<script>
+(function () {
+  var PARTICULAS = ['do','da','de','dos','das','du','e','di','del','la','von','van'];
+  function formatarNome(raw) {
+    if (!raw) return '';
+    return raw.replace(/\s+/g, ' ').trim().split(' ').map(function (p, i) {
+      var b = p.toLocaleLowerCase('pt-BR');
+      if (i > 0 && PARTICULAS.indexOf(b) !== -1) return b;
+      return b.charAt(0).toLocaleUpperCase('pt-BR') + b.slice(1);
+    }).join(' ');
+  }
+  var inp = document.getElementById('inp-nome-edit');
+  if (inp) {
+    inp.addEventListener('blur', function () { inp.value = formatarNome(inp.value); });
+    var f = document.getElementById('form-edit-usuario');
+    if (f) f.addEventListener('submit', function () { inp.value = formatarNome(inp.value); });
+  }
+})();
+</script>
+{% endblock %}

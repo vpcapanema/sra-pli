@@ -20,18 +20,14 @@
       <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ sugestao.numero_medicao }}"></div>
 
       <div class="full">
-        <label>Fonte das seções (sumário)</label>
-        <p class="sdesc sdesc-tight">Escolha de onde a estrutura de seções e subseções será extraída.</p>
+        <label>Sumário base</label>
+        <p class="sdesc sdesc-tight">Selecione um relatório entregue para reaproveitar sua estrutura, ou envie um PDF próprio.</p>
         <div class="fonte-secoes">
           <label class="radio-line">
-            <input type="radio" name="fonte_secoes" value="anterior" checked>
-            <span>Usar a estrutura do <strong>relatório anterior</strong> registrado no sistema (padrão).</span>
+            <input type="radio" name="fonte_secoes" value="pdf_disponivel" checked>
+            <span>Relatório entregue:</span>
           </label>
-          <label class="radio-line">
-            <input type="radio" name="fonte_secoes" value="pdf_disponivel">
-            <span>Extrair de um <strong>PDF já disponível</strong> em <code>relatorios_entregues/</code>:</span>
-          </label>
-          <select name="pdf_disponivel" title="PDF disponível" class="indent">
+          <select name="pdf_disponivel" title="PDF base" class="indent">
             <option value="">— selecione —</option>
             {% for nome in pdfs_disponiveis %}
               <option value="{{ nome }}">{{ nome }}</option>
@@ -39,7 +35,7 @@
           </select>
           <label class="radio-line">
             <input type="radio" name="fonte_secoes" value="upload">
-            <span>Fazer <strong>upload</strong> de um PDF do mês desejado:</span>
+            <span>Upload de PDF:</span>
           </label>
           <input type="file" name="pdf_upload" accept="application/pdf,.pdf" title="PDF do relatório base" class="indent">
         </div>
@@ -55,8 +51,8 @@
   <div class="ss-hdr"><span class="sn">●</span><span class="st">Relatórios cadastrados</span></div>
   <div class="sb2">
     {% if relatorios %}
-    <table>
-      <thead><tr><th>Código</th><th>Mês</th><th>Período</th><th>Versão</th><th>Status</th><th></th></tr></thead>
+    <table class="tbl-relatorios">
+      <thead><tr><th>Código</th><th>Mês</th><th>Período</th><th>Versão</th><th>Status</th><th class="acoes-col">Ações</th></tr></thead>
       <tbody>
       {% for r in relatorios %}
         <tr>
@@ -69,7 +65,52 @@
             {% elif r.status == 'em_revisao' %}<span class="sbadge s-andamento">em revisão</span>
             {% else %}<span class="sbadge s-pendente">aberto</span>{% endif %}
           </td>
-          <td><a href="/relatorios/{{ r.id }}">abrir →</a></td>
+          <td class="acoes-cell">
+            <div class="acoes-wrap">
+              <div class="acoes-grupo">
+                <a class="ibtn ibtn-abrir" href="/relatorios/{{ r.id }}" title="Abrir relatório" aria-label="Abrir">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>
+                </a>
+                {% if user.role in ['admin','coordenador'] %}
+                <form method="post" action="/relatorios/{{ r.id }}/status" class="ibtn-form">
+                  <input type="hidden" name="status" value="em_revisao">
+                  <button class="ibtn ibtn-revisar" type="submit" title="Colocar em revisão" aria-label="Revisar"
+                          {% if r.status == 'em_revisao' %}disabled{% endif %}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.04-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                  </button>
+                </form>
+                <form method="post" action="/relatorios/{{ r.id }}/status" class="ibtn-form">
+                  <input type="hidden" name="status" value="finalizado">
+                  <button class="ibtn ibtn-finalizar" type="submit" title="Finalizar relatório" aria-label="Finalizar"
+                          {% if r.status == 'finalizado' %}disabled{% endif %}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+              {% if user.role in ['admin','coordenador'] %}
+              <div class="acoes-grupo acoes-grupo-arquivo">
+                <form method="post" action="/relatorios/{{ r.id }}/duplicar" class="ibtn-form">
+                  <button class="ibtn ibtn-duplicar" type="submit" title="Duplicar relatório" aria-label="Duplicar">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+                  </button>
+                </form>
+                <form method="post" action="/relatorios/{{ r.id }}/reverter" class="ibtn-form">
+                  <button class="ibtn ibtn-reverter" type="submit" title="Reverter para aberto" aria-label="Reverter"
+                          {% if r.status != 'finalizado' %}disabled{% endif %}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>
+                  </button>
+                </form>
+                <form method="post" action="/relatorios/{{ r.id }}/excluir" class="ibtn-form"
+                      onsubmit="return confirm('Excluir definitivamente o relatório {{ r.codigo }}? Esta ação não pode ser desfeita.');">
+                  <button class="ibtn ibtn-excluir" type="submit" title="Excluir relatório" aria-label="Excluir">
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  </button>
+                </form>
+              </div>
+              {% endif %}
+            </div>
+          </td>
         </tr>
       {% endfor %}
       </tbody>

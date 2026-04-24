@@ -4,8 +4,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from dateutil import parser as dateparser
 
-from ..db import get_db
-from ..models import Relatorio, Secao, User
+from ..db import get_db, tx_session
+from ..models import Relatorio, Secao, Bloco, User
 from ..auth import current_user
 from ..bootstrap import criar_secoes_padrao
 from ..sumario_extractor import (
@@ -32,7 +32,7 @@ async def criar_relatorio(
     periodo_inicio: str = Form(...),
     periodo_fim: str = Form(...),
     numero_medicao: str = Form(""),
-    fonte_secoes: str = Form("anterior"),
+    fonte_secoes: str = Form("pdf_disponivel"),
     pdf_disponivel: str = Form(""),
     pdf_upload: "UploadFile | None" = File(None),
     db: Session = Depends(get_db),
@@ -45,7 +45,7 @@ async def criar_relatorio(
 
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
-    fonte = (fonte_secoes or "anterior").strip().lower()
+    fonte = (fonte_secoes or "pdf_disponivel").strip().lower()
     if fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
@@ -70,6 +70,8 @@ async def criar_relatorio(
             raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
         if not secoes_explicitas:
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
+    else:
+        raise HTTPException(400, detail="Selecione um relatório entregue ou envie um PDF.")
 
     rel = Relatorio(
         codigo=codigo.strip(),
@@ -79,11 +81,13 @@ async def criar_relatorio(
         periodo_fim=dateparser.parse(periodo_fim).date(),
         numero_medicao=int(numero_medicao) if numero_medicao.strip() else None,
     )
-    db.add(rel)
-    db.commit()
-    db.refresh(rel)
-    criar_secoes_padrao(db, rel.id, secoes_explicitas=secoes_explicitas)
-    return RedirectResponse(f"/relatorios/{rel.id}", status_code=303)
+    # Criar relatório + seções padrão em uma única transação (multi-statement).
+    with tx_session() as txdb:
+        txdb.add(rel)
+        txdb.flush()
+        rel_id_novo = rel.id
+        criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+    return RedirectResponse(f"/relatorios/{rel_id_novo}", status_code=303)
 
 
 @router.post("/{rel_id}/status")
@@ -118,6 +122,105 @@ def nova_versao(rel_id: int, request: Request, db: Session = Depends(get_db)):
     rel.versao = f"R{n:02d}"
     db.commit()
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
+
+
+@router.post("/{rel_id}/duplicar")
+def duplicar_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require(request, db)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+
+    base_codigo = f"{rel.codigo}_copia"
+    novo_codigo = base_codigo
+    i = 2
+    while db.query(Relatorio).filter(Relatorio.codigo == novo_codigo).first():
+        novo_codigo = f"{base_codigo}{i}"
+        i += 1
+
+    secoes_orig = db.query(Secao).filter(Secao.relatorio_id == rel.id).order_by(Secao.ordem).all()
+    sec_ids_orig = [s.id for s in secoes_orig]
+    blocos_orig = (
+        db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids_orig)).order_by(Bloco.ordem).all()
+        if sec_ids_orig else []
+    )
+
+    # Multi-statement: usa transação explícita para garantir atomicidade
+    # (engine padrão roda em AUTOCOMMIT por performance).
+    with tx_session() as txdb:
+        novo = Relatorio(
+            codigo=novo_codigo,
+            titulo=f"{rel.titulo}_copia",
+            mes_referencia=rel.mes_referencia,
+            periodo_inicio=rel.periodo_inicio,
+            periodo_fim=rel.periodo_fim,
+            numero_medicao=rel.numero_medicao,
+            versao="R00",
+            status="aberto",
+        )
+        txdb.add(novo)
+        txdb.flush()
+
+        sec_map: dict[int, int] = {}
+        for s in secoes_orig:
+            nova_sec = Secao(
+                relatorio_id=novo.id,
+                numero=s.numero,
+                titulo=s.titulo,
+                ordem=s.ordem,
+                responsavel_id=s.responsavel_id,
+                status="pendente",
+            )
+            txdb.add(nova_sec)
+            txdb.flush()
+            sec_map[s.id] = nova_sec.id
+
+        for b in blocos_orig:
+            txdb.add(
+                Bloco(
+                    secao_id=sec_map[b.secao_id],
+                    tipo=b.tipo,
+                    ordem=b.ordem,
+                    titulo=b.titulo,
+                    conteudo=b.conteudo,
+                    legenda=b.legenda,
+                    fonte=b.fonte,
+                    figura_id=b.figura_id,
+                    autor_id=b.autor_id,
+                )
+            )
+
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@router.post("/{rel_id}/reverter")
+def reverter_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require(request, db)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+    if rel.status != "finalizado":
+        raise HTTPException(400, detail="Só é possível reverter relatórios finalizados.")
+    rel.status = "aberto"
+    db.commit()
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@router.post("/{rel_id}/excluir")
+def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _require(request, db)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+    db.delete(rel)
+    db.commit()
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/responsavel")

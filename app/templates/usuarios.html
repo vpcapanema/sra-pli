@@ -6,6 +6,7 @@
   <div class="subtitle">Cadastro de autores, coordenadores e administradores</div>
 </section>
 
+{% if user.role in ['admin','coordenador'] %}
 <section class="ss active-tab">
   <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo usuário</span></div>
   <div class="sb2">
@@ -25,13 +26,14 @@
       <div class="full"><button type="submit">Cadastrar</button></div>
     </form>
   </div>
+{% endif %}
 </section>
 
 <section class="ss active-tab">
   <div class="ss-hdr"><span class="sn">●</span><span class="st">Equipe cadastrada</span></div>
   <div class="sb2">
     <table>
-      <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Criado em</th></tr></thead>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Criado em</th><th>Ações</th></tr></thead>
       <tbody>
         {% for u in usuarios %}
         <tr>
@@ -39,6 +41,13 @@
           <td>{{ u.email }}</td>
           <td><span class="tag accent">{{ u.role }}</span></td>
           <td>{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+          <td>
+            {% if user.role == 'admin' or user.id == u.id %}
+              <a href="/usuarios/{{ u.id }}/editar">Editar</a>
+            {% else %}
+              <span class="muted-dash">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

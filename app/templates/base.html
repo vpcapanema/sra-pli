@@ -22,6 +22,10 @@
     <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
       <span class="num">02</span><span class="nlbl">Usuários</span>
     </a>
+    {% else %}
+    <a class="ni {% if request.url.path.startswith('/usuarios') %}active{% endif %}" href="/usuarios">
+      <span class="num">02</span><span class="nlbl">Usuários</span>
+    </a>
     {% endif %}
   </nav>
   <div id="sb-foot">
@@ -33,6 +37,11 @@
 <div id="main">
   <header id="dh">
     <h2>{% block header %}{% endblock %}</h2>
+    <div class="session-bar" title="Sessão atual">
+      <span class="sf"><span class="sf-lbl">Nome</span><span class="sf-val">{{ user.nome }}</span></span>
+      <span class="sf"><span class="sf-lbl">E-mail</span><span class="sf-val">{{ user.email }}</span></span>
+      <span class="sf"><span class="sf-lbl">Perfil</span><span class="sf-val sf-role">{{ user.role }}</span></span>
+    </div>
     <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
   </header>
   <div id="content">

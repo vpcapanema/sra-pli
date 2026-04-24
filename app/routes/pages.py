@@ -54,9 +54,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     sugestao = _sugestao_proximo_relatorio(db)
     pdfs_disponiveis = listar_pdfs_disponiveis()
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "user": user,
             "relatorios": relatorios,
             "sugestao": sugestao,
@@ -74,7 +74,7 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
     if not rel:
         return RedirectResponse("/dashboard", status_code=303)
     return templates.TemplateResponse(
-        "relatorio_detail.html", {"request": request, "user": user, "rel": rel}
+        request, "relatorio_detail.html", {"user": user, "rel": rel}
     )
 
 
@@ -92,6 +92,7 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
     figs = db.query(Figura).filter(Figura.relatorio_id == rel.id).order_by(Figura.created_at).all()
     autores = db.query(User).order_by(User.nome).all()
     return templates.TemplateResponse(
+        request,
         "secao_edit.html",
-        {"request": request, "user": user, "rel": rel, "sec": sec, "figuras": figs, "autores": autores},
+        {"user": user, "rel": rel, "sec": sec, "figuras": figs, "autores": autores},
     )

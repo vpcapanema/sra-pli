@@ -72,4 +72,5 @@ def criar_secoes_padrao(
         if ja:
             continue
         db.add(Secao(relatorio_id=relatorio_id, numero=numero, titulo=titulo, ordem=i))
-    db.commit()
+    # Caller é responsável pelo commit (pode estar dentro de uma tx_session).
+    db.flush()

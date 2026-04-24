@@ -1,0 +1,30 @@
+ INFO:     127.0.0.1:52244 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54562 - "GET / HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:57424 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54562 - "GET /dashboard HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60199 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57416 - "GET / HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:57442 - "GET / HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:57442 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:55294 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55311 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57177 - "GET / HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:57177 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57177 - "GET /dashboard HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50138 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50139 - "GET / HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:50140 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50141 - "GET /dashboard HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:50142 - "GET /usuarios HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:50143 - "GET /relatorios HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:56687 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52318 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52319 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52320 - "GET /dashboard HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:52321 - "GET /usuarios HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:52329 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:55050 - "GET /dashboard HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57958 - "GET /dashboard HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60893 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60894 - "GET /login HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51843 - "GET /favicon.ico HTTP/1.1" 404 Not Found
