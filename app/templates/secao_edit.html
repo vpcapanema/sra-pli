@@ -183,6 +183,16 @@
               <div id="ins-fig-preview" class="mini-fig-preview is-hidden"><img alt="prévia da figura" id="ins-fig-img"></div>
               <label class="mini-label" for="ins-fig-leg">Legenda</label>
               <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
+              <fieldset class="mini-fmt">
+                <legend class="mini-label">Estilo de indexação</legend>
+                <label><input type="radio" name="fig-est" value="R" checked> Reiniciar e incluir seção (ex.: <code id="fig-ex-R">FIGURA {{ sec.numero.split('.')[0] }}.1</code>)</label>
+                <label><input type="radio" name="fig-est" value="C"> Continuar contagem da seção anterior (ex.: <code id="fig-ex-C">FIGURA 1</code>)</label>
+              </fieldset>
+              <fieldset class="mini-fmt">
+                <legend class="mini-label">Posição da legenda</legend>
+                <label><input type="radio" name="fig-pos" value="S" checked> Superior</label>
+                <label><input type="radio" name="fig-pos" value="I"> Inferior</label>
+              </fieldset>
               <div class="mini-actions">
                 <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
                 <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
@@ -206,6 +216,16 @@
               </div>
               <label class="mini-label" for="ins-tab-leg">Legenda</label>
               <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
+              <fieldset class="mini-fmt">
+                <legend class="mini-label">Estilo de indexação</legend>
+                <label><input type="radio" name="tab-est" value="R" checked> Reiniciar e incluir seção (ex.: <code id="tab-ex-R">TABELA {{ sec.numero.split('.')[0] }}.1</code>)</label>
+                <label><input type="radio" name="tab-est" value="C"> Continuar contagem da seção anterior (ex.: <code id="tab-ex-C">TABELA 1</code>)</label>
+              </fieldset>
+              <fieldset class="mini-fmt">
+                <legend class="mini-label">Posição da legenda</legend>
+                <label><input type="radio" name="tab-pos" value="S" checked> Superior</label>
+                <label><input type="radio" name="tab-pos" value="I"> Inferior</label>
+              </fieldset>
               <div class="mini-actions">
                 <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
                 <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
@@ -256,26 +276,56 @@
   const ta = document.getElementById('add-bloco-conteudo');
   const relId = {{ rel.id|tojson }};
   const secNumero = {{ sec.numero|tojson }};
+  const secTop = secNumero.split('.')[0];
   // Quantas figuras/tabelas a seção já contém (somando blocos existentes + markers em texto)
-  {%- set ns = namespace(fig=0, tab=0) -%}
-  {%- for b in sec.blocos -%}
-    {%- if b.tipo == 'figura' -%}{%- set ns.fig = ns.fig + 1 -%}{%- endif -%}
-    {%- if b.tipo == 'tabela' -%}{%- set ns.tab = ns.tab + 1 -%}{%- endif -%}
-    {%- set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') -%}
-    {%- set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA') - (b.conteudo or '').count('[[/TABELA') -%}
+  {%- set ns = namespace(fig=0, tab=0, gFig=0, gTab=0, reached=false) -%}
+  {%- for s in rel.secoes -%}
+    {%- if s.id == sec.id -%}{%- set ns.reached = true -%}{%- endif -%}
+    {%- for b in s.blocos -%}
+      {%- if b.tipo == 'figura' -%}
+        {%- set ns.gFig = ns.gFig + 1 -%}
+        {%- if s.id == sec.id -%}{%- set ns.fig = ns.fig + 1 -%}{%- endif -%}
+      {%- endif -%}
+      {%- if b.tipo == 'tabela' -%}
+        {%- set ns.gTab = ns.gTab + 1 -%}
+        {%- if s.id == sec.id -%}{%- set ns.tab = ns.tab + 1 -%}{%- endif -%}
+      {%- endif -%}
+      {%- set ns.gFig = ns.gFig + (b.conteudo or '').count('[[FIGURA:') -%}
+      {%- set ns.gTab = ns.gTab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') -%}
+      {%- if s.id == sec.id -%}
+        {%- set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') -%}
+        {%- set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') -%}
+      {%- endif -%}
+    {%- endfor -%}
   {%- endfor -%}
   const figBase = {{ ns.fig|int }};
   const tabBase = {{ ns.tab|int }};
-  function nextFigIdx(){
-    const inTa = (ta.value.match(/\[\[FIGURA:/g) || []).length;
-    return figBase + inTa + 1;
-  }
-  function nextTabIdx(){
-    const op = (ta.value.match(/\[\[TABELA(?:\||\]\])/g) || []).length;
+  const figGlobalBase = {{ ns.gFig|int }};
+  const tabGlobalBase = {{ ns.gTab|int }};
+  function _countTaFig(){ return (ta.value.match(/\[\[FIGURA:/g) || []).length; }
+  function _countTaTab(){
+    const op = (ta.value.match(/\[\[TABELA(?::|\||\]\])/g) || []).length;
     const cl = (ta.value.match(/\[\[\/TABELA\]\]/g) || []).length;
-    const open = Math.max(0, op - cl); // tabelas já fechadas
-    const closed = cl;
-    return tabBase + closed + 1; // próxima tabela é a (já fechadas + 1)
+    return cl; // tabelas já fechadas no textarea
+  }
+  function nextFigIdx(estilo){
+    const n = (estilo === 'C' ? figGlobalBase : figBase) + _countTaFig() + 1;
+    return estilo === 'C' ? String(n) : (secTop + '.' + n);
+  }
+  function nextTabIdx(estilo){
+    const n = (estilo === 'C' ? tabGlobalBase : tabBase) + _countTaTab() + 1;
+    return estilo === 'C' ? String(n) : (secTop + '.' + n);
+  }
+  function _figEst(){ const r = document.querySelector('input[name="fig-est"]:checked'); return r ? r.value : 'R'; }
+  function _figPos(){ const r = document.querySelector('input[name="fig-pos"]:checked'); return r ? r.value : 'S'; }
+  function _tabEst(){ const r = document.querySelector('input[name="tab-est"]:checked'); return r ? r.value : 'R'; }
+  function _tabPos(){ const r = document.querySelector('input[name="tab-pos"]:checked'); return r ? r.value : 'S'; }
+  // Atualiza os exemplos das legendas conforme se digita / contagem muda
+  function _atualizaExemplos(){
+    const fr = document.getElementById('fig-ex-R'); if (fr) fr.textContent = 'FIGURA ' + (secTop + '.' + (figBase + _countTaFig() + 1));
+    const fc = document.getElementById('fig-ex-C'); if (fc) fc.textContent = 'FIGURA ' + (figGlobalBase + _countTaFig() + 1);
+    const tr = document.getElementById('tab-ex-R'); if (tr) tr.textContent = 'TABELA ' + (secTop + '.' + (tabBase + _countTaTab() + 1));
+    const tc = document.getElementById('tab-ex-C'); if (tc) tc.textContent = 'TABELA ' + (tabGlobalBase + _countTaTab() + 1);
   }
   function syncTitulo(){ /* título fixo da seção atual */ }
 
@@ -346,10 +396,13 @@
   figBtn.addEventListener('click', () => {
     if (!figSel.value) { alert('Selecione uma figura ou faça upload primeiro.'); return; }
     const leg = (figLeg.value || '').trim().replace(/\|/g, '/');
-    const idx = secNumero + '.' + nextFigIdx();
-    const marker = '[[FIGURA:' + idx + '|' + figSel.value + (leg ? '|' + leg : '') + ']]';
+    if (!leg) { alert('Informe a legenda da figura antes de inserir.'); figLeg.focus(); return; }
+    const est = _figEst(); const pos = _figPos();
+    const idx = nextFigIdx(est);
+    const marker = '[[FIGURA:' + idx + '|' + figSel.value + '|' + pos + '|' + leg + ']]';
     insertText(marker, { blockLine: true });
     figLeg.value = '';
+    _atualizaExemplos();
   });
 
   // Painel Tabela — abre o editor visual
@@ -361,14 +414,17 @@
   tabBtn.addEventListener('click', () => {
     const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
     const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
+    const leg = (tabLeg.value || '').trim();
+    if (!leg) { alert('Informe a legenda da tabela antes de criar.'); tabLeg.focus(); return; }
     const headers = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
     const rowsArr = Array.from({length: r}, () => Array.from({length: c}, () => ''));
-    openTableEditor({ legenda: tabLeg.value || '', headers, rows: rowsArr, mode: 'insert', idx: secNumero + '.' + nextTabIdx() });
+    const est = _tabEst(); const pos = _tabPos();
+    openTableEditor({ legenda: leg, headers, rows: rowsArr, mode: 'insert', idx: nextTabIdx(est), pos });
   });
   if (editTabBtn) editTabBtn.addEventListener('click', () => {
     const found = findTableMarkerAtCursor();
     if (!found) { alert('Posicione o cursor dentro de uma tabela existente para editar.'); return; }
-    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range, idx: found.idx });
+    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range, idx: found.idx, pos: found.pos });
   });
 
   form.addEventListener('submit', () => { syncTitulo(); });
@@ -396,6 +452,7 @@
     upFile.addEventListener('change', async () => {
       const file = upFile.files && upFile.files[0]; if (!file) return;
       const leg = (figLeg.value || '').trim();
+      if (!leg) { alert('Informe a legenda da figura antes de fazer upload.'); figLeg.focus(); upFile.value = ''; return; }
       const fd = new FormData();
       fd.append('arquivo', file);
       if (leg) fd.append('legenda', leg);
@@ -411,9 +468,11 @@
         figSel.appendChild(opt); figSel.value = String(data.id);
         figSel.dispatchEvent(new Event('change'));
         const legEsc = leg.replace(/\|/g, '/');
-        const idx = secNumero + '.' + nextFigIdx();
-        insertText('[[FIGURA:' + idx + '|' + data.id + (legEsc ? '|' + legEsc : '') + ']]', { blockLine: true });
+        const est = _figEst(); const pos = _figPos();
+        const idx = nextFigIdx(est);
+        insertText('[[FIGURA:' + idx + '|' + data.id + '|' + pos + '|' + legEsc + ']]', { blockLine: true });
         figLeg.value = '';
+        _atualizaExemplos();
       } catch (e) {
         alert('Falha no upload: ' + e.message);
       } finally {
@@ -485,7 +544,8 @@
     _tabState = {
       mode: opts.mode || 'insert',
       range: opts.range || null,
-      idx: opts.idx || (secNumero + '.' + nextTabIdx()),
+      idx: opts.idx || nextTabIdx(_tabEst()),
+      pos: opts.pos || _tabPos(),
       headers: opts.headers.slice(),
       rows: opts.rows.map(r => r.slice()),
     };
@@ -521,8 +581,9 @@
     const sep  = state.headers.map(() => '---').join(' | ');
     const body = state.rows.map(r => r.map(esc).join(' | ')).join('\n');
     const leg = (legenda || '').replace(/\|/g, '/').trim();
-    const idx = state.idx || (secNumero + '.' + nextTabIdx());
-    return '[[TABELA:' + idx + (leg ? '|' + leg : '') + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
+    const idx = state.idx || nextTabIdx(_tabEst());
+    const pos = state.pos || _tabPos();
+    return '[[TABELA:' + idx + '|' + pos + '|' + leg + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
   }
 
   tabModalConfirm.addEventListener('click', () => {
@@ -547,7 +608,7 @@
   function findTableMarkerAtCursor() {
     const val = ta.value || '';
     const pos = ta.selectionStart || 0;
-    const reOpen  = /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
+    const reOpen  = /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
     const reClose = /\[\[\/TABELA\]\]/g;
     let m, lastOpen = null;
     while ((m = reOpen.exec(val)) !== null) {
@@ -561,6 +622,16 @@
     const start = lastOpen.index;
     const end = mc.index + mc[0].length;
     const inner = val.slice(lastOpen.index + lastOpen[0].length, mc.index);
+    // Disambigua os grupos: se g2 for "S"/"I", é a posição; senão é a legenda (formato legado).
+    let posFlag = 'S', legenda = '';
+    if (lastOpen[2] === 'S' || lastOpen[2] === 'I') {
+      posFlag = lastOpen[2];
+      legenda = lastOpen[3] || '';
+    } else if (lastOpen[2] != null) {
+      legenda = lastOpen[2];
+    } else if (lastOpen[3] != null) {
+      legenda = lastOpen[3];
+    }
     const linhas = inner.split('\n').map(l => l.trim()).filter(Boolean)
       .filter(l => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))                         // markdown sep
       .filter(l => !/^\+[-=+\s]+\+?$/.test(l));                                 // ascii sep
@@ -574,7 +645,7 @@
       while (r.length < headers.length) r.push('');
       return r.slice(0, headers.length);
     });
-    return { range: { start, end }, idx: lastOpen[1] || '', legenda: lastOpen[2] || '', headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
+    return { range: { start, end }, idx: lastOpen[1] || '', pos: posFlag, legenda, headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
   }
 
   // ---- Status bar: detecta a classe da linha/seleção atual ----
@@ -614,11 +685,13 @@
     bsTag.dataset.cls = cls;
     bsTag.textContent = CLASS_LABEL[cls] || cls;
     bsInfo.textContent = 'linha ' + lineNum + ', coluna ' + colNum;
-    if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(\||\]\])/.test(val);
+    if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(:|\||\]\])/.test(val);
   }
   ['keyup','mouseup','click','focus','input','select'].forEach(ev => ta.addEventListener(ev, updateStatus));
+  ta.addEventListener('input', _atualizaExemplos);
   document.addEventListener('selectionchange', () => { if (document.activeElement === ta) updateStatus(); });
   updateStatus();
+  _atualizaExemplos();
 })();
 </script>
 
@@ -687,6 +760,11 @@
 .mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
 .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:4px 8px 6px; margin:0; display:flex; flex-direction:column; gap:2px; background:#f7f9fc; }
+.mini-fmt > legend { padding:0 4px; }
+.mini-fmt label { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text); cursor:pointer; }
+.mini-fmt input[type="radio"] { margin:0; }
+.mini-fmt code { font-size:10.5px; background:#fff; padding:1px 4px; border:1px solid var(--border); border-radius:3px; color:var(--navy); }
 /* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
 .mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
 .mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }

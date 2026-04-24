@@ -20,15 +20,15 @@ def _figura_data_uri(fig: Figura) -> str:
     return f"data:{fig.mime};base64,{b64}"
 
 
-_RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
-_RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
+_RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
+_RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
 
 
 def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
 
 
-def _render_tabela_html(corpo: str, legenda: str, numero) -> str:
+def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
     linhas_brutas = [ln for ln in corpo.splitlines() if ln.strip()]
 
     def _is_separator(ln: str) -> bool:
@@ -57,25 +57,27 @@ def _render_tabela_html(corpo: str, legenda: str, numero) -> str:
         return ""
     cab = _split_cells(linhas[0])
     corpo_linhas = [_split_cells(ln) for ln in linhas[1:]]
-    out = ['<div class="tabela">']
     if legenda:
-        out.append(f'<div class="cap">Tabela {numero} — {_esc(legenda)}</div>')
+        cap_html = f'<div class="cap">Tabela {numero} — {_esc(legenda)}</div>'
     else:
-        out.append(f'<div class="cap">Tabela {numero}</div>')
-    out.append("<table><thead><tr>")
+        cap_html = f'<div class="cap">Tabela {numero}</div>'
+    tab_parts = ["<table><thead><tr>"]
     for c in cab:
-        out.append(f"<th>{_esc(c)}</th>")
-    out.append("</tr></thead><tbody>")
+        tab_parts.append(f"<th>{_esc(c)}</th>")
+    tab_parts.append("</tr></thead><tbody>")
     for row in corpo_linhas:
-        out.append("<tr>")
+        tab_parts.append("<tr>")
         for c in row:
-            out.append(f"<td>{_esc(c)}</td>")
-        out.append("</tr>")
-    out.append("</tbody></table></div>")
-    return "".join(out)
+            tab_parts.append(f"<td>{_esc(c)}</td>")
+        tab_parts.append("</tr>")
+    tab_parts.append("</tbody></table>")
+    table_html = "".join(tab_parts)
+    if posicao == "I":
+        return f'<div class="tabela">{table_html}{cap_html}</div>'
+    return f'<div class="tabela">{cap_html}{table_html}</div>'
 
 
-def _render_figura_html(db: Session, fig_id: int, legenda: str, numero) -> str:
+def _render_figura_html(db: Session, fig_id: int, legenda: str, numero, posicao: str = "S") -> str:
     fig = db.get(Figura, fig_id)
     if fig is None:
         return f'<p class="empty-section">[Figura #{fig_id} não encontrada]</p>'
@@ -83,10 +85,11 @@ def _render_figura_html(db: Session, fig_id: int, legenda: str, numero) -> str:
     cap = f"Figura {numero}"
     if legenda:
         cap += f" — {_esc(legenda)}"
-    return (
-        f'<div class="figura"><img src="{src}" alt="">'
-        f'<div class="cap">{cap}</div></div>'
-    )
+    cap_html = f'<div class="cap">{cap}</div>'
+    img_html = f'<img src="{src}" alt="">'
+    if posicao == "I":
+        return f'<div class="figura">{img_html}{cap_html}</div>'
+    return f'<div class="figura">{cap_html}{img_html}</div>'
 
 
 def _render_paragrafos_e_listas(texto: str) -> str:
@@ -144,23 +147,37 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
     """Processa marcadores [[FIGURA:..]] e [[TABELA..]] e formatação leve.
 
     Retorna (html, fig_counter, tab_counter) atualizados.
-    Caption usa o prefixo da seção quando informado: "Figura {sec}.{n}".
+    O índice exibido vem do próprio marker (que já foi composto pelo editor com
+    o primeiro nível da seção, ex.: "4.1", ou um número global no modo "continuar").
+    Se o marker for legado e não trouxer índice, usa contador local da seção.
     """
     if not conteudo:
         return "", fig_counter, tab_counter
 
-    def _label(n: int) -> str:
-        return f"{sec_numero}.{n}" if sec_numero else str(n)
+    sec_top = (sec_numero or "").split(".")[0]
+
+    def _label_local(prefix_top: str, n: int) -> str:
+        return f"{prefix_top}.{n}" if prefix_top else str(n)
 
     # 1) Substitui tabelas (pode conter | que conflita com texto, processado primeiro)
     parts: list = []
     last = 0
     for m in _RE_TABELA.finditer(conteudo):
         parts.append(("texto", conteudo[last:m.start()]))
-        legenda = (m.group(2) or "").strip()
-        corpo = m.group(3) or ""
+        idx_raw = (m.group(1) or "").strip()
+        g2 = m.group(2)
+        g3 = m.group(3)
+        # Disambigua g2: se for "S"/"I" é a posição, senão é a legenda (formato antigo).
+        if g2 in ("S", "I"):
+            posicao = g2
+            legenda = (g3 or "").strip()
+        else:
+            posicao = "S"
+            legenda = (g2 or g3 or "").strip()
+        corpo = m.group(4) or ""
         tab_counter += 1
-        parts.append(("html", _render_tabela_html(corpo, legenda, _label(tab_counter))))
+        numero = idx_raw if idx_raw else _label_local(sec_top, tab_counter)
+        parts.append(("html", _render_tabela_html(corpo, legenda, numero, posicao)))
         last = m.end()
     parts.append(("texto", conteudo[last:]))
 
@@ -175,29 +192,48 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
         for mf in _RE_FIGURA.finditer(chunk):
             antes = chunk[sub_last:mf.start()]
             out_html.append(_render_paragrafos_e_listas(antes))
-            # Resolve fig_id: novo formato "[[FIGURA:<idx>|<fig_id>|<leg>]]"
-            # ou antigo "[[FIGURA:<fig_id>|<leg>]]".
-            g1 = mf.group(1) or ""
+            g1 = (mf.group(1) or "").strip()
             g2 = mf.group(2)
             g3 = mf.group(3)
+            g4 = mf.group(4)
+            # Detecta o formato pelos grupos presentes:
+            #   4 grupos: idx | id | pos(S/I) | leg
+            #   3 grupos com g2 numérico: idx | id | leg                 (v2)
+            #   3 grupos com g1 numérico só: id | leg                    (legado)
             fid = 0
+            idx_raw = ""
+            posicao = "S"
             legenda = ""
-            if g2 is not None and g2.isdigit():
-                # novo formato: g1=idx visual (descartado), g2=fig_id, g3=legenda
+            if g4 is not None and g3 in ("S", "I"):
+                idx_raw = g1
+                try:
+                    fid = int(g2 or "0")
+                except ValueError:
+                    fid = 0
+                posicao = g3
+                legenda = (g4 or "").strip()
+            elif g3 is not None and (g2 or "").isdigit():
+                idx_raw = g1
                 try:
                     fid = int(g2)
                 except ValueError:
                     fid = 0
                 legenda = (g3 or "").strip()
-            else:
-                # antigo formato: g1=fig_id, g2=legenda
+            elif g2 is not None:
+                # formato legado [[FIGURA:<id>|<leg>]]
                 try:
                     fid = int(g1)
                 except ValueError:
                     fid = 0
                 legenda = (g2 or "").strip()
+            else:
+                try:
+                    fid = int(g1)
+                except ValueError:
+                    fid = 0
             fig_counter += 1
-            out_html.append(_render_figura_html(db, fid, legenda, _label(fig_counter)))
+            numero = idx_raw if idx_raw else _label_local(sec_top, fig_counter)
+            out_html.append(_render_figura_html(db, fid, legenda, numero, posicao))
             sub_last = mf.end()
         resto = chunk[sub_last:]
         out_html.append(_render_paragrafos_e_listas(resto))
@@ -207,13 +243,17 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
 
 def _montar_contexto(db: Session, rel: Relatorio):
     secoes = []
+    # Contadores por top-level da seção (ex.: tudo dentro de "4" e "4.1.2"
+    # compartilham o mesmo contador, reiniciado quando muda o top-level).
+    fig_by_top: dict = {}
+    tab_by_top: dict = {}
     for sec in rel.secoes:
-        # Numeração por seção (Figura/Tabela {sec.numero}.{n})
-        fig_counter = 0
-        tab_counter = 0
+        sec_top = (sec.numero or "").split(".")[0]
+        fig_counter = fig_by_top.get(sec_top, 0)
+        tab_counter = tab_by_top.get(sec_top, 0)
 
         def _label(prefix: str, n: int) -> str:
-            return f"{sec.numero}.{n}"
+            return f"{sec_top}.{n}" if sec_top else str(n)
 
         blocos_render = []
         for b in sec.blocos:
@@ -243,6 +283,8 @@ def _montar_contexto(db: Session, rel: Relatorio):
                 )
                 item["html"] = html_render
             blocos_render.append(item)
+        fig_by_top[sec_top] = fig_counter
+        tab_by_top[sec_top] = tab_counter
         secoes.append({
             "numero": sec.numero,
             "titulo": sec.titulo,
