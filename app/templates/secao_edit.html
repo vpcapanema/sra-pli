@@ -185,8 +185,8 @@
               <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
               <fieldset class="mini-fmt">
                 <legend class="mini-label">Estilo de indexação</legend>
-                <label><input type="radio" name="fig-est" value="R" checked> Reiniciar e incluir seção (ex.: <code id="fig-ex-R">FIGURA {{ sec.numero.split('.')[0] }}.1</code>)</label>
-                <label><input type="radio" name="fig-est" value="C"> Continuar contagem da seção anterior (ex.: <code id="fig-ex-C">FIGURA 1</code>)</label>
+                <label><input type="radio" name="fig-est" value="R" checked> Por seção (Ex: <span id="fig-ex-R">FIGURA {{ sec.numero.split('.')[0] }}.1</span>)</label>
+                <label><input type="radio" name="fig-est" value="C"> Sequencial (Ex: <span id="fig-ex-C">FIGURA 1</span>)</label>
               </fieldset>
               <fieldset class="mini-fmt">
                 <legend class="mini-label">Posição da legenda</legend>
@@ -218,8 +218,8 @@
               <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
               <fieldset class="mini-fmt">
                 <legend class="mini-label">Estilo de indexação</legend>
-                <label><input type="radio" name="tab-est" value="R" checked> Reiniciar e incluir seção (ex.: <code id="tab-ex-R">TABELA {{ sec.numero.split('.')[0] }}.1</code>)</label>
-                <label><input type="radio" name="tab-est" value="C"> Continuar contagem da seção anterior (ex.: <code id="tab-ex-C">TABELA 1</code>)</label>
+                <label><input type="radio" name="tab-est" value="R" checked> Por seção (Ex: <span id="tab-ex-R">TABELA {{ sec.numero.split('.')[0] }}.1</span>)</label>
+                <label><input type="radio" name="tab-est" value="C"> Sequencial (Ex: <span id="tab-ex-C">TABELA 1</span>)</label>
               </fieldset>
               <fieldset class="mini-fmt">
                 <legend class="mini-label">Posição da legenda</legend>
@@ -760,11 +760,11 @@
 .mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
 .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:2px 6px 3px; margin:0; display:flex; flex-direction:column; gap:0; background:#f7f9fc; font-family:inherit; font-size:10px; line-height:1.25; }
-.mini-fmt > legend { padding:0 3px; font-size:10px; font-weight:600; color:var(--navy); font-family:inherit; }
-.mini-fmt label { display:flex; align-items:center; gap:4px; font-size:10px; line-height:1.25; color:var(--text); cursor:pointer; font-family:inherit; white-space:nowrap; }
-.mini-fmt input[type="radio"] { margin:0; transform:scale(0.85); }
-.mini-fmt code { font-size:9.5px; background:#fff; padding:0 3px; border:1px solid var(--border); border-radius:3px; color:var(--navy); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mini-fmt { border:1px solid var(--border); border-radius:4px; padding:2px 4px; margin:0; display:flex; flex-direction:column; gap:0; background:#f7f9fc; font-family:inherit; font-size:9.5px; line-height:1.15; }
+.mini-fmt > legend { padding:0 2px; font-size:9px; font-weight:600; color:var(--navy); font-family:inherit; margin-bottom:1px; }
+.mini-fmt label { display:flex; align-items:center; gap:3px; font-size:9.5px; line-height:1.15; color:var(--text); cursor:pointer; font-family:inherit; }
+.mini-fmt input[type="radio"] { margin:0; transform:scale(0.8); }
+.mini-fmt span[id$="-R"], .mini-fmt span[id$="-C"] { color:var(--navy); font-weight:600; }
 /* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
 .mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
 .mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }
