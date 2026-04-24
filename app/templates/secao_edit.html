@@ -255,6 +255,28 @@
   const tituloHidden = document.getElementById('add-bloco-titulo');
   const ta = document.getElementById('add-bloco-conteudo');
   const relId = {{ rel.id|tojson }};
+  const secNumero = {{ sec.numero|tojson }};
+  // Quantas figuras/tabelas a seção já contém (somando blocos existentes + markers em texto)
+  {%- set ns = namespace(fig=0, tab=0) -%}
+  {%- for b in sec.blocos -%}
+    {%- if b.tipo == 'figura' -%}{%- set ns.fig = ns.fig + 1 -%}{%- endif -%}
+    {%- if b.tipo == 'tabela' -%}{%- set ns.tab = ns.tab + 1 -%}{%- endif -%}
+    {%- set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') -%}
+    {%- set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA') - (b.conteudo or '').count('[[/TABELA') -%}
+  {%- endfor -%}
+  const figBase = {{ ns.fig|int }};
+  const tabBase = {{ ns.tab|int }};
+  function nextFigIdx(){
+    const inTa = (ta.value.match(/\[\[FIGURA:/g) || []).length;
+    return figBase + inTa + 1;
+  }
+  function nextTabIdx(){
+    const op = (ta.value.match(/\[\[TABELA(?:\||\]\])/g) || []).length;
+    const cl = (ta.value.match(/\[\[\/TABELA\]\]/g) || []).length;
+    const open = Math.max(0, op - cl); // tabelas já fechadas
+    const closed = cl;
+    return tabBase + closed + 1; // próxima tabela é a (já fechadas + 1)
+  }
   function syncTitulo(){ /* título fixo da seção atual */ }
 
   // Guarda última posição do cursor no textarea (perdida quando clicamos fora).
@@ -324,7 +346,8 @@
   figBtn.addEventListener('click', () => {
     if (!figSel.value) { alert('Selecione uma figura ou faça upload primeiro.'); return; }
     const leg = (figLeg.value || '').trim().replace(/\|/g, '/');
-    const marker = '[[FIGURA:' + figSel.value + (leg ? '|' + leg : '') + ']]';
+    const idx = secNumero + '.' + nextFigIdx();
+    const marker = '[[FIGURA:' + idx + '|' + figSel.value + (leg ? '|' + leg : '') + ']]';
     insertText(marker, { blockLine: true });
     figLeg.value = '';
   });
@@ -340,12 +363,12 @@
     const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
     const headers = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
     const rowsArr = Array.from({length: r}, () => Array.from({length: c}, () => ''));
-    openTableEditor({ legenda: tabLeg.value || '', headers, rows: rowsArr, mode: 'insert' });
+    openTableEditor({ legenda: tabLeg.value || '', headers, rows: rowsArr, mode: 'insert', idx: secNumero + '.' + nextTabIdx() });
   });
   if (editTabBtn) editTabBtn.addEventListener('click', () => {
     const found = findTableMarkerAtCursor();
     if (!found) { alert('Posicione o cursor dentro de uma tabela existente para editar.'); return; }
-    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range });
+    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range, idx: found.idx });
   });
 
   form.addEventListener('submit', () => { syncTitulo(); });
@@ -388,7 +411,8 @@
         figSel.appendChild(opt); figSel.value = String(data.id);
         figSel.dispatchEvent(new Event('change'));
         const legEsc = leg.replace(/\|/g, '/');
-        insertText('[[FIGURA:' + data.id + (legEsc ? '|' + legEsc : '') + ']]', { blockLine: true });
+        const idx = secNumero + '.' + nextFigIdx();
+        insertText('[[FIGURA:' + idx + '|' + data.id + (legEsc ? '|' + legEsc : '') + ']]', { blockLine: true });
         figLeg.value = '';
       } catch (e) {
         alert('Falha no upload: ' + e.message);
@@ -461,6 +485,7 @@
     _tabState = {
       mode: opts.mode || 'insert',
       range: opts.range || null,
+      idx: opts.idx || (secNumero + '.' + nextTabIdx()),
       headers: opts.headers.slice(),
       rows: opts.rows.map(r => r.slice()),
     };
@@ -496,7 +521,8 @@
     const sep  = state.headers.map(() => '---').join(' | ');
     const body = state.rows.map(r => r.map(esc).join(' | ')).join('\n');
     const leg = (legenda || '').replace(/\|/g, '/').trim();
-    return '[[TABELA' + (leg ? '|' + leg : '') + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
+    const idx = state.idx || (secNumero + '.' + nextTabIdx());
+    return '[[TABELA:' + idx + (leg ? '|' + leg : '') + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
   }
 
   tabModalConfirm.addEventListener('click', () => {
@@ -521,7 +547,7 @@
   function findTableMarkerAtCursor() {
     const val = ta.value || '';
     const pos = ta.selectionStart || 0;
-    const reOpen  = /\[\[TABELA(?:\|([^\]]*))?\]\]/g;
+    const reOpen  = /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
     const reClose = /\[\[\/TABELA\]\]/g;
     let m, lastOpen = null;
     while ((m = reOpen.exec(val)) !== null) {
@@ -548,7 +574,7 @@
       while (r.length < headers.length) r.push('');
       return r.slice(0, headers.length);
     });
-    return { range: { start, end }, legenda: lastOpen[1] || '', headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
+    return { range: { start, end }, idx: lastOpen[1] || '', legenda: lastOpen[2] || '', headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
   }
 
   // ---- Status bar: detecta a classe da linha/seleção atual ----

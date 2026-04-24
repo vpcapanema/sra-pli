@@ -20,15 +20,15 @@ def _figura_data_uri(fig: Figura) -> str:
     return f"data:{fig.mime};base64,{b64}"
 
 
-_RE_FIGURA = re.compile(r"\[\[FIGURA:(\d+)(?:\|([^\]]*))?\]\]")
-_RE_TABELA = re.compile(r"\[\[TABELA(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
+_RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
+_RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
 
 
 def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
 
 
-def _render_tabela_html(corpo: str, legenda: str, numero: int) -> str:
+def _render_tabela_html(corpo: str, legenda: str, numero) -> str:
     linhas_brutas = [ln for ln in corpo.splitlines() if ln.strip()]
 
     def _is_separator(ln: str) -> bool:
@@ -75,7 +75,7 @@ def _render_tabela_html(corpo: str, legenda: str, numero: int) -> str:
     return "".join(out)
 
 
-def _render_figura_html(db: Session, fig_id: int, legenda: str, numero: int) -> str:
+def _render_figura_html(db: Session, fig_id: int, legenda: str, numero) -> str:
     fig = db.get(Figura, fig_id)
     if fig is None:
         return f'<p class="empty-section">[Figura #{fig_id} não encontrada]</p>'
@@ -140,23 +140,27 @@ def _render_paragrafos_e_listas(texto: str) -> str:
     return "".join(out)
 
 
-def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter: int):
+def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter: int, sec_numero: str = ""):
     """Processa marcadores [[FIGURA:..]] e [[TABELA..]] e formatação leve.
 
     Retorna (html, fig_counter, tab_counter) atualizados.
+    Caption usa o prefixo da seção quando informado: "Figura {sec}.{n}".
     """
     if not conteudo:
         return "", fig_counter, tab_counter
+
+    def _label(n: int) -> str:
+        return f"{sec_numero}.{n}" if sec_numero else str(n)
 
     # 1) Substitui tabelas (pode conter | que conflita com texto, processado primeiro)
     parts: list = []
     last = 0
     for m in _RE_TABELA.finditer(conteudo):
         parts.append(("texto", conteudo[last:m.start()]))
-        legenda = (m.group(1) or "").strip()
-        corpo = m.group(2) or ""
+        legenda = (m.group(2) or "").strip()
+        corpo = m.group(3) or ""
         tab_counter += 1
-        parts.append(("html", _render_tabela_html(corpo, legenda, tab_counter)))
+        parts.append(("html", _render_tabela_html(corpo, legenda, _label(tab_counter))))
         last = m.end()
     parts.append(("texto", conteudo[last:]))
 
@@ -171,13 +175,29 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
         for mf in _RE_FIGURA.finditer(chunk):
             antes = chunk[sub_last:mf.start()]
             out_html.append(_render_paragrafos_e_listas(antes))
-            try:
-                fid = int(mf.group(1))
-            except ValueError:
-                fid = 0
-            legenda = (mf.group(2) or "").strip()
+            # Resolve fig_id: novo formato "[[FIGURA:<idx>|<fig_id>|<leg>]]"
+            # ou antigo "[[FIGURA:<fig_id>|<leg>]]".
+            g1 = mf.group(1) or ""
+            g2 = mf.group(2)
+            g3 = mf.group(3)
+            fid = 0
+            legenda = ""
+            if g2 is not None and g2.isdigit():
+                # novo formato: g1=idx visual (descartado), g2=fig_id, g3=legenda
+                try:
+                    fid = int(g2)
+                except ValueError:
+                    fid = 0
+                legenda = (g3 or "").strip()
+            else:
+                # antigo formato: g1=fig_id, g2=legenda
+                try:
+                    fid = int(g1)
+                except ValueError:
+                    fid = 0
+                legenda = (g2 or "").strip()
             fig_counter += 1
-            out_html.append(_render_figura_html(db, fid, legenda, fig_counter))
+            out_html.append(_render_figura_html(db, fid, legenda, _label(fig_counter)))
             sub_last = mf.end()
         resto = chunk[sub_last:]
         out_html.append(_render_paragrafos_e_listas(resto))
@@ -187,9 +207,14 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
 
 def _montar_contexto(db: Session, rel: Relatorio):
     secoes = []
-    fig_counter = 0
-    tab_counter = 0
     for sec in rel.secoes:
+        # Numeração por seção (Figura/Tabela {sec.numero}.{n})
+        fig_counter = 0
+        tab_counter = 0
+
+        def _label(prefix: str, n: int) -> str:
+            return f"{sec.numero}.{n}"
+
         blocos_render = []
         for b in sec.blocos:
             item = {
@@ -201,11 +226,11 @@ def _montar_contexto(db: Session, rel: Relatorio):
             }
             if b.tipo == "figura" and b.figura is not None:
                 fig_counter += 1
-                item["numero"] = fig_counter
+                item["numero"] = _label("F", fig_counter)
                 item["src"] = _figura_data_uri(b.figura)
             elif b.tipo == "tabela":
                 tab_counter += 1
-                item["numero"] = tab_counter
+                item["numero"] = _label("T", tab_counter)
             elif b.tipo == "lista":
                 # Mantém compatibilidade com blocos antigos do tipo lista pura.
                 itens = [ln.strip() for ln in (b.conteudo or "").splitlines() if ln.strip()]
@@ -214,7 +239,7 @@ def _montar_contexto(db: Session, rel: Relatorio):
                 item["lista_html"] = "<ul>" + "".join(f"<li>{_esc(i)}</li>" for i in itens) + "</ul>"
             else:  # texto (com marcadores) ou qualquer outro
                 html_render, fig_counter, tab_counter = _render_texto_html(
-                    db, b.conteudo or "", fig_counter, tab_counter
+                    db, b.conteudo or "", fig_counter, tab_counter, sec.numero
                 )
                 item["html"] = html_render
             blocos_render.append(item)
