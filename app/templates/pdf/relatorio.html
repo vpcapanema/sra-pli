@@ -75,6 +75,8 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
 .sumario li.lvl-2{ padding-left:8mm; font-size:10pt; color:#2a3a4a; }
 .sumario li.lvl-3{ padding-left:16mm; font-size:9.5pt; color:#3a4a5a; }
 .sumario li.lvl-4{ padding-left:24mm; font-size:9pt; color:#4a5a6a; }
+.sumario li.lvl-5{ padding-left:32mm; font-size:8.7pt; color:#5a6a7a; }
+.sumario li.lvl-6{ padding-left:40mm; font-size:8.4pt; color:#6a7a8a; }
 
 /* Seções */
 .secao{ page-break-before: always; }
@@ -83,6 +85,12 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
   border-bottom: 2pt solid #3ec26e;
 }
 .secao h1 .num{ color:#116593; margin-right:8pt; }
+.secao.lvl-2 h1{ font-size:14pt; border-bottom-width:1.5pt; }
+.secao.lvl-3 h1{ font-size:12.5pt; border-bottom:1pt solid #3ec26e; page-break-before: auto; }
+.secao.lvl-4 h1{ font-size:11.5pt; border-bottom:0.6pt solid #3ec26e; page-break-before: auto; }
+.secao.lvl-5 h1{ font-size:11pt; border-bottom:0.4pt solid #3ec26e; page-break-before: auto; }
+.secao.lvl-6 h1{ font-size:10.5pt; border-bottom:0.4pt dotted #3ec26e; page-break-before: auto; }
+.secao.lvl-3, .secao.lvl-4, .secao.lvl-5, .secao.lvl-6{ page-break-before: auto; }
 .bloco{ margin: 8pt 0 14pt; }
 .bloco h3{ font-size: 11.5pt; color:#1c3d59; margin: 6pt 0 4pt; font-weight:700; }
 .bloco p{ text-align: justify; margin-bottom: 6pt; }
@@ -152,7 +160,8 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
 
 <!-- ===================== SEÇÕES ===================== -->
 {% for s in secoes %}
-<section class="secao">
+{% set nivel = s.numero.count('.') + 1 %}
+<section class="secao lvl-{{ nivel }}">
   <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
   {% if s.blocos %}
     {% for b in s.blocos %}
