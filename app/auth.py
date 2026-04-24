@@ -1,8 +1,46 @@
 import bcrypt
+import re
 from fastapi import Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from .db import get_db
 from .models import User
+
+
+# Padrão estilo "Vinicius do Prado Capanema":
+# cada palavra começa com maiúscula seguida de minúsculas (acentos permitidos),
+# exceto partículas (do/da/de/dos/das/du/e/di/del/la/von/van) que ficam em minúsculas.
+# Mínimo de 2 palavras.
+_PARTICULAS = {"do", "da", "de", "dos", "das", "du", "e", "di", "del", "la", "von", "van"}
+_NOME_PALAVRA_RE = re.compile(r"^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+$")
+
+
+def formatar_nome_pessoa(raw: str) -> str:
+    """Normaliza um nome para o padrão 'Vinicius do Prado Capanema'.
+
+    Remove espaços extras, capitaliza cada palavra e mantém partículas em
+    minúsculas (exceto se forem a primeira palavra). Lança ValueError se o
+    resultado não obedecer ao padrão (mín. 2 palavras, sem números/símbolos).
+    """
+    if not raw:
+        raise ValueError("Nome vazio.")
+    palavras = [p for p in re.split(r"\s+", raw.strip()) if p]
+    if len(palavras) < 2:
+        raise ValueError("Informe nome e sobrenome.")
+    out: list[str] = []
+    for i, p in enumerate(palavras):
+        baixa = p.lower()
+        if i > 0 and baixa in _PARTICULAS:
+            out.append(baixa)
+        else:
+            out.append(baixa[:1].upper() + baixa[1:])
+    for w in out:
+        if w in _PARTICULAS:
+            continue
+        if not _NOME_PALAVRA_RE.match(w):
+            raise ValueError(
+                "Nome inválido. Use apenas letras (ex.: 'Vinicius do Prado Capanema')."
+            )
+    return " ".join(out)
 
 
 def hash_password(plain: str) -> str:

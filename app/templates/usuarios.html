@@ -10,8 +10,9 @@
   <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo usuário</span></div>
   <div class="sb2">
     {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-    <form method="post" action="/usuarios" class="grid-form">
-      <div><label>Nome</label><input name="nome" title="Nome completo" placeholder="Nome do usuário" required></div>
+    <form method="post" action="/usuarios" class="grid-form" id="form-novo-usuario">
+      <div><label>Nome</label><input name="nome" id="inp-nome" title="Nome no padrão 'Vinicius do Prado Capanema'" placeholder="Ex.: Vinicius do Prado Capanema" required
+        pattern="^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+(\s(do|da|de|dos|das|du|e|di|del|la|von|van)|\s[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+)+$"></div>
       <div><label>E-mail</label><input type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required></div>
       <div><label>Senha</label><input type="password" name="password" title="Senha" placeholder="defina uma senha" required></div>
       <div><label>Perfil</label>
@@ -44,4 +45,24 @@
     </table>
   </div>
 </section>
+<script>
+(function () {
+  var PARTICULAS = ['do','da','de','dos','das','du','e','di','del','la','von','van'];
+  function formatarNome(raw) {
+    if (!raw) return '';
+    var palavras = raw.replace(/\s+/g, ' ').trim().split(' ');
+    return palavras.map(function (p, i) {
+      var baixa = p.toLocaleLowerCase('pt-BR');
+      if (i > 0 && PARTICULAS.indexOf(baixa) !== -1) return baixa;
+      return baixa.charAt(0).toLocaleUpperCase('pt-BR') + baixa.slice(1);
+    }).join(' ');
+  }
+  var inp = document.getElementById('inp-nome');
+  if (inp) {
+    inp.addEventListener('blur', function () { inp.value = formatarNome(inp.value); });
+    var form = document.getElementById('form-novo-usuario');
+    if (form) form.addEventListener('submit', function () { inp.value = formatarNome(inp.value); });
+  }
+})();
+</script>
 {% endblock %}

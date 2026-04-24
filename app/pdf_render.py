@@ -2,7 +2,6 @@ import base64
 from datetime import date
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML
 from sqlalchemy.orm import Session
 from .models import Relatorio, Figura
 
@@ -69,5 +68,6 @@ def render_pdf(db: Session, rel: Relatorio) -> bytes:
         sumario_html=sumario_html,
         hoje=date.today(),
     )
+    from weasyprint import HTML  # import tardio: GTK não necessário fora do /pdf
     pdf_bytes = HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()
     return pdf_bytes

@@ -12,12 +12,12 @@
   <div class="ss-hdr"><span class="sn">+</span><span class="st">Novo relatório</span></div>
   <div class="sb2">
     <form method="post" action="/relatorios" class="grid-form">
-      <div><label>Código</label><input name="codigo" title="Código" placeholder="D20-13" required></div>
-      <div><label>Mês de referência</label><input name="mes_referencia" title="Mês de referência" placeholder="Abril/2026" required></div>
-      <div class="full"><label>Título</label><input name="titulo" title="Título" placeholder="Relatório Mensal D20-13" required></div>
-      <div><label>Período início</label><input type="date" name="periodo_inicio" title="Período início" placeholder="AAAA-MM-DD" required></div>
-      <div><label>Período fim</label><input type="date" name="periodo_fim" title="Período fim" placeholder="AAAA-MM-DD" required></div>
-      <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..."></div>
+      <div><label>Código</label><input name="codigo" title="Código" placeholder="D20-13" value="{{ sugestao.codigo }}" required></div>
+      <div><label>Mês de referência</label><input name="mes_referencia" title="Mês de referência" placeholder="Abril/2026" value="{{ sugestao.mes_referencia }}" required></div>
+      <div class="full"><label>Título</label><input name="titulo" title="Título" placeholder="Relatório Mensal D20-13" value="{{ sugestao.titulo }}" required></div>
+      <div><label>Período início</label><input type="date" name="periodo_inicio" title="Período início" placeholder="AAAA-MM-DD" value="{{ sugestao.periodo_inicio }}" required></div>
+      <div><label>Período fim</label><input type="date" name="periodo_fim" title="Período fim" placeholder="AAAA-MM-DD" value="{{ sugestao.periodo_fim }}" required></div>
+      <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ sugestao.numero_medicao }}"></div>
       <div class="full"><button type="submit">Criar relatório</button></div>
     </form>
   </div>

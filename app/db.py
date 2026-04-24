@@ -9,7 +9,10 @@ if db_url.startswith("postgres://"):
 elif db_url.startswith("postgresql://") and "+psycopg2" not in db_url:
     db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
-engine = create_engine(db_url, pool_pre_ping=True, future=True)
+if db_url.startswith("sqlite"):
+    engine = create_engine(db_url, future=True, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(db_url, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 
