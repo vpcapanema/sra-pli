@@ -42,8 +42,26 @@ def ensure_admin(db: Session) -> None:
 
 
 def criar_secoes_padrao(db: Session, relatorio_id: int) -> None:
-    from .models import Secao
-    for i, (numero, titulo) in enumerate(SECOES_PADRAO):
+    """Cria as seções de um relatório novo.
+
+    Estratégia de retroalimentação: se já existir outro relatório no banco,
+    clona a estrutura (numero + titulo, na mesma ordem) do mais recente
+    (created_at DESC). Caso seja o primeiro relatório, usa SECOES_PADRAO.
+    """
+    from .models import Secao, Relatorio
+    anterior = (
+        db.query(Relatorio)
+        .filter(Relatorio.id != relatorio_id)
+        .order_by(Relatorio.created_at.desc())
+        .first()
+    )
+    if anterior is not None:
+        base = [(s.numero, s.titulo) for s in sorted(anterior.secoes, key=lambda x: x.ordem)]
+        if not base:
+            base = list(SECOES_PADRAO)
+    else:
+        base = list(SECOES_PADRAO)
+    for i, (numero, titulo) in enumerate(base):
         ja = db.query(Secao).filter_by(relatorio_id=relatorio_id, numero=numero).first()
         if ja:
             continue
