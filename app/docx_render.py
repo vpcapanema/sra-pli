@@ -69,11 +69,25 @@ def _format_heading(paragraph, level: int) -> None:
     _set_runs_font(paragraph, size_pt=sizes.get(level, 10), bold=True, italic=level >= 4)
 
 
-def _format_caption(paragraph, *, bold: bool = False) -> None:
+def _add_numbered_heading(document: Document, numero: str, titulo: str, level: int):
+    paragraph = document.add_heading("", level=level)
+    paragraph.add_run(numero or "")
+    paragraph.add_run("\t")
+    paragraph.add_run(titulo or "")
+    _format_heading(paragraph, level)
+    indents = {1: 0, 2: 0, 3: 0.5, 4: 1.0}
+    tab_offsets = {1: 1.4, 2: 1.8, 3: 2.2, 4: 2.6}
+    paragraph.paragraph_format.tab_stops.add_tab_stop(
+        Cm(indents.get(level, 1.5) + tab_offsets.get(level, 3.0))
+    )
+    return paragraph
+
+
+def _format_caption(paragraph, *, bold: bool = False, space_before_pt: float = 0) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph_format = paragraph.paragraph_format
-    paragraph_format.space_before = Pt(0)
-    paragraph_format.space_after = Pt(6)
+    paragraph_format.space_before = Pt(space_before_pt)
+    paragraph_format.space_after = Pt(10)
     paragraph_format.line_spacing = 1.15
     _set_runs_font(paragraph, size_pt=9, bold=bold)
 
@@ -141,7 +155,7 @@ def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: st
                     _format_body_paragraph(paragraph, space_after_pt=0)
                     paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
     if fonte:
-        _format_caption(document.add_paragraph(f"Fonte: {fonte}"))
+        _format_caption(document.add_paragraph(f"Fonte: {fonte}"), space_before_pt=10)
 
 
 def _add_figura(document: Document, figura: Figura | None, legenda: str | None, fonte: str | None, numero: str) -> None:
@@ -149,7 +163,7 @@ def _add_figura(document: Document, figura: Figura | None, legenda: str | None, 
         try:
             document.add_picture(BytesIO(figura.dados), width=Cm(16))
             document.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            document.paragraphs[-1].paragraph_format.space_after = Pt(6)
+            document.paragraphs[-1].paragraph_format.space_after = Pt(10)
         except Exception:  # noqa: BLE001
             _format_caption(document.add_paragraph(f"[Figura #{figura.id} não pôde ser inserida no DOCX]"))
     else:
@@ -251,7 +265,7 @@ def render_docx(db: Session, rel: Relatorio, section_ids: set[int] | None = None
         fig_counter = fig_by_top.get(top, 0)
         tab_counter = tab_by_top.get(top, 0)
         heading_level = min(sec.numero.count(".") + 1, 4)
-        _format_heading(document.add_heading(f"{sec.numero} {sec.titulo}", level=heading_level), heading_level)
+        _add_numbered_heading(document, sec.numero, sec.titulo, heading_level)
         if not sec.blocos:
             _format_body_paragraph(document.add_paragraph("- sem conteúdo nesta seção -"))
             continue
