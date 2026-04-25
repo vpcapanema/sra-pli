@@ -12,6 +12,7 @@ from ..sumario_extractor import (
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
 )
+from ..process_events import process_done, process_log, process_start
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
@@ -42,6 +43,7 @@ async def criar_relatorio(
         raise HTTPException(403)
     if db.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
         raise HTTPException(400, detail="Código já existe")
+    process_id = process_start(request, "Criação de relatório", f"Preparando {codigo.strip()}.")
 
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
@@ -49,28 +51,39 @@ async def criar_relatorio(
     if fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
+            process_done(request, process_id, "Criação interrompida", "PDF disponível não selecionado.", ok=False)
             raise HTTPException(400, detail="Selecione o PDF disponível.")
         try:
+            process_log(request, process_id, f"Extraindo sumário de {nome}.")
             secoes_explicitas = extrair_sumario_pdf_disponivel(nome)
         except ValueError as exc:
+            process_done(request, process_id, "Falha no sumário", str(exc), ok=False)
             raise HTTPException(400, detail=str(exc))
         if not secoes_explicitas:
+            process_done(request, process_id, "Falha no sumário", f"Não foi possível extrair o sumário de {nome}.", ok=False)
             raise HTTPException(400, detail=f"Não foi possível extrair o sumário de {nome}.")
     elif fonte == "upload":
         if pdf_upload is None or not pdf_upload.filename:
+            process_done(request, process_id, "Criação interrompida", "PDF não enviado.", ok=False)
             raise HTTPException(400, detail="Envie um arquivo PDF.")
         if not pdf_upload.filename.lower().endswith(".pdf"):
+            process_done(request, process_id, "Arquivo recusado", "O arquivo enviado não é um PDF.", ok=False)
             raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
         dados = await pdf_upload.read()
         if not dados:
+            process_done(request, process_id, "Arquivo recusado", "Arquivo PDF vazio.", ok=False)
             raise HTTPException(400, detail="Arquivo PDF vazio.")
         try:
+            process_log(request, process_id, f"Extraindo sumário do upload {pdf_upload.filename}.")
             secoes_explicitas = extrair_sumario(dados)
         except Exception as exc:  # noqa: BLE001
+            process_done(request, process_id, "Falha ao ler PDF", str(exc), ok=False)
             raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
         if not secoes_explicitas:
+            process_done(request, process_id, "Falha no sumário", "Não foi possível extrair o sumário do PDF enviado.", ok=False)
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
     else:
+        process_done(request, process_id, "Criação interrompida", "Fonte de seções inválida.", ok=False)
         raise HTTPException(400, detail="Selecione um relatório entregue ou envie um PDF.")
 
     rel = Relatorio(
@@ -83,10 +96,12 @@ async def criar_relatorio(
     )
     # Criar relatório + seções padrão em uma única transação (multi-statement).
     with tx_session() as txdb:
+        process_log(request, process_id, f"Gravando relatório e {len(secoes_explicitas or [])} seção(ões).")
         txdb.add(rel)
         txdb.flush()
         rel_id_novo = rel.id
         criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+    process_done(request, process_id, "Relatório criado", f"{codigo.strip()} disponível para edição.")
     return RedirectResponse(f"/relatorios/{rel_id_novo}", status_code=303)
 
 
@@ -108,6 +123,47 @@ def alterar_status(
     rel.status = status
     db.commit()
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
+
+
+@router.post("/{rel_id}/editar")
+def editar_relatorio(
+    rel_id: int,
+    request: Request,
+    codigo: str = Form(...),
+    titulo: str = Form(...),
+    mes_referencia: str = Form(...),
+    periodo_inicio: str = Form(...),
+    periodo_fim: str = Form(...),
+    numero_medicao: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = _require(request, db)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+
+    codigo_limpo = codigo.strip()
+    if not codigo_limpo:
+        raise HTTPException(400, detail="Informe o código do relatório.")
+    existente = db.query(Relatorio).filter(Relatorio.codigo == codigo_limpo, Relatorio.id != rel_id).first()
+    if existente:
+        raise HTTPException(400, detail="Código já existe")
+
+    titulo_limpo = titulo.strip()
+    mes_limpo = mes_referencia.strip()
+    if not titulo_limpo or not mes_limpo:
+        raise HTTPException(400, detail="Informe título e mês de referência.")
+
+    rel.codigo = codigo_limpo
+    rel.titulo = titulo_limpo
+    rel.mes_referencia = mes_limpo
+    rel.periodo_inicio = dateparser.parse(periodo_inicio).date()
+    rel.periodo_fim = dateparser.parse(periodo_fim).date()
+    rel.numero_medicao = int(numero_medicao) if numero_medicao.strip() else None
+    db.commit()
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @router.post("/{rel_id}/versao")

@@ -72,11 +72,14 @@
                   <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>
                 </a>
                 {% if user.role in ['admin','coordenador'] %}
+                <button class="ibtn ibtn-editar-rel" type="button" title="Editar dados do relatório" aria-label="Editar relatório" data-open-modal="modal-editar-rel-{{ r.id }}">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.04-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
                 <form method="post" action="/relatorios/{{ r.id }}/status" class="ibtn-form">
                   <input type="hidden" name="status" value="em_revisao">
                   <button class="ibtn ibtn-revisar" type="submit" title="Colocar em revisão" aria-label="Revisar"
                           {% if r.status == 'em_revisao' %}disabled{% endif %}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.04-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-2a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
                   </button>
                 </form>
                 <form method="post" action="/relatorios/{{ r.id }}/status" class="ibtn-form">
@@ -112,6 +115,32 @@
             </div>
           </td>
         </tr>
+        {% if user.role in ['admin','coordenador'] %}
+        <tr class="modal-row">
+          <td colspan="6">
+            <div class="rel-modal is-hidden" id="modal-editar-rel-{{ r.id }}" role="dialog" aria-modal="true" aria-labelledby="modal-editar-rel-title-{{ r.id }}">
+              <div class="rel-modal-box">
+                <div class="rel-modal-hdr">
+                  <strong id="modal-editar-rel-title-{{ r.id }}">Editar relatório {{ r.codigo }}</strong>
+                  <button type="button" class="rel-modal-close" data-close-modal="modal-editar-rel-{{ r.id }}" aria-label="Fechar">×</button>
+                </div>
+                <form method="post" action="/relatorios/{{ r.id }}/editar" class="grid-form rel-edit-form">
+                  <div><label>Código</label><input name="codigo" title="Código" placeholder="D20-13" value="{{ r.codigo }}" required></div>
+                  <div><label>Mês de referência</label><input name="mes_referencia" title="Mês de referência" placeholder="Abril/2026" value="{{ r.mes_referencia }}" required></div>
+                  <div class="full"><label>Título</label><input name="titulo" title="Título" placeholder="Relatório Mensal D20-13" value="{{ r.titulo }}" required></div>
+                  <div><label>Período início</label><input type="date" name="periodo_inicio" title="Período início" value="{{ r.periodo_inicio.isoformat() }}" required></div>
+                  <div><label>Período fim</label><input type="date" name="periodo_fim" title="Período fim" value="{{ r.periodo_fim.isoformat() }}" required></div>
+                  <div><label>Nº medição</label><input name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ r.numero_medicao or '' }}"></div>
+                  <div class="full rel-modal-actions">
+                    <button type="button" class="secondary" data-close-modal="modal-editar-rel-{{ r.id }}">Cancelar</button>
+                    <button type="submit">Salvar alterações</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
       {% endfor %}
       </tbody>
     </table>
@@ -120,4 +149,43 @@
     {% endif %}
   </div>
 </section>
+<script>
+(function(){
+  document.querySelectorAll('[data-open-modal]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const modal = document.getElementById(btn.dataset.openModal);
+      if (modal) modal.classList.remove('is-hidden');
+    });
+  });
+  document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const modal = document.getElementById(btn.dataset.closeModal);
+      if (modal) modal.classList.add('is-hidden');
+    });
+  });
+  document.querySelectorAll('.rel-modal').forEach((modal) => {
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) modal.classList.add('is-hidden');
+    });
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') {
+      document.querySelectorAll('.rel-modal:not(.is-hidden)').forEach((modal) => modal.classList.add('is-hidden'));
+    }
+  });
+})();
+</script>
+<style>
+.modal-row { height:0; }
+.modal-row > td { padding:0; border:0; }
+.rel-modal { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,59,90,.45); }
+.rel-modal.is-hidden { display:none; }
+.rel-modal-box { width:min(760px, 94vw); max-height:90vh; overflow:auto; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 16px 44px rgba(0,0,0,.24); }
+.rel-modal-hdr { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:var(--navy); color:#fff; }
+.rel-modal-hdr strong { color:#fff; font-size:14px; }
+.rel-modal-close { border:0; background:transparent; color:#fff; font-size:22px; line-height:1; cursor:pointer; padding:0 4px; }
+.rel-edit-form { padding:16px; }
+.rel-modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+.ibtn-editar-rel:hover:not(:disabled) { color:var(--blue); border-color:var(--blue); background:#eef6ff; }
+</style>
 {% endblock %}

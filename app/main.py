@@ -16,6 +16,8 @@ from .routes import blocos as bloco_routes
 from .routes import figuras as figura_routes
 from .routes import importacao as importacao_routes
 from .routes import pdf as pdf_routes
+from .routes import processos as processos_routes
+from .process_events import configure_logging_bridge
 
 BASE_DIR = Path(__file__).parent
 
@@ -23,6 +25,7 @@ BASE_DIR = Path(__file__).parent
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    configure_logging_bridge()
     yield
 
 
@@ -53,3 +56,4 @@ app.include_router(bloco_routes.router)
 app.include_router(figura_routes.router)
 app.include_router(importacao_routes.router)
 app.include_router(pdf_routes.router)
+app.include_router(processos_routes.router)

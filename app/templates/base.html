@@ -42,16 +42,162 @@
       <span class="sf"><span class="sf-lbl">E-mail</span><span class="sf-val">{{ user.email }}</span></span>
       <span class="sf"><span class="sf-lbl">Perfil</span><span class="sf-val sf-role">{{ user.role }}</span></span>
     </div>
+    <button type="button" id="process-open" class="process-open" title="Abrir processos e logs">
+      <span id="process-signal" class="process-signal is-idle" aria-hidden="true">
+        <span class="sig sig-ok"></span><span class="sig sig-warn"></span><span class="sig sig-danger"></span>
+      </span>
+      <span id="process-label">Pronto</span>
+    </button>
     <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
   </header>
   <div id="content">
     {% block content %}{% endblock %}
   </div>
 </div>
+<div id="process-toasts" class="process-toasts" aria-live="polite"></div>
+<div id="process-modal" class="process-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="process-modal-title">
+  <div class="process-box">
+    <div class="process-head">
+      <strong id="process-modal-title">Processos e logs</strong>
+      <div class="process-head-actions">
+        <button type="button" id="process-clear" class="secondary">Limpar</button>
+        <button type="button" id="process-close" class="process-close" aria-label="Fechar">×</button>
+      </div>
+    </div>
+    <div class="process-body" id="process-log-list"></div>
+  </div>
+</div>
 {% else %}
 <div id="auth-wrap">
   {% block auth %}{% endblock %}
 </div>
+{% endif %}
+{% if user %}
+<script>
+(function(){
+  const signal = document.getElementById('process-signal');
+  const label = document.getElementById('process-label');
+  const openBtn = document.getElementById('process-open');
+  const modal = document.getElementById('process-modal');
+  const closeBtn = document.getElementById('process-close');
+  const clearBtn = document.getElementById('process-clear');
+  const list = document.getElementById('process-log-list');
+  const toasts = document.getElementById('process-toasts');
+  const active = new Set();
+  let lastStatus = 'idle';
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function setSignal(status, text) {
+    lastStatus = status || 'idle';
+    signal.className = 'process-signal is-' + lastStatus;
+    label.textContent = text || (lastStatus === 'working' ? 'Processando' : lastStatus === 'danger' ? 'Atenção' : 'Pronto');
+  }
+
+  function syncSignal() {
+    if (active.size) setSignal('working', active.size + ' em curso');
+    else if (lastStatus !== 'danger') setSignal('idle', 'Pronto');
+  }
+
+  function logEvent(ev) {
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'process-log-row is-' + (ev.status || 'info');
+    row.innerHTML = '<span class="process-log-time">' + esc((ev.ts || '').replace('T', ' ').replace('Z', '')) + '</span>' +
+      '<span class="process-log-kind">' + esc(ev.kind || 'log') + '</span>' +
+      '<span class="process-log-text"><strong>' + esc(ev.title || '') + '</strong>' +
+      (ev.message ? '<em>' + esc(ev.message) + '</em>' : '') + '</span>';
+    list.appendChild(row);
+    while (list.children.length > 160) list.removeChild(list.firstElementChild);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function toast(ev) {
+    if (!toasts || ev.kind === 'server_log' && ev.level === 'info') return;
+    const item = document.createElement('div');
+    item.className = 'process-toast is-' + (ev.status || 'info');
+    item.innerHTML = '<strong>' + esc(ev.title || 'Processo') + '</strong>' + (ev.message ? '<span>' + esc(ev.message) + '</span>' : '');
+    toasts.appendChild(item);
+    setTimeout(() => item.classList.add('is-out'), 5200);
+    setTimeout(() => item.remove(), 5800);
+  }
+
+  function receive(ev) {
+    if (!ev || ev.kind === 'connection') { setSignal('idle', 'Pronto'); return; }
+    if (ev.status === 'working') active.add(ev.process_id);
+    if (ev.status === 'success' || ev.status === 'danger') active.delete(ev.process_id);
+    if (ev.status === 'danger') setSignal('danger', 'Atenção');
+    else if (active.size) setSignal('working', active.size + ' em curso');
+    else if (ev.status === 'success') setSignal('idle', 'Concluído');
+    logEvent(ev);
+    toast(ev);
+    if (!active.size && ev.status === 'success') setTimeout(syncSignal, 2600);
+  }
+
+  openBtn.addEventListener('click', () => modal.classList.remove('is-hidden'));
+  closeBtn.addEventListener('click', () => modal.classList.add('is-hidden'));
+  modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.classList.add('is-hidden'); });
+  clearBtn.addEventListener('click', () => { list.innerHTML = ''; });
+
+  window.SRAProcess = {
+    notify(title, message, status) { receive({kind:'client', level:status || 'info', status:status || 'info', title, message, ts:new Date().toISOString(), process_id:'client-' + Date.now()}); },
+    setStatus: setSignal,
+    log(title, message, status) { logEvent({kind:'client', level:status || 'info', status:status || 'info', title, message, ts:new Date().toISOString(), process_id:'client-log'}); },
+    open() { modal.classList.remove('is-hidden'); },
+  };
+
+  document.addEventListener('submit', (ev) => {
+    const form = ev.target;
+    if (!(form instanceof HTMLFormElement) || form.dataset.noProcessFeedback === '1') return;
+    const btn = form.querySelector('button[type="submit"]:focus') || form.querySelector('button[type="submit"]');
+    const title = (btn && btn.textContent ? btn.textContent.trim() : 'Processo iniciado') || 'Processo iniciado';
+    const pid = 'form-' + Date.now();
+    active.add(pid);
+    setSignal('working', 'Processando');
+    logEvent({kind:'form', level:'info', status:'working', title, message:form.action || location.href, ts:new Date().toISOString(), process_id:pid});
+    setTimeout(() => { active.delete(pid); syncSignal(); }, 8000);
+  }, true);
+
+  const nativeFetch = window.fetch;
+  window.fetch = async function(input, init) {
+    const method = String((init && init.method) || 'GET').toUpperCase();
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const track = method !== 'GET';
+    const pid = 'fetch-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    if (track) {
+      active.add(pid);
+      setSignal('working', 'Processando');
+      logEvent({kind:'fetch', level:'info', status:'working', title:method + ' ' + url, message:'Requisição enviada', ts:new Date().toISOString(), process_id:pid});
+    }
+    try {
+      const resp = await nativeFetch.apply(this, arguments);
+      if (track) {
+        active.delete(pid);
+        receive({kind:'fetch', level:resp.ok ? 'success' : 'error', status:resp.ok ? 'success' : 'danger', title:method + ' ' + url, message:'HTTP ' + resp.status, ts:new Date().toISOString(), process_id:pid});
+      }
+      return resp;
+    } catch (err) {
+      if (track) {
+        active.delete(pid);
+        receive({kind:'fetch', level:'error', status:'danger', title:method + ' ' + url, message:err.message || 'Falha na requisição', ts:new Date().toISOString(), process_id:pid});
+      }
+      throw err;
+    }
+  };
+
+  try {
+    const source = new EventSource('/processos/eventos');
+    source.onmessage = (msg) => { try { receive(JSON.parse(msg.data)); } catch (err) { /* ignora evento inválido */ } };
+    source.onerror = () => setSignal('danger', 'Sem conexão');
+  } catch (err) {
+    setSignal('danger', 'Sem eventos');
+  }
+})();
+</script>
 {% endif %}
 </body>
 </html>

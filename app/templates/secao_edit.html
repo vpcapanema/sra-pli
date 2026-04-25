@@ -38,10 +38,28 @@
   <div class="ss-hdr">
     <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
     <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
-    <a href="/relatorios/{{ rel.id }}/preview" target="_blank" class="btn-pdf">Abrir em nova aba</a>
+    <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
   </div>
   <div class="sb2">
-    <iframe id="preview-frame" data-src="/relatorios/{{ rel.id }}/preview#sec-{{ sec.numero }}" class="preview-frame" title="Pré-visualização do relatório"></iframe>
+    <details class="export-menu">
+      <summary>Exportar relatório</summary>
+      <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
+        <div class="export-row">
+          <label><input type="radio" name="escopo" value="inteiro" checked> Relatório inteiro</label>
+          <label><input type="radio" name="escopo" value="selecionadas"> Seções selecionadas</label>
+        </div>
+        <div class="export-sections" aria-label="Seções para exportar">
+          {% for s in rel.secoes %}
+            <label><input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}><span>{{ s.numero }} – {{ s.titulo }}</span></label>
+          {% endfor %}
+        </div>
+        <div class="export-actions">
+          <button type="submit" name="formato" value="pdf">Exportar PDF</button>
+          <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
+        </div>
+      </form>
+    </details>
+    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
   </div>
 </section>
 
@@ -49,9 +67,17 @@
   <div class="ss-hdr"><span class="sn">●</span><span class="st">Blocos de conteúdo</span></div>
   <div class="sb2 blocos-table-wrap">
     {% if sec.blocos %}
+    <div class="bloco-bulk-actions" aria-label="Ações em lote para blocos selecionados">
+      <span class="bulk-count" id="bulk-count">0 selecionados</span>
+      <form id="bulk-aprovar-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/aprovar-lote" class="inline-form"></form>
+      <form id="bulk-excluir-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/excluir-lote" class="inline-form"></form>
+      <button type="submit" form="bulk-aprovar-form" class="secondary bulk-action-btn" data-bulk-submit disabled>Aprovar</button>
+      <button type="submit" form="bulk-excluir-form" class="danger bulk-action-btn" data-bulk-submit data-bulk-delete disabled>Deletar blocão</button>
+    </div>
     <table class="blocos-table">
       <thead>
         <tr>
+          <th class="select-col"><input type="checkbox" id="bulk-select-all" title="Selecionar todos os blocos disponíveis" aria-label="Selecionar todos os blocos disponíveis"></th>
           <th>Índice da seção</th>
           <th>Título da seção</th>
           <th>Tipo do elemento</th>
@@ -82,6 +108,7 @@
           {% set categoria_bloco = 'conteúdo' %}
         {% endif %}
         <tr class="{% if b.bloqueado %}bloqueado-row{% endif %}" id="bloco-row-{{ b.id }}">
+          <td class="select-col"><input type="checkbox" class="bloco-select" value="{{ b.id }}" title="Selecionar bloco" aria-label="Selecionar bloco {{ loop.index }}" {% if b.bloqueado %}disabled{% endif %}></td>
           <td>{{ sec.numero }}</td>
           <td>{{ sec.titulo }}</td>
           <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
@@ -98,9 +125,11 @@
             {% else %}
               <span class="locked-lbl">Bloqueado</span>
             {% endif %}
+            {% if not b.bloqueado %}
             <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir" class="inline-form" onsubmit="return confirm('Excluir este bloco permanentemente?')">
               <button type="submit" class="bloco-action" title="Excluir bloco" aria-label="Excluir bloco">×</button>
             </form>
+            {% endif %}
           </td>
         </tr>
       {% endfor %}
@@ -137,8 +166,9 @@
           <thead>
             <tr>
               <th>Importar</th>
-              <th>Seção</th>
+              <th>Seção detectada</th>
               <th>Tipo</th>
+              <th>Confiança</th>
               <th>Título</th>
               <th>Conteúdo</th>
               <th>Legenda</th>
@@ -762,6 +792,67 @@ function editarBloco(id, titulo, tipo, conteudo) {
 }
 
 (function(){
+  const checks = Array.from(document.querySelectorAll('.bloco-select'));
+  const enabledChecks = checks.filter((check) => !check.disabled);
+  const selectAll = document.getElementById('bulk-select-all');
+  const count = document.getElementById('bulk-count');
+  const buttons = Array.from(document.querySelectorAll('[data-bulk-submit]'));
+  const forms = [document.getElementById('bulk-aprovar-form'), document.getElementById('bulk-excluir-form')].filter(Boolean);
+  if (!selectAll || !count) return;
+  if (!enabledChecks.length) {
+    selectAll.disabled = true;
+    count.textContent = '0 selecionados';
+    return;
+  }
+
+  function selectedIds() {
+    return enabledChecks.filter((check) => check.checked).map((check) => check.value);
+  }
+
+  function syncBulkState() {
+    const ids = selectedIds();
+    count.textContent = ids.length + (ids.length === 1 ? ' selecionado' : ' selecionados');
+    buttons.forEach((button) => { button.disabled = !ids.length; });
+    selectAll.checked = ids.length > 0 && ids.length === enabledChecks.length;
+    selectAll.indeterminate = ids.length > 0 && ids.length < enabledChecks.length;
+  }
+
+  function fillForm(form, ids) {
+    form.querySelectorAll('.bulk-hidden-id').forEach((input) => input.remove());
+    ids.forEach((id) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'bloco_ids';
+      input.value = id;
+      input.className = 'bulk-hidden-id';
+      form.appendChild(input);
+    });
+  }
+
+  selectAll.addEventListener('change', () => {
+    enabledChecks.forEach((check) => { check.checked = selectAll.checked; });
+    syncBulkState();
+  });
+  enabledChecks.forEach((check) => check.addEventListener('change', syncBulkState));
+  forms.forEach((form) => {
+    form.addEventListener('submit', (ev) => {
+      const ids = selectedIds();
+      if (!ids.length) {
+        ev.preventDefault();
+        alert('Selecione ao menos um bloco.');
+        return;
+      }
+      if (form.id === 'bulk-excluir-form' && !confirm('Deletar definitivamente ' + ids.length + ' bloco(s) selecionado(s)?')) {
+        ev.preventDefault();
+        return;
+      }
+      fillForm(form, ids);
+    });
+  });
+  syncBulkState();
+})();
+
+(function(){
   const form = document.getElementById('form-importar-conteudo');
   if (!form) return;
   const fileIn = document.getElementById('import-arquivo');
@@ -769,7 +860,6 @@ function editarBloco(id, titulo, tipo, conteudo) {
   const review = document.getElementById('import-review');
   const tbody = document.getElementById('import-tbody');
   const confirmBtn = document.getElementById('import-confirm');
-  const secOptions = `{% for s in rel.secoes %}<option value="{{ s.id }}">{{ s.numero }} – {{ s.titulo }}</option>{% endfor %}`;
   let importBlocks = [];
 
   function esc(value) {
@@ -782,9 +872,14 @@ function editarBloco(id, titulo, tipo, conteudo) {
 
   function renderRows() {
     tbody.innerHTML = importBlocks.map((b, i) => `
-      <tr>
+      <tr class="${Number(b.confianca || 0) < 0.7 ? 'import-low-confidence' : ''}">
         <td><input type="checkbox" data-i="${i}" data-field="selecionado" checked></td>
-        <td><select data-i="${i}" data-field="secao_id">${secOptions}</select></td>
+        <td>
+          <input type="hidden" data-i="${i}" data-field="secao_id" value="${esc(b.secao_id)}">
+          <input type="text" data-i="${i}" data-field="secao_numero" value="${esc(b.secao_numero || '{{ sec.numero }}')}" aria-label="Número da seção">
+          <input type="text" data-i="${i}" data-field="secao_titulo" value="${esc(b.secao_titulo || '{{ sec.titulo }}')}" aria-label="Título da seção">
+          <small>${esc(b.acao_secao === 'criar' ? 'criar seção' : (b.acao_secao === 'renomear' ? 'renomear seção' : 'usar seção'))}</small>
+        </td>
         <td>
           <select data-i="${i}" data-field="tipo">
             <option value="texto">Texto</option>
@@ -793,15 +888,14 @@ function editarBloco(id, titulo, tipo, conteudo) {
             <option value="tabela">Tabela</option>
           </select>
         </td>
+        <td><span class="import-confidence">${esc(Math.round(Number(b.confianca || 0) * 100))}%</span><small>${esc(b.motivo || 'revisão assistida')}</small></td>
         <td><input type="text" data-i="${i}" data-field="titulo" value="${esc(b.titulo)}"></td>
         <td><textarea data-i="${i}" data-field="conteudo" rows="4">${esc(b.conteudo)}</textarea>${b.image_b64 ? '<div class="import-img-note">imagem DOCX anexada</div>' : ''}</td>
         <td><input type="text" data-i="${i}" data-field="legenda" value="${esc(b.legenda)}"></td>
         <td><input type="text" data-i="${i}" data-field="fonte" value="${esc(b.fonte)}"></td>
       </tr>`).join('');
     importBlocks.forEach((b, i) => {
-      const secSel = tbody.querySelector(`[data-i="${i}"][data-field="secao_id"]`);
       const tipoSel = tbody.querySelector(`[data-i="${i}"][data-field="tipo"]`);
-      if (secSel) secSel.value = String(b.secao_id || '{{ sec.id }}');
       if (tipoSel) tipoSel.value = b.tipo || 'texto';
     });
     review.classList.toggle('is-hidden', !importBlocks.length);
@@ -837,7 +931,8 @@ function editarBloco(id, titulo, tipo, conteudo) {
       if (!resp.ok) throw new Error(data.detail || 'Falha ao analisar arquivo.');
       importBlocks = (data.blocks || []).map(b => ({ ...b, selecionado: true }));
       renderRows();
-      status.textContent = importBlocks.length + ' bloco(s) detectado(s).';
+      const baixos = importBlocks.filter(b => Number(b.confianca || 0) < 0.7).length;
+      status.textContent = importBlocks.length + ' bloco(s) detectado(s)' + (baixos ? ', ' + baixos + ' para revisar com atenção.' : '.');
     } catch (err) {
       status.textContent = err.message;
       importBlocks = [];
@@ -858,7 +953,7 @@ function editarBloco(id, titulo, tipo, conteudo) {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || 'Falha ao importar blocos.');
-      status.textContent = data.created + ' bloco(s) importado(s).';
+      status.textContent = data.created + ' bloco(s) importado(s)' + (data.section_changes ? ' e ' + data.section_changes + ' ajuste(s) de seção.' : '.');
       window.location.reload();
     } catch (err) {
       status.textContent = err.message;
@@ -875,6 +970,13 @@ function editarBloco(id, titulo, tipo, conteudo) {
 .blocos-table th { white-space:nowrap; border-color:#7890a5; }
 .blocos-table th:last-child, .blocos-table td:last-child { border-right:0; }
 .blocos-table tbody tr:last-child td { border-bottom:0; }
+.select-col { width:34px; min-width:34px; }
+.select-col input[type="checkbox"] { width:14px; height:14px; margin:0; vertical-align:middle; cursor:pointer; }
+.select-col input[type="checkbox"]:disabled { cursor:not-allowed; }
+.bloco-bulk-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 8px; padding:7px 9px; border:1px solid var(--border); background:#f8fafc; }
+.bulk-count { min-width:92px; font-size:11.5px; color:var(--muted); font-weight:600; }
+.bulk-action-btn { padding:5px 12px; font-size:12px; }
+.bulk-action-btn:disabled { opacity:.45; cursor:not-allowed; }
 .td-actions { text-align:center; white-space:nowrap; }
 .inline-form { margin:0; display:inline-flex; }
 .td-actions .inline-form, .td-actions .bloco-action { vertical-align:middle; margin:0 2px; }
@@ -893,6 +995,9 @@ function editarBloco(id, titulo, tipo, conteudo) {
 .import-table input[type="text"], .import-table select, .import-table textarea { min-width:150px; font-size:11.5px; padding:5px 7px; }
 .import-table textarea { min-width:260px; resize:vertical; }
 .import-img-note { font-size:10.5px; color:var(--green-dk); margin-top:4px; font-weight:600; }
+.import-low-confidence { background:#fff8e8; }
+.import-confidence { display:block; font-weight:700; color:var(--navy); margin-bottom:3px; }
+.import-confidence + small { display:block; min-width:170px; max-width:240px; color:var(--muted); line-height:1.35; text-align:left; }
 /* ---- Escala e largura da página (escopo: editor de seção) ---- */
 #content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
 @media (max-width: 1100px) { #content { width: 94%; } }

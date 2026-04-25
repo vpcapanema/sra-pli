@@ -3,11 +3,15 @@ import html as _html
 import re
 from datetime import date
 from pathlib import Path
+from zipfile import ZipFile
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.orm import Session
 from .models import Relatorio, Figura
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+MODELO_DOCX = PROJECT_DIR / "modelos_consorcio" / "MODELOS" / "Modelo_Capa&Relatorio.docx"
+PDF_COVER_IMAGE = PROJECT_DIR / "app" / "static" / "pdf" / "capa_relatorio_entregue.jpg"
 
 _env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
@@ -18,6 +22,48 @@ _env = Environment(
 def _figura_data_uri(fig: Figura) -> str:
     b64 = base64.b64encode(fig.dados).decode("ascii")
     return f"data:{fig.mime};base64,{b64}"
+
+
+_ASSET_CACHE: dict[str, str] = {}
+
+
+def _modelo_asset_data_uri(asset_name: str) -> str:
+    cached = _ASSET_CACHE.get(asset_name)
+    if cached is not None:
+        return cached
+    try:
+        with ZipFile(MODELO_DOCX) as archive:
+            data = archive.read(f"word/media/{asset_name}")
+    except (FileNotFoundError, KeyError):
+        _ASSET_CACHE[asset_name] = ""
+        return ""
+    b64 = base64.b64encode(data).decode("ascii")
+    uri = f"data:image/png;base64,{b64}"
+    _ASSET_CACHE[asset_name] = uri
+    return uri
+
+
+def _file_asset_data_uri(path: Path, mime: str) -> str:
+    cache_key = f"file:{path}"
+    cached = _ASSET_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        _ASSET_CACHE[cache_key] = ""
+        return ""
+    b64 = base64.b64encode(data).decode("ascii")
+    uri = f"data:{mime};base64,{b64}"
+    _ASSET_CACHE[cache_key] = uri
+    return uri
+
+
+def _produto_codigo_capa(codigo: str | None) -> str:
+    match = re.search(r"D20[-\s]*(\d+)", codigo or "", re.IGNORECASE)
+    if match:
+        return f"D-20 - {match.group(1)}"
+    return (codigo or "").replace("-", " - ")
 
 
 _RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
@@ -260,9 +306,10 @@ def _render_texto_html(figuras_by_id: dict[int, Figura], conteudo: str, fig_coun
     return "".join(out_html), fig_counter, tab_counter
 
 
-def _montar_contexto(db: Session, rel: Relatorio):
+def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):
     figura_ids: set[int] = set()
-    for sec in rel.secoes:
+    secoes_relatorio = [sec for sec in rel.secoes if section_ids is None or sec.id in section_ids]
+    for sec in secoes_relatorio:
         for b in sec.blocos:
             if b.figura_id:
                 figura_ids.add(b.figura_id)
@@ -276,7 +323,7 @@ def _montar_contexto(db: Session, rel: Relatorio):
     # compartilham o mesmo contador, reiniciado quando muda o top-level).
     fig_by_top: dict = {}
     tab_by_top: dict = {}
-    for sec in rel.secoes:
+    for sec in secoes_relatorio:
         sec_top = (sec.numero or "").split(".")[0]
         fig_counter = fig_by_top.get(sec_top, 0)
         tab_counter = tab_by_top.get(sec_top, 0)
@@ -326,25 +373,39 @@ def _montar_contexto(db: Session, rel: Relatorio):
         })
     sumario_items = []
     for s in secoes:
-        nivel = s["numero"].count(".") + 1
+        nivel_real = s["numero"].count(".") + 1
+        nivel = min(nivel_real, 3)
+        classe_profundidade = " deep" if nivel_real >= 4 else ""
+        sec_id = "sec-" + re.sub(r"[^0-9A-Za-z_-]+", "-", s["numero"])
         sumario_items.append(
-            f'<li class="lvl-{nivel}"><span class="num">{s["numero"]}</span>'
-            f'<span class="ttl">{s["titulo"]}</span></li>'
+            f'<li class="lvl-{nivel}{classe_profundidade}"><a href="#{sec_id}">'
+            f'<span class="num">{s["numero"]}</span><span class="ttl">{_esc(s["titulo"])}</span>'
+            f'<span class="dots"></span><span class="pg"></span></a></li>'
         )
-    sumario_items.append(
-        '<li class="lvl-1"><span class="num">—</span>'
-        '<span class="ttl">Página de assinaturas</span></li>'
-    )
     sumario_html = "<ol>" + "".join(sumario_items) + "</ol>"
-    return {"rel": rel, "secoes": secoes, "sumario_html": sumario_html, "hoje": date.today()}
+    medicao = rel.numero_medicao or ""
+    if not medicao:
+        match = re.search(r"D20[-\s]*(\d+)", rel.codigo or "", re.IGNORECASE)
+        medicao = match.group(1) if match else ""
+    return {
+        "rel": rel,
+        "secoes": secoes,
+        "sumario_html": sumario_html,
+        "hoje": date.today(),
+        "medicao": medicao,
+        "cover_bg_src": _file_asset_data_uri(PDF_COVER_IMAGE, "image/jpeg"),
+        "cover_produto": _produto_codigo_capa(rel.codigo),
+        "header_logos_src": _modelo_asset_data_uri("image2.png"),
+        "pli_line_src": _modelo_asset_data_uri("image3.png"),
+    }
 
 
-def render_html(db: Session, rel: Relatorio) -> str:
+def render_html(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> str:
     template = _env.get_template("pdf/relatorio.html")
-    return template.render(**_montar_contexto(db, rel))
+    return template.render(**_montar_contexto(db, rel, section_ids))
 
 
-def render_pdf(db: Session, rel: Relatorio) -> bytes:
-    html_str = render_html(db, rel)
+def render_pdf(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> bytes:
+    html_str = render_html(db, rel, section_ids)
     from weasyprint import HTML  # import tardio: GTK não necessário fora do /pdf
     return HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()
