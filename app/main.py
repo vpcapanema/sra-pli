@@ -14,6 +14,7 @@ from .routes import pages as page_routes
 from .routes import relatorios as rel_routes
 from .routes import blocos as bloco_routes
 from .routes import figuras as figura_routes
+from .routes import importacao as importacao_routes
 from .routes import pdf as pdf_routes
 
 BASE_DIR = Path(__file__).parent
@@ -50,4 +51,5 @@ app.include_router(page_routes.router)
 app.include_router(rel_routes.router)
 app.include_router(bloco_routes.router)
 app.include_router(figura_routes.router)
+app.include_router(importacao_routes.router)
 app.include_router(pdf_routes.router)

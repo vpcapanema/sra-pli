@@ -37,74 +37,118 @@
 <section class="ss active-tab">
   <div class="ss-hdr">
     <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-    <button type="button" class="btn-pdf" onclick="document.getElementById('preview-frame').contentWindow.location.reload()">Atualizar</button>
+    <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
     <a href="/relatorios/{{ rel.id }}/preview" target="_blank" class="btn-pdf">Abrir em nova aba</a>
   </div>
   <div class="sb2">
-    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/preview#sec-{{ sec.numero }}" class="preview-frame" title="Pré-visualização do relatório"></iframe>
+    <iframe id="preview-frame" data-src="/relatorios/{{ rel.id }}/preview#sec-{{ sec.numero }}" class="preview-frame" title="Pré-visualização do relatório"></iframe>
   </div>
 </section>
 
 <section class="ss active-tab">
   <div class="ss-hdr"><span class="sn">●</span><span class="st">Blocos de conteúdo</span></div>
-  <div class="sb2">
+  <div class="sb2 blocos-table-wrap">
     {% if sec.blocos %}
-    {% for b in sec.blocos %}
-      <details class="bloco">
-        <summary>
-          <span class="tag accent">{{ b.tipo }}</span>
-          <strong>{{ b.titulo or '(sem título)' }}</strong>
-          <span class="meta-inline">por {{ b.autor.nome if b.autor else '—' }} · {{ b.updated_at.strftime('%d/%m/%Y %H:%M') }}</span>
-          <span class="bloco-edit-btn">✎ Editar</span>
-        </summary>
-        <div class="det-body">
-          <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/editar">
-            <label>Título</label>
-            <input name="titulo" title="Título do bloco" placeholder="Título opcional" value="{{ b.titulo or '' }}">
-            {% if b.tipo == 'figura' %}
-              <label>Figura</label>
-              <select name="figura_id" title="Figura associada">
-                <option value="">—</option>
-                {% for f in figuras %}
-                  <option value="{{ f.id }}" {% if b.figura_id==f.id %}selected{% endif %}>{{ f.nome }}</option>
-                {% endfor %}
-              </select>
-              {% if b.figura %}
-                <img src="/figuras/{{ b.figura.id }}" alt="{{ b.figura.nome }}" class="fig-thumb">
-              {% endif %}
-              <label>Legenda</label><input name="legenda" title="Legenda da figura" placeholder="Texto da legenda" value="{{ b.legenda or '' }}">
-              <label>Fonte</label><input name="fonte" title="Fonte da figura" placeholder="Origem dos dados" value="{{ b.fonte or '' }}">
-            {% elif b.tipo == 'tabela' %}
-              <label>Tabela (HTML simples ou CSV — use linhas separadas por quebra e colunas por <code>|</code>)</label>
-              <textarea name="conteudo" rows="6" title="Conteúdo da tabela" placeholder="col1|col2|col3">{{ b.conteudo or '' }}</textarea>
-              <label>Legenda</label><input name="legenda" title="Legenda da tabela" placeholder="Texto da legenda" value="{{ b.legenda or '' }}">
-              <label>Fonte</label><input name="fonte" title="Fonte da tabela" placeholder="Origem dos dados" value="{{ b.fonte or '' }}">
+    <table class="blocos-table">
+      <thead>
+        <tr>
+          <th>Índice da seção</th>
+          <th>Título da seção</th>
+          <th>Tipo do elemento</th>
+          <th>Textos e Char</th>
+          <th>Adicionado por</th>
+          <th>Data de adição</th>
+          <th>Data da atualização</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for b in sec.blocos %}
+        {% set conteudo_bloco = b.conteudo or '' %}
+        {% set conteudo_limpo = conteudo_bloco.strip() %}
+        {% if b.tipo == 'texto' and conteudo_limpo.startswith('## ') %}
+          {% set categoria_bloco = 'subtítulo' %}
+        {% elif b.tipo == 'texto' and conteudo_limpo.startswith('# ') %}
+          {% set categoria_bloco = 'título' %}
+        {% elif b.tipo == 'texto' %}
+          {% set categoria_bloco = 'parágrafo' %}
+        {% elif b.tipo == 'lista' %}
+          {% set categoria_bloco = 'lista' %}
+        {% elif b.tipo == 'figura' %}
+          {% set categoria_bloco = 'figura' %}
+        {% elif b.tipo == 'tabela' %}
+          {% set categoria_bloco = 'tabela' %}
+        {% else %}
+          {% set categoria_bloco = 'conteúdo' %}
+        {% endif %}
+        <tr class="{% if b.bloqueado %}bloqueado-row{% endif %}" id="bloco-row-{{ b.id }}">
+          <td>{{ sec.numero }}</td>
+          <td>{{ sec.titulo }}</td>
+          <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
+          <td><small>{{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)</small></td>
+          <td>{{ b.autor.nome if b.autor else '—' }}</td>
+          <td>{{ b.created_at.strftime('%d/%m/%y %H:%M') }}</td>
+          <td>{{ b.updated_at.strftime('%d/%m/%y %H:%M') }}</td>
+          <td class="td-actions">
+            {% if not b.bloqueado %}
+              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar" class="inline-form" onsubmit="return confirm('Confirmar e bloquear bloco?')">
+                <button type="submit" class="bloco-action" title="Confirmar" aria-label="Confirmar bloco">✓</button>
+              </form>
+              <button type="button" class="bloco-action" title="Editar no container" aria-label="Editar bloco" onclick='editarBloco({{ b.id }}, {{ (b.titulo or "")|tojson|safe }}, {{ (b.tipo or "texto")|tojson|safe }}, {{ (b.conteudo or "")|tojson|safe }})'>✎</button>
             {% else %}
-              <label>Conteúdo (texto / lista — uma linha por item para listas)</label>
-              <textarea name="conteudo" rows="8" title="Conteúdo do bloco" placeholder="Texto livre ou itens da lista">{{ b.conteudo or '' }}</textarea>
+              <span class="locked-lbl">Bloqueado</span>
             {% endif %}
-            <div class="actions-row">
-              <button type="submit">Salvar</button>
-            </div>
-          </form>
-          <div class="actions-row mt-8">
-            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/mover">
-              <input type="hidden" name="direcao" value="cima"><button class="secondary" type="submit">↑</button>
+            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir" class="inline-form" onsubmit="return confirm('Excluir este bloco permanentemente?')">
+              <button type="submit" class="bloco-action" title="Excluir bloco" aria-label="Excluir bloco">×</button>
             </form>
-            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/mover">
-              <input type="hidden" name="direcao" value="baixo"><button class="secondary" type="submit">↓</button>
-            </form>
-            <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir"
-                  onsubmit="return confirm('Excluir este bloco?')">
-              <button class="danger" type="submit">Excluir</button>
-            </form>
-          </div>
-        </div>
-      </details>
-    {% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
     {% else %}
       <p class="sdesc">Nenhum bloco ainda. Adicione abaixo.</p>
     {% endif %}
+  </div>
+</section>
+
+<section class="ss active-tab" id="importar-conteudo">
+  <div class="ss-hdr"><span class="sn">↑</span><span class="st">Importar conteúdo</span></div>
+  <div class="sb2">
+    <form id="form-importar-conteudo" class="import-form">
+      <div>
+        <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
+        <input type="file" id="import-arquivo" name="arquivo" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+      </div>
+      <button type="submit">Analisar arquivo</button>
+      <span id="import-status" class="import-status" aria-live="polite"></span>
+    </form>
+    <div class="import-help">
+      Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>, <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ... <code>[/TABELA]</code>.
+      Em DOCX, use estilos de título do Word, títulos iniciados por número de seção e tabelas nativas.
+    </div>
+    <div id="import-review" class="import-review is-hidden">
+      <div class="import-review-head">
+        <strong>Revisar blocos detectados</strong>
+        <button type="button" id="import-confirm" class="secondary">Importar selecionados</button>
+      </div>
+      <div class="blocos-table-wrap">
+        <table class="blocos-table import-table">
+          <thead>
+            <tr>
+              <th>Importar</th>
+              <th>Seção</th>
+              <th>Tipo</th>
+              <th>Título</th>
+              <th>Conteúdo</th>
+              <th>Legenda</th>
+              <th>Fonte</th>
+            </tr>
+          </thead>
+          <tbody id="import-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -287,26 +331,26 @@
   const secNumero = {{ sec.numero|tojson }};
   const secTop = secNumero.split('.')[0];
   // Quantas figuras/tabelas a seção já contém (somando blocos existentes + markers em texto)
-  {%- set ns = namespace(fig=0, tab=0, gFig=0, gTab=0, reached=false) -%}
-  {%- for s in rel.secoes -%}
-    {%- if s.id == sec.id -%}{%- set ns.reached = true -%}{%- endif -%}
-    {%- for b in s.blocos -%}
-      {%- if b.tipo == 'figura' -%}
-        {%- set ns.gFig = ns.gFig + 1 -%}
-        {%- if s.id == sec.id -%}{%- set ns.fig = ns.fig + 1 -%}{%- endif -%}
-      {%- endif -%}
-      {%- if b.tipo == 'tabela' -%}
-        {%- set ns.gTab = ns.gTab + 1 -%}
-        {%- if s.id == sec.id -%}{%- set ns.tab = ns.tab + 1 -%}{%- endif -%}
-      {%- endif -%}
-      {%- set ns.gFig = ns.gFig + (b.conteudo or '').count('[[FIGURA:') -%}
-      {%- set ns.gTab = ns.gTab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') -%}
-      {%- if s.id == sec.id -%}
-        {%- set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') -%}
-        {%- set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') -%}
-      {%- endif -%}
-    {%- endfor -%}
-  {%- endfor -%}
+  {% set ns = namespace(fig=0, tab=0, gFig=0, gTab=0, reached=false) %}
+  {% for s in rel.secoes %}
+    {% if s.id == sec.id %}{% set ns.reached = true %}{% endif %}
+    {% for b in s.blocos %}
+      {% if b.tipo == 'figura' %}
+        {% set ns.gFig = ns.gFig + 1 %}
+        {% if s.id == sec.id %}{% set ns.fig = ns.fig + 1 %}{% endif %}
+      {% endif %}
+      {% if b.tipo == 'tabela' %}
+        {% set ns.gTab = ns.gTab + 1 %}
+        {% if s.id == sec.id %}{% set ns.tab = ns.tab + 1 %}{% endif %}
+      {% endif %}
+      {% set ns.gFig = ns.gFig + (b.conteudo or '').count('[[FIGURA:') %}
+      {% set ns.gTab = ns.gTab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') %}
+      {% if s.id == sec.id %}
+        {% set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') %}
+        {% set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
   const figBase = {{ ns.fig|int }};
   const tabBase = {{ ns.tab|int }};
   const figGlobalBase = {{ ns.gFig|int }};
@@ -336,6 +380,7 @@
     const tr = document.getElementById('tab-opt-R'); if (tr) tr.textContent = 'Por seção (Ex: TABELA ' + (secTop + '.' + (tabBase + _countTaTab() + 1)) + ')';
     const tc = document.getElementById('tab-opt-C'); if (tc) tc.textContent = 'Sequencial (Ex: TABELA ' + (tabGlobalBase + _countTaTab() + 1) + ')';
   }
+  window.atualizaExemplosBloco = _atualizaExemplos;
   function syncTitulo(){ /* título fixo da seção atual */ }
 
   // Guarda última posição do cursor no textarea (perdida quando clicamos fora).
@@ -702,9 +747,173 @@
   updateStatus();
   _atualizaExemplos();
 })();
+
+function editarBloco(id, titulo, tipo, conteudo) {
+  document.getElementById('add-bloco-titulo').value = titulo || '';
+  document.getElementById('add-bloco-tipo').value = tipo || 'texto';
+  document.getElementById('add-bloco-conteudo').value = conteudo || '';
+  const frm = document.getElementById('form-add-bloco');
+  frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/' + id + '/editar';
+  
+  const submitBtn = frm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.textContent = 'Salvar bloco editado';
+  
+  let cancelBtn = document.getElementById('btn-cancel-edit');
+  if (!cancelBtn) {
+     cancelBtn = document.createElement('button');
+     cancelBtn.type = 'button';
+     cancelBtn.id = 'btn-cancel-edit';
+     cancelBtn.className = 'secondary';
+     cancelBtn.textContent = 'Cancelar edição';
+     cancelBtn.style.marginLeft = '8px';
+     cancelBtn.onclick = function() {
+        frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos';
+        submitBtn.textContent = 'Adicionar bloco';
+        document.getElementById('add-bloco-titulo').value = '{{ sec.numero }} – {{ sec.titulo }}';
+        document.getElementById('add-bloco-tipo').value = 'texto';
+        document.getElementById('add-bloco-conteudo').value = '';
+        if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
+        this.remove();
+     };
+     submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+  }
+  document.getElementById('add-bloco-conteudo').scrollIntoView({behavior: 'smooth', block: 'center'});
+  document.getElementById('add-bloco-conteudo').focus();
+  if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
+}
+
+(function(){
+  const form = document.getElementById('form-importar-conteudo');
+  if (!form) return;
+  const fileIn = document.getElementById('import-arquivo');
+  const status = document.getElementById('import-status');
+  const review = document.getElementById('import-review');
+  const tbody = document.getElementById('import-tbody');
+  const confirmBtn = document.getElementById('import-confirm');
+  const secOptions = `{% for s in rel.secoes %}<option value="{{ s.id }}">{{ s.numero }} – {{ s.titulo }}</option>{% endfor %}`;
+  let importBlocks = [];
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderRows() {
+    tbody.innerHTML = importBlocks.map((b, i) => `
+      <tr>
+        <td><input type="checkbox" data-i="${i}" data-field="selecionado" checked></td>
+        <td><select data-i="${i}" data-field="secao_id">${secOptions}</select></td>
+        <td>
+          <select data-i="${i}" data-field="tipo">
+            <option value="texto">Texto</option>
+            <option value="lista">Lista</option>
+            <option value="figura">Figura</option>
+            <option value="tabela">Tabela</option>
+          </select>
+        </td>
+        <td><input type="text" data-i="${i}" data-field="titulo" value="${esc(b.titulo)}"></td>
+        <td><textarea data-i="${i}" data-field="conteudo" rows="4">${esc(b.conteudo)}</textarea>${b.image_b64 ? '<div class="import-img-note">imagem DOCX anexada</div>' : ''}</td>
+        <td><input type="text" data-i="${i}" data-field="legenda" value="${esc(b.legenda)}"></td>
+        <td><input type="text" data-i="${i}" data-field="fonte" value="${esc(b.fonte)}"></td>
+      </tr>`).join('');
+    importBlocks.forEach((b, i) => {
+      const secSel = tbody.querySelector(`[data-i="${i}"][data-field="secao_id"]`);
+      const tipoSel = tbody.querySelector(`[data-i="${i}"][data-field="tipo"]`);
+      if (secSel) secSel.value = String(b.secao_id || '{{ sec.id }}');
+      if (tipoSel) tipoSel.value = b.tipo || 'texto';
+    });
+    review.classList.toggle('is-hidden', !importBlocks.length);
+  }
+
+  tbody.addEventListener('input', (ev) => {
+    const el = ev.target;
+    const idx = Number(el.dataset.i);
+    const field = el.dataset.field;
+    if (!field || !importBlocks[idx]) return;
+    importBlocks[idx][field] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  tbody.addEventListener('change', (ev) => {
+    const el = ev.target;
+    const idx = Number(el.dataset.i);
+    const field = el.dataset.field;
+    if (!field || !importBlocks[idx]) return;
+    importBlocks[idx][field] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const file = fileIn.files && fileIn.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('arquivo', file);
+    status.textContent = 'Analisando...';
+    try {
+      const resp = await fetch('/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/analisar', {
+        method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json' },
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Falha ao analisar arquivo.');
+      importBlocks = (data.blocks || []).map(b => ({ ...b, selecionado: true }));
+      renderRows();
+      status.textContent = importBlocks.length + ' bloco(s) detectado(s).';
+    } catch (err) {
+      status.textContent = err.message;
+      importBlocks = [];
+      renderRows();
+    }
+  });
+
+  confirmBtn.addEventListener('click', async () => {
+    const selected = importBlocks.filter(b => b.selecionado !== false);
+    if (!selected.length) { alert('Selecione ao menos um bloco para importar.'); return; }
+    status.textContent = 'Importando...';
+    try {
+      const resp = await fetch('/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/confirmar', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ blocks: selected }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Falha ao importar blocos.');
+      status.textContent = data.created + ' bloco(s) importado(s).';
+      window.location.reload();
+    } catch (err) {
+      status.textContent = err.message;
+    }
+  });
+})();
 </script>
 
 <style>
+/* Tabela de Blocos */
+.blocos-table-wrap { overflow-x:auto; }
+.blocos-table { min-width:880px; font-size:11.5px; margin:10px 0 16px; border-collapse:separate; border-spacing:0; border:1px solid #7f92a6; border-radius:0; }
+.blocos-table th, .blocos-table td { text-align:center; vertical-align:middle; border:0; border-right:1px solid #9babbc; border-bottom:1px solid #9babbc; }
+.blocos-table th { white-space:nowrap; border-color:#7890a5; }
+.blocos-table th:last-child, .blocos-table td:last-child { border-right:0; }
+.blocos-table tbody tr:last-child td { border-bottom:0; }
+.td-actions { text-align:center; white-space:nowrap; }
+.inline-form { margin:0; display:inline-flex; }
+.td-actions .inline-form, .td-actions .bloco-action { vertical-align:middle; margin:0 2px; }
+.bloco-action { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; border:1px solid #9babbc; border-radius:3px; background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; line-height:1; }
+.bloco-action:hover { background:#fff; border-color:var(--border); color:var(--navy); }
+.bloqueado-row { background:#fafafa; }
+.locked-lbl { font-size:10.5px; color:var(--muted); }
+.import-form { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px; }
+.import-form > div { flex:1 1 320px; }
+.import-status { font-size:12px; color:var(--muted); }
+.import-help { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
+.import-help code { color:var(--navy); font-weight:600; }
+.import-review.is-hidden { display:none; }
+.import-review-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0; }
+.import-review-head strong { color:var(--navy); font-size:13px; }
+.import-table input[type="text"], .import-table select, .import-table textarea { min-width:150px; font-size:11.5px; padding:5px 7px; }
+.import-table textarea { min-width:260px; resize:vertical; }
+.import-img-note { font-size:10.5px; color:var(--green-dk); margin-top:4px; font-weight:600; }
 /* ---- Escala e largura da página (escopo: editor de seção) ---- */
 #content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
 @media (max-width: 1100px) { #content { width: 94%; } }

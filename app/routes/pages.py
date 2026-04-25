@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only, selectinload
 from sqlalchemy import func
 from pathlib import Path
 from datetime import date
 
 from ..db import get_db
-from ..models import Relatorio, Secao
+from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..auth import current_user
 from ..sumario_extractor import listar_pdfs_disponiveis
 
@@ -70,7 +70,15 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    rel = db.get(Relatorio, rel_id)
+    rel = (
+        db.query(Relatorio)
+        .options(
+            selectinload(Relatorio.secoes).selectinload(Secao.responsavel),
+            selectinload(Relatorio.secoes).selectinload(Secao.blocos).load_only(Bloco.id, Bloco.secao_id),
+        )
+        .filter(Relatorio.id == rel_id)
+        .one_or_none()
+    )
     if not rel:
         return RedirectResponse("/dashboard", status_code=303)
     return templates.TemplateResponse(
@@ -83,14 +91,29 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    rel = db.get(Relatorio, rel_id)
-    sec = db.get(Secao, sec_id)
+    rel = (
+        db.query(Relatorio)
+        .options(
+            selectinload(Relatorio.secoes)
+            .selectinload(Secao.blocos)
+            .selectinload(Bloco.autor),
+        )
+        .filter(Relatorio.id == rel_id)
+        .one_or_none()
+    )
+    sec = next((s for s in rel.secoes if s.id == sec_id), None) if rel else None
     if not rel or not sec or sec.relatorio_id != rel.id:
         return RedirectResponse("/dashboard", status_code=303)
-    figuras = rel.id  # passamos o id; template fará lookup via endpoint /figuras
-    from ..models import Figura, User
-    figs = db.query(Figura).filter(Figura.relatorio_id == rel.id).order_by(Figura.created_at).all()
-    autores = db.query(User).order_by(User.nome).all()
+    if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
+        return RedirectResponse(f"/relatorios/{rel.id}", status_code=303)
+    figs = (
+        db.query(Figura)
+        .options(load_only(Figura.id, Figura.nome, Figura.relatorio_id, Figura.created_at))
+        .filter(Figura.relatorio_id == rel.id)
+        .order_by(Figura.created_at)
+        .all()
+    )
+    autores = db.query(User).options(load_only(User.id, User.nome)).order_by(User.nome).all()
     return templates.TemplateResponse(
         request,
         "secao_edit.html",

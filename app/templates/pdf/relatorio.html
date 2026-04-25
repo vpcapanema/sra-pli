@@ -171,9 +171,9 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
           {{ b.html|safe }}
         {% elif b.tipo == 'lista' %}
           {{ b.lista_html|safe }}
-        {% elif b.tipo == 'figura' and b.src %}
+        {% elif b.tipo == 'figura' %}
           <div class="figura">
-            <img src="{{ b.src }}" alt="">
+            {% if b.src %}<img src="{{ b.src }}" alt="">{% else %}<p class="empty-section">[Figura importada sem imagem vinculada]</p>{% endif %}
             <div class="cap">Figura {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}</div>
             {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
           </div>

@@ -77,8 +77,8 @@ def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") ->
     return f'<div class="tabela">{cap_html}{table_html}</div>'
 
 
-def _render_figura_html(db: Session, fig_id: int, legenda: str, numero, posicao: str = "S") -> str:
-    fig = db.get(Figura, fig_id)
+def _render_figura_html(figuras_by_id: dict[int, Figura], fig_id: int, legenda: str, numero, posicao: str = "S") -> str:
+    fig = figuras_by_id.get(fig_id)
     if fig is None:
         return f'<p class="empty-section">[Figura #{fig_id} não encontrada]</p>'
     src = _figura_data_uri(fig)
@@ -143,7 +143,26 @@ def _render_paragrafos_e_listas(texto: str) -> str:
     return "".join(out)
 
 
-def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter: int, sec_numero: str = ""):
+def _figura_ids_no_texto(conteudo: str) -> set[int]:
+    ids: set[int] = set()
+    for mf in _RE_FIGURA.finditer(conteudo or ""):
+        g1 = (mf.group(1) or "").strip()
+        g2 = mf.group(2)
+        g3 = mf.group(3)
+        g4 = mf.group(4)
+        raw_id = ""
+        if g4 is not None and g3 in ("S", "I"):
+            raw_id = g2 or ""
+        elif g3 is not None and (g2 or "").isdigit():
+            raw_id = g2 or ""
+        else:
+            raw_id = g1
+        if raw_id.isdigit():
+            ids.add(int(raw_id))
+    return ids
+
+
+def _render_texto_html(figuras_by_id: dict[int, Figura], conteudo: str, fig_counter: int, tab_counter: int, sec_numero: str = ""):
     """Processa marcadores [[FIGURA:..]] e [[TABELA..]] e formatação leve.
 
     Retorna (html, fig_counter, tab_counter) atualizados.
@@ -233,7 +252,7 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
                     fid = 0
             fig_counter += 1
             numero = idx_raw if idx_raw else _label_local(sec_top, fig_counter)
-            out_html.append(_render_figura_html(db, fid, legenda, numero, posicao))
+            out_html.append(_render_figura_html(figuras_by_id, fid, legenda, numero, posicao))
             sub_last = mf.end()
         resto = chunk[sub_last:]
         out_html.append(_render_paragrafos_e_listas(resto))
@@ -242,6 +261,16 @@ def _render_texto_html(db: Session, conteudo: str, fig_counter: int, tab_counter
 
 
 def _montar_contexto(db: Session, rel: Relatorio):
+    figura_ids: set[int] = set()
+    for sec in rel.secoes:
+        for b in sec.blocos:
+            if b.figura_id:
+                figura_ids.add(b.figura_id)
+            figura_ids.update(_figura_ids_no_texto(b.conteudo or ""))
+    figuras_by_id = {
+        fig.id: fig for fig in db.query(Figura).filter(Figura.id.in_(figura_ids)).all()
+    } if figura_ids else {}
+
     secoes = []
     # Contadores por top-level da seção (ex.: tudo dentro de "4" e "4.1.2"
     # compartilham o mesmo contador, reiniciado quando muda o top-level).
@@ -264,10 +293,15 @@ def _montar_contexto(db: Session, rel: Relatorio):
                 "legenda": b.legenda,
                 "fonte": b.fonte,
             }
-            if b.tipo == "figura" and b.figura is not None:
+            if b.tipo == "figura" and b.figura_id:
+                fig_counter += 1
+                fig = figuras_by_id.get(b.figura_id)
+                item["numero"] = _label("F", fig_counter)
+                item["src"] = _figura_data_uri(fig) if fig is not None else None
+            elif b.tipo == "figura":
                 fig_counter += 1
                 item["numero"] = _label("F", fig_counter)
-                item["src"] = _figura_data_uri(b.figura)
+                item["src"] = None
             elif b.tipo == "tabela":
                 tab_counter += 1
                 item["numero"] = _label("T", tab_counter)
@@ -279,7 +313,7 @@ def _montar_contexto(db: Session, rel: Relatorio):
                 item["lista_html"] = "<ul>" + "".join(f"<li>{_esc(i)}</li>" for i in itens) + "</ul>"
             else:  # texto (com marcadores) ou qualquer outro
                 html_render, fig_counter, tab_counter = _render_texto_html(
-                    db, b.conteudo or "", fig_counter, tab_counter, sec.numero
+                    figuras_by_id, b.conteudo or "", fig_counter, tab_counter, sec.numero
                 )
                 item["html"] = html_render
             blocos_render.append(item)

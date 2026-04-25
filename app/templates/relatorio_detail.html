@@ -14,11 +14,11 @@
 <section class="ss active-tab">
   <div class="ss-hdr">
     <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-    <button type="button" class="btn-pdf" onclick="document.getElementById('preview-frame').contentWindow.location.reload()">Atualizar</button>
+    <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
     <a href="/relatorios/{{ rel.id }}/preview" target="_blank" class="btn-pdf">Abrir em nova aba</a>
   </div>
   <div class="sb2">
-    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/preview" class="preview-frame" title="Pré-visualização do relatório"></iframe>
+    <iframe id="preview-frame" data-src="/relatorios/{{ rel.id }}/preview" class="preview-frame" title="Pré-visualização do relatório"></iframe>
   </div>
 </section>
 

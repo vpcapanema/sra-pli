@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date, ForeignKey, LargeBinary, UniqueConstraint
+    Boolean, Column, Integer, String, Text, DateTime, Date, ForeignKey, LargeBinary, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from .db import Base
@@ -93,6 +93,7 @@ class Bloco(Base):
     fonte = Column(String(255), nullable=True)
     figura_id = Column(Integer, ForeignKey("figuras.id"), nullable=True)
     autor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    bloqueado = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

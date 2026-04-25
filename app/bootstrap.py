@@ -23,6 +23,7 @@ def init_db() -> None:
     if engine.dialect.name == "postgresql":
         with engine.begin() as conn:
             conn.execute(text(_USERS_NOME_CHK))
+            conn.execute(text("ALTER TABLE blocos ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false;"))
     with SessionLocal() as db:
         ensure_admin(db)
 

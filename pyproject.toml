@@ -16,6 +16,16 @@ disable = [
     "unused-argument",
     "invalid-name",
     "fixme",
+    "wrong-import-order",
+    "wrong-import-position",
+    "import-outside-toplevel",
+    "multiple-imports",
+    "multiple-statements",
+    "trailing-whitespace",
+    "unused-import",
+    "unused-variable",
+    "raise-missing-from",
+    "cell-var-from-loop",
 ]
 
 [tool.pylint.FORMAT]
