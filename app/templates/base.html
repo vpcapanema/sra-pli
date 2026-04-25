@@ -198,6 +198,55 @@
   }
 })();
 </script>
+<script>
+(function(){
+  function initExportTree(container) {
+    const nodes = Array.from(container.querySelectorAll('[data-section-node]'));
+    if (!nodes.length || container.dataset.treeReady === '1') return;
+    container.dataset.treeReady = '1';
+
+    function level(node) {
+      return Number(node.dataset.sectionLevel || '1');
+    }
+
+    function updateVisibility() {
+      let collapsedLevels = [];
+      nodes.forEach((node) => {
+        const currentLevel = level(node);
+        collapsedLevels = collapsedLevels.filter((item) => item < currentLevel);
+        node.classList.toggle('is-hidden', collapsedLevels.length > 0);
+        if (node.classList.contains('is-collapsed')) collapsedLevels.push(currentLevel);
+      });
+    }
+
+    nodes.forEach((node, index) => {
+      const button = node.querySelector('.export-tree-toggle');
+      const hasChildren = index + 1 < nodes.length && level(nodes[index + 1]) > level(node);
+      if (!button || !hasChildren) {
+        node.classList.add('is-leaf');
+        if (button) {
+          button.textContent = '';
+          button.setAttribute('aria-hidden', 'true');
+          button.tabIndex = -1;
+        }
+        return;
+      }
+      button.textContent = '▾';
+      button.addEventListener('click', () => {
+        const collapsed = node.classList.toggle('is-collapsed');
+        button.textContent = collapsed ? '▸' : '▾';
+        button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        button.setAttribute('aria-label', (collapsed ? 'Expandir seção ' : 'Recolher seção ') + (node.dataset.sectionNumber || ''));
+        updateVisibility();
+      });
+    });
+
+    updateVisibility();
+  }
+
+  document.querySelectorAll('.export-sections').forEach(initExportTree);
+})();
+</script>
 {% endif %}
 </body>
 </html>

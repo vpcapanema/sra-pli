@@ -44,14 +44,25 @@
     <details class="export-menu">
       <summary>Exportar relatório</summary>
       <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
-        <div class="export-row">
-          <label><input type="radio" name="escopo" value="inteiro" checked> Relatório inteiro</label>
-          <label><input type="radio" name="escopo" value="selecionadas"> Seções selecionadas</label>
+        <input id="export-scope-inteiro" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
+        <input id="export-scope-selecionadas" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
+        <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
+          <label class="export-tab export-tab-all" for="export-scope-inteiro"><span>Relatório inteiro</span></label>
+          <label class="export-tab export-tab-selected" for="export-scope-selecionadas"><span>Seções selecionadas</span></label>
         </div>
-        <div class="export-sections" aria-label="Seções para exportar">
-          {% for s in rel.secoes %}
-            <label><input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}><span>{{ s.numero }} – {{ s.titulo }}</span></label>
-          {% endfor %}
+        <div class="export-panels">
+          <div class="export-panel export-panel-all" role="tabpanel"></div>
+          <div class="export-panel export-panel-selected" role="tabpanel">
+            <div class="export-sections" aria-label="Seções para exportar">
+              {% for s in rel.secoes %}
+                {% set nivel = s.numero.count('.') + 1 %}
+                <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
+                  <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
+                  <label class="export-section-check"><input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}><span>{{ s.numero }} – {{ s.titulo }}</span></label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
         <div class="export-actions">
           <button type="submit" name="formato" value="pdf">Exportar PDF</button>
@@ -772,9 +783,8 @@ function editarBloco(id, titulo, tipo, conteudo) {
      cancelBtn = document.createElement('button');
      cancelBtn.type = 'button';
      cancelBtn.id = 'btn-cancel-edit';
-     cancelBtn.className = 'secondary';
+    cancelBtn.className = 'secondary btn-cancel';
      cancelBtn.textContent = 'Cancelar edição';
-     cancelBtn.style.marginLeft = '8px';
      cancelBtn.onclick = function() {
         frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos';
         submitBtn.textContent = 'Adicionar bloco';
