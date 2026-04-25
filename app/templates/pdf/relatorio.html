@@ -161,7 +161,7 @@ body{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10.5pt; line-hei
 <!-- ===================== SEÇÕES ===================== -->
 {% for s in secoes %}
 {% set nivel = s.numero.count('.') + 1 %}
-<section class="secao lvl-{{ nivel }}">
+<section id="sec-{{ s.numero }}" class="secao lvl-{{ nivel }}">
   <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
   {% if s.blocos %}
     {% for b in s.blocos %}

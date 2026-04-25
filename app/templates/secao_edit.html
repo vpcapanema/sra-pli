@@ -41,7 +41,7 @@
     <a href="/relatorios/{{ rel.id }}/preview" target="_blank" class="btn-pdf">Abrir em nova aba</a>
   </div>
   <div class="sb2">
-    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/preview" class="preview-frame" title="Pré-visualização do relatório"></iframe>
+    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/preview#sec-{{ sec.numero }}" class="preview-frame" title="Pré-visualização do relatório"></iframe>
   </div>
 </section>
 
@@ -55,6 +55,7 @@
           <span class="tag accent">{{ b.tipo }}</span>
           <strong>{{ b.titulo or '(sem título)' }}</strong>
           <span class="meta-inline">por {{ b.autor.nome if b.autor else '—' }} · {{ b.updated_at.strftime('%d/%m/%Y %H:%M') }}</span>
+          <span class="bloco-edit-btn">✎ Editar</span>
         </summary>
         <div class="det-body">
           <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/editar">
@@ -794,6 +795,8 @@
 .sec-sub-form.is-hidden { display:none; }
 .sec-sub-form label { font-size:12px; color:var(--navy); font-weight:600; }
 .sec-sub-form input[type=text] { flex:1 1 200px; }
+.bloco-edit-btn { font-size:11px; font-weight:600; color:var(--blue); background:#eaf3ff; padding:2px 8px; border-radius:4px; margin-left:8px; transition:0.2s; }
+.bloco:hover .bloco-edit-btn { background:var(--navy); color:#fff; }
 </style>
 
 <section class="ss active-tab" id="upload-figuras" hidden>
