@@ -57,7 +57,7 @@ def _set_runs_font(
             run.font.italic = italic
 
 
-def _format_body_paragraph(paragraph, *, space_after_pt: float = 10) -> None:
+def _format_body_paragraph(paragraph, *, space_after_pt: float = 12) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     paragraph_format = paragraph.paragraph_format
     paragraph_format.space_before = Pt(0)
@@ -103,7 +103,7 @@ def _add_numbered_heading(document: Document, numero: str, titulo: str, level: i
     return paragraph
 
 
-def _format_caption(paragraph, *, bold: bool = False, space_before_pt: float = 0, size_pt: float = 9) -> None:
+def _format_caption(paragraph, *, bold: bool = False, space_before_pt: float = 6, size_pt: float = 10) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph_format = paragraph.paragraph_format
     paragraph_format.space_before = Pt(space_before_pt)
@@ -127,7 +127,7 @@ def _configure_document_styles(document: Document) -> None:
     normal.font.name = "Verdana"
     normal.font.size = Pt(10)
     normal.font.color.rgb = TEXT_COLOR
-    normal.paragraph_format.space_after = Pt(10)
+    normal.paragraph_format.space_after = Pt(12)
     normal.paragraph_format.line_spacing = 1.15
 
     list_style = styles["List Paragraph"]
@@ -404,7 +404,7 @@ def _add_texto(document: Document, texto: str) -> None:
 
 def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: str | None, numero: str, posicao: str = "S") -> None:
     if legenda and posicao != "I":
-        _format_caption(document.add_paragraph(f"Tabela {numero} - {legenda}"), bold=True)
+        _format_caption(document.add_paragraph(f"Tabela {numero}: {legenda}"))
     linhas = [ln for ln in (conteudo or "").splitlines() if ln.strip()]
     linhas = [ln for ln in linhas if not re.fullmatch(r"-+(\s*\|\s*-+)*", ln.strip())]
     if linhas:
@@ -425,32 +425,32 @@ def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: st
                     paragraph.paragraph_format.line_spacing = 1.15
                     _set_runs_font(paragraph, size_pt=8.8 if row_idx == 0 else 9.5, bold=row_idx == 0)
     if legenda and posicao == "I":
-        _format_caption(document.add_paragraph(f"Tabela {numero} - {legenda}"), bold=True, space_before_pt=10)
+        _format_caption(document.add_paragraph(f"Tabela {numero}: {legenda}"))
     if fonte:
-        _format_caption(document.add_paragraph(f"Fonte: {fonte}"), space_before_pt=10, size_pt=8.5)
+        _format_caption(document.add_paragraph(f"Fonte: {fonte}"))
 
 
-def _add_figura(document: Document, figura: Figura | None, legenda: str | None, fonte: str | None, numero: str, posicao: str = "S") -> None:
+def _add_figura(document: Document, figura: Figura | None, legenda: str | None, fonte: str | None, numero: str, posicao: str = "I") -> None:
     if legenda and posicao != "I":
-        paragraph = document.add_paragraph(f"Figura {numero} - {legenda}")
-        _format_caption(paragraph, bold=True)
+        paragraph = document.add_paragraph(f"Figura {numero}: {legenda}")
+        _format_caption(paragraph)
     if figura is not None:
         try:
             document.add_picture(BytesIO(figura.dados), width=Cm(17))
             image_paragraph = document.paragraphs[-1]
             image_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            image_paragraph.paragraph_format.space_before = Pt(10 if posicao == "S" else 0)
-            image_paragraph.paragraph_format.space_after = Pt(10)
+            image_paragraph.paragraph_format.space_before = Pt(0)
+            image_paragraph.paragraph_format.space_after = Pt(0)
         except Exception:  # noqa: BLE001
             _format_caption(document.add_paragraph(f"[Figura #{figura.id} não pôde ser inserida no DOCX]"))
     else:
         _format_caption(document.add_paragraph("[Figura importada sem imagem vinculada]"))
     if legenda and posicao == "I":
-        paragraph = document.add_paragraph(f"Figura {numero} - {legenda}")
-        _format_caption(paragraph, bold=True, space_before_pt=10)
+        paragraph = document.add_paragraph(f"Figura {numero}: {legenda}")
+        _format_caption(paragraph)
     if fonte:
         paragraph = document.add_paragraph(f"Fonte: {fonte}")
-        _format_caption(paragraph, size_pt=8.5)
+        _format_caption(paragraph)
 
 
 def _add_texto_com_marcadores(
@@ -472,7 +472,7 @@ def _add_texto_com_marcadores(
             posicao = g2
             legenda = (g3 or "").strip()
         else:
-            posicao = "S"
+            posicao = "I"
             legenda = (g2 or g3 or "").strip()
         tab_counter += 1
         numero = idx_raw or _figura_label(sec_numero, tab_counter)
@@ -496,7 +496,7 @@ def _add_texto_com_marcadores(
             idx_raw = ""
             figura_id = 0
             legenda = ""
-            posicao = "S"
+            posicao = "I"
             if g4 is not None and g3 in ("S", "I"):
                 idx_raw = g1
                 figura_id = int(g2 or "0") if (g2 or "").isdigit() else 0

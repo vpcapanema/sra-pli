@@ -280,7 +280,7 @@
                 <label class="mini-label" for="fig-pos">Posição da legenda</label>
                 <select id="fig-pos">
                   <option value="S">Superior</option>
-                  <option value="I">Inferior</option>
+                  <option value="I" selected>Inferior</option>
                 </select>
               </div>
               <div class="mini-actions">
@@ -390,7 +390,7 @@
     return estilo === 'C' ? String(n) : (secTop + '.' + n);
   }
   function _figEst(){ const s = document.getElementById('fig-est'); return s ? s.value : 'R'; }
-  function _figPos(){ const s = document.getElementById('fig-pos'); return s ? s.value : 'S'; }
+  function _figPos(){ const s = document.getElementById('fig-pos'); return s ? s.value : 'I'; }
   function _tabEst(){ const s = document.getElementById('tab-est'); return s ? s.value : 'R'; }
   function _tabPos(){ const s = document.getElementById('tab-pos'); return s ? s.value : 'S'; }
   // Atualiza os exemplos das legendas conforme se digita / contagem muda

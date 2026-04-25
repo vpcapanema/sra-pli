@@ -123,7 +123,7 @@ def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") ->
     return f'<div class="tabela">{cap_html}{table_html}</div>'
 
 
-def _render_figura_html(figuras_by_id: dict[int, Figura], fig_id: int, legenda: str, numero, posicao: str = "S") -> str:
+def _render_figura_html(figuras_by_id: dict[int, Figura], fig_id: int, legenda: str, numero, posicao: str = "I") -> str:
     fig = figuras_by_id.get(fig_id)
     if fig is None:
         return f'<p class="empty-section">[Figura #{fig_id} não encontrada]</p>'
@@ -237,7 +237,7 @@ def _render_texto_html(figuras_by_id: dict[int, Figura], conteudo: str, fig_coun
             posicao = g2
             legenda = (g3 or "").strip()
         else:
-            posicao = "S"
+            posicao = "I"
             legenda = (g2 or g3 or "").strip()
         corpo = m.group(4) or ""
         tab_counter += 1
@@ -267,7 +267,7 @@ def _render_texto_html(figuras_by_id: dict[int, Figura], conteudo: str, fig_coun
             #   3 grupos com g1 numérico só: id | leg                    (legado)
             fid = 0
             idx_raw = ""
-            posicao = "S"
+            posicao = "I"
             legenda = ""
             if g4 is not None and g3 in ("S", "I"):
                 idx_raw = g1
