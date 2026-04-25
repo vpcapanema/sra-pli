@@ -330,31 +330,10 @@
   const relId = {{ rel.id|tojson }};
   const secNumero = {{ sec.numero|tojson }};
   const secTop = secNumero.split('.')[0];
-  // Quantas figuras/tabelas a seção já contém (somando blocos existentes + markers em texto)
-  {% set ns = namespace(fig=0, tab=0, gFig=0, gTab=0, reached=false) %}
-  {% for s in rel.secoes %}
-    {% if s.id == sec.id %}{% set ns.reached = true %}{% endif %}
-    {% for b in s.blocos %}
-      {% if b.tipo == 'figura' %}
-        {% set ns.gFig = ns.gFig + 1 %}
-        {% if s.id == sec.id %}{% set ns.fig = ns.fig + 1 %}{% endif %}
-      {% endif %}
-      {% if b.tipo == 'tabela' %}
-        {% set ns.gTab = ns.gTab + 1 %}
-        {% if s.id == sec.id %}{% set ns.tab = ns.tab + 1 %}{% endif %}
-      {% endif %}
-      {% set ns.gFig = ns.gFig + (b.conteudo or '').count('[[FIGURA:') %}
-      {% set ns.gTab = ns.gTab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') %}
-      {% if s.id == sec.id %}
-        {% set ns.fig = ns.fig + (b.conteudo or '').count('[[FIGURA:') %}
-        {% set ns.tab = ns.tab + (b.conteudo or '').count('[[TABELA:') + (b.conteudo or '').count('[[TABELA|') + (b.conteudo or '').count('[[TABELA]]') %}
-      {% endif %}
-    {% endfor %}
-  {% endfor %}
-  const figBase = {{ ns.fig|int }};
-  const tabBase = {{ ns.tab|int }};
-  const figGlobalBase = {{ ns.gFig|int }};
-  const tabGlobalBase = {{ ns.gTab|int }};
+  const figBase = {{ media_counts.fig_base|int }};
+  const tabBase = {{ media_counts.tab_base|int }};
+  const figGlobalBase = {{ media_counts.fig_global_base|int }};
+  const tabGlobalBase = {{ media_counts.tab_global_base|int }};
   function _countTaFig(){ return (ta.value.match(/\[\[FIGURA:/g) || []).length; }
   function _countTaTab(){
     const op = (ta.value.match(/\[\[TABELA(?::|\||\]\])/g) || []).length;

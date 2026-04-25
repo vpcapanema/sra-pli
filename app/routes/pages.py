@@ -86,6 +86,31 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
     )
 
 
+def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
+    rows = (
+        db.query(Secao.id, Bloco.tipo, Bloco.conteudo)
+        .join(Bloco, Bloco.secao_id == Secao.id)
+        .filter(Secao.relatorio_id == rel_id)
+        .all()
+    )
+    counts = {"fig_base": 0, "tab_base": 0, "fig_global_base": 0, "tab_global_base": 0}
+    for current_sec_id, tipo, conteudo in rows:
+        text = conteudo or ""
+        fig_count = (1 if tipo == "figura" else 0) + text.count("[[FIGURA:")
+        tab_count = (
+            (1 if tipo == "tabela" else 0)
+            + text.count("[[TABELA:")
+            + text.count("[[TABELA|")
+            + text.count("[[TABELA]]")
+        )
+        counts["fig_global_base"] += fig_count
+        counts["tab_global_base"] += tab_count
+        if current_sec_id == sec_id:
+            counts["fig_base"] += fig_count
+            counts["tab_base"] += tab_count
+    return counts
+
+
 @router.get("/relatorios/{rel_id}/secoes/{sec_id}")
 def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
@@ -94,14 +119,23 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
     rel = (
         db.query(Relatorio)
         .options(
-            selectinload(Relatorio.secoes)
-            .selectinload(Secao.blocos)
-            .selectinload(Bloco.autor),
+            selectinload(Relatorio.secoes).load_only(
+                Secao.id,
+                Secao.relatorio_id,
+                Secao.numero,
+                Secao.titulo,
+                Secao.ordem,
+            )
         )
         .filter(Relatorio.id == rel_id)
         .one_or_none()
     )
-    sec = next((s for s in rel.secoes if s.id == sec_id), None) if rel else None
+    sec = (
+        db.query(Secao)
+        .options(selectinload(Secao.blocos).selectinload(Bloco.autor).load_only(User.id, User.nome))
+        .filter(Secao.id == sec_id, Secao.relatorio_id == rel_id)
+        .one_or_none()
+    )
     if not rel or not sec or sec.relatorio_id != rel.id:
         return RedirectResponse("/dashboard", status_code=303)
     if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
@@ -114,8 +148,16 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
         .all()
     )
     autores = db.query(User).options(load_only(User.id, User.nome)).order_by(User.nome).all()
+    media_counts = _media_counts(db, rel.id, sec.id)
     return templates.TemplateResponse(
         request,
         "secao_edit.html",
-        {"user": user, "rel": rel, "sec": sec, "figuras": figs, "autores": autores},
+        {
+            "user": user,
+            "rel": rel,
+            "sec": sec,
+            "figuras": figs,
+            "autores": autores,
+            "media_counts": media_counts,
+        },
     )
