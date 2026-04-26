@@ -5,7 +5,10 @@ __pycache__/
 venv/
 *.sqlite
 *.db
-.vscode/
+# .vscode: versiona apenas configuracoes seguras (sem segredos)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 _extracted_text/
 _extract_pdfs.py
 uploads/
@@ -15,3 +18,7 @@ uploads/
 
 _apply_chk.py
 _t.py
+
+# Tooling Node (cspell + dicionarios)
+node_modules/
+package-lock.json

@@ -1,0 +1,45 @@
+---
+description: Regras de linting e formatacao obrigatorias para Python e templates Jinja deste projeto
+alwaysApply: true
+---
+
+# Linting Obrigatorio
+
+Toda mudanca de codigo deve respeitar os linters configurados em `pyproject.toml` e `.vscode/settings.json`. A aba Problemas do Cursor deve ficar zerada nos arquivos alterados antes de concluir a tarefa.
+
+## Ferramentas E Configuracao
+
+- `flake8` + `Flake8-pyproject` — config em `[tool.flake8]` no `pyproject.toml`.
+- `pylint` — config em `[tool.pylint.*]` no `pyproject.toml`.
+- `djlint` (perfil `jinja`) — config em `[tool.djlint]` para `app/templates/**/*.html`.
+- `Pylance` — `typeCheckingMode = "off"`, diagnostic mode `workspace`.
+- `cSpell` — config em `cspell.json` raiz; dicionario customizado em `.cspell/projeto.txt`. Termos de dominio ou tecnicos novos vao para esse arquivo, NUNCA desabilite cSpell em arquivo inteiro.
+- Interpretador Python: SEMPRE `./.venv/Scripts/python.exe` (Windows). Extensoes ja apontam para ele.
+
+## Codigo Python — O Que Nao Fazer Em Codigo Novo
+
+- `func_a(); func_b()` na mesma linha (E702). Quebre em duas linhas.
+- Funcoes novas com mais de 5 argumentos posicionais (R0917) sem justificativa real.
+- Imports nao utilizados ou variaveis nao utilizadas.
+- Reativar `pool_pre_ping` em `app/db.py` ou remover ajustes de pool sem medir impacto.
+
+## Templates Jinja — O Que Garantir
+
+- Todo `{% block %}`, `{% if %}`, `{% for %}`, `{% with %}`, `{% macro %}` tem `{% end* %}` correspondente.
+- Use `{{ var }}` com espaco interno entre as chaves e o nome (regra T001). Sem espaco gera aviso.
+- Aspas duplas em parametros de tag (T002).
+- Esta e aplicacao FastAPI — nao use `{{ url_for('static', ...) }}` ou outras convencoes Flask. As regras `J004`/`J018` estao desligadas, mas nao introduza esses padroes.
+- Mantenha `.html` em `app/templates/**` registrado como `jinja-html` em `.vscode/settings.json`.
+
+## Codigo Legado
+
+Warnings pre-existentes de complexidade do `pylint` (`too-many-locals`, `too-many-branches`, `too-many-arguments`, `too-many-positional-arguments`, `too-many-return-statements`, `too-many-statements`) NAO devem ser desligados globalmente. Refatore gradualmente ao topar com a funcao; nao adicione novas violacoes.
+
+## Validacao Antes De Concluir
+
+```powershell
+.\.venv\Scripts\python.exe -m flake8 caminho/do/arquivo.py
+.\.venv\Scripts\python.exe -m pylint --rcfile=pyproject.toml caminho/do/arquivo.py
+.\.venv\Scripts\python.exe -m djlint app/templates
+npm run spell
+```

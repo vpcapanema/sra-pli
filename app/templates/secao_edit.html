@@ -170,26 +170,17 @@
     </div>
     <div id="import-review" class="import-review is-hidden">
       <div class="import-review-head">
-        <strong>Revisar blocos detectados</strong>
-        <button type="button" id="import-confirm" class="secondary">Importar selecionados</button>
+        <div class="import-review-title">
+          <strong>Revisar blocos detectados</strong>
+          <span id="import-summary" class="import-summary"></span>
+        </div>
+        <div class="import-review-actions">
+          <button type="button" id="import-all-on" class="secondary-mini" title="Selecionar todos os blocos">✓ todos</button>
+          <button type="button" id="import-all-off" class="secondary-mini" title="Deselecionar todos os blocos">✗ nenhum</button>
+          <button type="button" id="import-confirm" class="primary-mini">Importar selecionados</button>
+        </div>
       </div>
-      <div class="blocos-table-wrap">
-        <table class="blocos-table import-table">
-          <thead>
-            <tr>
-              <th>Importar</th>
-              <th>Seção detectada</th>
-              <th>Tipo</th>
-              <th>Confiança</th>
-              <th>Título</th>
-              <th>Conteúdo</th>
-              <th>Legenda</th>
-              <th>Fonte</th>
-            </tr>
-          </thead>
-          <tbody id="import-tbody"></tbody>
-        </table>
-      </div>
+      <div id="import-list" class="import-review-list" data-secoes-existentes='{{ rel.secoes|map(attribute="numero")|list|tojson }}'></div>
     </div>
   </div>
 </section>
@@ -394,7 +385,6 @@
   function _figPos(){ const s = document.getElementById('fig-pos'); return s ? s.value : 'I'; }
   function _tabEst(){ const s = document.getElementById('tab-est'); return s ? s.value : 'R'; }
   function _tabPos(){ const s = document.getElementById('tab-pos'); return s ? s.value : 'S'; }
-  // Atualiza os exemplos das legendas conforme se digita / contagem muda
   function _atualizaExemplos(){
     const fr = document.getElementById('fig-opt-R'); if (fr) fr.textContent = 'Por seção (Ex: FIGURA ' + (secTop + '.' + (figBase + _countTaFig() + 1)) + ')';
     const fc = document.getElementById('fig-opt-C'); if (fc) fc.textContent = 'Sequencial (Ex: FIGURA ' + (figGlobalBase + _countTaFig() + 1) + ')';
@@ -404,7 +394,6 @@
   window.atualizaExemplosBloco = _atualizaExemplos;
   function syncTitulo(){ /* título fixo da seção atual */ }
 
-  // Guarda última posição do cursor no textarea (perdida quando clicamos fora).
   let lastCursor = { start: 0, end: 0 };
   ta.addEventListener('blur', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
   ta.addEventListener('keyup', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
@@ -415,7 +404,6 @@
     const pos = (document.activeElement === ta) ? { start: ta.selectionStart, end: ta.selectionEnd } : lastCursor;
     let before = ta.value.slice(0, pos.start);
     let after = ta.value.slice(pos.end);
-    // Garante que blocos (figura/tabela) entrem em linha própria.
     if (opts.blockLine) {
       if (before.length && !before.endsWith('\n')) before += '\n';
       if (after.length && !after.startsWith('\n')) text = text + '\n';
@@ -427,7 +415,6 @@
     lastCursor = { start: newPos, end: newPos };
   }
 
-  // Toolbar de formatação
   function insertAtCursor(prefix, perLine){
     const start = ta.selectionStart, end = ta.selectionEnd;
     const before = ta.value.slice(0, start), sel = ta.value.slice(start, end), after = ta.value.slice(end);
@@ -453,7 +440,6 @@
     });
   });
 
-  // Painel Figura
   const figSel = document.getElementById('ins-fig-sel');
   const figPrev = document.getElementById('ins-fig-preview');
   const figImg = document.getElementById('ins-fig-img');
@@ -480,7 +466,6 @@
     _atualizaExemplos();
   });
 
-  // Painel Tabela — abre o editor visual
   const tabRows = document.getElementById('ins-tab-rows');
   const tabCols = document.getElementById('ins-tab-cols');
   const tabLeg = document.getElementById('ins-tab-leg');
@@ -504,7 +489,6 @@
 
   form.addEventListener('submit', () => { syncTitulo(); });
 
-  // ---- Painel de controle de seção ----
   const secNav = document.getElementById('sec-nav');
   if (secNav) {
     secNav.addEventListener('change', () => { if (secNav.value) window.location.href = secNav.value; });
@@ -519,7 +503,6 @@
   if (btnNova) btnNova.addEventListener('click', () => toggleForm('form-nova-sub', document.getElementById('form-nova-sub').classList.contains('is-hidden')));
   document.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => toggleForm(b.dataset.cancel, false)));
 
-  // ---- Upload e inserir (figura) ----
   const upBtn = document.getElementById('ins-fig-upload-btn');
   const upFile = document.getElementById('ins-fig-upload-file');
   if (upBtn && upFile) {
@@ -556,7 +539,6 @@
     });
   }
 
-  // ---- Editor visual de tabela ----
   const tabModal   = document.getElementById('tab-editor');
   const tabModalLeg= document.getElementById('tab-editor-leg');
   const tabModalTbl= document.getElementById('tab-editor-table');
@@ -565,7 +547,7 @@
   const tabModalClose  = document.getElementById('tab-editor-close');
   const tabModalCancel = document.getElementById('tab-editor-cancel');
   const tabModalConfirm= document.getElementById('tab-editor-confirm');
-  let _tabState = null; // { mode: 'insert'|'replace', range:{start,end}, headers:[], rows:[[...]] }
+  let _tabState = null;
 
   function _renderEditorTable() {
     if (!_tabState) return;
@@ -679,7 +661,6 @@
     updateStatus();
   });
 
-  // Localiza um marcador [[TABELA...]]...[[/TABELA]] que envolva o cursor.
   function findTableMarkerAtCursor() {
     const val = ta.value || '';
     const pos = ta.selectionStart || 0;
@@ -693,11 +674,10 @@
     reClose.lastIndex = lastOpen.index;
     const mc = reClose.exec(val);
     if (!mc) return null;
-    if (pos > mc.index + mc[0].length) return null; // cursor passou o fechamento
+    if (pos > mc.index + mc[0].length) return null;
     const start = lastOpen.index;
     const end = mc.index + mc[0].length;
     const inner = val.slice(lastOpen.index + lastOpen[0].length, mc.index);
-    // Disambigua os grupos: se g2 for "S"/"I", é a posição; senão é a legenda (formato legado).
     let posFlag = 'S', legenda = '';
     if (lastOpen[2] === 'S' || lastOpen[2] === 'I') {
       posFlag = lastOpen[2];
@@ -708,8 +688,8 @@
       legenda = lastOpen[3];
     }
     const linhas = inner.split('\n').map(l => l.trim()).filter(Boolean)
-      .filter(l => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))                         // markdown sep
-      .filter(l => !/^\+[-=+\s]+\+?$/.test(l));                                 // ascii sep
+      .filter(l => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))
+      .filter(l => !/^\+[-=+\s]+\+?$/.test(l));
     const splitCells = (ln) => {
       let s = ln; if (s.startsWith('|')) s = s.slice(1); if (s.endsWith('|')) s = s.slice(0, -1);
       return s.split('|').map(c => c.trim());
@@ -723,7 +703,6 @@
     return { range: { start, end }, idx: lastOpen[1] || '', pos: posFlag, legenda, headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
   }
 
-  // ---- Status bar: detecta a classe da linha/seleção atual ----
   const bsTag = document.getElementById('bs-tag');
   const bsInfo = document.getElementById('bs-info');
   const CLASS_LABEL = {
@@ -775,10 +754,10 @@ function editarBloco(id, titulo, tipo, conteudo) {
   document.getElementById('add-bloco-conteudo').value = conteudo || '';
   const frm = document.getElementById('form-add-bloco');
   frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/' + id + '/editar';
-  
+
   const submitBtn = frm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.textContent = 'Salvar bloco editado';
-  
+
   let cancelBtn = document.getElementById('btn-cancel-edit');
   if (!cancelBtn) {
      cancelBtn = document.createElement('button');
@@ -863,68 +842,350 @@ function editarBloco(id, titulo, tipo, conteudo) {
   syncBulkState();
 })();
 
+// =====================================================================
+// Importação de conteúdo — Opção B (lista hierárquica com cards por tipo)
+// =====================================================================
 (function(){
   const form = document.getElementById('form-importar-conteudo');
   if (!form) return;
   const fileIn = document.getElementById('import-arquivo');
   const status = document.getElementById('import-status');
   const review = document.getElementById('import-review');
-  const tbody = document.getElementById('import-tbody');
+  const list = document.getElementById('import-list');
+  const summary = document.getElementById('import-summary');
   const confirmBtn = document.getElementById('import-confirm');
+  const allOnBtn = document.getElementById('import-all-on');
+  const allOffBtn = document.getElementById('import-all-off');
+  const SECAO_FALLBACK_NUM = {{ sec.numero|tojson }};
+  const SECAO_FALLBACK_TIT = {{ sec.titulo|tojson }};
+
+  // Lista de números de seções já existentes no relatório — para reclassificar
+  // localmente "usar"/"criar" quando o usuário edita o número da seção no header.
+  let existingSectionNumbers = new Set();
+  try {
+    const raw = list.dataset.secoesExistentes || '[]';
+    JSON.parse(raw).forEach((n) => existingSectionNumbers.add(String(n).trim()));
+  } catch (e) { /* ignora */ }
+
   let importBlocks = [];
+
+  const TIPO_LABEL = { texto: 'TEXTO', lista: 'LISTA', figura: 'FIGURA', tabela: 'TABELA' };
+  const SUBTIPO_LABEL = {
+    titulo: 'Título',
+    subtitulo: 'Subtítulo',
+    paragrafo: 'Parágrafo',
+    lista: 'Lista',
+  };
 
   function esc(value) {
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
-  function renderRows() {
-    tbody.innerHTML = importBlocks.map((b, i) => `
-      <tr class="${Number(b.confianca || 0) < 0.7 ? 'import-low-confidence' : ''}">
-        <td><input type="checkbox" data-i="${i}" data-field="selecionado" checked></td>
-        <td>
-          <input type="hidden" data-i="${i}" data-field="secao_id" value="${esc(b.secao_id)}">
-          <input type="text" data-i="${i}" data-field="secao_numero" value="${esc(b.secao_numero || '{{ sec.numero }}')}" aria-label="Número da seção">
-          <input type="text" data-i="${i}" data-field="secao_titulo" value="${esc(b.secao_titulo || '{{ sec.titulo }}')}" aria-label="Título da seção">
-          <small>${esc(b.acao_secao === 'criar' ? 'criar seção' : (b.acao_secao === 'renomear' ? 'renomear seção' : 'usar seção'))}</small>
-        </td>
-        <td>
-          <select data-i="${i}" data-field="tipo">
-            <option value="texto">Texto</option>
-            <option value="lista">Lista</option>
-            <option value="figura">Figura</option>
-            <option value="tabela">Tabela</option>
-          </select>
-        </td>
-        <td><span class="import-confidence">${esc(Math.round(Number(b.confianca || 0) * 100))}%</span><small>${esc(b.motivo || 'revisão assistida')}</small></td>
-        <td><input type="text" data-i="${i}" data-field="titulo" value="${esc(b.titulo)}"></td>
-        <td><textarea data-i="${i}" data-field="conteudo" rows="4">${esc(b.conteudo)}</textarea>${b.image_b64 ? '<div class="import-img-note">imagem DOCX anexada</div>' : ''}</td>
-        <td><input type="text" data-i="${i}" data-field="legenda" value="${esc(b.legenda)}"></td>
-        <td><input type="text" data-i="${i}" data-field="fonte" value="${esc(b.fonte)}"></td>
-      </tr>`).join('');
-    importBlocks.forEach((b, i) => {
-      const tipoSel = tbody.querySelector(`[data-i="${i}"][data-field="tipo"]`);
-      if (tipoSel) tipoSel.value = b.tipo || 'texto';
+  function confidenceClass(c) {
+    const n = Number(c || 0);
+    if (n >= 0.85) return 'good';
+    if (n >= 0.70) return 'mid';
+    return 'low';
+  }
+
+  function acaoSecao(numero) {
+    const n = String(numero || '').trim();
+    if (!n) return 'usar';
+    return existingSectionNumbers.has(n) ? 'usar' : 'criar';
+  }
+
+  function acaoLabel(acao) {
+    if (acao === 'criar') return 'CRIAR seção';
+    if (acao === 'renomear') return 'renomear seção';
+    return 'usar seção';
+  }
+
+  // Constrói os HTML para cada subtipo (chips de TEXTO/LISTA).
+  function renderSubtipos(subtipos) {
+    if (!Array.isArray(subtipos) || !subtipos.length) {
+      return '<div class="import-segs-empty">sem segmentos detectados</div>';
+    }
+    const items = subtipos.map((s) => {
+      const kind = s.kind || 'paragrafo';
+      const label = SUBTIPO_LABEL[kind] || kind;
+      const count = Number(s.count || 0);
+      const suffix = (kind === 'lista' && count > 1) ? ' (' + count + ' itens)'
+                    : (kind === 'paragrafo' && count > 1) ? ' (' + count + ')'
+                    : '';
+      return '<li class="seg-item" data-kind="' + esc(kind) + '">'
+           +   '<span class="seg-chip seg-chip-' + esc(kind) + '">' + esc(label + suffix) + '</span>'
+           +   '<span class="seg-preview">' + esc(s.preview || '') + '</span>'
+           + '</li>';
+    }).join('');
+    return '<ul class="import-segs">' + items + '</ul>';
+  }
+
+  // Mini-table preview (TABELA).
+  function renderTabelaPreview(prev) {
+    if (!prev || !Array.isArray(prev.headers) || !prev.headers.length) {
+      return '<div class="import-tab-empty">tabela vazia</div>';
+    }
+    const thead = '<thead><tr>' + prev.headers.map((h) => '<th>' + esc(h) + '</th>').join('') + '</tr></thead>';
+    const tbody = '<tbody>' + prev.rows.map((r) => '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+    const info = (prev.total_rows || prev.rows.length) + ' linha(s) × ' + (prev.total_cols || prev.headers.length) + ' coluna(s)'
+              + (prev.truncated_rows || prev.truncated_cols ? ' · prévia truncada' : '');
+    return '<table class="import-mini-tbl">' + thead + tbody + '</table>'
+         + '<small class="import-tab-info">' + esc(info) + '</small>';
+  }
+
+  function tipoSelect(i, tipoAtual) {
+    const opts = ['texto','lista','figura','tabela'].map((t) => {
+      return '<option value="' + t + '"' + (t === tipoAtual ? ' selected' : '') + '>' + (TIPO_LABEL[t][0] + TIPO_LABEL[t].slice(1).toLowerCase()) + '</option>';
+    }).join('');
+    return '<select class="import-tipo-sel" data-i="' + i + '" data-field="tipo" title="Mudar tipo do bloco">' + opts + '</select>';
+  }
+
+  function renderCardHeader(b, i) {
+    const tipo = (b.tipo || 'texto').toLowerCase();
+    const conf = Number(b.confianca || 0);
+    const confPct = Math.round(conf * 100);
+    const confCls = confidenceClass(conf);
+    const checked = b.selecionado !== false ? 'checked' : '';
+    return '<header class="import-card-hdr">'
+         +   '<input type="checkbox" class="import-card-check" data-i="' + i + '" data-field="selecionado" ' + checked + '>'
+         +   '<span class="import-tipo-badge" data-tipo="' + esc(tipo) + '">' + esc(TIPO_LABEL[tipo] || tipo.toUpperCase()) + '</span>'
+         +   '<span class="import-conf import-conf-' + confCls + '" title="' + esc(b.motivo || '') + '">' + confPct + '%</span>'
+         +   tipoSelect(i, tipo)
+         +   '<span class="import-card-motivo" title="' + esc(b.motivo || '') + '">' + esc(b.motivo || '') + '</span>'
+         + '</header>';
+  }
+
+  function renderTextoCard(b, i) {
+    return '<article class="import-card import-card-texto" data-i="' + i + '">'
+         +   renderCardHeader(b, i)
+         +   '<div class="import-card-body">'
+         +     renderSubtipos(b.subtipos)
+         +     '<details class="import-raw">'
+         +       '<summary>editar texto bruto</summary>'
+         +       '<textarea class="import-raw-ta" data-i="' + i + '" data-field="conteudo" rows="6">' + esc(b.conteudo || '') + '</textarea>'
+         +     '</details>'
+         +   '</div>'
+         + '</article>';
+  }
+
+  function renderFiguraCard(b, i) {
+    const hasImg = b.image_b64 && b.image_mime;
+    const thumb = hasImg
+      ? '<img src="data:' + esc(b.image_mime) + ';base64,' + esc(b.image_b64) + '" alt="prévia importada">'
+      : '<div class="import-fig-placeholder">Sem imagem<br><small>preencha após importar</small></div>';
+    return '<article class="import-card import-card-figura" data-i="' + i + '">'
+         +   renderCardHeader(b, i)
+         +   '<div class="import-card-body import-card-2col">'
+         +     '<div class="import-fig-thumb">' + thumb + '</div>'
+         +     '<div class="import-meta-fields">'
+         +       '<label class="mini-label">Legenda</label>'
+         +       '<input type="text" data-i="' + i + '" data-field="legenda" value="' + esc(b.legenda || '') + '" placeholder="ex.: Vista aérea da obra">'
+         +       '<label class="mini-label">Fonte</label>'
+         +       '<input type="text" data-i="' + i + '" data-field="fonte" value="' + esc(b.fonte || '') + '" placeholder="ex.: Concremat 2025">'
+         +     '</div>'
+         +   '</div>'
+         + '</article>';
+  }
+
+  function renderTabelaCard(b, i) {
+    return '<article class="import-card import-card-tabela" data-i="' + i + '">'
+         +   renderCardHeader(b, i)
+         +   '<div class="import-card-body import-card-2col">'
+         +     '<div class="import-tab-prev">' + renderTabelaPreview(b.tabela_preview) + '</div>'
+         +     '<div class="import-meta-fields">'
+         +       '<label class="mini-label">Legenda</label>'
+         +       '<input type="text" data-i="' + i + '" data-field="legenda" value="' + esc(b.legenda || '') + '" placeholder="ex.: Quantitativo de serviços">'
+         +       '<label class="mini-label">Fonte</label>'
+         +       '<input type="text" data-i="' + i + '" data-field="fonte" value="' + esc(b.fonte || '') + '" placeholder="ex.: Diário de obra">'
+         +       '<details class="import-raw">'
+         +         '<summary>editar dados brutos da tabela</summary>'
+         +         '<textarea class="import-raw-ta" data-i="' + i + '" data-field="conteudo" rows="6">' + esc(b.conteudo || '') + '</textarea>'
+         +       '</details>'
+         +     '</div>'
+         +   '</div>'
+         + '</article>';
+  }
+
+  function renderCard(b, i) {
+    const tipo = (b.tipo || 'texto').toLowerCase();
+    if (tipo === 'figura') return renderFiguraCard(b, i);
+    if (tipo === 'tabela') return renderTabelaCard(b, i);
+    return renderTextoCard(b, i); // texto/lista usam o mesmo layout
+  }
+
+  function renderSecaoHeader(key, group) {
+    const numero = key.numero || SECAO_FALLBACK_NUM;
+    const titulo = key.titulo || SECAO_FALLBACK_TIT;
+    const acao = acaoSecao(numero);
+    const acaoLabelTxt = acaoLabel(acao);
+    const indices = group.map((g) => g.idx).join(',');
+    return '<header class="import-secao-hdr" data-acao="' + esc(acao) + '" data-key="' + esc(key.key) + '" data-indices="' + esc(indices) + '">'
+         +   '<button type="button" class="import-secao-toggle" aria-expanded="true" title="Recolher/expandir seção">▾</button>'
+         +   '<div class="import-secao-id">'
+         +     '<span class="import-secao-num-lbl">SEÇÃO</span>'
+         +     '<input type="text" class="import-secao-num" data-key="' + esc(key.key) + '" data-section-field="secao_numero" value="' + esc(numero) + '" aria-label="Número da seção">'
+         +     '<input type="text" class="import-secao-titulo" data-key="' + esc(key.key) + '" data-section-field="secao_titulo" value="' + esc(titulo) + '" aria-label="Título da seção">'
+         +   '</div>'
+         +   '<span class="import-secao-badge" data-acao="' + esc(acao) + '">' + esc(acaoLabelTxt) + '</span>'
+         +   '<span class="import-secao-count">' + group.length + ' bloco(s)</span>'
+         +   '<div class="import-secao-bulk">'
+         +     '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="on" data-key="' + esc(key.key) + '" title="Marcar todos desta seção">✓ todos</button>'
+         +     '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="off" data-key="' + esc(key.key) + '" title="Desmarcar todos desta seção">✗ nenhum</button>'
+         +   '</div>'
+         + '</header>';
+  }
+
+  // Agrupa por (numero||"") preservando a ordem de chegada.
+  function groupBySecao() {
+    const groups = new Map();
+    importBlocks.forEach((b, idx) => {
+      const numero = String(b.secao_numero || '').trim();
+      const key = numero || '__atual__';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          numero,
+          titulo: String(b.secao_titulo || '').trim(),
+          items: [],
+        });
+      }
+      groups.get(key).items.push({ idx, b });
     });
-    review.classList.toggle('is-hidden', !importBlocks.length);
+    return Array.from(groups.values());
   }
 
-  tbody.addEventListener('input', (ev) => {
+  function renderReview() {
+    if (!importBlocks.length) {
+      review.classList.add('is-hidden');
+      list.innerHTML = '';
+      summary.textContent = '';
+      return;
+    }
+    review.classList.remove('is-hidden');
+    const groups = groupBySecao();
+    const html = groups.map((g) => {
+      const cards = g.items.map(({ idx, b }) => renderCard(b, idx)).join('');
+      const head = renderSecaoHeader({ key: g.key, numero: g.numero, titulo: g.titulo }, g.items);
+      return '<section class="import-secao" data-key="' + esc(g.key) + '">'
+           + head
+           + '<div class="import-secao-body">' + cards + '</div>'
+           + '</section>';
+    }).join('');
+    list.innerHTML = html;
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const total = importBlocks.length;
+    const sel = importBlocks.filter((b) => b.selecionado !== false).length;
+    const baixos = importBlocks.filter((b) => Number(b.confianca || 0) < 0.7).length;
+    let txt = sel + ' de ' + total + ' selecionado(s)';
+    if (baixos) txt += ' · ' + baixos + ' com confiança baixa';
+    summary.textContent = txt;
+  }
+
+  // ---- Handlers (delegação no list) ----
+  list.addEventListener('input', (ev) => {
     const el = ev.target;
-    const idx = Number(el.dataset.i);
-    const field = el.dataset.field;
-    if (!field || !importBlocks[idx]) return;
-    importBlocks[idx][field] = el.type === 'checkbox' ? el.checked : el.value;
+    if (el.dataset.field) {
+      const idx = Number(el.dataset.i);
+      if (!Number.isFinite(idx) || !importBlocks[idx]) return;
+      const v = el.type === 'checkbox' ? el.checked : el.value;
+      importBlocks[idx][el.dataset.field] = v;
+      if (el.dataset.field === 'selecionado') updateSummary();
+      return;
+    }
+    if (el.dataset.sectionField) {
+      // Edição do número/título da seção: propaga para todos os blocks do grupo.
+      const key = el.dataset.key;
+      const field = el.dataset.sectionField;
+      const value = el.value;
+      importBlocks.forEach((b) => {
+        const k = String(b.secao_numero || '').trim() || '__atual__';
+        if (k === key) b[field] = value;
+      });
+      // Atualiza badge da ação se mudou o número.
+      if (field === 'secao_numero') {
+        const acao = acaoSecao(value);
+        const header = el.closest('.import-secao-hdr');
+        if (header) {
+          header.dataset.acao = acao;
+          const badge = header.querySelector('.import-secao-badge');
+          if (badge) { badge.dataset.acao = acao; badge.textContent = acaoLabel(acao); }
+          // Atualiza acao_secao em cada bloco do grupo (consumido pelo backend).
+          importBlocks.forEach((b) => {
+            const k = String(b.secao_numero || '').trim() || '__atual__';
+            if (k === value || (key === '__atual__' && !b.secao_numero)) b.acao_secao = acao;
+          });
+        }
+      }
+    }
   });
-  tbody.addEventListener('change', (ev) => {
+
+  list.addEventListener('change', (ev) => {
     const el = ev.target;
-    const idx = Number(el.dataset.i);
-    const field = el.dataset.field;
-    if (!field || !importBlocks[idx]) return;
-    importBlocks[idx][field] = el.type === 'checkbox' ? el.checked : el.value;
+    if (el.dataset.field === 'tipo') {
+      const idx = Number(el.dataset.i);
+      if (!Number.isFinite(idx) || !importBlocks[idx]) return;
+      importBlocks[idx].tipo = el.value;
+      // Re-renderiza só o card afetado (mais simples: re-renderiza tudo).
+      // Re-render completo é OK: poucos blocos, sem custo perceptível.
+      renderReview();
+      return;
+    }
+    if (el.dataset.field === 'selecionado') {
+      const idx = Number(el.dataset.i);
+      if (Number.isFinite(idx) && importBlocks[idx]) {
+        importBlocks[idx].selecionado = el.checked;
+        updateSummary();
+      }
+    }
+  });
+
+  list.addEventListener('click', (ev) => {
+    const toggle = ev.target.closest('.import-secao-toggle');
+    if (toggle) {
+      const sec = toggle.closest('.import-secao');
+      if (!sec) return;
+      const body = sec.querySelector('.import-secao-body');
+      const open = !sec.classList.contains('is-collapsed');
+      sec.classList.toggle('is-collapsed', open);
+      toggle.setAttribute('aria-expanded', String(!open));
+      toggle.textContent = open ? '▸' : '▾';
+      if (body) body.style.display = open ? 'none' : '';
+      return;
+    }
+    const bulkBtn = ev.target.closest('.import-secao-bulk-btn');
+    if (bulkBtn) {
+      const key = bulkBtn.dataset.key;
+      const value = bulkBtn.dataset.bulk === 'on';
+      importBlocks.forEach((b) => {
+        const k = String(b.secao_numero || '').trim() || '__atual__';
+        if (k === key) b.selecionado = value;
+      });
+      // Atualiza checkboxes do grupo sem re-renderizar.
+      const sec = bulkBtn.closest('.import-secao');
+      if (sec) {
+        sec.querySelectorAll('.import-card-check').forEach((c) => { c.checked = value; });
+      }
+      updateSummary();
+    }
+  });
+
+  if (allOnBtn) allOnBtn.addEventListener('click', () => {
+    importBlocks.forEach((b) => { b.selecionado = true; });
+    list.querySelectorAll('.import-card-check').forEach((c) => { c.checked = true; });
+    updateSummary();
+  });
+  if (allOffBtn) allOffBtn.addEventListener('click', () => {
+    importBlocks.forEach((b) => { b.selecionado = false; });
+    list.querySelectorAll('.import-card-check').forEach((c) => { c.checked = false; });
+    updateSummary();
   });
 
   form.addEventListener('submit', async (ev) => {
@@ -940,19 +1201,19 @@ function editarBloco(id, titulo, tipo, conteudo) {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || 'Falha ao analisar arquivo.');
-      importBlocks = (data.blocks || []).map(b => ({ ...b, selecionado: true }));
-      renderRows();
-      const baixos = importBlocks.filter(b => Number(b.confianca || 0) < 0.7).length;
+      importBlocks = (data.blocks || []).map((b) => ({ ...b, selecionado: true }));
+      renderReview();
+      const baixos = importBlocks.filter((b) => Number(b.confianca || 0) < 0.7).length;
       status.textContent = importBlocks.length + ' bloco(s) detectado(s)' + (baixos ? ', ' + baixos + ' para revisar com atenção.' : '.');
     } catch (err) {
       status.textContent = err.message;
       importBlocks = [];
-      renderRows();
+      renderReview();
     }
   });
 
   confirmBtn.addEventListener('click', async () => {
-    const selected = importBlocks.filter(b => b.selecionado !== false);
+    const selected = importBlocks.filter((b) => b.selecionado !== false);
     if (!selected.length) { alert('Selecione ao menos um bloco para importar.'); return; }
     status.textContent = 'Importando...';
     try {
@@ -1000,15 +1261,98 @@ function editarBloco(id, titulo, tipo, conteudo) {
 .import-status { font-size:12px; color:var(--muted); }
 .import-help { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
 .import-help code { color:var(--navy); font-weight:600; }
+
+/* ===== Importação — Opção B (lista hierárquica) ===== */
 .import-review.is-hidden { display:none; }
-.import-review-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0; }
-.import-review-head strong { color:var(--navy); font-size:13px; }
-.import-table input[type="text"], .import-table select, .import-table textarea { min-width:150px; font-size:11.5px; padding:5px 7px; }
-.import-table textarea { min-width:260px; resize:vertical; }
-.import-img-note { font-size:10.5px; color:var(--green-dk); margin-top:4px; font-weight:600; }
-.import-low-confidence { background:#fff8e8; }
-.import-confidence { display:block; font-weight:700; color:var(--navy); margin-bottom:3px; }
-.import-confidence + small { display:block; min-width:170px; max-width:240px; color:var(--muted); line-height:1.35; text-align:left; }
+.import-review-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:6px 0 10px; padding:8px 12px; background:#f5f8fc; border:1px solid var(--border); border-radius:5px; }
+.import-review-title { display:flex; align-items:baseline; gap:12px; }
+.import-review-title strong { color:var(--navy); font-size:13px; }
+.import-summary { font-size:11.5px; color:var(--muted); font-weight:600; }
+.import-review-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.import-review-actions .primary-mini, .import-review-actions .secondary-mini { padding:5px 12px; font-size:12px; }
+
+.import-review-list { display:flex; flex-direction:column; gap:10px; }
+
+/* Cabeçalho de seção (barra navy) */
+.import-secao { border:1px solid var(--border); border-radius:5px; overflow:hidden; background:#fff; }
+.import-secao-hdr { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--navy); color:#fff; flex-wrap:wrap; }
+.import-secao-toggle { background:transparent; border:1px solid rgba(255,255,255,0.35); color:#fff; width:24px; height:24px; border-radius:3px; cursor:pointer; font-size:12px; padding:0; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+.import-secao-toggle:hover { background:rgba(255,255,255,0.12); }
+.import-secao-id { display:flex; align-items:center; gap:6px; flex:1 1 320px; min-width:240px; }
+.import-secao-num-lbl { font-size:10.5px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,0.75); }
+.import-secao-num { width:80px; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.12); color:#fff; border-radius:3px; font-family:inherit; }
+.import-secao-num:focus { outline:2px solid #fff; outline-offset:-2px; background:#fff; color:var(--navy); }
+.import-secao-titulo { flex:1; min-width:160px; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.12); color:#fff; border-radius:3px; font-family:inherit; }
+.import-secao-titulo::placeholder { color:rgba(255,255,255,0.6); }
+.import-secao-titulo:focus { outline:2px solid #fff; outline-offset:-2px; background:#fff; color:var(--navy); }
+.import-secao-badge { font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:3px; letter-spacing:.04em; text-transform:uppercase; background:rgba(255,255,255,0.18); color:#fff; }
+.import-secao-badge[data-acao="usar"] { background:#1f7a3a; color:#fff; }
+.import-secao-badge[data-acao="criar"] { background:#d98000; color:#fff; }
+.import-secao-badge[data-acao="renomear"] { background:#0e7da5; color:#fff; }
+.import-secao-count { font-size:11px; color:rgba(255,255,255,0.85); font-weight:600; }
+.import-secao-bulk { display:flex; gap:4px; margin-left:auto; }
+.import-secao-bulk-btn { padding:3px 9px; font-size:11px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.4); }
+.import-secao-bulk-btn:hover { background:#fff; color:var(--navy); border-color:#fff; }
+
+.import-secao-body { display:flex; flex-direction:column; gap:8px; padding:10px 12px; background:#fbfcfe; }
+.import-secao.is-collapsed .import-secao-toggle { transform:rotate(-90deg); }
+
+/* Cards de bloco */
+.import-card { border:1px solid var(--border); border-radius:4px; background:#fff; }
+.import-card-hdr { display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f0f4fa; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.import-card-check { width:14px; height:14px; margin:0; cursor:pointer; }
+.import-tipo-badge { font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:3px; background:var(--navy); color:#fff; }
+.import-tipo-badge[data-tipo="figura"] { background:#0e7da5; }
+.import-tipo-badge[data-tipo="tabela"] { background:#5a3aa0; }
+.import-tipo-badge[data-tipo="lista"] { background:#1f7a3a; }
+.import-conf { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#e8eef5; color:var(--navy); cursor:help; }
+.import-conf-good { background:#dff3e4; color:#1f7a3a; }
+.import-conf-mid  { background:#fff3d6; color:#8a5b00; }
+.import-conf-low  { background:#ffe1de; color:#a32219; }
+.import-tipo-sel { padding:3px 6px; font-size:11px; border:1px solid var(--border); border-radius:3px; background:#fff; color:var(--text); font-family:inherit; }
+.import-card-motivo { font-size:11px; color:var(--muted); flex:1; min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.import-card-body { padding:10px 12px; }
+.import-card-2col { display:grid; grid-template-columns: 160px 1fr; gap:14px; align-items:start; }
+@media (max-width: 720px) { .import-card-2col { grid-template-columns: 1fr; } }
+
+/* Segmentos do TEXTO (chips + preview) */
+.import-segs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
+.import-segs-empty { font-size:11.5px; color:var(--muted); font-style:italic; }
+.seg-item { display:grid; grid-template-columns: 110px 1fr; gap:10px; align-items:start; padding:3px 0; border-bottom:1px dotted #e3e9f0; }
+.seg-item:last-child { border-bottom:0; }
+.seg-chip { font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:3px; text-align:center; letter-spacing:.04em; }
+.seg-chip-paragrafo { background:#e3eef7; color:#274a73; }
+.seg-chip-subtitulo { background:#ecdef7; color:#5a3aa0; }
+.seg-chip-titulo    { background:var(--navy); color:#fff; }
+.seg-chip-lista     { background:#f7e3c5; color:#8a5b00; }
+.seg-preview { font-size:11.5px; color:var(--text); line-height:1.45; word-break:break-word; }
+
+.import-raw { margin-top:8px; }
+.import-raw > summary { cursor:pointer; font-size:11px; color:var(--blue); font-weight:600; padding:3px 0; }
+.import-raw > summary:hover { color:var(--navy); }
+.import-raw[open] > summary { margin-bottom:6px; }
+.import-raw-ta { width:100%; box-sizing:border-box; padding:6px 8px; font-size:11.5px; border:1px solid var(--border); border-radius:3px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize:vertical; }
+
+/* Figura: thumbnail */
+.import-fig-thumb { border:1px solid var(--border); border-radius:3px; padding:4px; background:#fafbfd; display:flex; align-items:center; justify-content:center; min-height:120px; }
+.import-fig-thumb img { max-width:100%; max-height:140px; object-fit:contain; display:block; }
+.import-fig-placeholder { font-size:11px; color:var(--muted); text-align:center; padding:18px 8px; }
+
+/* Tabela: mini-preview */
+.import-tab-prev { border:1px solid var(--border); border-radius:3px; padding:4px; background:#fafbfd; overflow:auto; max-height:180px; }
+.import-mini-tbl { border-collapse:collapse; font-size:11px; width:auto; min-width:100%; }
+.import-mini-tbl th, .import-mini-tbl td { border:1px solid #d8e0e8; padding:3px 7px; text-align:left; vertical-align:top; }
+.import-mini-tbl th { background:#eaf3ff; color:var(--navy); font-weight:600; }
+.import-tab-info { display:block; font-size:10.5px; color:var(--muted); margin-top:4px; padding-left:2px; }
+.import-tab-empty { font-size:11.5px; color:var(--muted); font-style:italic; padding:18px 8px; text-align:center; }
+
+/* Campos de meta (legenda/fonte) à direita do thumb/mini-tbl */
+.import-meta-fields { display:flex; flex-direction:column; gap:4px; }
+.import-meta-fields .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.import-meta-fields input[type="text"] { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:3px; font-family:inherit; }
+/* ===== Fim Importação ===== */
+
 /* ---- Escala e largura da página (escopo: editor de seção) ---- */
 #content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
 @media (max-width: 1100px) { #content { width: 94%; } }
@@ -1016,7 +1360,6 @@ function editarBloco(id, titulo, tipo, conteudo) {
 .hero h1 { font-size:18px; }
 .hero .subtitle { font-size:12px; }
 .hero p { font-size:12.5px; }
-/* não sobrescrever .ss .ss-hdr / .ss inputs / .ss button — usar o padrão do app.css (12px / 13.5px) */
 
 .bloco-toolbar { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
 .bloco-toolbar button { padding:5px 10px; font-size:12px; cursor:pointer; }
@@ -1075,7 +1418,6 @@ function editarBloco(id, titulo, tipo, conteudo) {
 .mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .mini-fmt-sel { display:flex; flex-direction:column; gap:3px; }
 .mini-fmt-sel select { font-size:10.5px; padding:3px 6px; }
-/* Botões mini lado a lado, mesmo tamanho, ancorados na base do card */
 .mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
 .mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }
 .primary-mini { padding:6px 10px; font-size:12px; cursor:pointer; background:var(--blue); color:#fff; border:1px solid var(--blue); border-radius:4px; font-weight:600; font-family:inherit; }

@@ -1,7 +1,10 @@
-"""Aplica a CHECK constraint users_nome_format_chk no Postgres do Render.
+"""Aplica a CHECK constraint users_nome_format_chk no Postgres.
 
 Normaliza nomes existentes para o padrão 'Vinicius do Prado Capanema' e cria
 a constraint. Use uma única vez (idempotente).
+
+Conexão: lê de `DATABASE_URL` (mesma var usada pela app). Aceita os formatos
+`postgresql://...` e `postgresql+psycopg2://...`.
 """
 import os
 import re
@@ -10,6 +13,17 @@ import sys
 import psycopg2
 
 PARTS = {"do", "da", "de", "dos", "das", "du", "e", "di", "del", "la", "von", "van"}
+
+
+def _resolve_dsn() -> str:
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if not url:
+        raise SystemExit(
+            "DATABASE_URL nao definida. Exporte a URL do Postgres antes de rodar este script."
+        )
+    if url.startswith("postgresql+psycopg2://"):
+        url = "postgresql://" + url[len("postgresql+psycopg2://") :]
+    return url
 
 
 def fmt(s: str) -> str:
@@ -39,15 +53,7 @@ DDL = (
 
 
 def main() -> int:
-    conn = psycopg2.connect(
-        host="dpg-d7l67l9j2pic73cl15m0-a.oregon-postgres.render.com",
-        port=5432,
-        user="sra",
-        password="5snFWwPqRTF6Ky9JbjMXOvXZFObvByfl",
-        dbname="sra_93i5",
-        sslmode="require",
-        connect_timeout=15,
-    )
+    conn = psycopg2.connect(_resolve_dsn(), sslmode="require", connect_timeout=15)
     cur = conn.cursor()
     cur.execute("SELECT id, nome FROM users")
     rows = cur.fetchall()

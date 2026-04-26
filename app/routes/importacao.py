@@ -33,6 +33,14 @@ _SECTION_NUMBER_RE = re.compile(r"^(?:#{1,6}\s*)?(\d+(?:\.\d+)*)(.*)$")
 _FIGURA_PREFIX_RE = re.compile(r"^Figura\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*", re.IGNORECASE)
 _TABELA_PREFIX_RE = re.compile(r"^Tabela\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*", re.IGNORECASE)
 _TEXT_TABLE_RE = re.compile(r"^\|?.+\|.+\|?.*$")
+_TABLE_SEP_RE = re.compile(r"^\|?\s*:?-{2,}:?(\s*\|\s*:?-{2,}:?)*\s*\|?$")
+_ASCII_SEP_RE = re.compile(r"^\+[-=+\s]+\+?$")
+
+# Limites de pré-visualização enviados ao frontend (Opção B do review).
+# Mantemos pequenos para não inflar o JSON em arquivos grandes.
+_PREVIEW_MAX_CHARS = 160
+_PREVIEW_MAX_ROWS = 4
+_PREVIEW_MAX_COLS = 6
 
 
 @dataclass(frozen=True)
@@ -237,6 +245,102 @@ def _reordenar_secoes(db: Session, rel_id: int) -> None:
         sec.ordem = ordem
 
 
+def _truncate_preview(text: str, limit: int = _PREVIEW_MAX_CHARS) -> str:
+    s = (text or "").strip()
+    if len(s) <= limit:
+        return s
+    return s[: limit - 1].rstrip() + "…"
+
+
+def _segmentar_texto(linhas: list[str]) -> list[dict]:
+    """Quebra um bloco de texto em segmentos visuais (parágrafo / subtítulo /
+    título / lista) sem alterar o ``conteudo`` salvo no banco. Usado apenas
+    para enriquecer o JSON de revisão da importação (Opção B do review)."""
+    segs: list[dict] = []
+    par_buf: list[str] = []
+    list_buf: list[str] = []
+
+    def _flush_par():
+        if par_buf:
+            joined = " ".join(par_buf).strip()
+            segs.append({"kind": "paragrafo", "preview": _truncate_preview(joined), "count": len(par_buf)})
+            par_buf.clear()
+
+    def _flush_list():
+        if list_buf:
+            preview = "; ".join(item.lstrip("- ").strip() for item in list_buf if item.strip())
+            segs.append({"kind": "lista", "preview": _truncate_preview(preview), "count": len(list_buf)})
+            list_buf.clear()
+
+    for raw in linhas:
+        line = (raw or "").strip()
+        if not line:
+            continue
+        if line.startswith("# "):
+            _flush_par()
+            _flush_list()
+            segs.append({"kind": "titulo", "preview": _truncate_preview(line[2:].strip()), "count": 1})
+            continue
+        if line.startswith("## "):
+            _flush_par()
+            _flush_list()
+            segs.append({"kind": "subtitulo", "preview": _truncate_preview(line[3:].strip()), "count": 1})
+            continue
+        if line.startswith("- "):
+            _flush_par()
+            list_buf.append(line)
+            continue
+        # Fim de uma lista interrompida por parágrafo.
+        _flush_list()
+        par_buf.append(line)
+
+    _flush_par()
+    _flush_list()
+    return segs
+
+
+def _is_table_separator(line: str) -> bool:
+    s = (line or "").strip()
+    if not s:
+        return True
+    return bool(_TABLE_SEP_RE.fullmatch(s) or _ASCII_SEP_RE.fullmatch(s))
+
+
+def _split_table_cells(line: str) -> list[str]:
+    s = (line or "").strip()
+    if s.startswith("|"):
+        s = s[1:]
+    if s.endswith("|"):
+        s = s[:-1]
+    return [c.strip() for c in s.split("|")]
+
+
+def _tabela_preview(conteudo: str) -> dict:
+    """Constrói um preview compacto da tabela para o frontend renderizar como
+    mini-table (Opção B). Limita a ``_PREVIEW_MAX_ROWS`` x ``_PREVIEW_MAX_COLS``
+    para manter o JSON enxuto."""
+    raw_lines = [ln for ln in (conteudo or "").splitlines() if ln.strip()]
+    lines = [ln for ln in raw_lines if not _is_table_separator(ln)]
+    if not lines:
+        return {"headers": [], "rows": [], "total_rows": 0, "total_cols": 0, "truncated_rows": False, "truncated_cols": False}
+    cells = [_split_table_cells(ln) for ln in lines]
+    cols_total = max((len(r) for r in cells), default=0)
+    headers_full = (cells[0] + [""] * cols_total)[:cols_total]
+    rows_full = [(r + [""] * cols_total)[:cols_total] for r in cells[1:]]
+    truncated_cols = cols_total > _PREVIEW_MAX_COLS
+    truncated_rows = len(rows_full) > _PREVIEW_MAX_ROWS
+    headers = headers_full[:_PREVIEW_MAX_COLS]
+    rows = [r[:_PREVIEW_MAX_COLS] for r in rows_full[:_PREVIEW_MAX_ROWS]]
+    return {
+        "headers": headers,
+        "rows": rows,
+        "total_rows": len(rows_full),
+        "total_cols": cols_total,
+        "truncated_rows": truncated_rows,
+        "truncated_cols": truncated_cols,
+    }
+
+
 def _append_table(
     blocks: list[dict],
     sec: Secao,
@@ -248,13 +352,15 @@ def _append_table(
     if not any(ln.strip() for ln in linhas):
         return
     block = _block_base(sec, destino)
+    conteudo = "\n".join(ln for ln in linhas if ln.strip())
     block.update(
         {
             "tipo": "tabela",
             "titulo": "",
-            "conteudo": "\n".join(ln for ln in linhas if ln.strip()),
+            "conteudo": conteudo,
             "legenda": legenda,
             "fonte": fonte,
+            "tabela_preview": _tabela_preview(conteudo),
         }
     )
     blocks.append(block)
@@ -380,6 +486,7 @@ def _flush_text(blocks: list[dict], sec: Secao, linhas: list[str], destino: Seca
             "conteudo": "\n".join(clean),
             "legenda": "",
             "fonte": "",
+            "subtipos": _segmentar_texto(clean),
         }
     )
     blocks.append(block)

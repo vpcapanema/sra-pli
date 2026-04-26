@@ -135,6 +135,56 @@ Para tarefas de performance, use o agente `.github/agents/performance-agility.ag
 - Para novas rotas, siga o padrao de `APIRouter`, `Depends(get_db)`, `current_user` e `RedirectResponse`/`JSONResponse` conforme o fluxo.
 - Para templates, mantenha Jinja2 simples e evite logica complexa demais quando puder preparar dados na rota.
 
+## Linting E Formatacao
+
+O projeto tem linters integrados ao Cursor/VSCode via extensoes oficiais. Toda mudanca em codigo deve respeitar essas regras antes de concluir a tarefa. A configuracao canonica esta em `pyproject.toml` e `.vscode/settings.json`. NAO altere essas configs sem motivo claro.
+
+### Ferramentas Ativas
+
+- `flake8` + `Flake8-pyproject`: erros de sintaxe e estilo Python. Config em `[tool.flake8]`.
+- `pylint`: analise estatica. Config em `[tool.pylint.*]`. Le `pyproject.toml` direto.
+- `djlint`: linter de templates Jinja2/HTML, perfil `jinja`. Config em `[tool.djlint]`. Roda em `app/templates/**/*.html`.
+- `Pylance`: `typeCheckingMode = "off"` (so erros de import/undefined). Diagnostic mode `workspace`.
+- `cSpell` (Code Spell Checker): verificacao ortografica em pt-BR + ingles. Config em `cspell.json` raiz, dicionario customizado em `.cspell/projeto.txt`. Extensoes `streetsidesoftware.code-spell-checker` e `code-spell-checker-portuguese-brazilian` no Cursor; pacote `@cspell/dict-pt-br` em `node_modules/` para validacao via CLI.
+- Interpretador: SEMPRE o do `.venv` do projeto (`./.venv/Scripts/python.exe` no Windows). Extensoes ja apontam para ele.
+
+### Codigo Python — O Que Evitar Em Codigo Novo
+
+- Multiplos statements na mesma linha com `;` (E702). Quebre em duas linhas.
+- Funcoes novas com mais de 5 argumentos posicionais (R0917) sem justificativa real.
+- Imports nao utilizados, variaveis nao utilizadas em codigo novo.
+- Linhas extremamente longas (E501 e ignorado globalmente, mas use bom senso).
+- Reativar `pool_pre_ping` em `app/db.py` ou remover ajustes de pool sem medir impacto.
+
+### Templates Jinja — O Que Garantir
+
+- Todo `{% block %}`, `{% if %}`, `{% for %}`, `{% with %}`, `{% macro %}` tem `{% end* %}` correspondente.
+- Use `{{ var }}` com espaco interno entre as chaves e o nome (regra T001 do djlint). Sem espaco gera aviso.
+- Tags com aspas duplas em strings (T002).
+- Esta e aplicacao FastAPI: nao use convencoes Flask como `{{ url_for('static', ...) }}` ou `{{ url_for('view') }}`. As regras `J004` e `J018` do djlint estao desligadas justamente por isso, mas nao introduza esses padroes.
+- Templates em `app/templates/**/*.html` sao registrados como `jinja-html` em `.vscode/settings.json`. Mantenha essa associacao.
+
+### Codigo Legado E Warnings De Complexidade
+
+Warnings pre-existentes de `pylint` como `too-many-locals`, `too-many-branches`, `too-many-arguments`, `too-many-positional-arguments`, `too-many-return-statements`, `too-many-statements` NAO devem ser desligados globalmente. A politica e refatorar gradualmente ao topar com a funcao. Nao adicione novas violacoes desse tipo em codigo seu.
+
+### Ortografia (cSpell)
+
+- Palavras NOVAS de dominio ou termos tecnicos que o pt-BR oficial nao cobre devem ser adicionadas em `.cspell/projeto.txt` (uma por linha, sem aspas, case-insensitive).
+- NAO desabilite cSpell em arquivos inteiros. Se uma palavra aparece varias vezes, e termo de dominio: coloque no dicionario do projeto.
+- Para um falso positivo isolado (sigla, hash, exemplo), use `// cspell:disable-line` ou `// cspell:disable-next-line`. Em HTML/Jinja, `{# cspell:disable-next-line #}`.
+
+### Comandos De Validacao
+
+```powershell
+.\.venv\Scripts\python.exe -m flake8 app
+.\.venv\Scripts\python.exe -m pylint --rcfile=pyproject.toml app
+.\.venv\Scripts\python.exe -m djlint app/templates
+npm run spell
+```
+
+A aba Problemas do Cursor reflete tudo isso automaticamente apos `Developer: Reload Window`.
+
 ## Validacao Obrigatoria
 
 Antes de concluir qualquer tarefa de implementacao neste repositorio:
@@ -142,7 +192,7 @@ Antes de concluir qualquer tarefa de implementacao neste repositorio:
 - Releia integralmente todos os arquivos alterados apos a ultima edicao.
 - Procure inconsistencias em todo o arquivo relido, estejam elas diretamente ligadas ou nao a alteracao feita.
 - Corrija inconsistencias encontradas na releitura sempre que estiverem no arquivo alterado e puderem afetar eficiencia, estabilidade, legibilidade ou comportamento.
-- Rode checagem da aba Problemas no workspace e deixe zerada.
+- Rode os linters da secao "Linting E Formatacao" para os arquivos alterados e deixe a aba Problemas zerada para eles.
 - Execute uma validacao objetiva do que foi afetado: import do app, snippet focado, teste de parser, chamada de endpoint, render de template/PDF ou comando equivalente.
 - Informe na resposta final o que foi alterado e como foi validado.
 
@@ -157,5 +207,5 @@ uvicorn app.main:app --reload
 Validacao rapida de importacao da aplicacao:
 
 ```powershell
-python -c "import app.main; print('ok')"
+.\.venv\Scripts\python.exe -c "import app.main; print('ok')"
 ```

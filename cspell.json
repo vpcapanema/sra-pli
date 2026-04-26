@@ -1,0 +1,57 @@
+{
+  "version": "0.2",
+  "language": "en,pt,pt-BR",
+  "caseSensitive": false,
+  "allowCompoundWords": true,
+  "import": [
+    "@cspell/dict-pt-br/cspell-ext.json"
+  ],
+  "dictionaries": [
+    "en_US",
+    "pt_BR",
+    "python",
+    "html",
+    "css",
+    "softwareTerms",
+    "filetypes",
+    "fonts",
+    "misc",
+    "projeto"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "name": "projeto",
+      "path": "./.cspell/projeto.txt",
+      "addWords": true
+    }
+  ],
+  "ignorePaths": [
+    ".venv/**",
+    "venv/**",
+    "node_modules/**",
+    "_extracted_text/**",
+    "relatorios_entregues/**",
+    "__pycache__/**",
+    "**/*.lock",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.pdf",
+    "**/*.docx",
+    "**/*.xlsx",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.svg",
+    "**/*.ico",
+    "dist/**",
+    "build/**",
+    ".git/**",
+    "agent-transcripts/**",
+    "package-lock.json"
+  ],
+  "ignoreRegExpList": [
+    "/\\b[A-Fa-f0-9]{7,}\\b/g"
+  ],
+  "useGitignore": true
+}

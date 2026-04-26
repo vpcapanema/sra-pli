@@ -1,0 +1,49 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.exclude": [
+    "**/.venv/**",
+    "**/venv/**",
+    "**/_extracted_text/**",
+    "**/relatorios_entregues/**",
+    "**/__pycache__/**"
+  ],
+  "python.analysis.typeCheckingMode": "off",
+
+  "flake8.interpreter": ["${workspaceFolder}/.venv/Scripts/python.exe"],
+  "flake8.importStrategy": "fromEnvironment",
+  "flake8.args": ["--max-line-length=120", "--extend-ignore=E501,E402,W503,E203"],
+
+  "pylint.interpreter": ["${workspaceFolder}/.venv/Scripts/python.exe"],
+  "pylint.importStrategy": "fromEnvironment",
+  "pylint.args": ["--rcfile=${workspaceFolder}/pyproject.toml"],
+
+  "djlint.enableLinting": true,
+  "djlint.useNewLinter": true,
+  "djlint.pythonPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+
+  "files.associations": {
+    "**/templates/**/*.html": "jinja-html",
+    "**/templates/**/*.htm": "jinja-html",
+    "**/templates/**/*.j2": "jinja-html",
+    "**/templates/**/*.jinja": "jinja-html",
+    "**/templates/**/*.jinja2": "jinja-html"
+  },
+
+  "emmet.includeLanguages": {
+    "jinja-html": "html"
+  },
+
+  "[jinja-html]": {
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "monosans.djlint"
+  },
+
+  "[python]": {
+    "editor.tabSize": 4
+  },
+
+  "tasks.statusbar.limit": 0,
+  "tasks.statusbar.select.label": "$(list-tree) Tasks",
+  "tasks.statusbar.select.color": ""
+}

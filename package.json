@@ -1,0 +1,13 @@
+{
+  "name": "sra-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Apenas dependencias de tooling (cspell e dicionarios). O projeto principal e Python.",
+  "scripts": {
+    "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.mdc\""
+  },
+  "devDependencies": {
+    "cspell": "^9.2.0",
+    "@cspell/dict-pt-br": "^1.0.0"
+  }
+}

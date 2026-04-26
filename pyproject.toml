@@ -41,3 +41,12 @@ reportMissingModuleSource = "none"
 max-line-length = 120
 extend-ignore = ["E501", "E402", "W503", "E203"]
 exclude = [".venv", "venv", "_extracted_text", "relatorios_entregues"]
+
+[tool.djlint]
+profile = "jinja"
+extension = "html"
+exclude = ".venv,venv,_extracted_text,relatorios_entregues,__pycache__,node_modules"
+ignore = "H006,H013,H014,H016,H017,H019,H020,H021,H023,H026,H030,H031,H037,H040,H047,T003,J004,J018"
+indent = 2
+max_line_length = 200
+max_attribute_length = 200

@@ -39,7 +39,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
-# editar DATABASE_URL e ADMIN_PASSWORD
+# editar DATABASE_URL, SECRET_KEY e ADMIN_PASSWORD
 uvicorn app.main:app --reload
 ```
 
@@ -52,6 +52,38 @@ docker run -d --name sra-pg -e POSTGRES_PASSWORD=sra -e POSTGRES_DB=sra -p 5432:
 Definir `DATABASE_URL=postgresql+psycopg2://postgres:sra@localhost:5432/sra`.
 
 Acessar `http://localhost:8000` e logar com o admin definido em `.env`.
+
+## Tooling de qualidade (linters + spell)
+
+O projeto usa Pylance (workspace), flake8, pylint, djlint (Jinja/HTML) e cSpell
+(pt-BR + en) com dicionário do projeto em `.cspell/projeto.txt`.
+Configurações ficam em `pyproject.toml` e `cspell.json`. As recomendações de
+extensões e o `settings.json` do workspace são versionados em `.vscode/`.
+
+```powershell
+# Linters Python (já instalados pelo requirements.txt)
+.\.venv\Scripts\Activate.ps1
+python -m flake8 app
+python -m pylint app
+
+# Linter de templates Jinja (djlint)
+python -m djlint app/templates --check
+
+# Spell checker (Node, instalação local apenas para CLI)
+npm install         # instala cspell + dicionário pt-BR em node_modules/
+npm run spell       # roda cspell nos diretórios cobertos pelo cspell.json
+```
+
+> O `npm install` só é necessário se você for rodar cSpell pelo terminal.
+> No Cursor/VS Code o spell-check funciona pela extensão recomendada em
+> `.vscode/extensions.json` sem precisar de `node_modules/`.
+
+## Segredos
+
+- `.env` (local) e variáveis no painel do Render (produção). Nunca commitar.
+- Scripts de manutenção (`scripts/*.py`) leem `DATABASE_URL` do ambiente.
+- A task `SRA: status do último deploy Render` lê `RENDER_API_TOKEN` do
+  ambiente; se ausente, abre prompt seguro (campo password).
 
 ## Deploy no Render
 
