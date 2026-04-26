@@ -1,0 +1,25 @@
+Credenciais de Conexão dos Bancos de Dados - Extensão Database Client
+
+1. SIGMA-PLI — VM AWS (Postgres 17 via tunnel)
+   - Tipo: PostgreSQL
+   - Host: 127.0.0.1
+   - Porta: 15433
+   - Usuário: sigma_user
+   - Senha: Malditas131533***
+   - Banco: sigma_pli_qr53
+   - SSL: false
+   - SSH: false
+   - Timezone: UTC
+   - Timeout: 15000
+
+2. PLI Stats — VM AWS (Postgres 17)
+   - Tipo: PostgreSQL
+   - Host: 56.125.163.194
+   - Porta: 5432
+   - Usuário: pli_admin
+   - Senha: Malditas131533***
+   - Banco: pli_stats
+   - SSL: false
+   - SSH: false
+   - Timezone: UTC
+   - Timeout: 15000
