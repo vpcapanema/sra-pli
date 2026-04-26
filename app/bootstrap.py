@@ -8,22 +8,36 @@ from . import models  # noqa: F401  garante registro dos modelos
 
 
 # Regex Postgres equivalente ao validador Python (formatar_nome_pessoa).
-_USERS_NOME_CHK = (
-    "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_nome_format_chk; "
-    "ALTER TABLE users ADD CONSTRAINT users_nome_format_chk CHECK ("
-    "nome ~ '^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+"
+# Mantemos isolado para evitar drop+recreate a cada boot. Se o regex mudar,
+# rode uma migração manual: DROP CONSTRAINT + ADD CONSTRAINT (ou bumpe o nome).
+_USERS_NOME_REGEX = (
+    "^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+"
     "(\\s(do|da|de|dos|das|du|e|di|del|la|von|van)|"
-    "\\s[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+)+$'"
-    ");"
+    "\\s[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+)+$"
 )
+_USERS_NOME_CHK_DDL = f"""
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'users_nome_format_chk'
+  ) THEN
+    ALTER TABLE users
+      ADD CONSTRAINT users_nome_format_chk
+      CHECK (nome ~ '{_USERS_NOME_REGEX}');
+  END IF;
+END$$;
+"""
 
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     if engine.dialect.name == "postgresql":
+        # Idempotente: só executa DDL real se a coluna/constraint não existirem ainda.
         with engine.begin() as conn:
-            conn.execute(text(_USERS_NOME_CHK))
-            conn.execute(text("ALTER TABLE blocos ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false;"))
+            conn.execute(text(_USERS_NOME_CHK_DDL))
+            conn.execute(
+                text("ALTER TABLE blocos ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false;")
+            )
     with SessionLocal() as db:
         ensure_admin(db)
 

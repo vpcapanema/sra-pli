@@ -20,6 +20,9 @@ def upload_figura(
 ):
     user = current_user(request, db)
     if not user:
+        accept = (request.headers.get("accept") or "").lower()
+        if "application/json" in accept:
+            raise HTTPException(status_code=401, detail="Sessão expirada. Faça login novamente.")
         raise HTTPException(303, headers={"Location": "/login"})
     rel = db.get(Relatorio, rel_id)
     if not rel:

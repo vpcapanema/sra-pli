@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
@@ -166,6 +167,23 @@ def editar_relatorio(
     return RedirectResponse("/dashboard", status_code=303)
 
 
+_RE_VERSAO_NUM = re.compile(r"(\d+)")
+
+
+def _proxima_versao(versao_atual: str | None) -> str:
+    """Incrementa a versão preservando o prefixo. Aceita 'R00', 'R0A1', 'V3'…
+    Se não houver número, começa em R01.
+    """
+    raw = (versao_atual or "").strip()
+    match = _RE_VERSAO_NUM.search(raw)
+    if not match:
+        return "R01"
+    numero = int(match.group(1)) + 1
+    prefixo = raw[: match.start()] or "R"
+    sufixo = raw[match.end():]
+    return f"{prefixo}{numero:02d}{sufixo}"
+
+
 @router.post("/{rel_id}/versao")
 def nova_versao(rel_id: int, request: Request, db: Session = Depends(get_db)):
     user = _require(request, db)
@@ -174,8 +192,7 @@ def nova_versao(rel_id: int, request: Request, db: Session = Depends(get_db)):
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404)
-    n = int(rel.versao.replace("R", "")) + 1
-    rel.versao = f"R{n:02d}"
+    rel.versao = _proxima_versao(rel.versao)
     db.commit()
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
 
@@ -274,8 +291,10 @@ def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_d
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404)
-    db.delete(rel)
-    db.commit()
+    with tx_session() as txdb:
+        rel_tx = txdb.get(Relatorio, rel_id)
+        if rel_tx is not None:
+            txdb.delete(rel_tx)
     return RedirectResponse("/dashboard", status_code=303)
 
 
@@ -348,19 +367,19 @@ def criar_subsecao(
         raise HTTPException(400, detail="Informe número e título")
     if db.query(Secao).filter_by(relatorio_id=rel_id, numero=numero).first():
         raise HTTPException(400, detail="Número de seção já existe neste relatório")
-    # ordem = posição na sequência ordenada de todas as seções
     todas = db.query(Secao).filter_by(relatorio_id=rel_id).all()
+    chave_nova = _ordem_for_numero(numero)
     chaves = sorted(
-        [(_ordem_for_numero(s.numero), s.id) for s in todas] + [(_ordem_for_numero(numero), None)]
+        [(_ordem_for_numero(s.numero), s.id) for s in todas] + [(chave_nova, None)]
     )
     nova_ordem = next(i for i, (_, sid) in enumerate(chaves) if sid is None)
-    # reindexa ordens
-    db.add(Secao(relatorio_id=rel_id, numero=numero, titulo=titulo, ordem=nova_ordem))
-    # incrementa ordem das seções abaixo
-    for sec in todas:
-        if _ordem_for_numero(sec.numero) >= _ordem_for_numero(numero):
-            sec.ordem = sec.ordem + 1
-    db.commit()
+    ids_para_deslocar = [s.id for s in todas if _ordem_for_numero(s.numero) >= chave_nova]
+    with tx_session() as txdb:
+        if ids_para_deslocar:
+            txdb.query(Secao).filter(Secao.id.in_(ids_para_deslocar)).update(
+                {Secao.ordem: Secao.ordem + 1}, synchronize_session=False
+            )
+        txdb.add(Secao(relatorio_id=rel_id, numero=numero, titulo=titulo, ordem=nova_ordem))
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
 
 
@@ -377,11 +396,12 @@ def excluir_subsecao(
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    # Só permite excluir subseções com mais de um nível (ex.: 4.3.1, 10.1)
     if "." not in sec.numero:
         raise HTTPException(400, detail="Não é possível excluir seções de primeiro nível")
-    db.delete(sec)
-    db.commit()
+    with tx_session() as txdb:
+        sec_tx = txdb.get(Secao, sec_id)
+        if sec_tx is not None:
+            txdb.delete(sec_tx)
     return RedirectResponse(f"/relatorios/{rel_id}", status_code=303)
 
 

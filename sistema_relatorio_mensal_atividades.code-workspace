@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"app/templates/**/*.html": "jinja-html"
+		},
+		"errorLens.exclude": [
+			".*venv.*",
+			".*_extracted_text.*",
+			".*relatorios_entregues.*"
+		]
+	}
+}

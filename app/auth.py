@@ -62,9 +62,21 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User | None
 
 
 def require_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Para rotas que renderizam HTML/redirecionam: 303 -> /login."""
     user = current_user(request, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+    return user
+
+
+def require_user_api(request: Request, db: Session = Depends(get_db)) -> User:
+    """Para endpoints JSON (fetch/XHR): 401 com detalhe — o cliente deve
+    interpretar e redirecionar manualmente para /login. Evita o pitfall do
+    `fetch` seguir um 303 para a página HTML do login (e quebrar o JSON.parse).
+    """
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sessão expirada. Faça login novamente.")
     return user
 
 

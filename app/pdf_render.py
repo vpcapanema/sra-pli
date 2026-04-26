@@ -74,15 +74,17 @@ def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
 
 
-def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
-    linhas_brutas = [ln for ln in corpo.splitlines() if ln.strip()]
+def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
+    """Renderiza apenas o miolo (legenda + <table>) sem o wrapper .tabela."""
+    linhas_brutas = [ln for ln in (corpo or "").splitlines() if ln.strip()]
 
     def _is_separator(ln: str) -> bool:
         s = ln.strip()
         if not s:
             return True
-        # markdown: --- | --- | ---
-        if re.fullmatch(r"-{2,}(\s*\|\s*-{2,})*", s):
+        # Linha de separador markdown: ---, ---|---, |---|---|, com `:` opcional
+        # para alinhamento (`|:---:|---:|`).
+        if re.fullmatch(r"\|?\s*:?-{2,}:?(\s*\|\s*:?-{2,}:?)*\s*\|?", s):
             return True
         # ascii art: +---+---+   ou  +===+===+
         if re.fullmatch(r"\+[-=+\s]+\+?", s):
@@ -91,7 +93,6 @@ def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") ->
 
     def _split_cells(ln: str) -> list[str]:
         s = ln.strip()
-        # remove pipes externos: |a|b|c|  ->  a|b|c
         if s.startswith("|"):
             s = s[1:]
         if s.endswith("|"):
@@ -119,8 +120,15 @@ def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") ->
     tab_parts.append("</tbody></table>")
     table_html = "".join(tab_parts)
     if posicao == "I":
-        return f'<div class="tabela">{table_html}{cap_html}</div>'
-    return f'<div class="tabela">{cap_html}{table_html}</div>'
+        return f"{table_html}{cap_html}"
+    return f"{cap_html}{table_html}"
+
+
+def _render_tabela_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
+    inner = _render_tabela_inner_html(corpo, legenda, numero, posicao)
+    if not inner:
+        return ""
+    return f'<div class="tabela">{inner}</div>'
 
 
 def _render_figura_html(figuras_by_id: dict[int, Figura], fig_id: int, legenda: str, numero, posicao: str = "I") -> str:
@@ -328,7 +336,7 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
         fig_counter = fig_by_top.get(sec_top, 0)
         tab_counter = tab_by_top.get(sec_top, 0)
 
-        def _label(prefix: str, n: int) -> str:
+        def _label(n: int) -> str:
             return f"{sec_top}.{n}" if sec_top else str(n)
 
         blocos_render = []
@@ -343,15 +351,18 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
             if b.tipo == "figura" and b.figura_id:
                 fig_counter += 1
                 fig = figuras_by_id.get(b.figura_id)
-                item["numero"] = _label("F", fig_counter)
+                item["numero"] = _label(fig_counter)
                 item["src"] = _figura_data_uri(fig) if fig is not None else None
             elif b.tipo == "figura":
                 fig_counter += 1
-                item["numero"] = _label("F", fig_counter)
+                item["numero"] = _label(fig_counter)
                 item["src"] = None
             elif b.tipo == "tabela":
                 tab_counter += 1
-                item["numero"] = _label("T", tab_counter)
+                item["numero"] = _label(tab_counter)
+                item["tabela_html"] = _render_tabela_inner_html(
+                    b.conteudo or "", b.legenda or "", item["numero"], "S"
+                )
             elif b.tipo == "lista":
                 # Mantém compatibilidade com blocos antigos do tipo lista pura.
                 itens = [ln.strip() for ln in (b.conteudo or "").splitlines() if ln.strip()]

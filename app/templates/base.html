@@ -179,6 +179,10 @@
         active.delete(pid);
         receive({kind:'fetch', level:resp.ok ? 'success' : 'error', status:resp.ok ? 'success' : 'danger', title:method + ' ' + url, message:'HTTP ' + resp.status, ts:new Date().toISOString(), process_id:pid});
       }
+      if (resp.status === 401) {
+        // Sessão expirada em endpoint JSON: leva o usuário ao login.
+        window.location.href = '/login';
+      }
       return resp;
     } catch (err) {
       if (track) {

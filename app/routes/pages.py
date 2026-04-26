@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, load_only, selectinload
-from sqlalchemy import func
+from sqlalchemy import case, func
 from pathlib import Path
 from datetime import date
 
@@ -87,28 +87,47 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
 
 
 def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
-    rows = (
-        db.query(Secao.id, Bloco.tipo, Bloco.conteudo)
-        .join(Bloco, Bloco.secao_id == Secao.id)
-        .filter(Secao.relatorio_id == rel_id)
-        .all()
+    """Conta figuras/tabelas (próprias e inline em texto) numa única query agregada.
+
+    Evita trazer todo o `Bloco.conteudo` para a aplicação. Funciona em Postgres
+    e SQLite: usa apenas `length`/`replace` + integer division por 9/10
+    (tamanho dos marcadores `[[FIGURA:`, `[[TABELA:`, `[[TABELA|`, `[[TABELA]]`).
+    """
+    conteudo = func.coalesce(Bloco.conteudo, "")
+    base_len = func.length(conteudo)
+    fig_in_text = (base_len - func.length(func.replace(conteudo, "[[FIGURA:", ""))) / 9
+    tab_in_text_a = (base_len - func.length(func.replace(conteudo, "[[TABELA:", ""))) / 9
+    tab_in_text_b = (base_len - func.length(func.replace(conteudo, "[[TABELA|", ""))) / 9
+    tab_in_text_c = (base_len - func.length(func.replace(conteudo, "[[TABELA]]", ""))) / 10
+
+    fig_per_block = case((Bloco.tipo == "figura", 1), else_=0) + fig_in_text
+    tab_per_block = (
+        case((Bloco.tipo == "tabela", 1), else_=0)
+        + tab_in_text_a
+        + tab_in_text_b
+        + tab_in_text_c
     )
-    counts = {"fig_base": 0, "tab_base": 0, "fig_global_base": 0, "tab_global_base": 0}
-    for current_sec_id, tipo, conteudo in rows:
-        text = conteudo or ""
-        fig_count = (1 if tipo == "figura" else 0) + text.count("[[FIGURA:")
-        tab_count = (
-            (1 if tipo == "tabela" else 0)
-            + text.count("[[TABELA:")
-            + text.count("[[TABELA|")
-            + text.count("[[TABELA]]")
+    fig_in_sec = case((Bloco.secao_id == sec_id, fig_per_block), else_=0)
+    tab_in_sec = case((Bloco.secao_id == sec_id, tab_per_block), else_=0)
+
+    row = (
+        db.query(
+            func.coalesce(func.sum(fig_in_sec), 0).label("fig_base"),
+            func.coalesce(func.sum(tab_in_sec), 0).label("tab_base"),
+            func.coalesce(func.sum(fig_per_block), 0).label("fig_global_base"),
+            func.coalesce(func.sum(tab_per_block), 0).label("tab_global_base"),
         )
-        counts["fig_global_base"] += fig_count
-        counts["tab_global_base"] += tab_count
-        if current_sec_id == sec_id:
-            counts["fig_base"] += fig_count
-            counts["tab_base"] += tab_count
-    return counts
+        .select_from(Bloco)
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(Secao.relatorio_id == rel_id)
+        .one()
+    )
+    return {
+        "fig_base": int(row.fig_base or 0),
+        "tab_base": int(row.tab_base or 0),
+        "fig_global_base": int(row.fig_global_base or 0),
+        "tab_global_base": int(row.tab_global_base or 0),
+    }
 
 
 @router.get("/relatorios/{rel_id}/secoes/{sec_id}")

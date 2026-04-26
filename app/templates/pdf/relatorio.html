@@ -203,18 +203,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           </div>
         {% elif b.tipo == 'tabela' %}
           <div class="tabela">
-            {% if b.legenda %}<div class="cap">Tabela {{ b.numero }} — {{ b.legenda }}</div>{% endif %}
-            <table>
-              {% set linhas = (b.conteudo or '').splitlines() %}
-              {% for ln in linhas if ln.strip() %}
-                {% if loop.first %}
-                  <thead><tr>{% for c in ln.split('|') %}<th>{{ c.strip() }}</th>{% endfor %}</tr></thead><tbody>
-                {% else %}
-                  <tr>{% for c in ln.split('|') %}<td>{{ c.strip() }}</td>{% endfor %}</tr>
-                {% endif %}
-              {% endfor %}
-              </tbody>
-            </table>
+            {% if b.tabela_html %}{{ b.tabela_html|safe }}{% else %}<div class="cap">Tabela {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}</div>{% endif %}
             {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
           </div>
         {% endif %}

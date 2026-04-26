@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..db import get_db
+from ..db import get_db, tx_session
 from ..models import Bloco, Secao
 from ..auth import current_user
 from ..process_events import process_done, process_log, process_start
@@ -43,21 +43,24 @@ def criar_bloco(
         raise HTTPException(400)
     process_id = process_start(request, "Bloco de conteúdo", f"Criando bloco do tipo {tipo}.")
     ordem = (db.query(func.max(Bloco.ordem)).filter(Bloco.secao_id == sec_id).scalar() or -1) + 1
-    bloco = Bloco(
-        secao_id=sec_id,
-        tipo=tipo,
-        ordem=ordem,
-        titulo=titulo.strip() or None,
-        conteudo=conteudo,
-        legenda=legenda.strip() or None,
-        fonte=fonte.strip() or None,
-        figura_id=int(figura_id) if figura_id.strip() else None,
-        autor_id=user.id,
-    )
-    db.add(bloco)
-    if sec.status == "pendente":
-        sec.status = "em_andamento"
-    db.commit()
+    sec_status_atual = sec.status
+    with tx_session() as txdb:
+        bloco = Bloco(
+            secao_id=sec_id,
+            tipo=tipo,
+            ordem=ordem,
+            titulo=titulo.strip() or None,
+            conteudo=conteudo,
+            legenda=legenda.strip() or None,
+            fonte=fonte.strip() or None,
+            figura_id=int(figura_id) if figura_id.strip() else None,
+            autor_id=user.id,
+        )
+        txdb.add(bloco)
+        if sec_status_atual == "pendente":
+            txdb.query(Secao).filter(Secao.id == sec_id).update(
+                {Secao.status: "em_andamento"}, synchronize_session=False
+            )
     process_done(request, process_id, "Bloco criado", f"Seção {sec.numero} atualizada.")
     return RedirectResponse(f"/relatorios/{rel_id}/secoes/{sec_id}", status_code=303)
 
@@ -83,11 +86,13 @@ def aprovar_blocos_lote(
     _check(request, db, rel_id, sec_id)
     blocos = _blocos_selecionados(db, sec_id, bloco_ids)
     process_id = process_start(request, "Aprovação em lote", f"Bloqueando {len(blocos)} bloco(s).")
+    ids = [bloco.id for bloco in blocos]
     agora = datetime.utcnow()
-    for bloco in blocos:
-        bloco.bloqueado = True
-        bloco.updated_at = agora
-    db.commit()
+    with tx_session() as txdb:
+        txdb.query(Bloco).filter(Bloco.id.in_(ids)).update(
+            {Bloco.bloqueado: True, Bloco.updated_at: agora},
+            synchronize_session=False,
+        )
     process_done(request, process_id, "Blocos aprovados", f"{len(blocos)} bloco(s) bloqueado(s).")
     return RedirectResponse(f"/relatorios/{rel_id}/secoes/{sec_id}", status_code=303)
 
@@ -107,9 +112,9 @@ def excluir_blocos_lote(
         process_done(request, process_id, "Exclusão recusada", "Há bloco bloqueado na seleção.", ok=False)
         raise HTTPException(403, detail="Blocos bloqueados não podem ser excluídos.")
     process_log(request, process_id, "Removendo blocos selecionados.")
-    for bloco in blocos:
-        db.delete(bloco)
-    db.commit()
+    ids = [bloco.id for bloco in blocos]
+    with tx_session() as txdb:
+        txdb.query(Bloco).filter(Bloco.id.in_(ids)).delete(synchronize_session=False)
     process_done(request, process_id, "Blocos excluídos", f"{len(blocos)} bloco(s) removido(s).")
     return RedirectResponse(f"/relatorios/{rel_id}/secoes/{sec_id}", status_code=303)
 
@@ -200,8 +205,15 @@ def mover_bloco(
         raise HTTPException(404)
     swap = idx - 1 if direcao == "cima" else idx + 1
     if 0 <= swap < len(blocos):
-        blocos[idx].ordem, blocos[swap].ordem = blocos[swap].ordem, blocos[idx].ordem
-        db.commit()
+        a_id, a_ord = blocos[idx].id, blocos[idx].ordem
+        b_id, b_ord = blocos[swap].id, blocos[swap].ordem
+        with tx_session() as txdb:
+            txdb.query(Bloco).filter(Bloco.id == a_id).update(
+                {Bloco.ordem: b_ord}, synchronize_session=False
+            )
+            txdb.query(Bloco).filter(Bloco.id == b_id).update(
+                {Bloco.ordem: a_ord}, synchronize_session=False
+            )
         process_done(request, process_id, "Bloco movido", f"Direção: {direcao}.")
     else:
         process_done(request, process_id, "Movimento ignorado", "Bloco já está no limite da lista.")

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from ..auth import current_user
-from ..db import get_db
+from ..db import get_db, tx_session
 from ..models import Bloco, Figura, Secao, User
 from ..process_events import process_done, process_log, process_start
 
@@ -56,7 +56,8 @@ def _norm_text(text: str) -> str:
 def _check(request: Request, db: Session, rel_id: int, sec_id: int):
     user = current_user(request, db)
     if not user:
-        raise HTTPException(303, headers={"Location": "/login"})
+        # Endpoints JSON: 401 explícito (cliente fetch trata e redireciona).
+        raise HTTPException(status_code=401, detail="Sessão expirada. Faça login novamente.")
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
@@ -710,83 +711,90 @@ async def confirmar_importacao(
     payload = await request.json()
     blocks = payload.get("blocks") or []
     process_id = process_start(request, "Confirmação de importação", "Validando blocos selecionados.")
-    selected_items = []
-    for item in blocks:
-        if not item.get("selecionado", True):
-            continue
-        selected_items.append(item)
+    selected_items = [item for item in blocks if item.get("selecionado", True)]
 
-    secoes_relatorio = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
-    secoes_by_id = {sec.id: sec for sec in secoes_relatorio}
-    secoes_by_numero = {sec.numero: sec for sec in secoes_relatorio}
-    resolved_items: list[tuple[dict, Secao]] = []
     structural_keys: set[tuple[str, str]] = set()
-    for item in selected_items:
-        numero = str(item.get("secao_numero") or "").strip()
-        titulo = str(item.get("secao_titulo") or "").strip()
-        existente = secoes_by_numero.get(numero) if numero else None
-        titulo_anterior = existente.titulo if existente is not None else ""
-        sec = _resolver_secao_importada(db, rel_id, sec_atual, user, item, secoes_by_id, secoes_by_numero)
-        if numero and existente is None:
-            structural_keys.add(("criar", numero))
-        elif numero and titulo and _norm_text(titulo) != _norm_text(titulo_anterior):
-            structural_keys.add(("renomear", numero))
-        resolved_items.append((item, sec))
-
-    target_ids = {sec.id for _, sec in resolved_items}
-    ordem_rows = (
-        db.query(Bloco.secao_id, Bloco.ordem)
-        .filter(Bloco.secao_id.in_(target_ids))
-        .all()
-    ) if target_ids else []
-    ordens: dict[int, int] = {}
-    for secao_id, ordem_atual in ordem_rows:
-        ordens[secao_id] = max(ordens.get(secao_id, 0), (ordem_atual or -1) + 1)
     created = 0
-    process_log(request, process_id, f"{len(selected_items)} bloco(s) selecionado(s) para gravação.")
 
-    for item, sec in resolved_items:
-        tipo = (item.get("tipo") or "texto").strip().lower()
-        if tipo not in VALID_TYPES:
-            tipo = "texto"
-        figura_id = None
-        if tipo == "figura" and item.get("image_b64"):
-            try:
-                dados = base64.b64decode(item.get("image_b64"), validate=True)
-            except Exception as exc:
-                raise HTTPException(400, detail="Imagem importada inválida.") from exc
-            fig = Figura(
-                relatorio_id=rel_id,
-                nome=(item.get("image_name") or "figura_importada").strip(),
-                mime=(item.get("image_mime") or "image/png").strip(),
-                dados=dados,
-                legenda=(item.get("legenda") or "").strip() or None,
-                fonte=(item.get("fonte") or "").strip() or None,
-            )
-            db.add(fig)
-            db.flush()
-            figura_id = fig.id
-        ordem = ordens.get(sec.id, 0)
-        ordens[sec.id] = ordem + 1
-        db.add(
-            Bloco(
-                secao_id=sec.id,
-                tipo=tipo,
-                ordem=ordem,
-                titulo=(item.get("titulo") or "").strip() or None,
-                conteudo=item.get("conteudo") or "",
-                legenda=(item.get("legenda") or "").strip() or None,
-                fonte=(item.get("fonte") or "").strip() or None,
-                figura_id=figura_id,
-                autor_id=user.id,
-            )
-        )
-        if sec.status == "pendente":
-            sec.status = "em_andamento"
-        created += 1
+    # Multi-statement: criar/renomear seções, inserir Figuras+Blocos e reordenar
+    # tudo em uma única transação. Caso qualquer passo falhe, revertemos para
+    # evitar estado parcial (importações são uma das poucas operações que tocam
+    # várias tabelas em sequência).
+    with tx_session() as txdb:
+        secoes_relatorio = txdb.query(Secao).filter(Secao.relatorio_id == rel_id).all()
+        secoes_by_id = {sec.id: sec for sec in secoes_relatorio}
+        secoes_by_numero = {sec.numero: sec for sec in secoes_relatorio}
+        sec_atual_tx = txdb.get(Secao, sec_id) or sec_atual
 
-    _reordenar_secoes(db, rel_id)
-    db.commit()
+        resolved_items: list[tuple[dict, Secao]] = []
+        for item in selected_items:
+            numero = str(item.get("secao_numero") or "").strip()
+            titulo = str(item.get("secao_titulo") or "").strip()
+            existente = secoes_by_numero.get(numero) if numero else None
+            titulo_anterior = existente.titulo if existente is not None else ""
+            sec = _resolver_secao_importada(
+                txdb, rel_id, sec_atual_tx, user, item, secoes_by_id, secoes_by_numero
+            )
+            if numero and existente is None:
+                structural_keys.add(("criar", numero))
+            elif numero and titulo and _norm_text(titulo) != _norm_text(titulo_anterior):
+                structural_keys.add(("renomear", numero))
+            resolved_items.append((item, sec))
+
+        target_ids = {sec.id for _, sec in resolved_items}
+        ordem_rows = (
+            txdb.query(Bloco.secao_id, Bloco.ordem)
+            .filter(Bloco.secao_id.in_(target_ids))
+            .all()
+        ) if target_ids else []
+        ordens: dict[int, int] = {}
+        for secao_id, ordem_atual in ordem_rows:
+            ordens[secao_id] = max(ordens.get(secao_id, 0), (ordem_atual or -1) + 1)
+        process_log(request, process_id, f"{len(selected_items)} bloco(s) selecionado(s) para gravação.")
+
+        for item, sec in resolved_items:
+            tipo = (item.get("tipo") or "texto").strip().lower()
+            if tipo not in VALID_TYPES:
+                tipo = "texto"
+            figura_id = None
+            if tipo == "figura" and item.get("image_b64"):
+                try:
+                    dados = base64.b64decode(item.get("image_b64"), validate=True)
+                except Exception as exc:
+                    raise HTTPException(400, detail="Imagem importada inválida.") from exc
+                fig = Figura(
+                    relatorio_id=rel_id,
+                    nome=(item.get("image_name") or "figura_importada").strip(),
+                    mime=(item.get("image_mime") or "image/png").strip(),
+                    dados=dados,
+                    legenda=(item.get("legenda") or "").strip() or None,
+                    fonte=(item.get("fonte") or "").strip() or None,
+                )
+                txdb.add(fig)
+                txdb.flush()
+                figura_id = fig.id
+            ordem = ordens.get(sec.id, 0)
+            ordens[sec.id] = ordem + 1
+            txdb.add(
+                Bloco(
+                    secao_id=sec.id,
+                    tipo=tipo,
+                    ordem=ordem,
+                    titulo=(item.get("titulo") or "").strip() or None,
+                    conteudo=item.get("conteudo") or "",
+                    legenda=(item.get("legenda") or "").strip() or None,
+                    fonte=(item.get("fonte") or "").strip() or None,
+                    figura_id=figura_id,
+                    autor_id=user.id,
+                )
+            )
+            if sec.status == "pendente":
+                sec.status = "em_andamento"
+            created += 1
+
+        txdb.flush()
+        _reordenar_secoes(txdb, rel_id)
+
     detalhe = f"{created} bloco(s) criado(s)."
     structural_changes = len(structural_keys)
     if structural_changes:
