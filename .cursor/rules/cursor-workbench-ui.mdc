@@ -1,0 +1,36 @@
+---
+description: Layout da barra lateral e vistas no Cursor (Windows) — base VS Code; doc Cursor nao cobre merge Explorer+extensoes
+alwaysApply: false
+---
+
+# Cursor — Barra Lateral E Vistas (Referencia Para Agentes)
+
+## O Que A Documentacao Oficial Do Cursor Cobre
+
+- Indice publico: [cursor.com/llms.txt](https://cursor.com/llms.txt) — atalhos, Help, migracao VS Code, Agent/Sidepanel.
+- **Nao ha** pagina oficial Cursor que descreva “juntar Explorador + Database na mesma coluna”, comandos exactos `workbench.*` de mover vista, ou limites por extensao. Para **arrastar vistas, barra lateral primaria/secundaria, painel**, usar a documentacao do **motor VS Code** (Cursor declara fork no `package.json`).
+
+## Comportamento Herdado Do VS Code (Documentacao Canonica)
+
+- **Custom Layout**: [Visual Studio Code — Custom layout](https://code.visualstudio.com/docs/configure/custom-layout)
+  - **Primary Side Bar**: vista activa por icone na Activity Bar (esquerda por defeito).
+  - **Secondary Side Bar**: **Windows** `Ctrl+Alt+B` ou *View > Appearance > Secondary Side Bar* — para **duas** areas laterais (ex.: ficheiros num lado, outra vista no outro). Pode-se **arrastar** vistas e paineis para Primary ou Secondary; o layout e persistido.
+  - **Reset**: comando *View: Reset View Locations* (nomes em ingles no Command Palette se a UI estiver em ingles).
+- **User interface** (termos e regioes): [VS Code user interface](https://code.visualstudio.com/docs/getstarted/userinterface)
+
+## Especifico Do Cursor (Doc Oficial)
+
+- **Activity bar** por defeito **horizontal** para espaco de chat; opcao `workbench.activityBar.orientation` = `vertical` (reiniciar) — ver [migracoes e VS Code (Cursor)](https://cursor.com/docs/configuration/migrations/vscode)
+- Extensoes: Open VSX; comportamento **pode** diferir do marketplace Microsoft.
+
+## Database Client (cweijan) — Vista "Database" No Explorador
+
+- A extensao **cweijan.vscode-database-client2** publica a vista "Database" no contentor `explorer` (ajuste no `package.json` instalado em `.cursor/extensions`, para a mesma coluna que a arvore de ficheiros). O **SQLTools** deve permanecer no *seu* contentor (icone SQLTools) para nao competir com a Database Client no Explorador.
+
+## Quando O Utilizador Nao Ve “Mover Vista”
+
+- Algumas extensoes **fixam** a vista no proprio contentor; arrastar o **cabeçalho da seccao** (titulo) ou **Secondary Side Bar** sao as alternativas documentadas no motor. Verificar o nome e versoo da extensao Database.
+
+## Versao Do Cursor (Para Referencia Tecnica)
+
+- Versao local: ler `%LOCALAPPDATA%\\Programs\\cursor\\resources\\app\\package.json` (campo `version`). O changelog publico: [cursor.com/changelog](https://cursor.com/changelog) (ajustar se o site mudar o caminho).

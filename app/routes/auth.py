@@ -1,12 +1,23 @@
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 
 from ..db import get_db
 from ..models import User
-from ..auth import verify_password, hash_password, current_user, formatar_nome_pessoa
+from ..auth import (
+    verify_password,
+    hash_password,
+    current_user,
+    formatar_nome_pessoa,
+    pode_editar_perfil_usuario,
+)
+from .pages import (
+    response_client_goto,
+    response_login,
+    response_usuario_edit,
+    response_usuarios,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -14,7 +25,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 
 @router.get("/login")
 def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": None})
+    return response_login(request)
 
 
 @router.post("/login")
@@ -26,31 +37,24 @@ def login_submit(
 ):
     user = db.query(User).filter(User.email == email.strip().lower()).one_or_none()
     if not user or not verify_password(password, user.password_hash):
-        return templates.TemplateResponse(
+        return response_login(
             request,
-            "login.html",
-            {"error": "E-mail ou senha inválidos."},
+            error="E-mail ou senha inválidos.",
             status_code=401,
         )
     request.session["user_id"] = user.id
-    return RedirectResponse("/dashboard", status_code=303)
+    return response_client_goto("/dashboard")
 
 
 @router.get("/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/login", status_code=303)
+    return response_client_goto("/login")
 
 
 @router.get("/usuarios")
 def usuarios_page(request: Request, db: Session = Depends(get_db)):
-    user = current_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-    usuarios = db.query(User).order_by(User.nome).all()
-    return templates.TemplateResponse(
-        request, "usuarios.html", {"user": user, "usuarios": usuarios, "error": None}
-    )
+    return response_usuarios(request, db)
 
 
 @router.post("/usuarios")
@@ -64,7 +68,7 @@ def usuarios_create(
 ):
     user = current_user(request, db)
     if not user or user.role not in ("admin", "coordenador"):
-        return RedirectResponse("/login", status_code=303)
+        return response_login(request)
     email_norm = email.strip().lower()
     try:
         nome_fmt = formatar_nome_pessoa(nome)
@@ -87,28 +91,12 @@ def usuarios_create(
     novo = User(nome=nome_fmt, email=email_norm, password_hash=hash_password(password), role=role)
     db.add(novo)
     db.commit()
-    return RedirectResponse("/usuarios", status_code=303)
-
-
-def _pode_editar(viewer: User, alvo: User) -> bool:
-    return viewer.role == "admin" or viewer.id == alvo.id
+    return response_usuarios(request, db)
 
 
 @router.get("/usuarios/{user_id}/editar")
 def usuario_edit_page(user_id: int, request: Request, db: Session = Depends(get_db)):
-    viewer = current_user(request, db)
-    if not viewer:
-        return RedirectResponse("/login", status_code=303)
-    alvo = db.get(User, user_id)
-    if not alvo:
-        return RedirectResponse("/usuarios", status_code=303)
-    if not _pode_editar(viewer, alvo):
-        return RedirectResponse("/usuarios", status_code=303)
-    return templates.TemplateResponse(
-        request,
-        "usuario_edit.html",
-        {"user": viewer, "alvo": alvo, "error": None, "ok": request.query_params.get("ok")},
-    )
+    return response_usuario_edit(request, db, user_id)
 
 
 @router.post("/usuarios/{user_id}/editar")
@@ -123,12 +111,12 @@ def usuario_edit_submit(
 ):
     viewer = current_user(request, db)
     if not viewer:
-        return RedirectResponse("/login", status_code=303)
+        return response_login(request)
     alvo = db.get(User, user_id)
     if not alvo:
-        return RedirectResponse("/usuarios", status_code=303)
-    if not _pode_editar(viewer, alvo):
-        return RedirectResponse("/usuarios", status_code=303)
+        return response_usuarios(request, db)
+    if not pode_editar_perfil_usuario(viewer, alvo):
+        return response_usuarios(request, db)
 
     def _err(msg: str):
         return templates.TemplateResponse(
@@ -160,4 +148,4 @@ def usuario_edit_submit(
         alvo.password_hash = hash_password(password)
 
     db.commit()
-    return RedirectResponse(f"/usuarios/{alvo.id}/editar?ok=1", status_code=303)
+    return response_usuario_edit(request, db, alvo.id, ok="1")

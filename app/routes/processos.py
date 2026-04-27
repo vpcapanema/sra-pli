@@ -4,9 +4,21 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from ..process_events import process_session_id, sse_payload, subscribe, unsubscribe
+from ..sra_fluxo_confirmacao import resposta_fluxo_confirmacao
 
 
 router = APIRouter(prefix="/processos", tags=["processos"])
+
+
+@router.get("/fluxo-confirmacao/{chave}")
+def fluxo_confirmacao(chave: str, request: Request):
+    """Textos para o modal de confirmação (chave estável por fluxo). Requer sessão autenticada."""
+    if not request.session.get("user_id"):
+        raise HTTPException(403, detail="Sessão expirada")
+    body = resposta_fluxo_confirmacao(chave.strip())
+    if not body:
+        raise HTTPException(404, detail="Fluxo desconhecido")
+    return body
 
 
 @router.get("/eventos")

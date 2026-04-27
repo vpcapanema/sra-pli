@@ -14,7 +14,7 @@ import io
 import re
 import unicodedata
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import List, Tuple
 
 import pypdf
 

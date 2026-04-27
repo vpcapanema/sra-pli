@@ -1,8 +1,9 @@
-# pylint: disable=protected-access
+# pylint: disable=protected-access,too-many-lines
 import base64
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 import re
+from string import ascii_lowercase, ascii_uppercase
 from io import BytesIO
 
 from docx import Document
@@ -15,7 +16,9 @@ from sqlalchemy.orm import Session
 
 from ..auth import current_user
 from ..db import get_db, tx_session
+from ..list_lines import block_is_homogeneous_list, line_is_list_item, list_line_body
 from ..models import Bloco, Figura, Secao, User
+from ..numeracao import consolidar_referencias
 from ..process_events import process_done, process_log, process_start
 
 router = APIRouter(
@@ -26,12 +29,27 @@ router = APIRouter(
 
 VALID_TYPES = {"texto", "lista", "tabela", "figura"}
 _HEADING_RE = re.compile(r"^(?:#{1,6}\s*)?(\d+(?:\.\d+){1,})(?:[.)])?\s*\S.+$")
-_FIGURA_RE = re.compile(r"^Figura\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*.+", re.IGNORECASE)
-_TABELA_RE = re.compile(r"^Tabela\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*.+", re.IGNORECASE)
+_FIGURA_RE = re.compile(
+    r"^(?:Figura|Fig\.?)\s+(?:n[\u00ba\u00b0o]?\s*)?(?:\d+(?:[-.]\d+)*[.\-]?|[-\u2013\u2014])\s*[:\u2013\u2014.\-]\s*.+",
+    re.IGNORECASE,
+)
+_TABELA_RE = re.compile(
+    r"^(?:Tabela|Tab\.?)\s+(?:n[\u00ba\u00b0o]?\s*)?(?:\d+(?:[-.]\d+)*[.\-]?|[-\u2013\u2014])\s*[:\u2013\u2014.\-]\s*.+",
+    re.IGNORECASE,
+)
 _FONTE_RE = re.compile(r"\bFonte:\s*(.+)$", re.IGNORECASE)
 _SECTION_NUMBER_RE = re.compile(r"^(?:#{1,6}\s*)?(\d+(?:\.\d+)*)(.*)$")
-_FIGURA_PREFIX_RE = re.compile(r"^Figura\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*", re.IGNORECASE)
-_TABELA_PREFIX_RE = re.compile(r"^Tabela\s+(?:\d+(?:[-.]\d+)*-?|[-–—])\s*[:–—-]\s*", re.IGNORECASE)
+# Sanitiza prefixos numerados embutidos na legenda. Cobre variacoes comuns:
+# "Figura 4.1 -", "Fig. 4-1:", "Figura n\u00ba 4.1.", "Tabela 4-1 \u2014".
+# Apos a remocao do prefixo, a numeracao e sempre derivada no render.
+_FIGURA_PREFIX_RE = re.compile(
+    r"^(?:Figura|Fig\.?)\s+(?:n[\u00ba\u00b0o]?\s*)?(?:\d+(?:[-.]\d+)*[.\-]?|[-\u2013\u2014])\s*[:\u2013\u2014.\-]\s*",
+    re.IGNORECASE,
+)
+_TABELA_PREFIX_RE = re.compile(
+    r"^(?:Tabela|Tab\.?)\s+(?:n[\u00ba\u00b0o]?\s*)?(?:\d+(?:[-.]\d+)*[.\-]?|[-\u2013\u2014])\s*[:\u2013\u2014.\-]\s*",
+    re.IGNORECASE,
+)
 _TEXT_TABLE_RE = re.compile(r"^\|?.+\|.+\|?.*$")
 _TABLE_SEP_RE = re.compile(r"^\|?\s*:?-{2,}:?(\s*\|\s*:?-{2,}:?)*\s*\|?$")
 _ASCII_SEP_RE = re.compile(r"^\+[-=+\s]+\+?$")
@@ -245,6 +263,15 @@ def _reordenar_secoes(db: Session, rel_id: int) -> None:
         sec.ordem = ordem
 
 
+def _finalizar_persistencia_importacao(txdb: Session, rel_id: int) -> None:
+    """Reordena as secoes e consolida referencias textuais ("Figura 4.1",
+    "Tabela 4-1", "Secao X.Y") em marcadores estaveis ``[[REF:..]]``,
+    protegendo as referencias contra renumeracoes futuras. Deve rodar apos
+    todos os blocos da importacao terem sido inseridos."""
+    _reordenar_secoes(txdb, rel_id)
+    consolidar_referencias(txdb, rel_id)
+
+
 def _truncate_preview(text: str, limit: int = _PREVIEW_MAX_CHARS) -> str:
     s = (text or "").strip()
     if len(s) <= limit:
@@ -268,7 +295,7 @@ def _segmentar_texto(linhas: list[str]) -> list[dict]:
 
     def _flush_list():
         if list_buf:
-            preview = "; ".join(item.lstrip("- ").strip() for item in list_buf if item.strip())
+            preview = "; ".join(list_line_body(item) for item in list_buf if item.strip())
             segs.append({"kind": "lista", "preview": _truncate_preview(preview), "count": len(list_buf)})
             list_buf.clear()
 
@@ -286,9 +313,9 @@ def _segmentar_texto(linhas: list[str]) -> list[dict]:
             _flush_list()
             segs.append({"kind": "subtitulo", "preview": _truncate_preview(line[3:].strip()), "count": 1})
             continue
-        if line.startswith("- "):
+        if line_is_list_item(raw):
             _flush_par()
-            list_buf.append(line)
+            list_buf.append(raw)
             continue
         # Fim de uma lista interrompida por parágrafo.
         _flush_list()
@@ -477,7 +504,7 @@ def _flush_text(blocks: list[dict], sec: Secao, linhas: list[str], destino: Seca
             _flush_text(blocks, sec, pending, destino)
         linhas.clear()
         return
-    tipo = "lista" if all(ln.strip().startswith("-") for ln in clean) else "texto"
+    tipo = "lista" if block_is_homogeneous_list(clean) else "texto"
     block = _block_base(sec, destino)
     block.update(
         {
@@ -650,6 +677,106 @@ def _section_from_heading(secoes: list[Secao], text: str):
     return _match_secao_linha(secoes, text, heading_context=True)
 
 
+def _get_w_int_attr(p_el, local: str) -> int:
+    if p_el is None:
+        return 0
+    ch = p_el.find(qn(f"w:{local}"))
+    if ch is None:
+        return 0
+    a = ch.get(qn("w:val")) or ch.get("val")
+    if a is None:
+        return 0
+    try:
+        return int(a)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _get_w_numpr(paragraph: Paragraph) -> tuple[int, int] | None:
+    ppr = paragraph._p.find(qn("w:pPr"))
+    if ppr is None:
+        return None
+    numpr = ppr.find(qn("w:numPr"))
+    if numpr is None:
+        return None
+    return _get_w_int_attr(numpr, "ilvl"), _get_w_int_attr(numpr, "numId")
+
+
+def _read_numfmt_from_docx(document: Document, num_id: int, ilvl: int) -> str:
+    out = "decimal"
+    np = getattr(document.part, "numbering_part", None)
+    if np is None:
+        return out
+    try:
+        root = np._element
+        abs_id: str | None = None
+        for num in root.iter(qn("w:num")):
+            a = num.get(qn("w:numId")) or num.get("numId")
+            if a is not None and int(a) == int(num_id):
+                an = num.find(qn("w:abstractNumId"))
+                if an is not None:
+                    abs_id = (an.get(qn("w:val")) or an.get("val") or "0")
+                break
+        if abs_id is not None:
+            for ab in root.iter(qn("w:abstractNum")):
+                a = ab.get(qn("w:abstractNumId")) or ab.get("abstractNumId")
+                if a is None or str(a) != str(abs_id):
+                    continue
+                for lvl in ab.iter(qn("w:lvl")):
+                    li = (lvl.get(qn("w:ilvl")) or lvl.get("ilvl") or "0")
+                    if int(li) != int(ilvl):
+                        continue
+                    nfmt = lvl.find(qn("w:numFmt"))
+                    if nfmt is not None:
+                        v = nfmt.get(qn("w:val")) or nfmt.get("val")
+                        out = (v or "decimal").lower()
+                break
+    except (OSError, ValueError, TypeError, AttributeError):
+        out = "decimal"
+    return out
+
+
+def _romano_curto_m(n: int) -> str:
+    if n < 1:
+        return "i"
+    p = 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1
+    s = "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"
+    t, out = n, []
+    for v, ch in zip(p, s):
+        while t >= v:
+            t -= v
+            out.append(ch)
+    return "".join(out)
+
+
+def _word_list_canonical_line(
+    text: str, ilvl: int, nfmt: str, num_id: int, counters: dict[tuple[int, int], int]
+) -> str:
+    nfmt = (nfmt or "decimal").lower()
+    sp = "  " * int(ilvl)
+    body = text.lstrip()
+    if nfmt in ("bullet", "none", "symbol", "image", "picture"):
+        return f"{sp}- {body}"
+    key = (int(num_id), int(ilvl))
+    counters[key] = counters.get(key, 0) + 1
+    n = counters[key]
+    if nfmt in ("decimal", "ordinal", "000"):
+        line = f"{sp}{n}. {body}"
+    elif nfmt in ("lowerletter", "lowletter", "lowercaseletter"):
+        ch = ascii_lowercase[(n - 1) % 26] if n <= 26 else "z"
+        line = f"{sp}{ch}) {body}"
+    elif nfmt in ("upperletter", "uppercaseletter", "caps"):
+        ch = ascii_uppercase[(n - 1) % 26] if n <= 26 else "Z"
+        line = f"{sp}{ch}) {body}"
+    elif nfmt in ("lowerroman", "roman"):
+        line = f"{sp}{_romano_curto_m(n)}. {body}"
+    elif nfmt in ("upperroman",):
+        line = f"{sp}{_romano_curto_m(n).upper()}. {body}"
+    else:
+        line = f"{sp}{n}. {body}"
+    return line
+
+
 def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]:
     document = Document(BytesIO(raw))
     secoes = _secoes_taxonomia(db, rel_id)
@@ -663,6 +790,7 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
     last_media_idx: int | None = None
     pending_table_legenda = ""
     pending_table_fonte = ""
+    word_list_counters: dict[tuple[int, int], int] = {}
 
     for element in _iter_docx_blocks(document):
         if isinstance(element, Table):
@@ -739,6 +867,15 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             last_media_idx = None
             continue
 
+        w_num = _get_w_numpr(element)
+        if w_num is not None:
+            il, nid = w_num
+            numfmt_word = _read_numfmt_from_docx(document, nid, il)
+            if buf and not all(line_is_list_item(ln) for ln in buf):
+                _flush_text(blocks, current_sec, buf, current_destino)
+            buf.append(_word_list_canonical_line(text, il, numfmt_word, nid, word_list_counters))
+            continue
+
         style = (element.style.name or "").lower() if element.style else ""
         if style.startswith("heading") or style.startswith("título"):
             sec_destino = _section_from_heading(secoes, text)
@@ -762,11 +899,11 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             continue
 
         if "list" in style or "lista" in style:
-            if buf and not all(ln.strip().startswith("-") for ln in buf):
+            if buf and not all(line_is_list_item(ln) for ln in buf):
                 _flush_text(blocks, current_sec, buf, current_destino)
             buf.append("- " + text.lstrip("-•· "))
         else:
-            if buf and all(ln.strip().startswith("-") for ln in buf):
+            if buf and all(line_is_list_item(ln) for ln in buf):
                 _flush_text(blocks, current_sec, buf, current_destino)
             buf.append(text)
 
@@ -784,26 +921,60 @@ async def analisar_importacao(
 ):
     _check(request, db, rel_id, sec_id)
     nome = arquivo.filename or ""
-    process_id = process_start(request, "Análise de importação", f"Lendo {nome or 'arquivo enviado'}")
+    process_id = process_start(
+        request,
+        "Análise de importação",
+        f"Leitura do arquivo {nome or 'enviado'}; em seguida, o conteúdo proposto é exibido para revisão.",
+        data={"process_key": "importacao_assistida_analise"},
+    )
     raw = await arquivo.read()
     if len(raw) > 5_000_000:
-        process_done(request, process_id, "Arquivo recusado", "Arquivo muito grande para importação assistida.", ok=False)
+        process_done(
+            request,
+            process_id,
+            "Arquivo recusado",
+            "Arquivo muito grande para importação assistida.",
+            ok=False,
+            process_key="importacao_assistida_analise",
+        )
         raise HTTPException(400, detail="Arquivo muito grande para importação assistida.")
     if nome.lower().endswith(".docx"):
-        process_log(request, process_id, "Extraindo parágrafos, tabelas e imagens do DOCX.")
+        process_log(
+            request,
+            process_id,
+            "Extraem-se parágrafos, tabelas e imagens do ficheiro Word, segundo a organização do documento.",
+            etapa="Leitura e interpretação do documento Office",
+            tarefa="Análise de importação",
+            progresso_tarefa=50,
+            progresso_geral=42,
+        )
         blocks = _parse_docx(raw, db, rel_id, sec_id)
-        process_done(request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).")
+        process_done(
+            request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
+        )
         return JSONResponse({"blocks": blocks, "total": len(blocks)})
     if nome.lower().endswith(".txt"):
-        process_log(request, process_id, "Decodificando TXT e classificando blocos por seção.")
+        process_log(
+            request,
+            process_id,
+            "O texto é lido, é normalizado e é repartido em blocos, associados, quando cabível, às seções abertas.",
+            etapa="Tratamento do ficheiro de texto",
+            tarefa="Análise de importação",
+            progresso_tarefa=55,
+            progresso_geral=48,
+        )
         try:
             texto = raw.decode("utf-8-sig")
         except UnicodeDecodeError:
             texto = raw.decode("latin-1")
         blocks = _parse_import_text(texto, db, rel_id, sec_id)
-        process_done(request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).")
+        process_done(
+            request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
+        )
         return JSONResponse({"blocks": blocks, "total": len(blocks)})
-    process_done(request, process_id, "Arquivo recusado", "Formato inválido para importação.", ok=False)
+    process_done(
+        request, process_id, "Arquivo recusado", "Formato inválido para importação.", ok=False, process_key="importacao_assistida_analise"
+    )
     raise HTTPException(400, detail="Envie um arquivo .txt ou .docx.")
 
 
@@ -817,7 +988,12 @@ async def confirmar_importacao(
     user, sec_atual = _check(request, db, rel_id, sec_id)
     payload = await request.json()
     blocks = payload.get("blocks") or []
-    process_id = process_start(request, "Confirmação de importação", "Validando blocos selecionados.")
+    process_id = process_start(
+        request,
+        "Confirmação de importação",
+        "Conferência dos blocos selecionados e gravação no relatório, em uma única transação.",
+        data={"process_key": "importacao_assistida_confirmar"},
+    )
     selected_items = [item for item in blocks if item.get("selecionado", True)]
 
     structural_keys: set[tuple[str, str]] = set()
@@ -857,9 +1033,19 @@ async def confirmar_importacao(
         ordens: dict[int, int] = {}
         for secao_id, ordem_atual in ordem_rows:
             ordens[secao_id] = max(ordens.get(secao_id, 0), (ordem_atual or -1) + 1)
-        process_log(request, process_id, f"{len(selected_items)} bloco(s) selecionado(s) para gravação.")
+        process_log(
+            request,
+            process_id,
+            f"Validam-se regras e alocam-se {len(selected_items)} bloco(s) selecionado(s) antes de qualquer inserção na base; eventuais ajustes de seções ocorrem nesta fase.",
+            etapa="Validação da seleção e preparação",
+            tarefa="Confirmação de importação",
+            progresso_tarefa=15,
+            progresso_geral=18,
+        )
 
-        for item, sec in resolved_items:
+        n_blocos = len(resolved_items)
+        g_marca = -1
+        for idx, (item, sec) in enumerate(resolved_items):
             tipo = (item.get("tipo") or "texto").strip().lower()
             if tipo not in VALID_TYPES:
                 tipo = "texto"
@@ -898,13 +1084,32 @@ async def confirmar_importacao(
             if sec.status == "pendente":
                 sec.status = "em_andamento"
             created += 1
+            if n_blocos:
+                t_pct = 16 + int(round(83 * (idx + 1) / n_blocos))
+                g_pct = 20 + int(round(78 * (idx + 1) / n_blocos))
+                t_pct = min(99, max(1, t_pct))
+                g_pct = min(99, max(1, g_pct))
+                marca = (idx + 1) * 100 // n_blocos
+                if marca != g_marca or idx == 0 or idx == n_blocos - 1:
+                    g_marca = marca
+                    process_log(
+                        request,
+                        process_id,
+                        f"Grava-se o bloco {idx + 1} de {n_blocos} e consolidam-se referências na secção.",
+                        etapa="Gravação de blocos",
+                        tarefa="Confirmação de importação",
+                        progresso_tarefa=t_pct,
+                        progresso_geral=g_pct,
+                    )
 
         txdb.flush()
-        _reordenar_secoes(txdb, rel_id)
+        _finalizar_persistencia_importacao(txdb, rel_id)
 
     detalhe = f"{created} bloco(s) criado(s)."
     structural_changes = len(structural_keys)
     if structural_changes:
         detalhe += f" {structural_changes} ajuste(s) de seção aplicado(s)."
-    process_done(request, process_id, "Importação concluída", detalhe)
+    process_done(
+        request, process_id, "Importação concluída", detalhe, process_key="importacao_assistida_confirmar"
+    )
     return JSONResponse({"created": created, "section_changes": structural_changes})

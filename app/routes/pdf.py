@@ -8,6 +8,7 @@ from ..auth import current_user
 from ..docx_render import render_docx
 from ..pdf_render import render_pdf, render_html
 from ..process_events import process_done, process_log, process_start
+from .pages import response_dashboard, response_login
 
 router = APIRouter()
 
@@ -35,15 +36,28 @@ def _section_filter(rel: Relatorio, escopo: str, secao_ids: list[int]) -> set[in
 def gerar_pdf(rel_id: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
-        raise HTTPException(303, headers={"Location": "/login"})
+        return response_login(request)
     rel = _get_relatorio_completo(db, rel_id)
     if not rel:
         raise HTTPException(404)
-    process_id = process_start(request, "Geração de PDF", f"Montando {rel.codigo}-{rel.versao}.")
-    process_log(request, process_id, "Renderizando HTML e convertendo com WeasyPrint.")
+    process_id = process_start(
+        request,
+        "Geração de PDF",
+        f"Composição do ficheiro final a partir de {rel.codigo}-{rel.versao}.",
+        data={"process_key": "gerar_pdf"},
+    )
+    process_log(
+        request,
+        process_id,
+        "O conteúdo em HTML do relatório é composto e convertido em PDF (WeasyPrint), com aplicação da folha de estilos do contrato.",
+        etapa="Conversão para PDF",
+        tarefa="Geração de PDF",
+        progresso_tarefa=55,
+        progresso_geral=48,
+    )
     pdf = render_pdf(db, rel)
     fname = f"{rel.codigo}-{rel.versao}.pdf"
-    process_done(request, process_id, "PDF pronto", fname)
+    process_done(request, process_id, "PDF pronto", fname, process_key="gerar_pdf")
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -55,13 +69,20 @@ def gerar_pdf(rel_id: int, request: Request, db: Session = Depends(get_db)):
 def preview_html(rel_id: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
-        raise HTTPException(303, headers={"Location": "/login"})
+        return response_login(request)
     rel = _get_relatorio_completo(db, rel_id)
     if not rel:
-        raise HTTPException(404)
-    process_id = process_start(request, "Pré-visualização", f"Renderizando HTML de {rel.codigo}.")
+        return response_dashboard(request, db)
+    process_id = process_start(
+        request,
+        "Pré-visualização em HTML",
+        f"Geração da página a partir de {rel.codigo}.",
+        data={"process_key": "preview_html"},
+    )
     html = render_html(db, rel)
-    process_done(request, process_id, "Pré-visualização pronta", f"{rel.codigo}-{rel.versao}")
+    process_done(
+        request, process_id, "Pré-visualização pronta", f"{rel.codigo}-{rel.versao}", process_key="preview_html"
+    )
     return HTMLResponse(html)
 
 
@@ -76,21 +97,42 @@ def exportar_relatorio(
 ):
     user = current_user(request, db)
     if not user:
-        raise HTTPException(303, headers={"Location": "/login"})
+        return response_login(request)
     rel = _get_relatorio_completo(db, rel_id)
     if not rel:
         raise HTTPException(404)
     section_ids = _section_filter(rel, escopo, secao_ids)
     suffix = "-secoes" if section_ids else ""
-    process_id = process_start(request, "Exportação de relatório", f"Formato: {formato.upper()}.")
+    process_id = process_start(
+        request,
+        "Exportação de relatório",
+        f"Formato pretendido: {formato.upper()}.",
+        data={"process_key": "exportar_relatorio"},
+    )
     if section_ids:
-        process_log(request, process_id, f"Exportando {len(section_ids)} seção(ões) selecionada(s).")
+        process_log(
+            request,
+            process_id,
+            f"O âmbito restringe-se a {len(section_ids)} secção(ões) selecionada(s) antes de gerar o ficheiro.",
+            etapa="Definição do âmbito",
+            tarefa="Exportação de relatório",
+            progresso_tarefa=30,
+            progresso_geral=25,
+        )
     else:
-        process_log(request, process_id, "Exportando relatório inteiro.")
+        process_log(
+            request,
+            process_id,
+            "Exporta-se o relatório completo, sem exclusão de secções, no formato solicitado.",
+            etapa="Definição do âmbito",
+            tarefa="Exportação de relatório",
+            progresso_tarefa=30,
+            progresso_geral=25,
+        )
     if formato == "pdf":
         pdf = render_pdf(db, rel, section_ids)
         fname = f"{rel.codigo}-{rel.versao}{suffix}.pdf"
-        process_done(request, process_id, "Exportação pronta", fname)
+        process_done(request, process_id, "Exportação pronta", fname, process_key="exportar_relatorio")
         return Response(
             content=pdf,
             media_type="application/pdf",
@@ -99,11 +141,13 @@ def exportar_relatorio(
     if formato == "docx":
         docx = render_docx(db, rel, section_ids)
         fname = f"{rel.codigo}-{rel.versao}{suffix}.docx"
-        process_done(request, process_id, "Exportação pronta", fname)
+        process_done(request, process_id, "Exportação pronta", fname, process_key="exportar_relatorio")
         return Response(
             content=docx,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": f'attachment; filename="{fname}"'},
         )
-    process_done(request, process_id, "Exportação recusada", "Formato inválido.", ok=False)
+    process_done(
+        request, process_id, "Exportação recusada", "Formato inválido.", ok=False, process_key="exportar_relatorio"
+    )
     raise HTTPException(400, detail="Formato de exportação inválido.")

@@ -17,6 +17,8 @@ As instrucoes canonicas estao em:
 1. **Convencoes de codigo e dominio** descritas em `.github/copilot-instructions.md` (secoes "Convencoes De Codigo", "Modelo De Dominio", "Regras De Permissao", "Fluxos Principais").
 2. **Linters configurados** (`flake8`, `pylint`, `djlint`) com configuracao canonica em `pyproject.toml`. A aba Problemas do Cursor deve ficar zerada para os arquivos alterados antes de concluir. Detalhes na secao "Linting E Formatacao".
 3. **Validacao obrigatoria** descrita na secao "Validacao Obrigatoria" do mesmo arquivo: releitura integral dos arquivos alterados, checagem de Problemas, validacao objetiva (import, render, snippet) e relato final do que foi feito.
+4. **Documentacao viva**: se uma mudanca alterar funcionalidade, dominio, permissao, arquitetura, rotas, importacao, PDF, deploy ou tarefas de desenvolvimento de modo relevante, atualize `.github/copilot-instructions.md` na mesma entrega.
+5. **Ferramentas de navegador**: para tarefas de UI/fluxo web, use MCP de navegador, Playwright ou Puppeteer quando disponiveis, conforme o padrao em `.github/copilot-instructions.md`.
 
 ## Setup Local Minimo
 

@@ -1,208 +1,426 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>{% block title %}{{ user and user.nome or 'SRA' }}{% endblock %} · SRA</title>
-<link rel="stylesheet" href="/static/css/app.css" />
-</head>
-<body>
-{% if user %}
-<aside id="sb">
-  <div id="sb-hdr">
-    <h1>SRA · PLI-SP</h1>
-    <p>Sistema de Relatórios de Atividades<br>Concremat–Transplan</p>
-  </div>
-  <nav>
-    <span class="sb-sep">Navegação</span>
-    <a class="ni {% if request.url.path == '/dashboard' %}active{% endif %}" href="/dashboard">
-      <span class="num">01</span><span class="nlbl">Relatórios</span>
-    </a>
-    {% if user.role in ['admin','coordenador'] %}
-    <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
-      <span class="num">02</span><span class="nlbl">Usuários</span>
-    </a>
-    {% else %}
-    <a class="ni {% if request.url.path.startswith('/usuarios') %}active{% endif %}" href="/usuarios">
-      <span class="num">02</span><span class="nlbl">Usuários</span>
-    </a>
-    {% endif %}
-  </nav>
-  <div id="sb-foot">
-    {{ user.nome }}<br>
-    <span class="sb-role">{{ user.role }}</span><br>
-    <a href="/logout" class="sb-logout">Sair</a>
-  </div>
-</aside>
-<div id="main">
-  <header id="dh">
-    <h2>{% block header %}{% endblock %}</h2>
-    <div class="session-bar" title="Sessão atual">
-      <span class="sf"><span class="sf-lbl">Nome</span><span class="sf-val">{{ user.nome }}</span></span>
-      <span class="sf"><span class="sf-lbl">E-mail</span><span class="sf-val">{{ user.email }}</span></span>
-      <span class="sf"><span class="sf-lbl">Perfil</span><span class="sf-val sf-role">{{ user.role }}</span></span>
-    </div>
-    <button type="button" id="process-open" class="process-open" title="Abrir processos e logs">
-      <span id="process-signal" class="process-signal is-idle" aria-hidden="true">
-        <span class="sig sig-ok"></span><span class="sig sig-warn"></span><span class="sig sig-danger"></span>
-      </span>
-      <span id="process-label">Pronto</span>
-    </button>
-    <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
-  </header>
-  <div id="content">
-    {% block content %}{% endblock %}
-  </div>
-</div>
-<div id="process-toasts" class="process-toasts" aria-live="polite"></div>
-<div id="process-modal" class="process-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="process-modal-title">
-  <div class="process-box">
-    <div class="process-head">
-      <strong id="process-modal-title">Processos e logs</strong>
-      <div class="process-head-actions">
-        <button type="button" id="process-clear" class="secondary">Limpar</button>
-        <button type="button" id="process-close" class="process-close" aria-label="Fechar">×</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% block title %}{{ user and user.nome or 'SRA' }}{% endblock %}
+    · SRA</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/css/app.css" />
+    {% if user %}<script src="/static/js/sra_process_ui.js"></script>{% endif %}
+  </head>
+  <body>
+    {% if user %}
+      <aside id="sb">
+        <div id="sb-hdr">
+          <h1>SRA · PLI-SP</h1>
+          <p>
+            Sistema de Relatórios de Atividades
+            <br>
+            Concremat–Transplan
+          </p>
+        </div>
+        <nav>
+          <span class="sb-sep">Navegação</span>
+          <a class="ni {% if request.url.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+            <span class="num">01</span><span class="nlbl">Relatórios</span>
+          </a>
+          {% if user.role in ['admin','coordenador'] %}
+            <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
+              <span class="num">02</span><span class="nlbl">Usuários</span>
+            </a>
+          {% else %}
+            <a class="ni {% if request.url.path.startswith('/usuarios') %}active{% endif %}" href="/usuarios">
+              <span class="num">02</span><span class="nlbl">Usuários</span>
+            </a>
+          {% endif %}
+        </nav>
+        <div id="sb-foot">
+          {{ user.nome }}
+          <br>
+          <span class="sb-role">{{ user.role }}</span>
+          <br>
+          <a href="/logout" class="sb-logout">Sair</a>
+        </div>
+      </aside>
+      <div id="main">
+        <header id="dh">
+          <h2>
+            {% block header %}{% endblock %}
+          </h2>
+          <div class="session-bar" title="Sessão atual">
+            <span class="sf"><span class="sf-lbl">Nome</span><span class="sf-val">{{ user.nome }}</span></span>
+            <span class="sf"><span class="sf-lbl">E-mail</span><span class="sf-val">{{ user.email }}</span></span>
+            <span class="sf"><span class="sf-lbl">Perfil</span><span class="sf-val sf-role">{{ user.role }}</span></span>
+          </div>
+          <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
+        </header>
+        <div id="content">
+          {% block content %}{% endblock %}
+        </div>
       </div>
-    </div>
-    <div class="process-body" id="process-log-list"></div>
-  </div>
-</div>
-{% else %}
-<div id="auth-wrap">
-  {% block auth %}{% endblock %}
-</div>
-{% endif %}
-{% if user %}
-<script>
+      <div id="process-toasts" class="process-toasts" aria-live="polite"></div>
+      {% include "complementos/modal_processo_confirmacao.html" %}
+      {% include "complementos/modal_processo_acompanhamento.html" %}
+      {% include "complementos/modal_status_sucesso.html" %}
+      {% include "complementos/modal_status_ressalvas.html" %}
+      {% include "complementos/modal_status_falha.html" %}
+    {% else %}
+      <div id="auth-wrap">
+        {% block auth %}{% endblock %}
+      </div>
+    {% endif %}
+    {% if user %}
+      <script>
 (function(){
-  const signal = document.getElementById('process-signal');
-  const label = document.getElementById('process-label');
-  const openBtn = document.getElementById('process-open');
-  const modal = document.getElementById('process-modal');
-  const closeBtn = document.getElementById('process-close');
-  const clearBtn = document.getElementById('process-clear');
-  const list = document.getElementById('process-log-list');
+  const sraTrackWrap = document.getElementById('sra-cpl-track');
+  const elTrackTarefa = document.getElementById('sra-cpl-now-tarefa');
+  const elTrackSub = document.getElementById('sra-cpl-now-sub');
+  const elTrackSubWrap = document.getElementById('sra-cpl-now-sub-wrap');
+  const elTrackMsg = document.getElementById('sra-cpl-now-msg');
+  const elTrackHdrSub = document.getElementById('sra-cpl-track-sub');
+  const elBarGeral = document.getElementById('sra-cpl-bar-geral');
+  const elBarGeralFill = document.getElementById('sra-cpl-bar-geral-fill');
+  const elBarTarefa = document.getElementById('sra-cpl-bar-tarefa');
+  const elBarTarefaFill = document.getElementById('sra-cpl-bar-tarefa-fill');
+  const elPctGeral = document.getElementById('sra-cpl-pct-geral');
+  const elPctTarefa = document.getElementById('sra-cpl-pct-tarefa');
   const toasts = document.getElementById('process-toasts');
-  const active = new Set();
-  let lastStatus = 'idle';
+  const trackState = { lastTarefa: {}, lastGeral: {}, lastTarefaPct: {} };
+  /** Evita o mesmo fim de processo duas vezes (ex.: HTML após redirect + replay SSE). */
+  const omitSseFim = {};
 
   function esc(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const s = String(value == null ? '' : value);
+    return s
+      .replace(new RegExp('&', 'g'), '&amp;')
+      .replace(new RegExp('<', 'g'), '&lt;')
+      .replace(new RegExp('>', 'g'), '&gt;')
+      .replace(new RegExp('"', 'g'), '&quot;');
   }
 
-  function setSignal(status, text) {
-    lastStatus = status || 'idle';
-    signal.className = 'process-signal is-' + lastStatus;
-    label.textContent = text || (lastStatus === 'working' ? 'Processando' : lastStatus === 'danger' ? 'Atenção' : 'Pronto');
+  function clampPct100(n) {
+    const x = Math.round(Number(n));
+    if (Number.isNaN(x)) return 0;
+    return Math.max(0, Math.min(100, x));
   }
 
-  function syncSignal() {
-    if (active.size) setSignal('working', active.size + ' em curso');
-    else if (lastStatus !== 'danger') setSignal('idle', 'Pronto');
+  function setOneBar(wrap, fill, pctEl, n) {
+    if (!wrap || !fill || !pctEl) return;
+    const p = clampPct100(n);
+    fill.style.width = p + '%';
+    pctEl.textContent = p + '%';
+    wrap.setAttribute('aria-valuenow', String(p));
   }
 
-  function logEvent(ev) {
-    if (!list) return;
-    const row = document.createElement('div');
-    row.className = 'process-log-row is-' + (ev.status || 'info');
-    row.innerHTML = '<span class="process-log-time">' + esc((ev.ts || '').replace('T', ' ').replace('Z', '')) + '</span>' +
-      '<span class="process-log-kind">' + esc(ev.kind || 'log') + '</span>' +
-      '<span class="process-log-text"><strong>' + esc(ev.title || '') + '</strong>' +
-      (ev.message ? '<em>' + esc(ev.message) + '</em>' : '') + '</span>';
-    list.appendChild(row);
-    while (list.children.length > 160) list.removeChild(list.firstElementChild);
-    list.scrollTop = list.scrollHeight;
+  function mostrarModalFimProcesso(d) {
+    const ids = ['sra-cpl-track', 'sra-cpl-confirm', 'sra-cpl-status-ok', 'sra-cpl-status-partial', 'sra-cpl-status-fail'];
+    ids.forEach(function (rid) {
+      const w = document.getElementById(rid);
+      if (w) w.classList.add('is-hidden');
+    });
+    const out = d.outcome;
+    if (out === 'success') {
+      const t = document.getElementById('sra-cpl-status-ok-title');
+      const m = document.getElementById('sra-cpl-status-ok-message');
+      const de = document.getElementById('sra-cpl-status-ok-detail');
+      const dw = document.getElementById('sra-cpl-status-ok-detail-wrap');
+      if (t) t.textContent = d.titulo || 'Operação concluída';
+      if (m) m.textContent = d.mensagem || '';
+      const det = (d.detalhe || '').trim();
+      if (de) de.textContent = det;
+      if (dw) {
+        dw.classList.toggle('is-hidden', !det);
+        dw.setAttribute('aria-hidden', det ? 'false' : 'true');
+      }
+      const ok = document.getElementById('sra-cpl-status-ok');
+      if (ok) ok.classList.remove('is-hidden');
+      return;
+    }
+    if (out === 'partial') {
+      const t = document.getElementById('sra-cpl-status-partial-title');
+      const m = document.getElementById('sra-cpl-status-partial-message');
+      const de = document.getElementById('sra-cpl-status-partial-detail');
+      const dw = document.getElementById('sra-cpl-status-partial-detail-wrap');
+      if (t) t.textContent = d.titulo || 'Conclusão com ressalvas';
+      if (m) m.textContent = d.mensagem || '';
+      const det = (d.detalhe || '').trim();
+      if (de) de.textContent = det;
+      if (dw) {
+        dw.classList.toggle('is-hidden', !det);
+        dw.setAttribute('aria-hidden', det ? 'false' : 'true');
+      }
+      const el = document.getElementById('sra-cpl-status-partial');
+      if (el) el.classList.remove('is-hidden');
+      return;
+    }
+    const t = document.getElementById('sra-cpl-status-fail-title');
+    const m = document.getElementById('sra-cpl-status-fail-error');
+    const de = document.getElementById('sra-cpl-status-fail-detail');
+    const h = document.getElementById('sra-cpl-status-fail-hint');
+    const dw = document.getElementById('sra-cpl-status-fail-detail-wrap');
+    if (t) t.textContent = d.titulo || 'Operação interrompida';
+    if (m) m.textContent = d.mensagem || '';
+    const det = (d.detalhe || '').trim();
+    if (de) de.textContent = det;
+    if (h) h.textContent = d.recomendacao || h.textContent;
+    if (dw) {
+      dw.classList.toggle('is-hidden', !det);
+      dw.setAttribute('aria-hidden', det ? 'false' : 'true');
+    }
+    const f = document.getElementById('sra-cpl-status-fail');
+    if (f) f.classList.remove('is-hidden');
+  }
+
+  function atualizarAcompanhamentoTratado(ev) {
+    if (ev.kind === 'server_log' || ev.kind === 'connection') return;
+    if (!ev.data || ev.data.channel !== 'process') return;
+    if (ev.kind !== 'log' && ev.kind !== 'process') return;
+    if (!sraTrackWrap) return;
+    ['sra-cpl-status-ok', 'sra-cpl-status-partial', 'sra-cpl-status-fail', 'sra-cpl-confirm'].forEach(function (rid) {
+      var w = document.getElementById(rid);
+      if (w) w.classList.add('is-hidden');
+    });
+    sraTrackWrap.classList.remove('is-hidden');
+    const d = ev.data;
+    const pid = ev.process_id;
+    if (d.tarefa) {
+      trackState.lastTarefa[pid] = d.tarefa;
+    }
+    const nomeTarefa = d.tarefa || trackState.lastTarefa[pid] || (ev.status === 'working' ? ev.title : '') || '—';
+    if (elTrackTarefa) elTrackTarefa.textContent = nomeTarefa;
+    const rawSub = (d.subtarefa != null && String(d.subtarefa).trim()) ? String(d.subtarefa).trim() : '';
+    if (elTrackSub && elTrackSubWrap) {
+      if (rawSub) {
+        elTrackSub.textContent = rawSub;
+        elTrackSubWrap.classList.remove('is-hidden');
+        elTrackSubWrap.setAttribute('aria-hidden', 'false');
+      } else {
+        elTrackSubWrap.classList.add('is-hidden');
+        elTrackSubWrap.setAttribute('aria-hidden', 'true');
+      }
+    }
+    let linha = (ev.message || '').trim();
+    if (!linha && d.mensagem) {
+      linha = String(d.mensagem).trim();
+    }
+    if (elTrackMsg) elTrackMsg.textContent = linha || (ev.title || '—');
+    if (elTrackHdrSub && d.process_key) {
+      elTrackHdrSub.textContent = d.process_key;
+      elTrackHdrSub.classList.remove('is-hidden');
+      elTrackHdrSub.setAttribute('aria-hidden', 'false');
+    } else if (elTrackHdrSub && !d.process_key) {
+      elTrackHdrSub.classList.add('is-hidden');
+      elTrackHdrSub.setAttribute('aria-hidden', 'true');
+    }
+    const gDef = d.progresso_geral !== undefined && d.progresso_geral !== null;
+    const tDef = d.progresso_tarefa !== undefined && d.progresso_tarefa !== null;
+    if (gDef) {
+      trackState.lastGeral[pid] = clampPct100(d.progresso_geral);
+    }
+    if (tDef) {
+      trackState.lastTarefaPct[pid] = clampPct100(d.progresso_tarefa);
+    }
+    const gV = trackState.lastGeral[pid] != null ? trackState.lastGeral[pid] : 0;
+    const tV = trackState.lastTarefaPct[pid] != null ? trackState.lastTarefaPct[pid] : 0;
+    setOneBar(elBarGeral, elBarGeralFill, elPctGeral, gV);
+    setOneBar(elBarTarefa, elBarTarefaFill, elPctTarefa, tV);
+  }
+
+  function notificacaoPodeExibirToast(ev) {
+    if (!toasts) return false;
+    if (ev.kind === 'server_log' && ev.level === 'info') return false;
+    if (ev.data && ev.data.channel === 'process') return false;
+    return true;
   }
 
   function toast(ev) {
-    if (!toasts || ev.kind === 'server_log' && ev.level === 'info') return;
+    if (!notificacaoPodeExibirToast(ev)) return;
     const item = document.createElement('div');
     item.className = 'process-toast is-' + (ev.status || 'info');
-    item.innerHTML = '<strong>' + esc(ev.title || 'Processo') + '</strong>' + (ev.message ? '<span>' + esc(ev.message) + '</span>' : '');
+    item.innerHTML = '<strong>' + esc(ev.title || 'Aviso') + '</strong>' + (ev.message ? '<span>' + esc(ev.message) + '</span>' : '');
     toasts.appendChild(item);
-    setTimeout(() => item.classList.add('is-out'), 5200);
-    setTimeout(() => item.remove(), 5800);
+    setTimeout(function () { item.classList.add('is-out'); }, 5200);
+    setTimeout(function () { item.remove(); }, 5800);
   }
 
   function receive(ev) {
-    if (!ev || ev.kind === 'connection') { setSignal('idle', 'Pronto'); return; }
-    if (ev.status === 'working') active.add(ev.process_id);
-    if (ev.status === 'success' || ev.status === 'danger') active.delete(ev.process_id);
-    if (ev.status === 'danger') setSignal('danger', 'Atenção');
-    else if (active.size) setSignal('working', active.size + ' em curso');
-    else if (ev.status === 'success') setSignal('idle', 'Concluído');
-    logEvent(ev);
+    if (!ev || ev.kind === 'connection') return;
+    const d = ev.data || {};
+    if (d.channel === 'process' && ev.kind === 'process' && d.outcome && ev.status !== 'working') {
+      const fimPid = ev.process_id;
+      if (fimPid && omitSseFim[fimPid]) {
+        delete omitSseFim[fimPid];
+        if (sraTrackWrap) sraTrackWrap.classList.add('is-hidden');
+        return;
+      }
+      if (sraTrackWrap) sraTrackWrap.classList.add('is-hidden');
+      mostrarModalFimProcesso(d);
+      toast(ev);
+      return;
+    }
+    atualizarAcompanhamentoTratado(ev);
     toast(ev);
-    if (!active.size && ev.status === 'success') setTimeout(syncSignal, 2600);
   }
-
-  openBtn.addEventListener('click', () => modal.classList.remove('is-hidden'));
-  closeBtn.addEventListener('click', () => modal.classList.add('is-hidden'));
-  modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.classList.add('is-hidden'); });
-  clearBtn.addEventListener('click', () => { list.innerHTML = ''; });
 
   window.SRAProcess = {
-    notify(title, message, status) { receive({kind:'client', level:status || 'info', status:status || 'info', title, message, ts:new Date().toISOString(), process_id:'client-' + Date.now()}); },
-    setStatus: setSignal,
-    log(title, message, status) { logEvent({kind:'client', level:status || 'info', status:status || 'info', title, message, ts:new Date().toISOString(), process_id:'client-log'}); },
-    open() { modal.classList.remove('is-hidden'); },
+    notify(title, message, status) {
+      receive({
+        kind: 'client',
+        level: status || 'info',
+        status: status || 'info',
+        title: title,
+        message: message,
+        ts: new Date().toISOString(),
+        process_id: 'client-' + Date.now(),
+        data: { channel: 'notify' },
+      });
+    },
+    setStatus: function () {},
+    log: function (title, message, status) {
+      receive({
+        kind: 'client',
+        level: status || 'info',
+        status: status || 'info',
+        title: title,
+        message: message,
+        ts: new Date().toISOString(),
+        process_id: 'client-log',
+        data: { channel: 'notify' },
+      });
+    },
+    open: function () {},
+    openTrackPendente: function (opts) {
+      /* Abre o modal de acompanhamento antes do primeiro evento SSE (ex.: enquanto o POST corre). */
+      opts = opts || {};
+      const ch = opts.chave || opts.process_key || "";
+      const pendente = {
+        relatorio_criar: {
+          tarefa: "Criação de relatório",
+          mensagem: "A iniciar o processo no servidor; aguarde o avanço abaixo.",
+        },
+      };
+      const def = pendente[ch] || { tarefa: "Acompanhamento do processo", mensagem: "A iniciar a operação no servidor…" };
+      if (!sraTrackWrap) return;
+      ["sra-cpl-confirm", "sra-cpl-status-ok", "sra-cpl-status-partial", "sra-cpl-status-fail"].forEach(function (rid) {
+        const w = document.getElementById(rid);
+        if (w) w.classList.add("is-hidden");
+      });
+      sraTrackWrap.classList.remove("is-hidden");
+      if (elTrackTarefa) {
+        const t1 = opts.tarefa;
+        elTrackTarefa.textContent = t1 != null && String(t1).length ? String(t1) : def.tarefa;
+      }
+      if (elTrackMsg) {
+        const t2 = opts.mensagem;
+        elTrackMsg.textContent = t2 != null && String(t2).length ? String(t2) : def.mensagem;
+      }
+      if (elTrackSubWrap) {
+        elTrackSubWrap.classList.add("is-hidden");
+        elTrackSubWrap.setAttribute("aria-hidden", "true");
+      }
+      if (elTrackHdrSub) {
+        if (ch) {
+          elTrackHdrSub.textContent = ch;
+          elTrackHdrSub.classList.remove("is-hidden");
+          elTrackHdrSub.setAttribute("aria-hidden", "false");
+        } else {
+          elTrackHdrSub.classList.add("is-hidden");
+          elTrackHdrSub.setAttribute("aria-hidden", "true");
+        }
+      }
+      setOneBar(elBarGeral, elBarGeralFill, elPctGeral, 0);
+      setOneBar(elBarTarefa, elBarTarefaFill, elPctTarefa, 0);
+    },
+    mostrarFimAposRedirect: function (payload) {
+      if (!payload || !payload.data) {
+        return;
+      }
+      if (payload.process_id) {
+        omitSseFim[payload.process_id] = true;
+      }
+      if (sraTrackWrap) sraTrackWrap.classList.add('is-hidden');
+      mostrarModalFimProcesso(payload.data);
+    },
   };
-
-  document.addEventListener('submit', (ev) => {
-    const form = ev.target;
-    if (!(form instanceof HTMLFormElement) || form.dataset.noProcessFeedback === '1') return;
-    const btn = form.querySelector('button[type="submit"]:focus') || form.querySelector('button[type="submit"]');
-    const title = (btn && btn.textContent ? btn.textContent.trim() : 'Processo iniciado') || 'Processo iniciado';
-    const pid = 'form-' + Date.now();
-    active.add(pid);
-    setSignal('working', 'Processando');
-    logEvent({kind:'form', level:'info', status:'working', title, message:form.action || location.href, ts:new Date().toISOString(), process_id:pid});
-    setTimeout(() => { active.delete(pid); syncSignal(); }, 8000);
-  }, true);
 
   const nativeFetch = window.fetch;
-  window.fetch = async function(input, init) {
-    const method = String((init && init.method) || 'GET').toUpperCase();
-    const url = typeof input === 'string' ? input : (input && input.url) || '';
-    const track = method !== 'GET';
-    const pid = 'fetch-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-    if (track) {
-      active.add(pid);
-      setSignal('working', 'Processando');
-      logEvent({kind:'fetch', level:'info', status:'working', title:method + ' ' + url, message:'Requisição enviada', ts:new Date().toISOString(), process_id:pid});
+  window.fetch = async function (input, init) {
+    const resp = await nativeFetch.apply(this, arguments);
+    if (resp.status === 401) {
+      window.location.href = '/login';
     }
-    try {
-      const resp = await nativeFetch.apply(this, arguments);
-      if (track) {
-        active.delete(pid);
-        receive({kind:'fetch', level:resp.ok ? 'success' : 'error', status:resp.ok ? 'success' : 'danger', title:method + ' ' + url, message:'HTTP ' + resp.status, ts:new Date().toISOString(), process_id:pid});
-      }
-      if (resp.status === 401) {
-        // Sessão expirada em endpoint JSON: leva o usuário ao login.
-        window.location.href = '/login';
-      }
-      return resp;
-    } catch (err) {
-      if (track) {
-        active.delete(pid);
-        receive({kind:'fetch', level:'error', status:'danger', title:method + ' ' + url, message:err.message || 'Falha na requisição', ts:new Date().toISOString(), process_id:pid});
-      }
-      throw err;
-    }
+    return resp;
   };
 
+  var sseErrorToastMostrado = false;
   try {
     const source = new EventSource('/processos/eventos');
-    source.onmessage = (msg) => { try { receive(JSON.parse(msg.data)); } catch (err) { /* ignora evento inválido */ } };
-    source.onerror = () => setSignal('danger', 'Sem conexão');
-  } catch (err) {
-    setSignal('danger', 'Sem eventos');
-  }
+    source.onmessage = function (msg) {
+      try { receive(JSON.parse(msg.data)); } catch (e) { /* evento inválido */ }
+    };
+    source.onerror = function () {
+      if (!toasts || sseErrorToastMostrado) return;
+      sseErrorToastMostrado = true;
+      const item = document.createElement('div');
+      item.className = 'process-toast is-danger';
+      item.innerHTML = '<strong>Conexão</strong><span>Canal de eventos indisponível. Atualize a página se o problema persistir.</span>';
+      toasts.appendChild(item);
+      setTimeout(function () { item.classList.add('is-out'); }, 7200);
+      setTimeout(function () { item.remove(); }, 7800);
+    };
+  } catch (err) { /* sem EventSource */ }
+  (function trackModalFechar() {
+    if (!sraTrackWrap) return;
+    var c = document.getElementById('sra-cpl-track-close');
+    if (c) {
+      c.addEventListener('click', function () {
+        sraTrackWrap.classList.add('is-hidden');
+      });
+    }
+    sraTrackWrap.addEventListener('click', function (e) {
+      if (e.target === sraTrackWrap) sraTrackWrap.classList.add('is-hidden');
+    });
+  }());
+  (function wireFimStatusModais() {
+    function fecharWrap(wrapId) {
+      const w = document.getElementById(wrapId);
+      if (w) w.classList.add('is-hidden');
+    }
+    [
+      ['sra-cpl-status-ok', 'sra-cpl-status-ok-btn'],
+      ['sra-cpl-status-partial', 'sra-cpl-status-partial-btn'],
+      ['sra-cpl-status-fail', 'sra-cpl-status-fail-btn'],
+    ].forEach(function (pair) {
+      const wid = pair[0];
+      const btn = document.getElementById(pair[1]);
+      if (btn) {
+        btn.addEventListener('click', function () {
+          fecharWrap(wid);
+        });
+      }
+      const wrap = document.getElementById(wid);
+      if (wrap) {
+        wrap.addEventListener('click', function (e) {
+          if (e.target === wrap) fecharWrap(wid);
+        });
+      }
+    });
+  }());
 })();
-</script>
-<script>
+      </script>
+      {% if sra_fim_pendente is defined and sra_fim_pendente %}
+        <script>
+(function () {
+  if (!window.SRAProcess || typeof window.SRAProcess.mostrarFimAposRedirect !== 'function') {
+    return;
+  }
+  window.SRAProcess.mostrarFimAposRedirect({{ sra_fim_pendente | tojson }});
+})();
+        </script>
+      {% endif %}
+      <script>
 (function(){
   function initExportTree(container) {
     const nodes = Array.from(container.querySelectorAll('[data-section-node]'));
@@ -250,7 +468,7 @@
 
   document.querySelectorAll('.export-sections').forEach(initExportTree);
 })();
-</script>
-{% endif %}
-</body>
+      </script>
+    {% endif %}
+  </body>
 </html>

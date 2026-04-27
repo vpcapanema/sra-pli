@@ -1,12 +1,41 @@
 import base64
+import contextlib
 import html as _html
+import os
 import re
+import sys
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from zipfile import ZipFile
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.orm import Session
 from .models import Relatorio, Figura
+
+
+@dataclass(frozen=True)
+class _MapasRef:
+    """Mapas de IDs estaveis para numeros exibidos, usados por
+    ``[[REF:..]]`` no render. Centraliza o trio (figura/tabela/secao) para
+    nao inflar assinaturas das funcoes de render.
+    """
+    figuras: dict[int, str] = field(default_factory=dict)
+    tabelas: dict[int, str] = field(default_factory=dict)
+    secoes: dict[int, str] = field(default_factory=dict)
+
+    def vazio(self) -> bool:
+        return not (self.figuras or self.tabelas or self.secoes)
+
+
+@dataclass(frozen=True)
+class _RenderCtx:
+    """Contexto imutavel compartilhado por todas as chamadas de render dentro
+    de um relatorio: cache de figuras (carregado uma vez) e mapas de
+    referencias estaveis. Mantem assinaturas das funcoes de render curtas.
+    """
+    figuras_by_id: dict[int, "Figura"] = field(default_factory=dict)
+    mapas: _MapasRef = field(default_factory=_MapasRef)
+
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -68,14 +97,48 @@ def _produto_codigo_capa(codigo: str | None) -> str:
 
 _RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
 _RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
+# Marcador estavel emitido por ``app.numeracao.consolidar_referencias`` para
+# referencias textuais a Figura/Tabela/Secao. O alvo e um id estavel
+# (Bloco.id ou Secao.id) e o numero exibido e resolvido em tempo de render
+# usando os mapas calculados em ``_montar_contexto``.
+_RE_REF = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
 
 
 def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
 
 
+def _resolver_referencias(texto: str, mapas: _MapasRef) -> str:
+    """Resolve marcadores ``[[REF:..]]`` para texto humano com o numero atual.
+
+    Se o alvo nao for encontrado (foi excluido), preserva o marcador para
+    sinalizar a inconsistencia ao revisor em vez de produzir "Figura None".
+    """
+    if not texto or "[[REF:" not in texto:
+        return texto
+
+    def _sub(match: re.Match) -> str:
+        tipo = match.group(1)
+        alvo = int(match.group(2))
+        if tipo == "figura":
+            numero = mapas.figuras.get(alvo)
+            if numero:
+                return f"Figura {numero}"
+        elif tipo == "tabela":
+            numero = mapas.tabelas.get(alvo)
+            if numero:
+                return f"Tabela {numero}"
+        elif tipo == "secao":
+            numero = mapas.secoes.get(alvo)
+            if numero:
+                return f"Se\u00e7\u00e3o {numero}"
+        return match.group(0)
+
+    return _RE_REF.sub(_sub, texto)
+
+
 def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
-    """Renderiza apenas o miolo (legenda + <table>) sem o wrapper .tabela."""
+    """Renderiza apenas o miolo: legenda e corpo tabular, sem a envoltura .tabela (wrapper)."""
     linhas_brutas = [ln for ln in (corpo or "").splitlines() if ln.strip()]
 
     def _is_separator(ln: str) -> bool:
@@ -147,54 +210,10 @@ def _render_figura_html(figuras_by_id: dict[int, Figura], fig_id: int, legenda: 
 
 
 def _render_paragrafos_e_listas(texto: str) -> str:
-    """Converte texto bruto (com # / ## / - ) em HTML (h2/h3/ul/p)."""
-    if not texto.strip():
-        return ""
-    linhas = texto.splitlines()
-    out = []
-    i = 0
-    para_buf: list[str] = []
+    """Converte texto bruto (títulos #/##, listas com vários marcadores) em HTML."""
+    from .list_lines import mixed_texto_paragrafos_e_listas_to_html
 
-    def flush_para():
-        if para_buf:
-            par = " ".join(l.strip() for l in para_buf).strip()
-            if par:
-                out.append(f"<p>{_esc(par)}</p>")
-            para_buf.clear()
-
-    while i < len(linhas):
-        ln = linhas[i]
-        stripped = ln.strip()
-        if not stripped:
-            flush_para()
-            i += 1
-            continue
-        m_h1 = re.match(r"^#\s+(.+)$", stripped)
-        m_h2 = re.match(r"^##\s+(.+)$", stripped)
-        m_li = re.match(r"^-\s+(.+)$", stripped)
-        if m_h2:
-            flush_para()
-            out.append(f"<h3>{_esc(m_h2.group(1).strip())}</h3>")
-            i += 1
-        elif m_h1:
-            flush_para()
-            out.append(f"<h2>{_esc(m_h1.group(1).strip())}</h2>")
-            i += 1
-        elif m_li:
-            flush_para()
-            out.append("<ul>")
-            while i < len(linhas):
-                m = re.match(r"^-\s+(.+)$", linhas[i].strip())
-                if not m:
-                    break
-                out.append(f"<li>{_esc(m.group(1).strip())}</li>")
-                i += 1
-            out.append("</ul>")
-        else:
-            para_buf.append(ln)
-            i += 1
-    flush_para()
-    return "".join(out)
+    return mixed_texto_paragrafos_e_listas_to_html(texto)
 
 
 def _figura_ids_no_texto(conteudo: str) -> set[int]:
@@ -216,102 +235,213 @@ def _figura_ids_no_texto(conteudo: str) -> set[int]:
     return ids
 
 
-def _render_texto_html(figuras_by_id: dict[int, Figura], conteudo: str, fig_counter: int, tab_counter: int, sec_numero: str = ""):
-    """Processa marcadores [[FIGURA:..]] e [[TABELA..]] e formatação leve.
+def _label_secao(sec_top: str, n: int) -> str:
+    """Rotulo de figura/tabela ('X.Y' se houver top-level, 'Y' caso contrario)."""
+    return f"{sec_top}.{n}" if sec_top else str(n)
 
-    Retorna (html, fig_counter, tab_counter) atualizados.
-    O índice exibido vem do próprio marker (que já foi composto pelo editor com
-    o primeiro nível da seção, ex.: "4.1", ou um número global no modo "continuar").
-    Se o marker for legado e não trouxer índice, usa contador local da seção.
+
+def _idx_efetivo(idx_raw: str, derivado: str) -> str:
+    """Resolve ``idx`` armazenado em ``[[FIGURA/TABELA:idx|...]]``.
+
+    Valor com ``.`` (ex.: ``4.1``) e descartado em favor do contador atual
+    (modo "por secao"); valor numerico puro e preservado (modo "sequencial
+    global"). Vazio cai no contador local.
+    """
+    if idx_raw and "." not in idx_raw:
+        return idx_raw
+    return derivado
+
+
+def _safe_int(valor: str | None) -> int:
+    """``int(valor)`` tolerante: vazio/invalido vira 0 sem propagar excecao."""
+    try:
+        return int((valor or "").strip())
+    except ValueError:
+        return 0
+
+
+def _parse_figura_marker(match: re.Match) -> tuple[str, int, str, str]:
+    """Decompoe ``[[FIGURA:..]]`` em ``(idx_raw, fid, posicao, legenda)``.
+
+    Suporta os tres formatos historicamente emitidos pela UI:
+      - ``idx | id | pos(S/I) | leg`` (atual)
+      - ``idx | id | leg`` (v2: id numerico em g2)
+      - ``id | leg`` (legado)
+    """
+    g1 = (match.group(1) or "").strip()
+    g2 = match.group(2)
+    g3 = match.group(3)
+    g4 = match.group(4)
+    if g4 is not None and g3 in ("S", "I"):
+        return g1, _safe_int(g2), g3, (g4 or "").strip()
+    if g3 is not None and (g2 or "").isdigit():
+        return g1, _safe_int(g2), "I", (g3 or "").strip()
+    if g2 is not None:
+        return "", _safe_int(g1), "I", (g2 or "").strip()
+    return "", _safe_int(g1), "I", ""
+
+
+def _parse_tabela_marker(match: re.Match) -> tuple[str, str, str, str]:
+    """Decompoe ``[[TABELA:..]]..[[/TABELA]]`` em ``(idx_raw, posicao, legenda, corpo)``."""
+    idx_raw = (match.group(1) or "").strip()
+    g2 = match.group(2)
+    g3 = match.group(3)
+    if g2 in ("S", "I"):
+        posicao = g2
+        legenda = (g3 or "").strip()
+    else:
+        posicao = "I"
+        legenda = (g2 or g3 or "").strip()
+    return idx_raw, posicao, legenda, match.group(4) or ""
+
+
+def _render_texto_html(
+    ctx: _RenderCtx,
+    conteudo: str,
+    fig_counter: int,
+    tab_counter: int,
+    sec_numero: str = "",
+):
+    """Processa marcadores [[FIGURA:..]], [[TABELA..]], [[REF:..]] e markdown leve.
+
+    Retorna ``(html, fig_counter, tab_counter)`` atualizados.
+
+    Convencao de numeracao em ``[[FIGURA:idx|...]]`` / ``[[TABELA:idx|...]]``:
+      - ``idx`` contendo ``.`` (ex.: ``4.1``): modo "por secao" -- valor
+        armazenado e descartado e o numero e derivado do contador atual da
+        secao, garantindo coerencia apos renumeracoes.
+      - ``idx`` puramente numerico (ex.: ``5``): modo "sequencial global" --
+        valor armazenado e respeitado (e a intencao explicita do autor).
+      - ``idx`` vazio (legado): contador local.
+
+    Marcadores ``[[REF:..]]`` sao resolvidos antes do processamento usando
+    os mapas estaveis em ``ctx.mapas``.
     """
     if not conteudo:
         return "", fig_counter, tab_counter
 
+    if not ctx.mapas.vazio():
+        conteudo = _resolver_referencias(conteudo, ctx.mapas)
+
     sec_top = (sec_numero or "").split(".")[0]
 
-    def _label_local(prefix_top: str, n: int) -> str:
-        return f"{prefix_top}.{n}" if prefix_top else str(n)
-
-    # 1) Substitui tabelas (pode conter | que conflita com texto, processado primeiro)
     parts: list = []
     last = 0
     for m in _RE_TABELA.finditer(conteudo):
         parts.append(("texto", conteudo[last:m.start()]))
-        idx_raw = (m.group(1) or "").strip()
-        g2 = m.group(2)
-        g3 = m.group(3)
-        # Disambigua g2: se for "S"/"I" é a posição, senão é a legenda (formato antigo).
-        if g2 in ("S", "I"):
-            posicao = g2
-            legenda = (g3 or "").strip()
-        else:
-            posicao = "I"
-            legenda = (g2 or g3 or "").strip()
-        corpo = m.group(4) or ""
+        idx_raw, posicao, legenda, corpo = _parse_tabela_marker(m)
         tab_counter += 1
-        numero = idx_raw if idx_raw else _label_local(sec_top, tab_counter)
+        numero = _idx_efetivo(idx_raw, _label_secao(sec_top, tab_counter))
         parts.append(("html", _render_tabela_html(corpo, legenda, numero, posicao)))
         last = m.end()
     parts.append(("texto", conteudo[last:]))
 
-    # 2) Em cada parte de texto, substitui [[FIGURA:..]] e renderiza markdown leve
     out_html: list[str] = []
     for kind, chunk in parts:
         if kind == "html":
             out_html.append(chunk)
             continue
-        # Processa figuras
         sub_last = 0
         for mf in _RE_FIGURA.finditer(chunk):
-            antes = chunk[sub_last:mf.start()]
-            out_html.append(_render_paragrafos_e_listas(antes))
-            g1 = (mf.group(1) or "").strip()
-            g2 = mf.group(2)
-            g3 = mf.group(3)
-            g4 = mf.group(4)
-            # Detecta o formato pelos grupos presentes:
-            #   4 grupos: idx | id | pos(S/I) | leg
-            #   3 grupos com g2 numérico: idx | id | leg                 (v2)
-            #   3 grupos com g1 numérico só: id | leg                    (legado)
-            fid = 0
-            idx_raw = ""
-            posicao = "I"
-            legenda = ""
-            if g4 is not None and g3 in ("S", "I"):
-                idx_raw = g1
-                try:
-                    fid = int(g2 or "0")
-                except ValueError:
-                    fid = 0
-                posicao = g3
-                legenda = (g4 or "").strip()
-            elif g3 is not None and (g2 or "").isdigit():
-                idx_raw = g1
-                try:
-                    fid = int(g2)
-                except ValueError:
-                    fid = 0
-                legenda = (g3 or "").strip()
-            elif g2 is not None:
-                # formato legado [[FIGURA:<id>|<leg>]]
-                try:
-                    fid = int(g1)
-                except ValueError:
-                    fid = 0
-                legenda = (g2 or "").strip()
-            else:
-                try:
-                    fid = int(g1)
-                except ValueError:
-                    fid = 0
+            out_html.append(_render_paragrafos_e_listas(chunk[sub_last:mf.start()]))
+            idx_raw, fid, posicao, legenda = _parse_figura_marker(mf)
             fig_counter += 1
-            numero = idx_raw if idx_raw else _label_local(sec_top, fig_counter)
-            out_html.append(_render_figura_html(figuras_by_id, fid, legenda, numero, posicao))
+            numero = _idx_efetivo(idx_raw, _label_secao(sec_top, fig_counter))
+            out_html.append(_render_figura_html(ctx.figuras_by_id, fid, legenda, numero, posicao))
             sub_last = mf.end()
-        resto = chunk[sub_last:]
-        out_html.append(_render_paragrafos_e_listas(resto))
+        out_html.append(_render_paragrafos_e_listas(chunk[sub_last:]))
 
     return "".join(out_html), fig_counter, tab_counter
+
+
+def _calcular_mapas_referencia(secoes_relatorio) -> _MapasRef:
+    """Pre-pass que reproduz a contagem do render para mapear IDs estaveis
+    em numeros exibidos. Usado para resolver ``[[REF:..]]`` consistentemente
+    com a numeracao final do PDF.
+
+    Apenas blocos ``tipo=figura``/``tipo=tabela`` entram nos mapas de bloco
+    (sao os unicos com ID estavel referenciavel). Markers inline em texto
+    contam para o contador, mas nao geram entrada nos mapas.
+    """
+    mapas = _MapasRef()
+    fig_by_top: dict[str, int] = {}
+    tab_by_top: dict[str, int] = {}
+    for sec in secoes_relatorio:
+        if sec.numero:
+            mapas.secoes[sec.id] = sec.numero
+        sec_top = (sec.numero or "").split(".")[0]
+        fig_counter = fig_by_top.get(sec_top, 0)
+        tab_counter = tab_by_top.get(sec_top, 0)
+        for bloco in sec.blocos:
+            if bloco.tipo == "figura":
+                fig_counter += 1
+                mapas.figuras[bloco.id] = (
+                    f"{sec_top}.{fig_counter}" if sec_top else str(fig_counter)
+                )
+            elif bloco.tipo == "tabela":
+                tab_counter += 1
+                mapas.tabelas[bloco.id] = (
+                    f"{sec_top}.{tab_counter}" if sec_top else str(tab_counter)
+                )
+            elif bloco.conteudo:
+                fig_counter += len(re.findall(r"\[\[FIGURA:", bloco.conteudo))
+                tab_counter += len(re.findall(r"\[\[TABELA(?::|\||\]\])", bloco.conteudo))
+        fig_by_top[sec_top] = fig_counter
+        tab_by_top[sec_top] = tab_counter
+    return mapas
+
+
+def _render_bloco_item(
+    bloco,
+    ctx: _RenderCtx,
+    contadores: dict[str, int],
+    sec_top: str,
+    sec_numero: str,
+) -> dict:
+    """Renderiza um unico bloco em sua representacao de template, atualizando
+    ``contadores`` (chaves ``"fig"``/``"tab"``) in-place. Centraliza a logica
+    para manter ``_montar_contexto`` enxuto e legivel.
+    """
+    legenda = (
+        _resolver_referencias(bloco.legenda, ctx.mapas) if bloco.legenda else bloco.legenda
+    )
+    item: dict = {
+        "tipo": bloco.tipo,
+        "titulo": bloco.titulo,
+        "conteudo": bloco.conteudo or "",
+        "legenda": legenda,
+        "fonte": bloco.fonte,
+    }
+
+    def _label(n: int) -> str:
+        return f"{sec_top}.{n}" if sec_top else str(n)
+
+    if bloco.tipo == "figura":
+        contadores["fig"] += 1
+        item["numero"] = _label(contadores["fig"])
+        fig = ctx.figuras_by_id.get(bloco.figura_id) if bloco.figura_id else None
+        item["src"] = _figura_data_uri(fig) if fig is not None else None
+    elif bloco.tipo == "tabela":
+        contadores["tab"] += 1
+        item["numero"] = _label(contadores["tab"])
+        item["tabela_html"] = _render_tabela_inner_html(
+            bloco.conteudo or "", legenda or "", item["numero"], "S"
+        )
+    elif bloco.tipo == "lista":
+        from .list_lines import list_text_to_html
+
+        bruto = _resolver_referencias(bloco.conteudo or "", ctx.mapas)
+        item["lista_html"] = list_text_to_html(bruto) or ""
+    else:
+        html_render, contadores["fig"], contadores["tab"] = _render_texto_html(
+            ctx,
+            bloco.conteudo or "",
+            contadores["fig"],
+            contadores["tab"],
+            sec_numero,
+        )
+        item["html"] = html_render
+    return item
 
 
 def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):
@@ -326,57 +456,28 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
         fig.id: fig for fig in db.query(Figura).filter(Figura.id.in_(figura_ids)).all()
     } if figura_ids else {}
 
+    ctx = _RenderCtx(
+        figuras_by_id=figuras_by_id,
+        mapas=_calcular_mapas_referencia(secoes_relatorio),
+    )
+
+    # Contadores por top-level da secao: tudo dentro de "4" e "4.1.2"
+    # compartilham o mesmo contador, reiniciado quando muda o top-level.
     secoes = []
-    # Contadores por top-level da seção (ex.: tudo dentro de "4" e "4.1.2"
-    # compartilham o mesmo contador, reiniciado quando muda o top-level).
-    fig_by_top: dict = {}
-    tab_by_top: dict = {}
+    fig_by_top: dict[str, int] = {}
+    tab_by_top: dict[str, int] = {}
     for sec in secoes_relatorio:
         sec_top = (sec.numero or "").split(".")[0]
-        fig_counter = fig_by_top.get(sec_top, 0)
-        tab_counter = tab_by_top.get(sec_top, 0)
-
-        def _label(n: int) -> str:
-            return f"{sec_top}.{n}" if sec_top else str(n)
-
-        blocos_render = []
-        for b in sec.blocos:
-            item = {
-                "tipo": b.tipo,
-                "titulo": b.titulo,
-                "conteudo": b.conteudo or "",
-                "legenda": b.legenda,
-                "fonte": b.fonte,
-            }
-            if b.tipo == "figura" and b.figura_id:
-                fig_counter += 1
-                fig = figuras_by_id.get(b.figura_id)
-                item["numero"] = _label(fig_counter)
-                item["src"] = _figura_data_uri(fig) if fig is not None else None
-            elif b.tipo == "figura":
-                fig_counter += 1
-                item["numero"] = _label(fig_counter)
-                item["src"] = None
-            elif b.tipo == "tabela":
-                tab_counter += 1
-                item["numero"] = _label(tab_counter)
-                item["tabela_html"] = _render_tabela_inner_html(
-                    b.conteudo or "", b.legenda or "", item["numero"], "S"
-                )
-            elif b.tipo == "lista":
-                # Mantém compatibilidade com blocos antigos do tipo lista pura.
-                itens = [ln.strip() for ln in (b.conteudo or "").splitlines() if ln.strip()]
-                # Suporta marcador "- "
-                itens = [re.sub(r"^-\s+", "", it) for it in itens]
-                item["lista_html"] = "<ul>" + "".join(f"<li>{_esc(i)}</li>" for i in itens) + "</ul>"
-            else:  # texto (com marcadores) ou qualquer outro
-                html_render, fig_counter, tab_counter = _render_texto_html(
-                    figuras_by_id, b.conteudo or "", fig_counter, tab_counter, sec.numero
-                )
-                item["html"] = html_render
-            blocos_render.append(item)
-        fig_by_top[sec_top] = fig_counter
-        tab_by_top[sec_top] = tab_counter
+        contadores = {
+            "fig": fig_by_top.get(sec_top, 0),
+            "tab": tab_by_top.get(sec_top, 0),
+        }
+        blocos_render = [
+            _render_bloco_item(b, ctx, contadores, sec_top, sec.numero)
+            for b in sec.blocos
+        ]
+        fig_by_top[sec_top] = contadores["fig"]
+        tab_by_top[sec_top] = contadores["tab"]
         secoes.append({
             "numero": sec.numero,
             "titulo": sec.titulo,
@@ -416,7 +517,26 @@ def render_html(db: Session, rel: Relatorio, section_ids: set[int] | None = None
     return template.render(**_montar_contexto(db, rel, section_ids))
 
 
+@contextlib.contextmanager
+def _stderr_to_devnull():
+    """Evita ruído GLib-GIO no stderr (Windows) durante o WeasyPrint."""
+    stderr_fd = sys.stderr.fileno()
+    with open(os.devnull, "w", encoding="utf-8") as sink:
+        saved = os.dup(stderr_fd)
+        try:
+            os.dup2(sink.fileno(), stderr_fd)
+            yield
+        finally:
+            os.dup2(saved, stderr_fd)
+            os.close(saved)
+
+
 def render_pdf(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> bytes:
     html_str = render_html(db, rel, section_ids)
     from weasyprint import HTML  # import tardio: GTK não necessário fora do /pdf
-    return HTML(string=html_str, base_url=str(TEMPLATES_DIR)).write_pdf()
+
+    doc = HTML(string=html_str, base_url=str(TEMPLATES_DIR))
+    if sys.platform == "win32":
+        with _stderr_to_devnull():
+            return doc.write_pdf()
+    return doc.write_pdf()

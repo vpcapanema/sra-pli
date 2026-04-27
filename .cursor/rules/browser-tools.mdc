@@ -1,0 +1,16 @@
+---
+description: Padrao de uso de MCP de navegador, Playwright e Puppeteer para validacao de UI
+alwaysApply: true
+---
+
+# Ferramentas De Navegador
+
+Para tarefas que envolvam UI, fluxo web, formularios, preview/exportacao de PDF, importacao pela tela, regressao visual ou validacao ponta a ponta, considere ferramentas de navegador.
+
+Ordem preferencial:
+
+1. MCP de navegador, quando configurado no ambiente.
+2. Playwright, para testes reproduziveis, fluxos multi-etapa, screenshots e automacao e2e.
+3. Puppeteer, quando ja existir no projeto ou for a alternativa mais simples disponivel.
+
+Antes de usar, confirme que a ferramenta esta instalada/configurada. Nao adicione Playwright/Puppeteer como dependencia nova sem necessidade clara e justificativa objetiva. Se nenhuma ferramenta de navegador estiver disponivel, informe a limitacao e use validacao alternativa proporcional ao risco.

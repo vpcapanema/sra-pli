@@ -39,6 +39,7 @@ atribuicao
 autorizacao
 autenticacao
 sessao
+subsecoes
 expirada
 responsavel
 autor
@@ -126,6 +127,8 @@ historico
 historicos
 configuracao
 configuracoes
+Documentacao
+documentacao
 notificacao
 notificacoes
 informacao
@@ -162,6 +165,7 @@ publicado
 publicados
 tarefa
 tarefas
+movimentacao
 sintaxe
 sincronizar
 incluir
@@ -177,6 +181,7 @@ diretrizes
 diretriz
 postura
 direcao
+orientacao
 funcao
 funcoes
 nivel
@@ -231,6 +236,7 @@ implementacao
 inconsistencia
 indentacao
 indicacao
+interacao
 instrucoes
 instrumentacao
 interpretacao
@@ -253,10 +259,12 @@ reconhecivel
 recuperavel
 renderizacao
 repeticao
+regressao
 repositorio
 semantica
 serializacao
 serialização
+reversao
 solucao
 transacao
 unico
@@ -283,6 +291,8 @@ ajuste
 aplicado
 aplicada
 gravacao
+Insercao
+insercao
 imagem
 imagens
 invalida
@@ -304,6 +314,7 @@ muito
 muitos
 poucas
 poucos
+varios
 tocam
 várias
 sequência
@@ -311,6 +322,7 @@ qualquer
 caso
 falhe
 evitar
+lancar
 parcial
 parciais
 importações
@@ -326,12 +338,76 @@ renomear
 seções
 pendente
 andamento
+exportacao
 analise
 análise
 concluída
 confirmação
 validando
 analisando
+reutilizacao
+visivel
+hierarquica
+hierarquicas
+hierarquico
+hierarquicos
+renumeracao
+renumeracoes
+renumerar
+consolidacao
+consolidar
+consolidado
+consolidados
+mutacao
+mutacoes
+mutam
+mutavel
+subniveis
+subnivel
+excluido
+excluidos
+excluida
+excluidas
+irmaos
+irmas
+acentuacao
+deteccao
+identica
+identicas
+identico
+identicos
+raizes
+raiz
+propagacao
+insercoes
+exclusoes
+resolucao
+imutavel
+imutaveis
+decompoe
+coerencia
+coerente
+intencao
+referenciavel
+referenciaveis
+representacao
+representacoes
+legivel
+legiveis
+limitacao
+numeravel
+numeraveis
+bagunca
+persistencia
+persistencias
+proprio
+saida
+posicao
+recomendacao
+aplicavel
+rotulos
+enxuta
+legivel
 
 # === Variaveis e identificadores comuns no codigo ===
 txdb
@@ -349,6 +425,13 @@ oxml
 # === Tecnicos / bibliotecas ===
 fastapi
 sqlalchemy
+sqltools
+latencia
+confirmacao
+reproduzivel
+automacao
+brazilian
+rapida
 pydantic
 jinja
 jinja2
@@ -368,6 +451,8 @@ tesseract
 pytesseract
 rapidfuzz
 openpyxl
+Playwright
+Puppeteer
 selectinload
 load_only
 keepalives
@@ -453,6 +538,16 @@ GitHub
 gitignore
 keepalive
 VDMA
+MCP
+cweijan
+extensao
+icone
+llms
+migracao
+exactos
+paineis
+regioes
+seccao
 
 # === Nomes proprios ===
 Vinicius
@@ -474,3 +569,11 @@ sbadge
 sdesc
 tecnicos
 verificacao
+
+# === OOXML (Word, importacao docx) ===
+ilvl
+ivxlcdm
+nfmt
+numfmt
+numpr
+canonicos

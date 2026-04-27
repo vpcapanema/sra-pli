@@ -1,10 +1,14 @@
+import re
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException
-from fastapi.responses import RedirectResponse, Response, JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Figura, Relatorio
 from ..auth import current_user
+from .pages import response_login, response_relatorio_detail, response_secao_edit
 
 router = APIRouter(tags=["figuras"])
 
@@ -23,7 +27,7 @@ def upload_figura(
         accept = (request.headers.get("accept") or "").lower()
         if "application/json" in accept:
             raise HTTPException(status_code=401, detail="Sessão expirada. Faça login novamente.")
-        raise HTTPException(303, headers={"Location": "/login"})
+        return response_login(request)
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404)
@@ -46,15 +50,20 @@ def upload_figura(
     accept = (request.headers.get("accept") or "").lower()
     if "application/json" in accept:
         return JSONResponse({"id": fig.id, "nome": fig.nome})
-    next_url = request.headers.get("referer") or f"/relatorios/{rel_id}"
-    return RedirectResponse(next_url, status_code=303)
+    ref = (request.headers.get("referer") or "").strip()
+    secoes_m = re.search(r"/relatorios/(\d+)/secoes/(\d+)", urlparse(ref).path)
+    if secoes_m and int(secoes_m.group(1)) == rel_id:
+        return response_secao_edit(
+            request, db, int(secoes_m.group(1)), int(secoes_m.group(2))
+        )
+    return response_relatorio_detail(request, db, rel_id)
 
 
 @router.get("/figuras/{fig_id}")
 def baixar_figura(fig_id: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
-        raise HTTPException(303, headers={"Location": "/login"})
+        return response_login(request)
     fig = db.get(Figura, fig_id)
     if not fig:
         raise HTTPException(404)

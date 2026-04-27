@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session, load_only, selectinload
-from sqlalchemy import case, func
-from sqlalchemy.sql.functions import coalesce
-from pathlib import Path
+import json
 from datetime import date
+from pathlib import Path
 
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import case, func
+from sqlalchemy.orm import Session, load_only, selectinload
+from sqlalchemy.sql.functions import coalesce
+from starlette.responses import Response
 from ..db import get_db
 from ..models import Bloco, Figura, Relatorio, Secao, User
-from ..auth import current_user
+from ..auth import current_user, pode_editar_perfil_usuario
 from ..sumario_extractor import listar_pdfs_disponiveis
 
 router = APIRouter()
@@ -46,11 +48,34 @@ def _sugestao_proximo_relatorio(db: Session) -> dict:
     }
 
 
-@router.get("/dashboard")
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def response_login(request: Request, error: str | None = None, status_code: int = 200) -> Response:
+    return templates.TemplateResponse(
+        request, "login.html", {"error": error}, status_code=status_code
+    )
+
+
+def response_client_goto(path: str) -> HTMLResponse:
+    """Muda a URL no browser (200) sem `RedirectResponse` 3xx — útil pós-POST (login, etc.)."""
+    safe_quoted = json.dumps(path)
+    cont_link = "<a href=" + safe_quoted + ">Continuar</a>"
+    return HTMLResponse(
+        '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+        "<title>…</title></head><body>"
+        f"<script>location.replace({safe_quoted})</script>"
+        f"<p>Carregando… {cont_link}</p></body></html>"
+    )
+
+
+def response_home(request: Request, db: Session) -> Response:
+    if request.session.get("user_id"):
+        return response_dashboard(request, db)
+    return response_login(request)
+
+
+def response_dashboard(request: Request, db: Session) -> Response:
     user = current_user(request, db)
     if not user:
-        return RedirectResponse("/login", status_code=303)
+        return response_login(request)
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     sugestao = _sugestao_proximo_relatorio(db)
     pdfs_disponiveis = listar_pdfs_disponiveis()
@@ -66,11 +91,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/relatorios/{rel_id}")
-def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db)):
+def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Response:
     user = current_user(request, db)
     if not user:
-        return RedirectResponse("/login", status_code=303)
+        return response_login(request)
     rel = (
         db.query(Relatorio)
         .options(
@@ -81,9 +105,10 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
         .one_or_none()
     )
     if not rel:
-        return RedirectResponse("/dashboard", status_code=303)
+        return response_dashboard(request, db)
+    sra_fim = request.session.pop("sra_fim_pendente", None)
     return templates.TemplateResponse(
-        request, "relatorio_detail.html", {"user": user, "rel": rel}
+        request, "relatorio_detail.html", {"user": user, "rel": rel, "sra_fim_pendente": sra_fim}
     )
 
 
@@ -131,11 +156,10 @@ def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
     }
 
 
-@router.get("/relatorios/{rel_id}/secoes/{sec_id}")
-def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
+def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
     user = current_user(request, db)
     if not user:
-        return RedirectResponse("/login", status_code=303)
+        return response_login(request)
     rel = (
         db.query(Relatorio)
         .options(
@@ -157,9 +181,9 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
         .one_or_none()
     )
     if not rel or not sec or sec.relatorio_id != rel.id:
-        return RedirectResponse("/dashboard", status_code=303)
+        return response_dashboard(request, db)
     if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
-        return RedirectResponse(f"/relatorios/{rel.id}", status_code=303)
+        return response_relatorio_detail(request, db, rel.id)
     figs = (
         db.query(Figura)
         .options(load_only(Figura.id, Figura.nome, Figura.relatorio_id, Figura.created_at))
@@ -181,3 +205,64 @@ def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends
             "media_counts": media_counts,
         },
     )
+
+
+def response_usuarios(
+    request: Request, db: Session, error: str | None = None
+) -> Response:
+    user = current_user(request, db)
+    if not user:
+        return response_login(request)
+    usuarios = db.query(User).order_by(User.nome).all()
+    return templates.TemplateResponse(
+        request, "usuarios.html", {"user": user, "usuarios": usuarios, "error": error}
+    )
+
+
+def response_usuario_edit(
+    request: Request,
+    db: Session,
+    user_id: int,
+    *,
+    ok: str | None = None,
+    error: str | None = None,
+) -> Response:
+    viewer = current_user(request, db)
+    if not viewer:
+        return response_login(request)
+    alvo = db.get(User, user_id)
+    if not alvo:
+        return response_usuarios(request, db)
+    if not pode_editar_perfil_usuario(viewer, alvo):
+        return response_usuarios(request, db)
+    ok_effective = ok if ok is not None else request.query_params.get("ok")
+    return templates.TemplateResponse(
+        request,
+        "usuario_edit.html",
+        {"user": viewer, "alvo": alvo, "error": error, "ok": ok_effective},
+    )
+
+
+def user_or_login_page(
+    request: Request, db: Session
+) -> tuple[User, None] | tuple[None, Response]:
+    """Sem HTTP redirect: devolve a página de login (200) se não houver sessão."""
+    u = current_user(request, db)
+    if not u:
+        return None, response_login(request)
+    return u, None
+
+
+@router.get("/dashboard")
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    return response_dashboard(request, db)
+
+
+@router.get("/relatorios/{rel_id}")
+def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db)):
+    return response_relatorio_detail(request, db, rel_id)
+
+
+@router.get("/relatorios/{rel_id}/secoes/{sec_id}")
+def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
+    return response_secao_edit(request, db, rel_id, sec_id)

@@ -61,11 +61,16 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User | None
     return db.get(User, uid)
 
 
+def pode_editar_perfil_usuario(viewer: User, alvo: User) -> bool:
+    """Se ``viewer`` pode abrir a edição do perfil de ``alvo`` (admin ou o próprio)."""
+    return viewer.role == "admin" or viewer.id == alvo.id
+
+
 def require_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Para rotas que renderizam HTML/redirecionam: 303 -> /login."""
+    """Dependência JSON/API: 401 se não houver sessão (sem HTTP redirect)."""
     user = current_user(request, db)
     if not user:
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autenticado.")
     return user
 
 

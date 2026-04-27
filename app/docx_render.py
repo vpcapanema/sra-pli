@@ -2,6 +2,7 @@
 import re
 from datetime import date
 from io import BytesIO
+from string import ascii_lowercase, ascii_uppercase
 from zipfile import ZipFile
 
 from docx import Document
@@ -13,6 +14,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from sqlalchemy.orm import Session
 
+from .list_lines import _ListItem, line_is_list_item, parse_list_for_docx
 from .models import Figura, Relatorio
 from .pdf_render import MODELO_DOCX, PDF_COVER_IMAGE, _RE_FIGURA, _RE_TABELA, _figura_ids_no_texto, _produto_codigo_capa
 
@@ -75,6 +77,84 @@ def _format_list_paragraph(paragraph) -> None:
     paragraph_format.space_after = Pt(6)
     paragraph_format.line_spacing = 1.15
     _set_runs_font(paragraph, size_pt=10)
+
+
+def _list_extra_indent_cm(level: int) -> float:
+    return 0.45 * max(level, 0)
+
+
+def _int_to_roman_lower(n: int) -> str:
+    if n < 1:
+        return "i"
+    parts = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    sym = "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"
+    t, out = n, []
+    for v, s in zip(parts, sym):
+        while t >= v:
+            t -= v
+            out.append(s)
+    return "".join(out)
+
+
+def _list_counters_fresh() -> dict[str, int]:
+    return {"ol_1": 0, "ol_a": 0, "ol_A": 0, "ol_i": 0, "ol_I": 0}
+
+
+def _list_prefix(n: _ListItem, ct: dict[str, int]) -> str:
+    if n.kind == "ul" or n.kind not in ct:
+        return ""
+    ct[n.kind] += 1
+    c = ct[n.kind]
+    k = n.kind
+    if k == "ol_1":
+        out = f"{c}. "
+    elif k == "ol_a":
+        ch = ascii_lowercase[(c - 1) % 26] if c <= 26 else "z"
+        out = f"{ch}) "
+    elif k == "ol_A":
+        ch = ascii_uppercase[(c - 1) % 26] if c <= 26 else "Z"
+        out = f"{ch}) "
+    elif k == "ol_i":
+        out = f"{_int_to_roman_lower(c)}. "
+    elif k == "ol_I":
+        out = f"{_int_to_roman_lower(c).upper()}. "
+    else:
+        out = ""
+    return out
+
+
+def _docx_add_list_siblings(document: Document, nodes: list[_ListItem], ct: dict[str, int] | None) -> None:
+    if not nodes:
+        return
+    if ct is None:
+        ct = _list_counters_fresh()
+    for n in nodes:
+        ex = _list_extra_indent_cm(n.level)
+        if n.kind == "ul":
+            p = document.add_paragraph(n.text, style="List Bullet")
+            _format_list_paragraph(p)
+            p.paragraph_format.left_indent = Cm(1.27 + ex)
+            p.paragraph_format.first_line_indent = Cm(-0.63)
+        elif n.kind == "ol_1":
+            p = document.add_paragraph(n.text, style="List Number")
+            _format_list_paragraph(p)
+            p.paragraph_format.left_indent = Cm(1.27 + ex)
+            p.paragraph_format.first_line_indent = Cm(-0.63)
+        else:
+            p = document.add_paragraph()
+            pre = _list_prefix(n, ct)
+            p.add_run(f"{pre}{n.text}")
+            _format_body_paragraph(p, space_after_pt=6)
+            p.paragraph_format.left_indent = Cm(1.1 + ex)
+        if n.children:
+            _docx_add_list_siblings(document, n.children, _list_counters_fresh())
+
+
+def _add_lista_bloco_docx(document: Document, conteudo: str) -> None:
+    roots = parse_list_for_docx(conteudo)
+    if not roots:
+        return
+    _docx_add_list_siblings(document, roots, _list_counters_fresh())
 
 
 def _format_heading(paragraph, level: int) -> None:
@@ -387,19 +467,31 @@ def _add_assinaturas(document: Document, rel: Relatorio) -> None:
 
 
 def _add_texto(document: Document, texto: str) -> None:
-    for raw in (texto or "").splitlines():
-        line = raw.strip()
-        if not line:
+    if not (texto or "").strip():
+        return
+    linhas = texto.splitlines()
+    i = 0
+    while i < len(linhas):
+        raw = linhas[i]
+        if not (raw or "").strip():
+            i += 1
             continue
+        line = raw.strip()
         if line.startswith("## "):
             _format_heading(document.add_heading(line[3:].strip(), level=3), 3)
         elif line.startswith("# "):
             _format_heading(document.add_heading(line[2:].strip(), level=2), 2)
-        elif line.startswith("- "):
-            _format_list_paragraph(document.add_paragraph(line[2:].strip(), style="List Bullet"))
+        elif line_is_list_item(linhas[i]):
+            j = i
+            while j < len(linhas) and line_is_list_item(linhas[j]):
+                j += 1
+            _add_lista_bloco_docx(document, "\n".join(linhas[i:j]))
+            i = j
+            continue
         else:
             paragraph = document.add_paragraph(line)
             _format_body_paragraph(paragraph)
+        i += 1
 
 
 def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: str | None, numero: str, posicao: str = "S") -> None:
@@ -566,10 +658,7 @@ def render_docx(db: Session, rel: Relatorio, section_ids: set[int] | None = None
                 tab_counter += 1
                 _add_table(document, bloco.conteudo or "", bloco.legenda, bloco.fonte, _figura_label(sec.numero, tab_counter))
             elif bloco.tipo == "lista":
-                for line in (bloco.conteudo or "").splitlines():
-                    item = re.sub(r"^-\s+", "", line.strip())
-                    if item:
-                        _format_list_paragraph(document.add_paragraph(item, style="List Bullet"))
+                _add_lista_bloco_docx(document, bloco.conteudo or "")
             else:
                 fig_counter, tab_counter = _add_texto_com_marcadores(
                     document, bloco.conteudo or "", figuras_by_id, fig_counter, tab_counter, sec.numero

@@ -2,119 +2,175 @@
 {% block title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock %}
 {% block header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>{{ rel.titulo }}</h1>
-  <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }} · versão {{ rel.versao }}</div>
-  <div class="chips">
-    <span class="chip">{{ rel.periodo_inicio.strftime('%d/%m/%Y') }} – {{ rel.periodo_fim.strftime('%d/%m/%Y') }}</span>
-    {% if rel.numero_medicao %}<span class="chip">Medição nº {{ rel.numero_medicao }}</span>{% endif %}
-    <span class="chip">Status: {{ rel.status }}</span>
-  </div>
-</section>
-
-<section class="ss active-tab">
-  <div class="ss-hdr">
-    <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-    <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
-    <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
-  </div>
-  <div class="sb2">
-    <details class="export-menu">
-      <summary>Exportar relatório</summary>
-      <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
-        <input id="export-scope-inteiro" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
-        <input id="export-scope-selecionadas" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
-        <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
-          <label class="export-tab export-tab-all" for="export-scope-inteiro"><span>Relatório inteiro</span></label>
-          <label class="export-tab export-tab-selected" for="export-scope-selecionadas"><span>Seções selecionadas</span></label>
-        </div>
-        <div class="export-panels">
-          <div class="export-panel export-panel-all" role="tabpanel"></div>
-          <div class="export-panel export-panel-selected" role="tabpanel">
-            <div class="export-sections" aria-label="Seções para exportar">
-              {% for s in rel.secoes %}
-                {% set nivel = s.numero.count('.') + 1 %}
-                <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
-                  <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
-                  <label class="export-section-check"><input type="checkbox" name="secao_ids" value="{{ s.id }}"><span>{{ s.numero }} – {{ s.titulo }}</span></label>
-                </div>
-              {% endfor %}
+  <section class="hero">
+    <h1>{{ rel.titulo }}</h1>
+    <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }} · versão {{ rel.versao }}</div>
+    <div class="chips">
+      <span class="chip">{{ rel.periodo_inicio.strftime("%d/%m/%Y") }} – {{ rel.periodo_fim.strftime("%d/%m/%Y") }}</span>
+      {% if rel.numero_medicao %}<span class="chip">Medição nº {{ rel.numero_medicao }}</span>{% endif %}
+      <span class="chip">Status: {{ rel.status }}</span>
+    </div>
+  </section>
+  <section class="ss active-tab">
+    <div class="ss-hdr">
+      <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
+      <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
+      <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
+    </div>
+    <div class="sb2">
+      <details class="export-menu">
+        <summary>Exportar relatório</summary>
+        <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank" data-sra-confirm="exportar_relatorio">
+          <input id="export-scope-inteiro" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
+          <input id="export-scope-selecionadas" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
+          <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
+            <label class="export-tab export-tab-all" for="export-scope-inteiro">
+              <span>Relatório inteiro</span>
+            </label>
+            <label class="export-tab export-tab-selected" for="export-scope-selecionadas">
+              <span>Seções selecionadas</span>
+            </label>
+          </div>
+          <div class="export-panels">
+            <div class="export-panel export-panel-all" role="tabpanel"></div>
+            <div class="export-panel export-panel-selected" role="tabpanel">
+              <div class="export-sections" aria-label="Seções para exportar">
+                {% for s in rel.secoes %}
+                  {% set nivel = s.numero.count('.') + 1 %}
+                  <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
+                    <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
+                    <label class="export-section-check">
+                      <input type="checkbox" name="secao_ids" value="{{ s.id }}">
+                      <span>{{ s.numero }} – {{ s.titulo }}</span>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
             </div>
           </div>
+          <div class="export-actions">
+            <button type="submit" name="formato" value="pdf">Exportar PDF</button>
+            <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
+          </div>
+        </form>
+      </details>
+      <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
+    </div>
+  </section>
+  <section class="ss active-tab">
+    <div class="ss-hdr">
+      <span class="sn">●</span><span class="st">Sumário do relatório</span>
+      <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Gerar PDF</a>
+    </div>
+    <div class="sb2">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Seção</th>
+            <th>Responsável</th>
+            <th>Blocos</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in rel.secoes %}
+            {% set nivel = s.numero.count('.') + 1 %}
+            <tr class="lvl-{{ nivel }}">
+              <td>
+                <strong>{{ s.numero }}</strong>
+              </td>
+              <td>{{ s.titulo }}</td>
+              <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
+              <td>{{ s.blocos|length }}</td>
+              <td>
+                {% if s.status == 'aprovada' %}
+                  <span class="sbadge s-completo">aprovada</span>
+                {% elif s.status == 'em_andamento' %}
+                  <span class="sbadge s-andamento">em andamento</span>
+                {% else %}
+                  <span class="sbadge s-pendente">pendente</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a>
+                {% if user.role in ['admin','coordenador'] and '.' in s.numero and rel.status != 'finalizado' %}
+                  <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover" class="inline-form" title="Mover para cima">
+                    <input type="hidden" name="direcao" value="cima">
+                    <button type="submit" class="link-quiet" aria-label="Mover seção {{ s.numero }} para cima">↑</button>
+                  </form>
+                  <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover" class="inline-form" title="Mover para baixo">
+                    <input type="hidden" name="direcao" value="baixo">
+                    <button type="submit" class="link-quiet" aria-label="Mover seção {{ s.numero }} para baixo">↓</button>
+                  </form>
+                  <form method="post"
+                        action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir"
+                        class="inline-form"
+                        data-sra-confirm="secao_excluir"
+                        data-sra-detail="Secção {{ s.numero }} – {{ s.titulo|e }} — os números seguintes no sumário serão reajustados automaticamente.">
+                    <button type="submit" class="link-danger">excluir</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% if user.role in ['admin','coordenador'] %}
+    <section class="ss active-tab">
+      <div class="ss-hdr">
+        <span class="sn">⚙</span><span class="st">Ações de coordenação</span>
+      </div>
+      <div class="sb2 actions-row">
+        <form method="post" action="/relatorios/{{ rel.id }}/status">
+          <select name="status" title="Status do relatório">
+            <option value="aberto" {% if rel.status=='aberto' %}selected{% endif %}>Aberto</option>
+            <option value="em_revisao" {% if rel.status=='em_revisao' %}selected{% endif %}>Em revisão</option>
+            <option value="finalizado" {% if rel.status=='finalizado' %}selected{% endif %}>Finalizado</option>
+          </select>
+          <button type="submit">Atualizar status</button>
+        </form>
+        <form method="post" action="/relatorios/{{ rel.id }}/versao">
+          <button type="submit" class="secondary">Nova versão (+1)</button>
+        </form>
+      </div>
+    </section>
+    {% if rel.status != 'finalizado' %}
+      <section class="ss active-tab">
+        <div class="ss-hdr">
+          <span class="sn">+</span><span class="st">Adicionar subseção</span>
         </div>
-        <div class="export-actions">
-          <button type="submit" name="formato" value="pdf">Exportar PDF</button>
-          <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
+        <div class="sb2">
+          <p class="sdesc">
+            O número informado define a posição inicial; após inserir, o sistema renumera automaticamente para fechar buracos (ex.: <code>4.3.1</code>, <code>4.4.1</code>, <code>4.4.6.1</code>).
+          </p>
+          <form method="post" action="/relatorios/{{ rel.id }}/secoes" class="grid-form">
+            <div>
+              <label for="rel-{{ rel.id }}-sub-numero">Número</label>
+              <input id="rel-{{ rel.id }}-sub-numero" name="numero" title="Número hierárquico" placeholder="4.4.1" required>
+            </div>
+            <div class="full">
+              <label for="rel-{{ rel.id }}-sub-titulo">Título</label>
+              <input id="rel-{{ rel.id }}-sub-titulo" name="titulo" title="Título da subseção" placeholder="Acompanhamento técnico em reuniões" required>
+            </div>
+            <div class="full">
+              <button type="submit">Adicionar subseção</button>
+            </div>
+          </form>
         </div>
-      </form>
-    </details>
-    <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
-  </div>
-</section>
-
-<section class="ss active-tab">
-  <div class="ss-hdr"><span class="sn">●</span><span class="st">Sumário do relatório</span>
-    <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Gerar PDF</a>
-  </div>
-  <div class="sb2">
-    <table>
-      <thead><tr><th>#</th><th>Seção</th><th>Responsável</th><th>Blocos</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-      {% for s in rel.secoes %}
-        {% set nivel = s.numero.count('.') + 1 %}
-        <tr class="lvl-{{ nivel }}">
-          <td><strong>{{ s.numero }}</strong></td>
-          <td>{{ s.titulo }}</td>
-          <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
-          <td>{{ s.blocos|length }}</td>
-          <td>
-            {% if s.status == 'aprovada' %}<span class="sbadge s-completo">aprovada</span>
-            {% elif s.status == 'em_andamento' %}<span class="sbadge s-andamento">em andamento</span>
-            {% else %}<span class="sbadge s-pendente">pendente</span>{% endif %}
-          </td>
-          <td>
-            <a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a>
-            {% if user.role in ['admin','coordenador'] and '.' in s.numero %}
-              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir" class="inline-form" onsubmit="return confirm('Excluir a seção {{ s.numero }}?')">
-                <button type="submit" class="link-danger">excluir</button>
-              </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-{% if user.role in ['admin','coordenador'] %}
-<section class="ss active-tab">
-  <div class="ss-hdr"><span class="sn">⚙</span><span class="st">Ações de coordenação</span></div>
-  <div class="sb2 actions-row">
-    <form method="post" action="/relatorios/{{ rel.id }}/status">
-      <select name="status" title="Status do relatório">
-        <option value="aberto" {% if rel.status=='aberto' %}selected{% endif %}>Aberto</option>
-        <option value="em_revisao" {% if rel.status=='em_revisao' %}selected{% endif %}>Em revisão</option>
-        <option value="finalizado" {% if rel.status=='finalizado' %}selected{% endif %}>Finalizado</option>
-      </select>
-      <button type="submit">Atualizar status</button>
-    </form>
-    <form method="post" action="/relatorios/{{ rel.id }}/versao">
-      <button type="submit" class="secondary">Nova versão (+1)</button>
-    </form>
-  </div>
-</section>
-
-<section class="ss active-tab">
-  <div class="ss-hdr"><span class="sn">+</span><span class="st">Adicionar subseção</span></div>
-  <div class="sb2">
-    <p class="sdesc">Use para incluir níveis variam por mês (ex.: <code>4.3.1</code>, <code>4.4.1</code>, <code>4.4.6.1</code>).</p>
-    <form method="post" action="/relatorios/{{ rel.id }}/secoes" class="grid-form">
-      <div><label>Número</label><input name="numero" title="Número hierárquico" placeholder="4.4.1" required></div>
-      <div class="full"><label>Título</label><input name="titulo" title="Título da subseção" placeholder="Acompanhamento técnico em reuniões" required></div>
-      <div class="full"><button type="submit">Adicionar subseção</button></div>
-    </form>
-  </div>
-</section>
-{% endif %}
+      </section>
+    {% else %}
+      <section class="ss active-tab">
+        <div class="ss-hdr">
+          <span class="sn">!</span><span class="st">Estrutura bloqueada</span>
+        </div>
+        <div class="sb2">
+          <p class="sdesc">Relatório finalizado: para alterar a estrutura, reverta o status antes.</p>
+        </div>
+      </section>
+    {% endif %}
+  {% endif %}
 {% endblock %}

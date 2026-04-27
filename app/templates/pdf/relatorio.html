@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ rel.codigo }} – {{ rel.titulo }}</title>
-<style>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ rel.codigo }} – {{ rel.titulo }}</title>
+    <style>
 @page {
   size: A4;
   margin: 22.2mm 20mm 25mm 20mm;
@@ -138,99 +138,166 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
 .assinaturas .sig-row{ margin-top: 30pt; }
 .assinaturas .linha{ border-top: 1pt solid #1c3d59; width: 80mm; margin-top: 35pt; padding-top: 4pt; font-size: 9.5pt; }
 .assinaturas .nota{ margin-top: 30pt; font-size: 8.5pt; color:#4f5d6e; line-height:1.6; }
-</style>
-</head>
-<body>
-<div class="report-page">
-
-<!-- ===================== CAPA ===================== -->
-<section class="capa">
-  <img src="{{ cover_bg_src }}" class="capa-bg" alt="">
-  <div class="subt"><span>RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or '' }}</span><span>Produto {{ cover_produto }}</span></div>
-</section>
-
-<div class="page-header"><img src="{{ header_logos_src }}" alt=""></div>
-<div class="page-footer-line"><img src="{{ pli_line_src }}" alt=""></div>
-
-<!-- ===================== FICHA TÉCNICA ===================== -->
-<section class="ficha">
-  <div class="brand-row"><img src="{{ header_logos_src }}" alt=""></div>
-  <h2>Relatório Mensal {{ rel.codigo }}</h2>
-  <table>
-    <tr><td>Código do documento<span class="valor">{{ rel.codigo }}</span></td></tr>
-    <tr><td>Título<span class="valor">RELATÓRIO MENSAL</span></td></tr>
-    <tr><td>Elaboração<span class="valor">Consórcio Concremat / Transplan</span></td></tr>
-    <tr><td>Contrato<span class="valor">Contrato Nº 22.607-5</span></td></tr>
-    <tr><td>Contratação<span class="valor">Secretaria de Meio Ambiente, Infraestrutura e Logística – SEMIL – Governo do Estado de São Paulo</span></td></tr>
-    <tr><td>Financiamento<span class="valor">Banco Interamericano de Desenvolvimento (BID)</span></td></tr>
-    <tr><td>Observações<span class="valor">Este Relatório corresponde ao entregável {{ rel.codigo }}.</span></td></tr>
-  </table>
-  <table class="versoes">
-    <thead><tr><th>Versão</th><th>Data</th><th>Conteúdo das modificações</th></tr></thead>
-    <tbody>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-      <tr><td>{{ rel.versao }}</td><td>{{ hoje.strftime('%d/%m/%Y') }}</td><td>Versão inicial</td></tr>
-    </tbody>
-  </table>
-</section>
-
-<!-- ===================== SUMÁRIO ===================== -->
-<section class="sumario">
-  <div class="brand-row"><img src="{{ header_logos_src }}" alt=""></div>
-  <h2>Sumário</h2>
-  {{ sumario_html|safe }}
-</section>
-
-<!-- ===================== SEÇÕES ===================== -->
-{% for s in secoes %}
-{% set nivel = s.numero.count('.') + 1 %}
-<section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}">
-  <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
-  {% if s.blocos %}
-    {% for b in s.blocos %}
-      <div class="bloco">
-        {% if b.titulo %}<h3>{{ b.titulo }}</h3>{% endif %}
-        {% if b.tipo == 'texto' %}
-          {{ b.html|safe }}
-        {% elif b.tipo == 'lista' %}
-          {{ b.lista_html|safe }}
-        {% elif b.tipo == 'figura' %}
-          <div class="figura">
-            {% if b.src %}<img src="{{ b.src }}" alt="">{% else %}<p class="empty-section">[Figura importada sem imagem vinculada]</p>{% endif %}
-            <div class="cap">Figura {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}</div>
-            {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
-          </div>
-        {% elif b.tipo == 'tabela' %}
-          <div class="tabela">
-            {% if b.tabela_html %}{{ b.tabela_html|safe }}{% else %}<div class="cap">Tabela {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}</div>{% endif %}
-            {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
-          </div>
-        {% endif %}
+    </style>
+  </head>
+  <body>
+    <div class="report-page">
+      <!-- ===================== CAPA ===================== -->
+      <section class="capa">
+        <img src="{{ cover_bg_src }}" class="capa-bg" alt="">
+        <div class="subt">
+          <span>RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or '' }}</span><span>Produto {{ cover_produto }}</span>
+        </div>
+      </section>
+      <div class="page-header">
+        <img src="{{ header_logos_src }}" alt="">
       </div>
-    {% endfor %}
-  {% else %}
-    <p class="empty-section">— sem conteúdo nesta seção —</p>
-  {% endif %}
-</section>
-{% endfor %}
-
-<!-- ===================== ASSINATURAS ===================== -->
-<section class="assinaturas">
-  <h2>Página de assinaturas</h2>
-  <p>Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime('%d/%m/%Y') }}, e está pronto para assinatura eletrônica via plataforma D4Sign.</p>
-  <div class="sig-row">
-    <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
-  </div>
-  <div class="sig-row">
-    <div class="linha">Fiscalização — SEMIL/DER-SP</div>
-  </div>
-  <div class="nota">
-    Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
-    Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
-  </div>
-</section>
-
-</div>
-</body>
+      <div class="page-footer-line">
+        <img src="{{ pli_line_src }}" alt="">
+      </div>
+      <!-- ===================== FICHA TÉCNICA ===================== -->
+      <section class="ficha">
+        <div class="brand-row">
+          <img src="{{ header_logos_src }}" alt="">
+        </div>
+        <h2>Relatório Mensal {{ rel.codigo }}</h2>
+        <table>
+          <tr>
+            <td>
+              Código do documento<span class="valor">{{ rel.codigo }}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Título<span class="valor">RELATÓRIO MENSAL</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Elaboração<span class="valor">Consórcio Concremat / Transplan</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Contrato<span class="valor">Contrato Nº 22.607-5</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Contratação<span class="valor">Secretaria de Meio Ambiente, Infraestrutura e Logística – SEMIL – Governo do Estado de São Paulo</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Financiamento<span class="valor">Banco Interamericano de Desenvolvimento (BID)</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Observações<span class="valor">Este Relatório corresponde ao entregável {{ rel.codigo }}.</span>
+            </td>
+          </tr>
+        </table>
+        <table class="versoes">
+          <thead>
+            <tr>
+              <th>Versão</th>
+              <th>Data</th>
+              <th>Conteúdo das modificações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>&nbsp;</td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>&nbsp;</td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>{{ rel.versao }}</td>
+              <td>{{ hoje.strftime("%d/%m/%Y") }}</td>
+              <td>Versão inicial</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <!-- ===================== SUMÁRIO ===================== -->
+      <section class="sumario">
+        <div class="brand-row">
+          <img src="{{ header_logos_src }}" alt="">
+        </div>
+        <h2>Sumário</h2>
+        {{ sumario_html|safe }}
+      </section>
+      <!-- ===================== SEÇÕES ===================== -->
+      {% for s in secoes %}
+        {% set nivel = s.numero.count('.') + 1 %}
+        <section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}">
+          <h1>
+            <span class="num">{{ s.numero }}</span>{{ s.titulo }}
+          </h1>
+          {% if s.blocos %}
+            {% for b in s.blocos %}
+              <div class="bloco">
+                {% if b.titulo %}<h3>{{ b.titulo }}</h3>{% endif %}
+                {% if b.tipo == 'texto' %}
+                  {{ b.html|safe }}
+                {% elif b.tipo == 'lista' %}
+                  {{ b.lista_html|safe }}
+                {% elif b.tipo == 'figura' %}
+                  <div class="figura">
+                    {% if b.src %}
+                      <img src="{{ b.src }}" alt="">
+                    {% else %}
+                      <p class="empty-section">[Figura importada sem imagem vinculada]</p>
+                    {% endif %}
+                    <div class="cap">
+                      Figura {{ b.numero }}
+                      {% if b.legenda %}— {{ b.legenda }}{% endif %}
+                    </div>
+                    {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
+                  </div>
+                {% elif b.tipo == 'tabela' %}
+                  <div class="tabela">
+                    {% if b.tabela_html %}
+                      {{ b.tabela_html|safe }}
+                    {% else %}
+                      <div class="cap">
+                        Tabela {{ b.numero }}
+                        {% if b.legenda %}— {{ b.legenda }}{% endif %}
+                      </div>
+                    {% endif %}
+                    {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="empty-section">— sem conteúdo nesta seção —</p>
+          {% endif %}
+        </section>
+      {% endfor %}
+      <!-- ===================== ASSINATURAS ===================== -->
+      <section class="assinaturas">
+        <h2>Página de assinaturas</h2>
+        <p>
+          Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime("%d/%m/%Y") }}, e está pronto para assinatura eletrônica via plataforma D4Sign.
+        </p>
+        <div class="sig-row">
+          <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
+        </div>
+        <div class="sig-row">
+          <div class="linha">Fiscalização — SEMIL/DER-SP</div>
+        </div>
+        <div class="nota">
+          Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
+          Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
+        </div>
+      </section>
+    </div>
+  </body>
 </html>

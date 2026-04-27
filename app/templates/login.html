@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Entrar{% endblock %}
 {% block auth %}
-<div class="login-card">
-  <h1>SRA · PLI-SP</h1>
-  <p class="lede">Sistema de Relatórios de Atividades<br>Consórcio Concremat–Transplan</p>
-  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-  <form method="post" action="/login">
-    <label>E-mail</label>
-    <input type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required autofocus />
-    <label>Senha</label>
-    <input type="password" name="password" title="Senha" placeholder="sua senha" required />
-    <button type="submit">Entrar</button>
-  </form>
-</div>
+  <div class="login-card">
+    <h1>SRA · PLI-SP</h1>
+    <p class="lede">
+      Sistema de Relatórios de Atividades
+      <br>
+      Consórcio Concremat–Transplan
+    </p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required autofocus />
+      <label for="login-password">Senha</label>
+      <input id="login-password" type="password" name="password" title="Senha" placeholder="sua senha" required />
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
 {% endblock %}
