@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, load_only, selectinload
 from sqlalchemy import case, func
+from sqlalchemy.sql.functions import coalesce
 from pathlib import Path
 from datetime import date
 
@@ -93,7 +94,7 @@ def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
     e SQLite: usa apenas `length`/`replace` + integer division por 9/10
     (tamanho dos marcadores `[[FIGURA:`, `[[TABELA:`, `[[TABELA|`, `[[TABELA]]`).
     """
-    conteudo = func.coalesce(Bloco.conteudo, "")
+    conteudo = coalesce(Bloco.conteudo, "")
     base_len = func.length(conteudo)
     fig_in_text = (base_len - func.length(func.replace(conteudo, "[[FIGURA:", ""))) / 9
     tab_in_text_a = (base_len - func.length(func.replace(conteudo, "[[TABELA:", ""))) / 9
@@ -112,10 +113,10 @@ def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
 
     row = (
         db.query(
-            func.coalesce(func.sum(fig_in_sec), 0).label("fig_base"),
-            func.coalesce(func.sum(tab_in_sec), 0).label("tab_base"),
-            func.coalesce(func.sum(fig_per_block), 0).label("fig_global_base"),
-            func.coalesce(func.sum(tab_per_block), 0).label("tab_global_base"),
+            coalesce(func.sum(fig_in_sec), 0).label("fig_base"),
+            coalesce(func.sum(tab_in_sec), 0).label("tab_base"),
+            coalesce(func.sum(fig_per_block), 0).label("fig_global_base"),
+            coalesce(func.sum(tab_per_block), 0).label("tab_global_base"),
         )
         .select_from(Bloco)
         .join(Secao, Secao.id == Bloco.secao_id)

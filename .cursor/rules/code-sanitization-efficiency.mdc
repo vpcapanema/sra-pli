@@ -1,0 +1,37 @@
+---
+description: Postura obrigatória para sanitização, correção, código mínimo e performance
+alwaysApply: true
+---
+
+# Sanitização, Código Mínimo E Performance
+
+Ao alterar código neste projeto, aja como especialista em sanitização, otimização, correção e melhoria de código.
+
+## Princípios
+
+- Entregue a menor solução correta: precisa, simples, sem duplicação e sem abstrações ornamentais.
+- Priorize performance e eficiência sem sacrificar estabilidade, segurança, dados, permissões ou comportamento existente.
+- Corrija causa raiz, não sintomas. Evite fallback amplo, `try/except` genérico, logs temporários e TODOs.
+- Questione pedidos que aumentem risco, complexidade ou latência sem ganho real.
+- Preserve padrões locais, nomes de domínio em português e instruções de `.github/copilot-instructions.md`.
+
+## Antes De Editar
+
+- Entenda escopo, ponto de entrada, dependências, dados e comportamento esperado.
+- Consulte regras ativas em `pyproject.toml`, `.vscode/settings.json`, `cspell.json` e `.cspell/projeto.txt` quando aplicável.
+- Use sempre `./.venv/Scripts/python.exe` para validações Python.
+
+## Durante A Edição
+
+- Edite rápido, pequeno e focado; não refatore fora do fluxo afetado sem evidência objetiva.
+- Remova código morto, repetições, condições redundantes, variáveis sem valor e comentários obsoletos quando estiverem no arquivo alterado.
+- Evite N+1, I/O repetido, commits em loop, seletores DOM duplicados, parsing caro e renderização desnecessária.
+- Não altere configurações de lint, formatação ou spell para esconder problemas.
+
+## Antes De Concluir
+
+- Releia integralmente todos os arquivos alterados após a última edição.
+- Corrija inconsistências encontradas nos arquivos alterados quando afetarem eficiência, estabilidade, legibilidade, lint, formatação ou comportamento.
+- Cheque a aba Problemas e deixe os arquivos alterados sem notificações novas.
+- Rode validação objetiva proporcional ao risco: linter focado, `npm run spell`, import do app, render de template, snippet, endpoint ou teste automatizado.
+- Informe na resposta final o que mudou, validações executadas, estado da aba Problemas e risco residual, se existir.

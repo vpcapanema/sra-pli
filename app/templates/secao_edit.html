@@ -133,7 +133,14 @@
               <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar" class="inline-form" onsubmit="return confirm('Confirmar e bloquear bloco?')">
                 <button type="submit" class="bloco-action" title="Confirmar" aria-label="Confirmar bloco">✓</button>
               </form>
-              <button type="button" class="bloco-action" title="Editar no container" aria-label="Editar bloco" onclick='editarBloco({{ b.id }}, {{ (b.titulo or "")|tojson|safe }}, {{ (b.tipo or "texto")|tojson|safe }}, {{ (b.conteudo or "")|tojson|safe }})'>✎</button>
+              <button type="button"
+                      class="bloco-action edit-bloco-btn"
+                      title="Editar no container"
+                      aria-label="Editar bloco"
+                      data-bloco-id="{{ b.id }}"
+                      data-bloco-titulo='{{ (b.titulo or "")|tojson|forceescape }}'
+                      data-bloco-tipo='{{ (b.tipo or "texto")|tojson|forceescape }}'
+                      data-bloco-conteudo='{{ (b.conteudo or "")|tojson|forceescape }}'>✎</button>
             {% else %}
               <span class="locked-lbl">Bloqueado</span>
             {% endif %}
@@ -354,19 +361,39 @@
   </div>
 </section>
 
-<script>
+<script
+  data-rel-id='{{ rel.id|tojson|forceescape }}'
+  data-sec-numero='{{ sec.numero|tojson|forceescape }}'
+  data-sec-titulo='{{ sec.titulo|tojson|forceescape }}'
+  data-fig-base='{{ media_counts.fig_base|int|tojson|forceescape }}'
+  data-tab-base='{{ media_counts.tab_base|int|tojson|forceescape }}'
+  data-fig-global-base='{{ media_counts.fig_global_base|int|tojson|forceescape }}'
+  data-tab-global-base='{{ media_counts.tab_global_base|int|tojson|forceescape }}'>
+const SECAO_EDIT_DATA = document.currentScript ? document.currentScript.dataset : {};
+function parseJsonValue(raw, fallback) {
+  if (raw === undefined || raw === '') return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    return fallback;
+  }
+}
+function readSecaoEditData(name, fallback) {
+  return parseJsonValue(SECAO_EDIT_DATA[name], fallback);
+}
+
 (function(){
   const form = document.getElementById('form-add-bloco'); if (!form) return;
   const tipoIn = document.getElementById('add-bloco-tipo');
   const tituloHidden = document.getElementById('add-bloco-titulo');
   const ta = document.getElementById('add-bloco-conteudo');
-  const relId = {{ rel.id|tojson }};
-  const secNumero = {{ sec.numero|tojson }};
+  const relId = readSecaoEditData('relId', 0);
+  const secNumero = readSecaoEditData('secNumero', '');
   const secTop = secNumero.split('.')[0];
-  const figBase = {{ media_counts.fig_base|int }};
-  const tabBase = {{ media_counts.tab_base|int }};
-  const figGlobalBase = {{ media_counts.fig_global_base|int }};
-  const tabGlobalBase = {{ media_counts.tab_global_base|int }};
+  const figBase = readSecaoEditData('figBase', 0);
+  const tabBase = readSecaoEditData('tabBase', 0);
+  const figGlobalBase = readSecaoEditData('figGlobalBase', 0);
+  const tabGlobalBase = readSecaoEditData('tabGlobalBase', 0);
   function _countTaFig(){ return (ta.value.match(/\[\[FIGURA:/g) || []).length; }
   function _countTaTab(){
     const op = (ta.value.match(/\[\[TABELA(?::|\||\]\])/g) || []).length;
@@ -781,6 +808,17 @@ function editarBloco(id, titulo, tipo, conteudo) {
   if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
 }
 
+document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    editarBloco(
+      Number(btn.dataset.blocoId),
+      parseJsonValue(btn.dataset.blocoTitulo, ''),
+      parseJsonValue(btn.dataset.blocoTipo, 'texto'),
+      parseJsonValue(btn.dataset.blocoConteudo, ''),
+    );
+  });
+});
+
 (function(){
   const checks = Array.from(document.querySelectorAll('.bloco-select'));
   const enabledChecks = checks.filter((check) => !check.disabled);
@@ -856,8 +894,8 @@ function editarBloco(id, titulo, tipo, conteudo) {
   const confirmBtn = document.getElementById('import-confirm');
   const allOnBtn = document.getElementById('import-all-on');
   const allOffBtn = document.getElementById('import-all-off');
-  const SECAO_FALLBACK_NUM = {{ sec.numero|tojson }};
-  const SECAO_FALLBACK_TIT = {{ sec.titulo|tojson }};
+  const SECAO_FALLBACK_NUM = readSecaoEditData('secNumero', '');
+  const SECAO_FALLBACK_TIT = readSecaoEditData('secTitulo', '');
 
   // Lista de números de seções já existentes no relatório — para reclassificar
   // localmente "usar"/"criar" quando o usuário edita o número da seção no header.

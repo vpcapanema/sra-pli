@@ -5,6 +5,7 @@
     "ms-python.flake8",
     "ms-python.pylint",
     "samuelcolvin.jinjahtml",
-    "monosans.djlint"
+    "monosans.djlint",
+    "SkySloane.taskbari"
   ]
 }

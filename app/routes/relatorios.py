@@ -1,5 +1,4 @@
 import re
-from datetime import date
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -325,7 +324,7 @@ def status_secao(
     status: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = _require(request, db)
+    _require(request, db)
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)

@@ -11,6 +11,7 @@ SP-2050
 SRA
 D20
 Medicao
+medicao
 medicoes
 relatorio
 relatorios
@@ -255,6 +256,7 @@ repeticao
 repositorio
 semantica
 serializacao
+serialização
 solucao
 transacao
 unico
@@ -304,7 +306,6 @@ poucas
 poucos
 tocam
 várias
-várias
 sequência
 qualquer
 caso
@@ -327,7 +328,6 @@ pendente
 andamento
 analise
 análise
-concluída
 concluída
 confirmação
 validando
@@ -353,6 +353,7 @@ pydantic
 jinja
 jinja2
 jinjahtml
+tojson
 psycopg
 psycopg2
 bcrypt
@@ -467,6 +468,7 @@ CFCFCF
 pdfs
 PDFs
 nums
+commitar
 ortografica
 sbadge
 sdesc
