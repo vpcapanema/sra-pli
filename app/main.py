@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from logging import getLogger
+from time import perf_counter
 from datetime import datetime
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse
@@ -14,6 +16,7 @@ from .db import get_db
 from .bootstrap import init_db
 from .routes import auth as auth_routes
 from .routes import pages as page_routes
+from .routes import relatorio_exclusao as relatorio_exclusao_routes
 from .routes import relatorios as rel_routes
 from .routes import blocos as bloco_routes
 from .routes import figuras as figura_routes
@@ -29,6 +32,8 @@ from .access_control import SraAutorRouteGuardMiddleware
 from .process_events import configure_logging_bridge, process_session_id
 
 BASE_DIR = Path(__file__).parent
+
+_HTTP_AUDIT_LOG = getLogger("app.http")
 
 
 class SraEnsureProcessSessionMiddleware:
@@ -59,6 +64,28 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def sra_http_audit_log(request: Request, call_next):
+    """Regista duração de pedidos nas áreas de relatório, utilizadores e upload (nível INFO → SSE)."""
+    path = request.url.path
+    instrumentar = (
+        path.startswith("/relatorios")
+        or path.startswith("/usuarios")
+        or path.endswith("/upload-conteudo")
+        or "/importar/" in path
+    )
+    if not instrumentar or path.startswith("/static/"):
+        return await call_next(request)
+    t0 = perf_counter()
+    response = await call_next(request)
+    ms = (perf_counter() - t0) * 1000
+    code = getattr(response, "status_code", "?")
+    _HTTP_AUDIT_LOG.info("%s %s → %s (%.0f ms)", request.method, path, code, ms)
+    return response
+
+
 # Ordem add_middleware (insert no início): [Session, Ensure, Autor] → execução
 # SessionMiddleware → SraEnsureProcessSessionMiddleware → SraAutorRouteGuardMiddleware → rotas.
 app.add_middleware(SraAutorRouteGuardMiddleware)
@@ -97,6 +124,9 @@ def favicon_ico():
 app.include_router(auth_routes.router)
 app.include_router(page_routes.router)
 app.include_router(rel_routes.router)
+app.include_router(
+    relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"]
+)
 app.include_router(bloco_routes.router)
 app.include_router(cron_admin_routes.router)
 app.include_router(figura_routes.router)

@@ -234,6 +234,7 @@
                     action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
                     class="sec-control-inline"
                     data-sra-confirm="secao_excluir"
+                    data-sra-iniciar-acompanhamento="1"
                     data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção.">
                 <button type="submit" class="danger">🗑 Excluir</button>
               </form>
@@ -1374,6 +1375,7 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
   });
 })();
   </script>
+  {% include "complementos/painel_logs_servidor.html" %}
   <style>
 /* Tabela de Blocos */
 .blocos-table-wrap { overflow-x:auto; }

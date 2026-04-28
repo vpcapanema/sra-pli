@@ -23,8 +23,10 @@
   "djlint.pythonPath": "${workspaceFolder}/.venv/Scripts/python.exe",
   "djlint.ignore": [
     "**/*.py",
+    "**/*.js",
     "**/.github/**/*.md",
     "**/.cursor/**/*.md",
+    "**/.cursor/*.md",
     "**/tmp/**/*.html"
   ],
 
@@ -50,7 +52,9 @@
   },
 
   "[python]": {
-    "editor.tabSize": 4
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.rulers": [120]
   },
 
   "workbench.statusBar.visible": true,

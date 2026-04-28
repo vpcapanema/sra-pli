@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from dateutil import parser as dateparser
 
 from ..db import get_db, tx_session
-from ..models import Relatorio, Secao, Bloco, User
+from ..models import Bloco, Relatorio, Secao, User
 from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status
 from ..bootstrap import criar_secoes_padrao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
@@ -22,6 +22,12 @@ from .pages import (
     response_relatorio_detail,
     response_secao_edit,
     user_or_login_page,
+)
+from .relatorios_secao_numeracao import (
+    RE_NUMERO_SECAO,
+    _achar_par_swap,
+    _inserir_secao_em_relatorio,
+    _proximo_numero_filho,
 )
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
@@ -40,16 +46,12 @@ def _exigir_relatorio_editavel(db: Session, rel_id: int) -> Relatorio:
     if rel.status == "finalizado":
         raise HTTPException(
             400,
-            detail=(
-                "Relatorio finalizado: reverta o status antes de alterar a estrutura."
-            ),
+            detail=("Relatorio finalizado: reverta o status antes de alterar a estrutura."),
         )
     return rel
 
 
-def _u_or_login(
-    request: Request, db: Session
-) -> tuple[User, None] | tuple[None, Response]:
+def _u_or_login(request: Request, db: Session) -> tuple[User, None] | tuple[None, Response]:
     u, p = user_or_login_page(request, db)
     if p is not None:
         return None, p
@@ -80,9 +82,7 @@ def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
         .order_by(Secao.ordem, Bloco.ordem)
         .all()
     )
-    sec_por_id = {
-        s.id: s for s in db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
-    }
+    sec_por_id = {s.id: s for s in db.query(Secao).filter(Secao.relatorio_id == rel_id).all()}
     payload_blocos = []
     for b in blocos:
         sec_row = sec_por_id.get(b.secao_id)
@@ -199,7 +199,12 @@ async def criar_relatorio(
         nome = (pdf_disponivel or "").strip()
         if not nome:
             process_done(
-                request, process_id, "Criação interrompida", "PDF disponível não selecionado.", ok=False, process_key="relatorio_criar"
+                request,
+                process_id,
+                "Criação interrompida",
+                "PDF disponível não selecionado.",
+                ok=False,
+                process_key="relatorio_criar",
             )
             raise HTTPException(400, detail="Selecione o PDF disponível.")
         try:
@@ -214,9 +219,7 @@ async def criar_relatorio(
             )
             secoes_explicitas = extrair_sumario_pdf_disponivel(nome)
         except ValueError as exc:
-            process_done(
-                request, process_id, "Falha no sumário", str(exc), ok=False, process_key="relatorio_criar"
-            )
+            process_done(request, process_id, "Falha no sumário", str(exc), ok=False, process_key="relatorio_criar")
             raise HTTPException(400, detail=str(exc))
         if not secoes_explicitas:
             process_done(
@@ -236,7 +239,12 @@ async def criar_relatorio(
             raise HTTPException(400, detail="Envie um arquivo PDF.")
         if not pdf_upload.filename.lower().endswith(".pdf"):
             process_done(
-                request, process_id, "Arquivo recusado", "O arquivo enviado não é um PDF.", ok=False, process_key="relatorio_criar"
+                request,
+                process_id,
+                "Arquivo recusado",
+                "O arquivo enviado não é um PDF.",
+                ok=False,
+                process_key="relatorio_criar",
             )
             raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
         dados = await pdf_upload.read()
@@ -257,9 +265,7 @@ async def criar_relatorio(
             )
             secoes_explicitas = extrair_sumario(dados)
         except Exception as exc:  # noqa: BLE001
-            process_done(
-                request, process_id, "Falha ao ler PDF", str(exc), ok=False, process_key="relatorio_criar"
-            )
+            process_done(request, process_id, "Falha ao ler PDF", str(exc), ok=False, process_key="relatorio_criar")
             raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
         if not secoes_explicitas:
             process_done(
@@ -273,7 +279,12 @@ async def criar_relatorio(
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
     else:
         process_done(
-            request, process_id, "Criação interrompida", "Fonte de seções inválida.", ok=False, process_key="relatorio_criar"
+            request,
+            process_id,
+            "Criação interrompida",
+            "Fonte de seções inválida.",
+            ok=False,
+            process_key="relatorio_criar",
         )
         raise HTTPException(400, detail="Selecione um relatório entregue ou envie um PDF.")
 
@@ -400,7 +411,7 @@ def _proxima_versao(versao_atual: str | None) -> str:
         return "R01"
     numero = int(match.group(1)) + 1
     prefixo = raw[: match.start()] or "R"
-    sufixo = raw[match.end():]
+    sufixo = raw[match.end() :]
     return f"{prefixo}{numero:02d}{sufixo}"
 
 
@@ -442,8 +453,7 @@ def duplicar_relatorio(rel_id: int, request: Request, db: Session = Depends(get_
     secoes_orig = db.query(Secao).filter(Secao.relatorio_id == rel.id).order_by(Secao.ordem).all()
     sec_ids_orig = [s.id for s in secoes_orig]
     blocos_orig = (
-        db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids_orig)).order_by(Bloco.ordem).all()
-        if sec_ids_orig else []
+        db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids_orig)).order_by(Bloco.ordem).all() if sec_ids_orig else []
     )
 
     # Multi-statement: usa transação explícita para garantir atomicidade
@@ -512,24 +522,6 @@ def reverter_relatorio(rel_id: int, request: Request, db: Session = Depends(get_
     return response_dashboard(request, db)
 
 
-@router.post("/{rel_id}/excluir")
-def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
-    u, p = _u_or_login(request, db)
-    if p is not None:
-        return p
-    user = u
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
-    rel = db.get(Relatorio, rel_id)
-    if not rel:
-        raise HTTPException(404)
-    with tx_session() as txdb:
-        rel_tx = txdb.get(Relatorio, rel_id)
-        if rel_tx is not None:
-            txdb.delete(rel_tx)
-    return response_dashboard(request, db)
-
-
 @router.post("/{rel_id}/secoes/{sec_id}/responsavel")
 def atribuir_responsavel(  # pylint: disable=too-many-arguments
     rel_id: int,
@@ -594,130 +586,6 @@ def status_secao(  # pylint: disable=too-many-arguments
     return response_secao_edit(request, db, rel_id, sec_id)
 
 
-def _ordem_for_numero(numero: str) -> tuple:
-    """Chave de ordenação tipo (1, 2, 3) para '4.4.6.1'."""
-    parts = []
-    for p in numero.split("."):
-        try:
-            parts.append(int(p))
-        except ValueError:
-            parts.append(0)
-    return tuple(parts)
-
-
-def _numero_livre_no_nivel(
-    secoes: list[Secao], nivel: int, prefixo: str
-) -> str:
-    """Devolve um numero livre no nivel/prefixo indicado.
-
-    Varre TODAS as secoes (inclusive descendentes) sob ``prefixo`` e toma a
-    K-esima parte (``K = nivel - 1``); o resultado e ``prefixo + (max + 1)``,
-    garantindo zero colisao com numeros existentes ou com qualquer prefixo de
-    descendente. Necessario para inserir com shift-on-insert sem violar
-    ``UniqueConstraint(relatorio_id, numero)`` antes da renumeracao.
-    """
-    sufixos: list[int] = []
-    for sec in secoes:
-        num = sec.numero or ""
-        partes = num.split(".")
-        if len(partes) < nivel:
-            continue
-        if prefixo and not num.startswith(prefixo):
-            continue
-        try:
-            sufixos.append(int(partes[nivel - 1]))
-        except ValueError:
-            continue
-    proximo = (max(sufixos) + 1) if sufixos else 1
-    return f"{prefixo}{proximo}"
-
-
-def _inserir_secao_em_relatorio(
-    db_session: Session, rel_id: int, numero: str, titulo: str
-) -> None:
-    """Insere uma secao na posicao indicada por ``numero`` e renumera a arvore.
-
-    Comportamento:
-    - ``numero`` e um HINT DE POSICAO. Se ja existir secao com esse numero,
-      a inserida toma a posicao e a existente (e suas irmas posteriores) sao
-      empurradas via ``ordem``. A renumeracao recalcula os numeros finais.
-    - Para evitar ``IntegrityError`` no flush (UniqueConstraint), a nova
-      secao entra com um numero TEMPORARIO LIVRE no mesmo nivel/prefixo
-      (``_numero_livre_no_nivel``). O numero final sai do ``renumerar_relatorio``.
-    - Limitacao contratual D20: ``renumerar_relatorio`` PRESERVA o numero das
-      raizes (``numeracao.py``). Inserir entre raizes nao desloca; a nova fica
-      no proximo slot livre. O frontend reflete isso oferecendo max+1 no nivel 1.
-
-    Aplica em transacao explicita: consolida referencias textuais ANTES da
-    mutacao (estabiliza alvos por id), desloca a ``ordem`` das irmas posteriores,
-    persiste a nova secao e renumera por DFS.
-    """
-    todas = db_session.query(Secao).filter_by(relatorio_id=rel_id).all()
-    partes_alvo = numero.split(".")
-    nivel = len(partes_alvo)
-    prefixo_alvo = ".".join(partes_alvo[:-1]) + "." if nivel > 1 else ""
-    raiz_em_conflito = nivel == 1 and any(
-        (s.numero or "") == numero for s in todas
-    )
-    if raiz_em_conflito:
-        # Renumerar preserva numeros de raiz; deslocamento entre raizes nao e
-        # suportado. Append: ordem maxima + 1, sem mexer nos existentes.
-        nova_ordem = len(todas)
-        ids_deslocar: list[int] = []
-    else:
-        chave_alvo = _ordem_for_numero(numero)
-        nova_ordem = sum(
-            1 for s in todas if _ordem_for_numero(s.numero) < chave_alvo
-        )
-        ids_deslocar = [
-            s.id for s in todas if _ordem_for_numero(s.numero) >= chave_alvo
-        ]
-    numero_temp = _numero_livre_no_nivel(todas, nivel, prefixo_alvo)
-    with tx_session() as txdb:
-        consolidar_referencias(txdb, rel_id)
-        if ids_deslocar:
-            txdb.query(Secao).filter(Secao.id.in_(ids_deslocar)).update(
-                {Secao.ordem: Secao.ordem + 1}, synchronize_session=False
-            )
-        txdb.add(
-            Secao(
-                relatorio_id=rel_id,
-                numero=numero_temp,
-                titulo=titulo,
-                ordem=nova_ordem,
-            )
-        )
-        txdb.flush()
-        renumerar_relatorio(txdb, rel_id)
-
-
-def _proximo_numero_filho(
-    db_session: Session, rel_id: int, pai_numero: str
-) -> str:
-    """Calcula o proximo numero de filha direta de ``pai_numero``.
-
-    Retorna ``{pai_numero}.{max_filha_direta + 1}``, ou ``{pai_numero}.1``
-    quando ainda nao ha filhas diretas. Considera apenas filhas no nivel
-    imediatamente abaixo (ignora netos).
-    """
-    nivel_pai = pai_numero.count(".")
-    prefixo = pai_numero + "."
-    sufixos: list[int] = []
-    for sec in db_session.query(Secao).filter_by(relatorio_id=rel_id).all():
-        num = sec.numero or ""
-        if not num.startswith(prefixo) or num.count(".") != nivel_pai + 1:
-            continue
-        try:
-            sufixos.append(int(num[len(prefixo):]))
-        except ValueError:
-            continue
-    proximo = (max(sufixos) + 1) if sufixos else 1
-    return f"{prefixo}{proximo}"
-
-
-_RE_NUMERO_SECAO = re.compile(r"^\d+(?:\.\d+)*$")
-
-
 @router.post("/{rel_id}/secoes")
 def criar_subsecao(
     rel_id: int,
@@ -745,10 +613,8 @@ def criar_subsecao(
     titulo = titulo.strip()
     if not numero or not titulo:
         raise HTTPException(400, detail="Informe número e título")
-    if not _RE_NUMERO_SECAO.match(numero):
-        raise HTTPException(
-            400, detail="Número de seção inválido (use apenas dígitos e pontos)"
-        )
+    if not RE_NUMERO_SECAO.match(numero):
+        raise HTTPException(400, detail="Número de seção inválido (use apenas dígitos e pontos)")
     _inserir_secao_em_relatorio(db, rel_id, numero, titulo)
     return response_relatorio_detail(request, db, rel_id)
 
@@ -787,67 +653,6 @@ def criar_subsecao_filha(
         raise HTTPException(409, detail="Conflito de numeração; tente novamente.")
     _inserir_secao_em_relatorio(db, rel_id, novo_numero, titulo)
     return response_relatorio_detail(request, db, rel_id)
-
-
-@router.post("/{rel_id}/secoes/{sec_id}/excluir")
-def excluir_subsecao(
-    rel_id: int,
-    sec_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    u, p = _u_or_login(request, db)
-    if p is not None:
-        return p
-    user = u
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
-    _exigir_relatorio_editavel(db, rel_id)
-    sec = db.get(Secao, sec_id)
-    if not sec or sec.relatorio_id != rel_id:
-        raise HTTPException(404)
-    if "." not in (sec.numero or ""):
-        raise HTTPException(400, detail="Não é possível excluir seções de primeiro nível")
-    with tx_session() as txdb:
-        consolidar_referencias(txdb, rel_id)
-        sec_tx = txdb.get(Secao, sec_id)
-        if sec_tx is not None:
-            txdb.delete(sec_tx)
-            txdb.flush()
-        renumerar_relatorio(txdb, rel_id)
-    return response_relatorio_detail(request, db, rel_id)
-
-
-def _achar_par_swap(
-    db: Session, rel_id: int, sec: Secao, direcao: str
-) -> tuple[Secao, Secao] | None:
-    """Localiza o par (atual, vizinho) para swap entre irmaos diretos.
-
-    Retorna ``None`` se a secao ja esta na borda (mover para cima do primeiro
-    ou para baixo do ultimo). Top-level deve ter sido bloqueado antes.
-    """
-    numero_sec = sec.numero or ""
-    nivel = numero_sec.count(".")
-    prefixo_pai = ".".join(numero_sec.split(".")[:-1]) + "."
-    irmaos = (
-        db.query(Secao)
-        .filter(
-            Secao.relatorio_id == rel_id,
-            Secao.numero.like(f"{prefixo_pai}%"),
-        )
-        .all()
-    )
-    diretos = sorted(
-        (s for s in irmaos if (s.numero or "").count(".") == nivel),
-        key=lambda s: (s.ordem or 0, _ordem_for_numero(s.numero or "")),
-    )
-    pos = next((i for i, s in enumerate(diretos) if s.id == sec.id), -1)
-    if pos < 0:
-        return None
-    alvo = pos - 1 if direcao == "cima" else pos + 1
-    if alvo < 0 or alvo >= len(diretos):
-        return None
-    return diretos[pos], diretos[alvo]
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/mover")

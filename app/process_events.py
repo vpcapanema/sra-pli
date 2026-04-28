@@ -231,7 +231,12 @@ def configure_logging_bridge() -> None:
         return
     handler = ProcessLogHandler()
     handler.setLevel(logging.INFO)
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(name)s %(levelname)s %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    )
     for logger_name in ("uvicorn.error", "fastapi", "app"):
         logging.getLogger(logger_name).addHandler(handler)
     _state["logger_bridge_configured"] = True

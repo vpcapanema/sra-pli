@@ -1,0 +1,3 @@
+# Opcional: ferramentas de desenvolvimento (formatacao Python).
+# Apos o ambiente base: pip install -r requirements-dev.txt
+ruff>=0.8,<1

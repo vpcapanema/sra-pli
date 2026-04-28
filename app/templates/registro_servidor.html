@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Registro do servidor{% endblock %}
+{% block header %}Registro do servidor em tempo real{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Registro do servidor</h1>
+    <div class="subtitle">Fluxo contínuo ligado ao mesmo canal de eventos das outras páginas do SRA</div>
+    <p>
+      <a href="/usuarios">← Utilizadores</a>
+      ·
+      <a href="/dashboard">Relatórios</a>
+    </p>
+  </section>
+  {% include "complementos/painel_logs_servidor.html" %}
+{% endblock %}

@@ -77,6 +77,16 @@ def init_db() -> None:
                     "NOT NULL DEFAULT true;"
                 )
             )
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email2 VARCHAR(255);")
+            )
+            conn.execute(
+                text(
+                    "UPDATE users SET email2 = email "
+                    "WHERE email2 IS NULL OR TRIM(email2) = '';"
+                )
+            )
+            conn.execute(text("ALTER TABLE users ALTER COLUMN email2 SET NOT NULL;"))
     with SessionLocal() as db:
         ensure_admin(db)
 
@@ -91,6 +101,7 @@ def ensure_admin(db: Session) -> None:
         return
     admin = User(
         email=settings.ADMIN_EMAIL,
+        email2=settings.ADMIN_EMAIL.strip().lower(),
         nome="Administrador do Sistema",
         password_hash=hash_password(settings.ADMIN_PASSWORD),
         role="admin",

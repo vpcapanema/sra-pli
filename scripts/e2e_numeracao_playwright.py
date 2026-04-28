@@ -51,10 +51,12 @@ def _bootstrap_e2e_user() -> None:
         if user:
             user.password_hash = h
             user.role = "admin"
+            user.email2 = _E2E_EMAIL
         else:
             db.add(
                 User(
                     email=_E2E_EMAIL,
+                    email2=_E2E_EMAIL,
                     nome=_E2E_NOME,
                     password_hash=h,
                     role="admin",

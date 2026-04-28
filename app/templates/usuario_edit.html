@@ -4,7 +4,7 @@
 {% block content %}
   <section class="hero">
     <h1>Editar usuário</h1>
-    <div class="subtitle">{{ alvo.nome }} · {{ alvo.email }}</div>
+    <div class="subtitle">{{ alvo.nome }} · {{ alvo.email }} · {{ alvo.email2 }}</div>
   </section>
   <section class="ss active-tab">
     <div class="ss-hdr">
@@ -27,6 +27,16 @@
         <div>
           <label for="inp-email-edit">E-mail</label>
           <input id="inp-email-edit" type="email" name="email" title="E-mail" placeholder="voce@empresa.com" value="{{ alvo.email }}" required>
+        </div>
+        <div>
+          <label for="inp-email2-edit">E-mail secundário</label>
+          <input id="inp-email2-edit"
+                 type="email"
+                 name="email2"
+                 title="E-mail secundário (obrigatório)"
+                 placeholder="outro@empresa.com"
+                 value="{{ alvo.email2 }}"
+                 required>
         </div>
         <div>
           <label for="{%- if user.role == 'admin' -%}sel-role-edit{%- else -%}inp-role-display{%- endif -%}">Perfil</label>
@@ -52,6 +62,7 @@
       </form>
     </div>
   </section>
+  {% include "complementos/painel_logs_servidor.html" %}
   <script>
 (function () {
   var PARTICULAS = ['do','da','de','dos','das','du','e','di','del','la','von','van'];

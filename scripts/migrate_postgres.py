@@ -31,7 +31,16 @@ def _normalize(url: str) -> str:
     return url
 
 
-def main() -> int:
+def _enriquecer_chunk_users_email2(tbl_name: str, chunk: list[dict]) -> None:
+    """Fonte antiga sem ``email2``: preenche com ``email`` para o alvo NOT NULL."""
+    if tbl_name != "users":
+        return
+    for row in chunk:
+        if not row.get("email2"):
+            row["email2"] = row.get("email") or ""
+
+
+def main() -> int:  # pylint: disable=too-many-locals
     p = argparse.ArgumentParser()
     p.add_argument("--source", required=True)
     p.add_argument("--target", required=True)
@@ -68,6 +77,7 @@ def main() -> int:
                 tgt_tbl = Table(tbl.name, MetaData(), autoload_with=tgt)
                 for i in range(0, len(rows), args.batch):
                     chunk = [dict(r) for r in rows[i : i + args.batch]]
+                    _enriquecer_chunk_users_email2(tbl.name, chunk)
                     tconn.execute(tgt_tbl.insert(), chunk)
                 print(f"   - {tbl.name}: {len(rows)} linhas")
         finally:

@@ -42,9 +42,8 @@ def usuarios_notificacoes_toggle(
 ):
     """Liga/desliga o opt-out de notificações mensais (restrito a coord/admin).
 
-    Toggle é fim-de-linha (último filtro): mesmo com ``notificacoes_ativas=true``
-    o usuário só recebe email se for responsável por seção no relatório aberto.
-    Valor false aqui significa "suprimir mesmo se for responsável" (férias).
+    Toggle é fim-de-linha: com ``notificacoes_ativas=false`` o utilizador deixa
+    de entrar na lista de destinatários do ciclo (abertura, lembretes, etc.).
     """
     viewer, p = user_or_login_page(request, db)
     if p is not None:

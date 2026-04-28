@@ -104,6 +104,7 @@ dominio
 duplicacao
 duplicados
 duplicar
+duracao
 duvida
 duvidas
 edicao
@@ -226,6 +227,7 @@ medicao
 Medicao
 medicoes
 mes
+metodo
 motivo
 motivos
 movimentacao
@@ -618,6 +620,7 @@ agendado
 agendados
 agendamento
 agregacao
+asgi
 avanca
 avancar
 avancou

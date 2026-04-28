@@ -92,6 +92,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     sugestao = _sugestao_proximo_relatorio(db)
     pdfs_disponiveis = listar_pdfs_disponiveis()
+    sra_fim = request.session.pop("sra_fim_pendente", None)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -100,6 +101,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
             "relatorios": relatorios,
             "sugestao": sugestao,
             "pdfs_disponiveis": pdfs_disponiveis,
+            "sra_fim_pendente": sra_fim,
         },
     )
 

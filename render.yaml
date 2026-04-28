@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: sra-pli
+    name: sra-pli-starter
     runtime: docker
-    plan: free
+    plan: starter
     region: oregon
     healthCheckPath: /health
     envVars:
@@ -28,7 +28,7 @@ services:
       - key: SENDGRID_FROM_NAME
         value: "SRA · PLI-SP"
       - key: APP_BASE_URL
-        value: https://sra-pli.onrender.com
+        value: https://sra-pli-starter.onrender.com
       - key: NOTIFICAR_HABILITADO
         value: "true"
       - key: NOTIFICAR_SANDBOX
@@ -38,7 +38,7 @@ services:
         sync: false
 
 # ---------------------------------------------------------------------------
-# Servicos de cron (descomentar quando o plano permitir; cron eh pago no free).
+# Servicos de cron (descomentar se quiser jobs nativos Render; no free eram pagos).
 # Alternativa: cron externo (cron-job.org) chamando POST /admin/cron/...
 # com header X-Cron-Token = CRON_TOKEN.
 # ---------------------------------------------------------------------------

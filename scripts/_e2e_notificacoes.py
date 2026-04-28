@@ -103,27 +103,29 @@ def _cleanup(db) -> None:
     db.commit()
 
 
-def _setup(db) -> tuple[User, User, User, User, Relatorio]:
+def _setup(db) -> tuple[User, User, User, Relatorio]:
     print("=== Setup E2E ===")
     _cleanup(db)
     u1 = User(
-        email=f"joao.test{EMAIL_DOMAIN}", nome="Joao da Silva",
+        email=f"joao.test{EMAIL_DOMAIN}",
+        email2=f"joao.alt{EMAIL_DOMAIN}",
+        nome="Joao da Silva",
         password_hash=hash_password("x" * 8), role="autor",
     )
     u2 = User(
-        email=f"maria.test{EMAIL_DOMAIN}", nome="Maria de Souza",
+        email=f"maria.test{EMAIL_DOMAIN}",
+        email2=f"maria.alt{EMAIL_DOMAIN}",
+        nome="Maria de Souza",
         password_hash=hash_password("x" * 8), role="autor",
     )
     u3 = User(
-        email=f"ferias.test{EMAIL_DOMAIN}", nome="Pedro de Ferias",
+        email=f"ferias.test{EMAIL_DOMAIN}",
+        email2=f"ferias.alt{EMAIL_DOMAIN}",
+        nome="Pedro de Ferias",
         password_hash=hash_password("x" * 8), role="autor",
         notificacoes_ativas=False,
     )
-    u4 = User(
-        email=f"semsecao.test{EMAIL_DOMAIN}", nome="Ana Sem Secao",
-        password_hash=hash_password("x" * 8), role="autor",
-    )
-    db.add_all([u1, u2, u3, u4])
+    db.add_all([u1, u2, u3])
     db.flush()
     rel_base = Relatorio(
         codigo="TEST-D20-99", titulo="Base Teste",
@@ -143,13 +145,13 @@ def _setup(db) -> tuple[User, User, User, User, Relatorio]:
     ])
     db.commit()
     print(
-        f"  users: {u1.id}/{u2.id}/{u3.id}(opt-out)/{u4.id}(sem secao) "
+        f"  users: {u1.id}/{u2.id}/{u3.id}(opt-out) "
         f"rel_base id={rel_base.id}"
     )
-    return u1, u2, u3, u4, rel_base
+    return u1, u2, u3, rel_base
 
 
-def _fase_abertura(db, u1: User, u2: User, u3: User, u4: User) -> int:
+def _fase_abertura(db, u1: User, u2: User, u3: User) -> int:
     print("\n=== abrir_periodo + notificar_autores_abertura ===")
     n_autor_notif = (
         db.query(User)
@@ -163,10 +165,10 @@ def _fase_abertura(db, u1: User, u2: User, u3: User, u4: User) -> int:
     )
     assert r1.criou_relatorio
     assert r1.entregas_criadas == n_autor_notif
-    assert r1.emails_enviados == n_autor_notif  # inclui autor sem secao (u4)
+    assert r1.emails_enviados == n_autor_notif
     novo_id = r1.relatorio_id
     assert novo_id is not None
-    for u in (u1, u2, u4):
+    for u in (u1, u2):
         ent = (
             db.query(EntregaRelatorio)
             .filter_by(relatorio_id=novo_id, user_id=u.id)
@@ -217,14 +219,14 @@ def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
     db.commit()
     r2 = enviar_lembretes(db, tipo="lembrete", relatorio_id=novo_rel_id)
     print(f"  env={r2.emails_enviados} pul_intervalo={r2.pulados_intervalo}")
-    assert r2.emails_enviados == 3  # u1, u2, u4 — lembrete igual criterio da abertura
+    assert r2.emails_enviados == 2
     e1 = db.query(EntregaRelatorio).filter_by(
         relatorio_id=novo_rel_id, user_id=u1.id,
     ).one()
     assert e1.status == "aguardando_envio"
     print(f"  u1 status apos 2 notif: {e1.status} ok")
     r2b = enviar_lembretes(db, tipo="lembrete", relatorio_id=novo_rel_id)
-    assert r2b.pulados_intervalo == 3 and r2b.emails_enviados == 0
+    assert r2b.pulados_intervalo == 2 and r2b.emails_enviados == 0
     print(f"  janela 22h: pulados={r2b.pulados_intervalo} ok")
 
 
@@ -266,13 +268,15 @@ def _fase_ultima_chamada(db, novo_rel_id: int) -> None:
         f"\n=== ultima_chamada com u1=enviado: env={r3.emails_enviados} "
         f"(deve ser 1)"
     )
-    assert r3.emails_enviados == 2  # u2 e u4; u1 ja enviado
+    assert r3.emails_enviados == 1
 
 
 def _fase_acoes_coord(db, novo_rel_id: int, u2: User, e1: EntregaRelatorio) -> None:
     print("\n=== acoes coord ===")
     coord = User(
-        email=f"coord.test{EMAIL_DOMAIN}", nome="Coord Teste",
+        email=f"coord.test{EMAIL_DOMAIN}",
+        email2=f"coord.alt{EMAIL_DOMAIN}",
+        nome="Coord Teste",
         password_hash=hash_password("x" * 8), role="coordenador",
     )
     db.add(coord)
@@ -305,8 +309,8 @@ def _fase_acoes_coord(db, novo_rel_id: int, u2: User, e1: EntregaRelatorio) -> N
 def main() -> int:
     db = SessionLocal()
     try:
-        u1, u2, u3, u4, _base = _setup(db)
-        novo_rel_id = _fase_abertura(db, u1, u2, u3, u4)
+        u1, u2, u3, _base = _setup(db)
+        novo_rel_id = _fase_abertura(db, u1, u2, u3)
         _fase_lembrete(db, novo_rel_id, u1)
         e1 = _fase_recompute(db, novo_rel_id, u1)
         _fase_ultima_chamada(db, novo_rel_id)

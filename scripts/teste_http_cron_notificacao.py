@@ -1,20 +1,25 @@
 """Teste prático dos endpoints HTTP do ciclo mensal (equivalente ao cron às 03:00 BRT).
 
-O job agendado no Render (ou cron-job.org) chama o mesmo contrato que estes POST:
+O job agendado no Render (ou cron-job.org) chama o mesmo contrato que estes POST
+(com ``force=false`` — idempotente):
 
   POST {APP_BASE_URL}/admin/cron/abrir-periodo?force=false
   Header: X-Cron-Token: {CRON_TOKEN}
 
+**Este script** usa por padrão ``force=true`` ao chamar ``abrir-periodo`` (cria
+de novo mesmo se o mês já existir — laboratório). Use ``--no-force`` para imitar
+produção.
+
 Comportamento real de ``abrir_periodo`` (ver ``app/notificacoes/service.py``):
 
-- Cria o relatório do mês clonando o último (idealmente ``finalizado``).
-- **Zera** ``responsavel_id`` nas seções clonadas → em geral **nenhum e-mail**
-  na primeira chamada (``emails_enviados == 0``).
-- E-mails de abertura (Mensagem 1) vão para autores que **já são responsáveis**
-  com ``notificacoes_ativas``. Depois de atribuir na UI (ou com
-  ``--cadeia-atribuir`` abaixo):
-
-  POST /admin/cron/notificar-autores-abertura?relatorio_id=N
+- Cria o relatório do mês clonando o último (idealmente ``finalizado``) e
+  **zera** ``responsavel_id`` nas seções clonadas.
+- Na **mesma** chamada envia Mensagem 1 (abertura) a **todos** os ``autor`` com
+  ``notificacoes_ativas`` (não exige secção atribuída). ``emails_enviados`` pode
+  ser 0 se ninguém cumprir esse critério, se o mês já existir (idempotência), ou
+  se ``NOTIFICAR_HABILITADO=False`` (kill switch → tentativas falham).
+- ``POST /admin/cron/notificar-autores-abertura?relatorio_id=N`` só é necessário
+  para quem **ainda não** recebeu abertura com sucesso (reenvio / após falha).
 
 Modos:
 
@@ -26,6 +31,9 @@ Modos:
 
   # Após abrir-periodo, atribui a 1ª seção folheada ao 1º user role=autor e chama notificar
   .\\.venv\\Scripts\\python.exe scripts/teste_http_cron_notificacao.py --in-process --cadeia-atribuir
+
+  # Igual ao cron real (não duplica mês se já existir)
+  .\\.venv\\Scripts\\python.exe scripts/teste_http_cron_notificacao.py --in-process --no-force
 
 Requisitos:
 
@@ -166,8 +174,10 @@ def _run_in_process(  # pylint: disable=too-many-return-statements
     rel_id = body.get("relatorio_id")
     if not cadeia_atribuir:
         print(
-            "\nNota: sem --cadeia-atribuir, não chama notificar. "
-            "Relatório novo costuma ter emails_enviados=0."
+            "\nNota: sem --cadeia-atribuir, não chama ``notificar_autores_abertura`` "
+            "de novo (a abertura já foi tentada dentro de ``abrir_periodo``). "
+            "Se ``emails_enviados`` veio 0, veja ``avisos`` no JSON e "
+            "``NOTIFICAR_*`` / modo sandbox no ``.env``."
         )
         return 0
     if not rel_id:
@@ -190,12 +200,12 @@ def main() -> int:
     g.add_argument(
         "--in-process",
         action="store_true",
-        help="TestClient (precisa DATABASE_URL; não precisa uvicorn)",
+        help="Chama o serviço no processo atual (precisa DATABASE_URL; sem uvicorn)",
     )
     p.add_argument(
-        "--force",
+        "--no-force",
         action="store_true",
-        help="abrir-periodo com force=true (laboratório; pode duplicar mês)",
+        help="abrir-periodo com force=false (igual produção; não duplica o mês)",
     )
     p.add_argument(
         "--cadeia-atribuir",
@@ -216,16 +226,18 @@ def main() -> int:
         print("ERRO: defina CRON_TOKEN no ambiente ou no .env", file=sys.stderr)
         return 1
 
+    forcar = not args.no_force
+
     if args.http:
         base = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8001").strip()
-        return _run_http(base, token, args.force)
+        return _run_http(base, token, forcar)
 
     n_id = args.notificar_apenas or None
     if n_id and args.cadeia_atribuir:
         print("Use só um de --notificar-apenas ou --cadeia-atribuir.", file=sys.stderr)
         return 1
     return _run_in_process(
-        force=args.force,
+        force=forcar,
         cadeia_atribuir=args.cadeia_atribuir,
         notificar_only_id=n_id,
     )

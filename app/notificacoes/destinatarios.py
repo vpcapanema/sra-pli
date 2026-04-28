@@ -3,7 +3,45 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session, selectinload
 
-from ..models import Relatorio, Secao, User
+from ..models import NotificacaoEnvio, Relatorio, Secao, User
+
+
+def emails_destino_notificacao(user: User) -> list[str]:
+    """Principal primeiro, depois ``email2``; sem duplicar (case-insensitive)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in (user.email, user.email2):
+        e = (raw or "").strip().lower()
+        if e and e not in seen:
+            seen.add(e)
+            out.append(e)
+    return out
+
+
+def email_primario_norm(user: User) -> str:
+    return (user.email or "").strip().lower()
+
+
+def destinos_pendentes_tipo(
+    db: Session,
+    entrega_id: int,
+    tipo: str,
+    destinos_completos: list[str],
+) -> list[str]:
+    """Endereços ainda sem ``NotificacaoEnvio`` com sucesso para este ``tipo``."""
+    if not destinos_completos:
+        return []
+    ok_norm = {
+        (row[0] or "").strip().lower()
+        for row in db.query(NotificacaoEnvio.destinatario_email)
+        .filter(
+            NotificacaoEnvio.entrega_id == entrega_id,
+            NotificacaoEnvio.tipo == tipo,
+            NotificacaoEnvio.sucesso.is_(True),
+        )
+        .all()
+    }
+    return [d for d in destinos_completos if d.strip().lower() not in ok_norm]
 
 
 def destinatarios_mensagem_abertura(

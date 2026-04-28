@@ -8,14 +8,16 @@ Pontos de entrada principais:
   Mensagem 1 a **todos** os utilizadores com ``role=autor`` e coluna Relatório
   (``notificacoes_ativas``) ativa — não exige secção atribuída; a lista de
   secções no e-mail pode estar vazia até o coordenador atribuir.
-- :func:`notificar_autores_abertura` — reenvia Mensagem 1 só a quem ainda não
-  recebeu ``abertura`` com sucesso (mesmo critério de destinatários: autor +
-  ``notificacoes_ativas``).
+- :func:`notificar_autores_abertura` — reenvia Mensagem 1 aos endereços do
+  utilizador (``email`` e ``email2``) que ainda não tiveram ``abertura`` com
+  sucesso (critério de destinatários: autor + ``notificacoes_ativas``).
 - :func:`enviar_lembretes` — dias 5, 8, 10 (lembrete / última chamada).
 - :func:`retry_falhas` — retenta falhas recentes de envio.
 - :func:`recompute_status_enviado` — hook quando blocos são confirmados.
 
-Idempotência: relatório por ``mes_referencia``, emails de abertura por entrega.
+Idempotência: relatório por ``mes_referencia``; abertura/lembrete por entrega e
+por endereço (principal e secundário). A evolução de ``EntregaRelatorio.status``
+continua baseada só em envios com sucesso para o **e-mail principal**.
 """
 from __future__ import annotations
 
@@ -518,43 +520,85 @@ class _Envio:
     todas_map: dict[str, Secao]
 
 
-def _processar_destinatario(
-    db: Session, env: _Envio, tipo: str
+def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-locals
+    db: Session,
+    env: _Envio,
+    tipo: str,
+    *,
+    enviar_para: str = "faltam",
 ) -> ResultadoEnvio:
-    """Render → envia → registra → ajusta status. Helper compartilhado por
-    abrir_periodo, enviar_lembretes e retry_falhas para evitar repetição."""
+    """Render → envia para ``email`` e ``email2`` (quando distintos) → regista.
+
+    ``enviar_para``: ``faltam`` só endereços sem sucesso neste ``tipo``;
+    ``todos`` força todos (ex.: reenvio manual do coordenador).
+
+    O retorno é sucesso só se **todos** os envios da chamada tiverem sucesso.
+    ``EntregaRelatorio.status`` só avança com envio bem-sucedido para o
+    **e-mail principal** (ver :func:`_avancar_status_apos_envio`).
+    """
     entrega = _entrega_para(db, env.rel.id, env.user.id)
     contexto = _montar_contexto_email(
         env.rel, env.user, env.secoes_user, env.todas_map
     )
-    resultado = enviar_notificacao(
-        destinatario_email=env.user.email,
-        destinatario_nome=env.user.nome,
-        tipo=tipo,
-        contexto=contexto,
+    destinos_completos = destinatarios_ciclo.emails_destino_notificacao(env.user)
+    if enviar_para == "todos":
+        destinos = list(destinos_completos)
+    else:
+        destinos = destinatarios_ciclo.destinos_pendentes_tipo(
+            db, entrega.id, tipo, destinos_completos
+        )
+    if not destinos:
+        return ResultadoEnvio(True, None, None, modo_atual())
+
+    primary_norm = destinatarios_ciclo.email_primario_norm(env.user)
+    resultados: list[ResultadoEnvio] = []
+    erros: list[str] = []
+    for dest_email in destinos:
+        resultado = enviar_notificacao(
+            destinatario_email=dest_email,
+            destinatario_nome=env.user.nome,
+            tipo=tipo,
+            contexto=contexto,
+        )
+        _registrar_envio(db, entrega, tipo, dest_email, resultado)
+        if dest_email.strip().lower() == primary_norm and resultado.sucesso:
+            _avancar_status_apos_envio(db, entrega, tipo)
+        resultados.append(resultado)
+        if resultado.erro:
+            erros.append(f"{dest_email}: {resultado.erro}")
+
+    todos_ok = all(r.sucesso for r in resultados)
+    primeiro_id = next((r.message_id for r in resultados if r.message_id), None)
+    modo = resultados[-1].modo if resultados else modo_atual()
+    if todos_ok:
+        return ResultadoEnvio(True, primeiro_id, None, modo)
+    return ResultadoEnvio(
+        False,
+        primeiro_id,
+        "; ".join(erros) if erros else "falha_envio",
+        modo,
     )
-    _registrar_envio(db, entrega, tipo, env.user.email, resultado)
-    if resultado.sucesso:
-        _avancar_status_apos_envio(db, entrega, tipo)
-    return resultado
 
 
 def _avancar_status_apos_envio(
     db: Session, entrega: EntregaRelatorio, tipo: str
 ) -> None:
-    """Regra do usuário: 1ª notificação => 'notificado'; a partir da 2ª,
-    'aguardando_envio'. Não regride a partir de ``enviado`` ou ``validado``.
-
-    A contagem usa query direta no DB para refletir a notificação recém
-    persistida (a relationship ``entrega.notificacoes`` está cacheada).
+    """Regra do utilizador: 1ª notificação (no **e-mail principal**) =>
+    ``notificado``; a partir da 2ª (no principal), ``aguardando_envio``.
+    Envios só para ``email2`` não contam para esta contagem.
     """
     if entrega.status in ("enviado", "validado"):
+        return
+    user = entrega.user
+    primary = (user.email if user else "").strip().lower()
+    if not primary:
         return
     bem_sucedidos = (
         db.query(NotificacaoEnvio)
         .filter(
             NotificacaoEnvio.entrega_id == entrega.id,
             NotificacaoEnvio.sucesso.is_(True),
+            func.lower(NotificacaoEnvio.destinatario_email) == primary,
         )
         .count()
     )
@@ -562,19 +606,6 @@ def _avancar_status_apos_envio(
         entrega.status = "notificado"
     elif bem_sucedidos >= 2:
         entrega.status = "aguardando_envio"
-
-
-def _tem_abertura_enviada_com_sucesso(db: Session, entrega_id: int) -> bool:
-    return (
-        db.query(NotificacaoEnvio)
-        .filter(
-            NotificacaoEnvio.entrega_id == entrega_id,
-            NotificacaoEnvio.tipo == "abertura",
-            NotificacaoEnvio.sucesso.is_(True),
-        )
-        .first()
-        is not None
-    )
 
 
 def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutores:
@@ -619,7 +650,15 @@ def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutor
             )
             .one_or_none()
         )
-        if entrega_ex and _tem_abertura_enviada_com_sucesso(db, entrega_ex.id):
+        destinos_full = destinatarios_ciclo.emails_destino_notificacao(user_obj)
+        pendentes = (
+            destinatarios_ciclo.destinos_pendentes_tipo(
+                db, entrega_ex.id, "abertura", destinos_full
+            )
+            if entrega_ex
+            else destinos_full
+        )
+        if entrega_ex and not pendentes:
             resumo.pulados_ja_enviados += 1
             continue
         env = _Envio(rel, user_obj, secoes_user, todas_map)
@@ -769,11 +808,16 @@ def _deve_tentar_de_novo(
         return False, True
     if entrega.status in ("enviado", "validado"):
         return False, False
+    primary = (entrega.user.email or "").strip().lower()
     eventos = [
         ev for ev in entrega.notificacoes
         if ev.tipo == tipo and ev.enviada_em >= limite_tempo
     ]
-    if any(ev.sucesso for ev in eventos):
+    if any(
+        ev.sucesso
+        for ev in eventos
+        if (ev.destinatario_email or "").strip().lower() == primary
+    ):
         return False, False
     if len(eventos) >= _MAX_RETRIES_POR_SLOT:
         return False, True
@@ -935,7 +979,7 @@ def reenviar_manual(db: Session, entrega: EntregaRelatorio) -> bool:
         [s for s in secoes_rel if s.responsavel_id == user_obj.id],
         {s.numero: s for s in secoes_rel},
     )
-    resultado = _processar_destinatario(db, env, "manual")
+    resultado = _processar_destinatario(db, env, "manual", enviar_para="todos")
     db.commit()
     return resultado.sucesso
 

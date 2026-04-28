@@ -23,7 +23,8 @@ body.sb-resizing #main,body.sb-resizing #sb{transition:none}
 #sb-hdr{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
 #sb-hdr h1{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--green)}
 #sb-hdr p{font-size:10.5px;color:rgba(255,255,255,.5);margin-top:4px;line-height:1.5}
-#sb nav{padding:10px 0;flex:1}
+/* Menu principal (sem .sb-painel). Nunca aplicar flex:1 a nav.sb-painel por #sb nav — empurra a árvore para fora do fold. */
+#sb > nav:not(.sb-painel){padding:10px 0;flex:0 0 auto}
 .ni{display:flex;align-items:center;gap:10px;padding:9px 18px;font-size:11.5px;color:rgba(255,255,255,.7);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .15s}
 .ni:hover,.ni.active{background:rgba(62,194,110,.1);color:#fff;border-left-color:var(--green);text-decoration:none}
 .ni .num{font-size:10px;background:rgba(255,255,255,.1);border-radius:3px;padding:2px 7px;min-width:22px;text-align:center;font-weight:600}
@@ -56,6 +57,8 @@ body.sb-resizing #main,body.sb-resizing #sb{transition:none}
 .btn-cancel{margin-left:12px}
 /* Complementos — feedback de processo (modais em app/templates/complementos/) */
 .sra-cpl-wrap{position:fixed;inset:0;z-index:10030;background:rgba(0,59,90,.46);display:flex;align-items:center;justify-content:center;padding:20px}
+/* Confirmacao acima do acompanhamento quando ambos visíveis (ex.: Criar relatorio). */
+#sra-cpl-confirm.sra-cpl-wrap{z-index:10040}
 .sra-cpl-wrap.is-hidden{display:none}
 .sra-cpl-box{background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 18px 55px rgba(0,0,0,.25);width:100%;display:flex;flex-direction:column;overflow:hidden}
 .sra-cpl-box--md{max-width:min(520px,96vw)}
@@ -401,7 +404,22 @@ details.bloco .det-body{padding:14px 16px}
 .ni-sub{display:flex;flex-direction:column;background:rgba(0,0,0,.18)}
 .ni-sub-link{display:block;padding:6px 14px 6px 50px;font-size:10.5px;color:rgba(255,255,255,.65);text-decoration:none;border-left:2px solid transparent;transition:all .15s}
 .ni-sub-link:hover{background:rgba(62,194,110,.08);color:#fff;text-decoration:none;border-left-color:rgba(62,194,110,.45)}
-.sb-painel{padding:0 0 8px;border-top:1px solid rgba(255,255,255,.08);margin-top:8px;flex:0 0 auto}
+#sb nav.sb-painel{
+  flex:1 1 auto;
+  min-height:6rem;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  padding:0 0 8px;
+  border-top:1px solid rgba(255,255,255,.08);
+  margin-top:8px;
+}
+.sb-painel .sb-painel-arvore{
+  flex:1 1 auto;
+  min-height:4rem;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
 .sb-painel-meta{display:flex;align-items:baseline;gap:6px;padding:6px 18px 4px;font-size:10px;color:rgba(255,255,255,.55)}
 .sb-painel-cod{font-weight:600;color:var(--green);letter-spacing:.04em}
 .sb-painel-mes{font-style:italic}
@@ -489,3 +507,36 @@ details.bloco .det-body{padding:14px 16px}
 }
 .page-modelos-word table.mw-catalog tbody tr.mw-cat-depth-1 td.mw-tree-tit{color:#2d3e4d}
 .page-modelos-word table.mw-catalog tbody tr.mw-cat-depth-2 td.mw-tree-tit{color:#344555;font-size:11.2px}
+
+/* Registro do servidor (painel SSE) */
+.sra-live-log-section { margin-top: 14px; }
+.sra-live-log-section--tall .sra-live-log-body { min-height: 420px; max-height: min(70vh, 640px); }
+.sra-live-log-hint { margin-bottom: 10px; }
+.sra-live-log-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 10px; }
+.sra-live-log-toolbar .secondary { padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.sra-live-log-status { font-size: 11px; color: var(--muted); font-weight: 600; }
+.sra-live-log-body {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #1e293b;
+  border-radius: 5px;
+  overflow: auto;
+  max-height: 280px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sra-live-log-line { display: block; border-bottom: 1px solid rgba(148, 163, 184, 0.12); padding: 3px 0; }
+.sra-live-log-line:last-child { border-bottom: 0; }
+.sra-live-log-ts { color: #94a3b8; margin-right: 6px; }
+.sra-live-log-kind { color: #7dd3fc; font-weight: 600; margin-right: 6px; }
+.sra-live-log-lvl { font-weight: 700; margin-right: 6px; font-size: 10px; }
+.sra-live-log-lvl--info { color: #86efac; }
+.sra-live-log-lvl--warning { color: #fbbf24; }
+.sra-live-log-lvl--error, .sra-live-log-lvl--critical { color: #fca5a5; }
+.sra-live-log-title { color: #f1f5f9; font-weight: 600; }
+.sra-live-log-msg { color: #cbd5e1; margin-left: 6px; }

@@ -1,6 +1,6 @@
 /**
  * Complementos SRA: modal de confirmação reutilizável e integração com GET /processos/fluxo-confirmacao/{chave}.
- * Depende dos elementos sra-cpl-confirm* em base.html.
+ * Depende dos elementos sra-cpl-confirm* em base.html e de window.SRAProcess (sra_process_runtime.js, carregado antes).
  */
 (function () {
   "use strict";
@@ -156,6 +156,12 @@
 
   function onCancel() {
     fecharConfirm();
+    if (
+      window.SRAProcess &&
+      typeof window.SRAProcess.hideTrack === "function"
+    ) {
+      window.SRAProcess.hideTrack();
+    }
     if (PENDING) {
       PENDING.resolve(false);
       PENDING = null;
@@ -194,6 +200,24 @@
     document.querySelectorAll("form[data-sra-confirm]").forEach(function (form) {
       if (form.dataset.sraWired) return;
       form.dataset.sraWired = "1";
+      form.addEventListener(
+        "submit",
+        function () {
+          if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
+            return;
+          }
+          var ch0 = form.getAttribute("data-sra-confirm");
+          if (!ch0) return;
+          if (
+            form.getAttribute("data-sra-iniciar-acompanhamento") === "1" &&
+            window.SRAProcess &&
+            typeof window.SRAProcess.openTrackPendente === "function"
+          ) {
+            window.SRAProcess.openTrackPendente({ chave: ch0 });
+          }
+        },
+        true
+      );
       form.addEventListener("submit", function (e) {
         if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
           form.removeAttribute(SKIP);
@@ -221,9 +245,6 @@
         });
         confirmarComChave(ch, ov).then(function (sim) {
           if (!sim) return;
-          if (form.getAttribute("data-sra-iniciar-acompanhamento") === "1" && window.SRAProcess && typeof window.SRAProcess.openTrackPendente === "function") {
-            window.SRAProcess.openTrackPendente({ chave: ch });
-          }
           form.setAttribute(SKIP, "1");
           if (form.requestSubmit) form.requestSubmit();
           else form.submit();

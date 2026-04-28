@@ -28,6 +28,15 @@
             <input id="inp-email-usuario" type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required>
           </div>
           <div>
+            <label for="inp-email2-usuario">E-mail secundário</label>
+            <input id="inp-email2-usuario"
+                   type="email"
+                   name="email2"
+                   title="E-mail secundário (obrigatório)"
+                   placeholder="outro@empresa.com"
+                   required>
+          </div>
+          <div>
             <label for="inp-senha-usuario">Senha</label>
             <input id="inp-senha-usuario" type="password" name="password" title="Senha" placeholder="defina uma senha" required>
           </div>
@@ -56,6 +65,7 @@
           <tr>
             <th>Nome</th>
             <th>E-mail</th>
+            <th>E-mail secundário</th>
             <th>Perfil</th>
             <th title="Recebe notificações mensais do ciclo de relatório?">Relatório</th>
             <th>Criado em</th>
@@ -69,6 +79,7 @@
                 <strong>{{ u.nome }}</strong>
               </td>
               <td>{{ u.email }}</td>
+              <td>{{ u.email2 }}</td>
               <td>
                 <span class="tag accent">{{ u.role }}</span>
               </td>
@@ -101,6 +112,7 @@
       </table>
     </div>
   </section>
+  {% include "complementos/painel_logs_servidor.html" %}
   <script>
 (function () {
   var PARTICULAS = ['do','da','de','dos','das','du','e','di','del','la','von','van'];

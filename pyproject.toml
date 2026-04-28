@@ -42,10 +42,25 @@ max-line-length = 120
 extend-ignore = ["E501", "E402", "W503", "E203"]
 exclude = [".venv", "venv", "_extracted_text", "relatorios_entregues"]
 
+# Formatacao Python no editor (extensao Ruff) e CLI: `ruff format app scripts`.
+# Saida compativel com estilo Black; linha 120 alinhada ao flake8/pylint acima.
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    ".venv",
+    "venv",
+    "_extracted_text",
+    "relatorios_entregues",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
 [tool.djlint]
 profile = "jinja"
 extension = "html"
-exclude = ".venv,venv,.github,_extracted_text,relatorios_entregues,__pycache__,node_modules,app/pdf_render.py,tmp"
+exclude = ".venv,venv,.github,_extracted_text,relatorios_entregues,__pycache__,node_modules,app/pdf_render.py,tmp,.cursor,app/static/js"
 ignore = "H006,H013,H014,H016,H017,H019,H020,H021,H022,H023,H026,H030,H031,H037,H040,H047,T003,J004,J018"
 indent = 2
 max_line_length = 200

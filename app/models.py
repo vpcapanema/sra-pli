@@ -12,6 +12,9 @@ class User(Base):
     __table_args__ = (UniqueConstraint("email", "role", name="uq_users_email_role"), Index("ix_users_email", "email"))
     id = Column(Integer, primary_key=True)
     email = Column(String(255), nullable=False)
+    # E-mail secundário (obrigatório): contacto alternativo na UI; login continua
+    # a usar ``email``.
+    email2 = Column(String(255), nullable=False)
     nome = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(32), nullable=False, default="autor")  # admin, coordenador, autor
@@ -126,8 +129,10 @@ class Figura(Base):
 #
 # Modelo: 1 EntregaRelatorio por (relatorio, usuario destinatário). 1:N
 # NotificacaoEnvio rastreia cada email disparado (abertura, lembrete, última
-# chamada, reenvio manual). Status do destinatário evolui de `notificado`
-# (após 1ª notificação) -> `aguardando_envio` (após 2ª) -> `enviado` (todos
+# chamada, reenvio manual) — pode haver mais de uma linha por ``tipo`` quando
+# existem ``email`` e ``email2``. Status do destinatário evolui de `notificado`
+# (após 1ª notificação com sucesso ao **principal**) -> `aguardando_envio`
+# (após 2ª ao principal) -> `enviado` (todos
 # os blocos das suas seções marcados como bloqueado=true) -> `validado`
 # (coord confirma o conteúdo). "Finalizado" continua sendo estado do
 # Relatorio inteiro, não do destinatário.

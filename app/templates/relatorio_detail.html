@@ -152,6 +152,7 @@
                       action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir"
                       class="inline-form"
                       data-sra-confirm="secao_excluir"
+                      data-sra-iniciar-acompanhamento="1"
                       data-sra-detail="Secção {{ s.numero }} – {{ s.titulo|e }} — os números seguintes no sumário serão reajustados automaticamente."
                     >
                       <button
@@ -307,6 +308,7 @@
     </section>
   </aside>
 </div>
+{% include "complementos/painel_logs_servidor.html" %}
 <script>
   (function () {
     var inner = document.getElementById("rel-sum-preview-zoom-inner");
