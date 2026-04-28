@@ -1,7 +1,9 @@
+import time
+from pathlib import Path
+
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from pathlib import Path
 
 from ..db import get_db
 from ..models import User
@@ -22,6 +24,27 @@ from .pages import (
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
+_ROLES_LOGIN = frozenset({"admin", "coordenador", "autor"})
+_PWD_RESET_MAX_SEC = 3600
+_SRA_PWD_RESET_UID = "sra_pwd_reset_uid"
+_SRA_PWD_RESET_AT = "sra_pwd_reset_at"
+
+
+def _clear_pwd_reset_session(request: Request) -> None:
+    request.session.pop(_SRA_PWD_RESET_UID, None)
+    request.session.pop(_SRA_PWD_RESET_AT, None)
+
+
+def _pwd_reset_session_ok(request: Request) -> bool:
+    uid = request.session.get(_SRA_PWD_RESET_UID)
+    started = request.session.get(_SRA_PWD_RESET_AT)
+    if uid is None or started is None:
+        return False
+    if time.time() - float(started) > _PWD_RESET_MAX_SEC:
+        _clear_pwd_reset_session(request)
+        return False
+    return True
+
 
 @router.get("/login")
 def login_page(request: Request):
@@ -33,17 +56,33 @@ def login_submit(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    role: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.email == email.strip().lower()).one_or_none()
+    perfil = (role or "").strip().lower()
+    if perfil not in _ROLES_LOGIN:
+        return response_login(
+            request,
+            error="Selecione um perfil válido.",
+            status_code=400,
+        )
+    email_norm = email.strip().lower()
+    user = (
+        db.query(User)
+        .filter(User.email == email_norm, User.role == perfil)
+        .one_or_none()
+    )
     if not user or not verify_password(password, user.password_hash):
         return response_login(
             request,
-            error="E-mail ou senha inválidos.",
+            error="E-mail, perfil ou senha inválidos.",
             status_code=401,
         )
+    _clear_pwd_reset_session(request)
     request.session["user_id"] = user.id
-    return response_client_goto("/dashboard")
+    request.session["user_role"] = user.role
+    destino = "/painel-upload" if user.role == "autor" else "/dashboard"
+    return response_client_goto(destino)
 
 
 @router.get("/logout")
@@ -52,14 +91,131 @@ def logout(request: Request):
     return response_client_goto("/login")
 
 
+@router.get("/recuperar-senha")
+def recuperar_senha_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "recuperar_senha.html",
+        {"error": None},
+    )
+
+
+@router.post("/recuperar-senha")
+def recuperar_senha_submit(
+    request: Request,
+    email: str = Form(...),
+    role: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    perfil = (role or "").strip().lower()
+    if perfil not in _ROLES_LOGIN:
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha.html",
+            {"error": "Selecione um perfil válido."},
+            status_code=400,
+        )
+    email_norm = email.strip().lower()
+    user = (
+        db.query(User)
+        .filter(User.email == email_norm, User.role == perfil)
+        .one_or_none()
+    )
+    if not user:
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha.html",
+            {
+                "error": "Não encontramos conta com este e-mail e perfil. "
+                "Confirme os dados ou contacte um administrador.",
+            },
+            status_code=400,
+        )
+    _clear_pwd_reset_session(request)
+    request.session[_SRA_PWD_RESET_UID] = user.id
+    request.session[_SRA_PWD_RESET_AT] = time.time()
+    return response_client_goto("/recuperar-senha/definir")
+
+
+@router.get("/recuperar-senha/definir")
+def recuperar_senha_definir_page(request: Request):
+    if not _pwd_reset_session_ok(request):
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha.html",
+            {
+                "error": "Sessão de recuperação expirada ou inválida. "
+                "Comece novamente por e-mail e perfil.",
+            },
+            status_code=400,
+        )
+    return templates.TemplateResponse(
+        request,
+        "recuperar_senha_definir.html",
+        {"error": None},
+    )
+
+
+@router.post("/recuperar-senha/definir")
+def recuperar_senha_definir_submit(
+    request: Request,
+    password: str = Form(...),
+    password2: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if not _pwd_reset_session_ok(request):
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha.html",
+            {
+                "error": "Sessão de recuperação expirada ou inválida. "
+                "Comece novamente por e-mail e perfil.",
+            },
+            status_code=400,
+        )
+    pw = (password or "").strip()
+    if len(pw) < 6:
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha_definir.html",
+            {"error": "A senha deve ter ao menos 6 caracteres."},
+            status_code=400,
+        )
+    if pw != (password2 or "").strip():
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha_definir.html",
+            {"error": "As senhas não coincidem."},
+            status_code=400,
+        )
+    uid = request.session.get(_SRA_PWD_RESET_UID)
+    user = db.get(User, uid) if uid is not None else None
+    if not user:
+        _clear_pwd_reset_session(request)
+        return templates.TemplateResponse(
+            request,
+            "recuperar_senha.html",
+            {"error": "Conta não encontrada. Solicite recuperação outra vez."},
+            status_code=400,
+        )
+    user.password_hash = hash_password(pw)
+    db.commit()
+    _clear_pwd_reset_session(request)
+    return response_login(
+        request,
+        notice="Senha atualizada. Entre com e-mail, perfil e nova senha.",
+    )
+
+
 @router.get("/usuarios")
 def usuarios_page(request: Request, db: Session = Depends(get_db)):
     return response_usuarios(request, db)
 
 
 @router.post("/usuarios")
-def usuarios_create(
+def usuarios_create(  # pylint: disable=too-many-arguments
     request: Request,
+    *,
     nome: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
@@ -80,12 +236,20 @@ def usuarios_create(
             {"user": user, "usuarios": usuarios, "error": str(e)},
             status_code=400,
         )
-    if db.query(User).filter(User.email == email_norm).first():
+    if role not in ("admin", "coordenador", "autor"):
         usuarios = db.query(User).order_by(User.nome).all()
         return templates.TemplateResponse(
             request,
             "usuarios.html",
-            {"user": user, "usuarios": usuarios, "error": "E-mail já cadastrado."},
+            {"user": user, "usuarios": usuarios, "error": "Perfil inválido."},
+            status_code=400,
+        )
+    if db.query(User).filter(User.email == email_norm, User.role == role).first():
+        usuarios = db.query(User).order_by(User.nome).all()
+        return templates.TemplateResponse(
+            request,
+            "usuarios.html",
+            {"user": user, "usuarios": usuarios, "error": "Já existe utilizador com este e-mail e perfil."},
             status_code=400,
         )
     novo = User(nome=nome_fmt, email=email_norm, password_hash=hash_password(password), role=role)
@@ -100,9 +264,10 @@ def usuario_edit_page(user_id: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/usuarios/{user_id}/editar")
-def usuario_edit_submit(
+def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-statements
     user_id: int,
     request: Request,
+    *,
     nome: str = Form(...),
     email: str = Form(...),
     role: str = Form(None),
@@ -132,11 +297,19 @@ def usuario_edit_submit(
         return _err(str(e))
 
     email_norm = email.strip().lower()
-    if email_norm != alvo.email:
-        if db.query(User).filter(User.email == email_norm, User.id != alvo.id).first():
-            return _err("E-mail já cadastrado.")
-        alvo.email = email_norm
+    novo_role = alvo.role
+    if viewer.role == "admin" and role and role in ("admin", "coordenador", "autor"):
+        novo_role = role
 
+    duplicado = (
+        db.query(User)
+        .filter(User.email == email_norm, User.role == novo_role, User.id != alvo.id)
+        .first()
+    )
+    if duplicado:
+        return _err("Já existe utilizador com este e-mail e perfil.")
+
+    alvo.email = email_norm
     alvo.nome = nome_fmt
 
     if viewer.role == "admin" and role and role in ("admin", "coordenador", "autor"):
@@ -148,4 +321,6 @@ def usuario_edit_submit(
         alvo.password_hash = hash_password(password)
 
     db.commit()
+    if alvo.id == request.session.get("user_id"):
+        request.session["user_role"] = alvo.role
     return response_usuario_edit(request, db, alvo.id, ok="1")

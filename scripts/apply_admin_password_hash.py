@@ -28,7 +28,11 @@ TARGET_HASH = (
 def main() -> None:
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == settings.ADMIN_EMAIL).one_or_none()
+        user = (
+            db.query(User)
+            .filter(User.email == settings.ADMIN_EMAIL, User.role == "admin")
+            .one_or_none()
+        )
         if not user:
             print(f"ERRO: usuario {settings.ADMIN_EMAIL!r} nao encontrado.")
             sys.exit(1)

@@ -3,8 +3,10 @@ from datetime import datetime
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
+
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -15,14 +17,38 @@ from .routes import pages as page_routes
 from .routes import relatorios as rel_routes
 from .routes import blocos as bloco_routes
 from .routes import figuras as figura_routes
+from .routes import cron_admin as cron_admin_routes
 from .routes import importacao as importacao_routes
+from .routes import modelos_word as modelos_word_routes
+from .routes import notificacoes as notif_routes
 from .routes import pdf as pdf_routes
 from .routes import processos as processos_routes
 from .routes import dev_ui
 from .routes.pages import response_home
-from .process_events import configure_logging_bridge
+from .access_control import SraAutorRouteGuardMiddleware
+from .process_events import configure_logging_bridge, process_session_id
 
 BASE_DIR = Path(__file__).parent
+
+
+class SraEnsureProcessSessionMiddleware:
+    """ASGI: corre *dentro* do SessionMiddleware (ver ordem em add_middleware abaixo).
+
+    Middlewares declarados com @app.middleware("http") ficam à frente do
+    SessionMiddleware na pilha e não têm ``scope["session"]`` — daí o 500.
+    """
+
+    def __init__(self, asgi_app: ASGIApp) -> None:
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            path = scope.get("path") or ""
+            if not path.startswith("/static/") and "session" in scope:
+                sess = scope["session"]
+                if sess.get("user_id"):
+                    process_session_id(Request(scope))
+        await self.asgi_app(scope, receive, send)
 
 
 @asynccontextmanager
@@ -33,7 +59,19 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+# Ordem add_middleware (insert no início): [Session, Ensure, Autor] → execução
+# SessionMiddleware → SraEnsureProcessSessionMiddleware → SraAutorRouteGuardMiddleware → rotas.
+app.add_middleware(SraAutorRouteGuardMiddleware)
+app.add_middleware(SraEnsureProcessSessionMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, same_site="lax", https_only=False)
+
+
+@app.middleware("http")
+async def sra_dev_preview_nav_context(request: Request, call_next):
+    """Expõe se rotas /dev de pré-visualização estão ativas (menu lateral)."""
+    request.state.sra_modais_preview_allowed = dev_ui.modais_preview_allowed()
+    return await call_next(request)
+
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
@@ -60,8 +98,11 @@ app.include_router(auth_routes.router)
 app.include_router(page_routes.router)
 app.include_router(rel_routes.router)
 app.include_router(bloco_routes.router)
+app.include_router(cron_admin_routes.router)
 app.include_router(figura_routes.router)
 app.include_router(importacao_routes.router)
+app.include_router(modelos_word_routes.router)
+app.include_router(notif_routes.router)
 app.include_router(pdf_routes.router)
 app.include_router(processos_routes.router)
 app.include_router(dev_ui.router)

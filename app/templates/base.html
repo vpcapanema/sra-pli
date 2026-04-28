@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/static/css/app.css" />
     {% if user %}<script src="/static/js/sra_process_ui.js"></script>{% endif %}
   </head>
-  <body{% block body_attrs %}{% endblock %}>
+  <body class="{% if user %}sra-app {% endif %}{% block body_class %}{% endblock %}">
     {% if user %}
       <aside id="sb">
         <div id="sb-hdr">
@@ -23,23 +23,124 @@
         </div>
         <nav>
           <span class="sb-sep">Navegação</span>
-          <a class="ni {% if request.url.path == '/dashboard' %}active{% endif %}" href="/dashboard">
-            <span class="num">01</span><span class="nlbl">Relatórios</span>
-          </a>
-          <a class="ni {% if request.url.path == '/painel-upload' or request.url.path.endswith('/upload-conteudo') %}active{% endif %}"
-             href="/painel-upload">
-            <span class="num">02</span><span class="nlbl">Upload conteúdo</span>
-          </a>
+          {% set _path = request.url.path %}
+          {% set _on_rel = _path == '/dashboard' or (_path.startswith('/relatorios') and not _path.endswith('/upload-conteudo')) %}
+          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') %}
+          {% set _on_usu = _path.startswith('/usuarios') %}
+          {% set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %}
+          {% set _open_rel = 'open' if _on_rel else '' %}
+          {% set _cls_upload = 'ni-grp ni-grp-active' if _on_upload else 'ni-grp' %}
+          {% set _open_upload = 'open' if _on_upload else '' %}
+          {% set _cls_usu = 'ni-grp ni-grp-active' if _on_usu else 'ni-grp' %}
+          {% set _open_usu = 'open' if _on_usu else '' %}
+          {% set _on_dev = request.state.sra_modais_preview_allowed and (_path.startswith('/dev/preview') or _path == '/dev/modais') %}
+          {% set _cls_dev = 'ni-grp ni-grp-active' if _on_dev else 'ni-grp' %}
+          {% set _open_dev = 'open' if _on_dev else '' %}
           {% if user.role in ['admin','coordenador'] %}
-            <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
-              <span class="num">03</span><span class="nlbl">Usuários</span>
-            </a>
-          {% else %}
-            <a class="ni {% if request.url.path.startswith('/usuarios') %}active{% endif %}" href="/usuarios">
-              <span class="num">03</span><span class="nlbl">Usuários</span>
-            </a>
+            <details class="{{ _cls_rel }}" {{ _open_rel }}>
+              <summary class="ni ni-toggle">
+                <span class="num">01</span><span class="nlbl">Relatórios</span>
+                <span class="ni-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ni-sub">
+                <a class="ni-sub-link" href="/dashboard">Página inicial</a>
+                <a class="ni-sub-link" href="/dashboard#ss-novo">Novo relatório</a>
+                <a class="ni-sub-link" href="/dashboard#ss-cadastrados">Relatórios cadastrados</a>
+              </div>
+            </details>
+          {% endif %}
+          <details class="{{ _cls_upload }}" {{ _open_upload }}>
+            <summary class="ni ni-toggle">
+              <span class="num">02</span><span class="nlbl">Upload conteúdo</span>
+              <span class="ni-caret" aria-hidden="true">▾</span>
+            </summary>
+            <div class="ni-sub">
+              <a class="ni-sub-link" href="/painel-upload">Página inicial</a>
+              <a class="ni-sub-link" href="/modelos-word-importacao">Modelos Word (.dotx)</a>
+              <a class="ni-sub-link" href="/painel-upload#ss-coord">Coordenação da seção</a>
+              <a class="ni-sub-link" href="/painel-upload#importar-conteudo">Importar conteúdo</a>
+              <a class="ni-sub-link" href="/painel-upload#ss-blocos">Blocos extraídos</a>
+              <a class="ni-sub-link" href="/painel-upload#ss-editar">Editar bloco existente</a>
+              <a class="ni-sub-link" href="/painel-upload#ss-preview">Pré-visualização</a>
+            </div>
+          </details>
+          {% if user.role in ['admin','coordenador'] %}
+            <details class="{{ _cls_usu }}" {{ _open_usu }}>
+              <summary class="ni ni-toggle">
+                <span class="num">03</span><span class="nlbl">Usuários</span>
+                <span class="ni-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ni-sub">
+                <a class="ni-sub-link" href="/usuarios">Página inicial</a>
+                <a class="ni-sub-link" href="/usuarios#ss-novo-usuario">Novo usuário</a>
+                <a class="ni-sub-link" href="/usuarios#ss-equipe">Equipe cadastrada</a>
+              </div>
+            </details>
+          {% endif %}
+          {% if request.state.sra_modais_preview_allowed %}
+            <details class="{{ _cls_dev }}" {{ _open_dev }}>
+              <summary class="ni ni-toggle">
+                <span class="num">dev</span><span class="nlbl">Pré-visualização</span>
+                <span class="ni-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ni-sub">
+                <a class="ni-sub-link" href="/dev/preview-emails-notificacao">E-mails do ciclo (3 mensagens)</a>
+                <a class="ni-sub-link" href="/dev/preview-email-notificacao?tipo=abertura">Uma mensagem: abertura</a>
+                <a class="ni-sub-link" href="/dev/preview-email-notificacao?tipo=lembrete">Uma mensagem: lembrete</a>
+                <a class="ni-sub-link" href="/dev/preview-email-notificacao?tipo=ultima_chamada">Uma mensagem: última chamada</a>
+                <a class="ni-sub-link" href="/dev/modais">Modais de processo</a>
+              </div>
+            </details>
           {% endif %}
         </nav>
+        {% if rel is defined and rel %}
+          {% macro render_no_secao(no, rel) %}
+            {% set s = no.sec %}
+            {% set _classe_ativa = 'ni-grp-active' if no.ativa else '' %}
+            {% set _resp = s.responsavel.nome if s.responsavel else '' %}
+            {% set _tooltip = s.numero ~ ' – ' ~ s.titulo ~ (' · ' ~ _resp if _resp else '') %}
+            {% set _cls_no = 'ni-grp ' ~ _classe_ativa %}
+            {% set _open_no = 'open' if no.aberta else '' %}
+            {% set _depth = no.nivel - 1 %}
+            {% if no.filhos %}
+              <details class="{{ _cls_no }}" {{ _open_no }} data-ni-depth="{{ _depth }}">
+                <summary class="ni ni-toggle" title="{{ _tooltip }}">
+                  <span class="nlbl-num">{{ s.numero }}</span>
+                  <span class="nlbl">{{ s.titulo }}</span>
+                  {% if _resp %}<span class="ni-resp">· {{ _resp }}</span>{% endif %}
+                  <span class="ni-caret" aria-hidden="true">▾</span>
+                </summary>
+                <div class="ni-sub">
+                  <a class="ni-sub-link ni-sub-link-self {{ _classe_ativa }}" href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" title="Abrir esta seção" data-ni-depth="{{ no.nivel }}">
+                    <span class="ni-self-arrow" aria-hidden="true">↳</span>
+                    <span class="nlbl">Conteúdo desta seção</span>
+                  </a>
+                  {% for filho in no.filhos %}{{ render_no_secao(filho, rel) }}{% endfor %}
+                </div>
+              </details>
+            {% else %}
+              <a class="ni-sub-link {{ _classe_ativa }}" href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" title="{{ _tooltip }}" data-ni-depth="{{ _depth }}">
+                <span class="nlbl-num">{{ s.numero }}</span>
+                <span class="nlbl">{{ s.titulo }}</span>
+                {% if _resp %}<span class="ni-resp">· {{ _resp }}</span>{% endif %}
+              </a>
+            {% endif %}
+          {% endmacro %}
+          {% set _arvore = rel.secoes | secoes_arvore((sec.numero if sec is defined and sec else None)) %}
+          <nav class="sb-painel">
+            <span class="sb-sep">Painel de seções</span>
+            <div class="sb-painel-meta">
+              <span class="sb-painel-cod">{{ rel.codigo }}</span>
+              <span class="sb-painel-mes">{{ rel.mes_referencia }}</span>
+            </div>
+            <div class="sb-painel-arvore" aria-label="Árvore de seções do relatório">
+              {% for no in _arvore %}{{ render_no_secao(no, rel) }}{% endfor %}
+              {% if not _arvore %}
+                <p class="sb-painel-vazio">Sem seções cadastradas.</p>
+              {% endif %}
+            </div>
+          </nav>
+        {% endif %}
         <div id="sb-foot">
           {{ user.nome }}
           <br>
@@ -48,6 +149,7 @@
           <a href="/logout" class="sb-logout">Sair</a>
         </div>
       </aside>
+      <div id="sb-resizer" class="sb-resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionar barra lateral" aria-controls="sb" aria-valuemin="260" aria-valuemax="520" aria-valuenow="260" tabindex="0"></div>
       <div id="main">
         <header id="dh">
           <h2>
@@ -402,6 +504,7 @@
       if (btn) {
         btn.addEventListener('click', function () {
           fecharWrap(wid);
+          window.location.reload();
         });
       }
       const wrap = document.getElementById(wid);
@@ -415,12 +518,24 @@
 })();
       </script>
       {% if sra_fim_pendente is defined and sra_fim_pendente %}
+        <script id="sra-fim-pendente-data" type="application/json">{{ sra_fim_pendente | tojson }}</script>
         <script>
 (function () {
   if (!window.SRAProcess || typeof window.SRAProcess.mostrarFimAposRedirect !== 'function') {
     return;
   }
-  window.SRAProcess.mostrarFimAposRedirect({{ sra_fim_pendente | tojson }});
+  var node = document.getElementById('sra-fim-pendente-data');
+  if (!node) {
+    return;
+  }
+  try {
+    var payload = JSON.parse(node.textContent || 'null');
+    if (payload) {
+      window.SRAProcess.mostrarFimAposRedirect(payload);
+    }
+  } catch (err) {
+    /* payload inválido — nada a fazer */
+  }
 })();
         </script>
       {% endif %}
@@ -471,6 +586,71 @@
   }
 
   document.querySelectorAll('.export-sections').forEach(initExportTree);
+
+  function initSidebarResizer() {
+    var handle = document.getElementById('sb-resizer');
+    if (!handle) return;
+    var root = document.documentElement;
+    var styles = getComputedStyle(root);
+    var minW = parseInt(styles.getPropertyValue('--sw-min'), 10) || 260;
+    var maxW = parseInt(styles.getPropertyValue('--sw-max'), 10) || 520;
+    var stored = parseInt(window.localStorage.getItem('sra:sidebar-w') || '', 10);
+    if (!isNaN(stored) && stored >= minW && stored <= maxW) {
+      root.style.setProperty('--sw', stored + 'px');
+    }
+    var dragging = false;
+    function clamp(v) { return Math.max(minW, Math.min(maxW, v)); }
+    function applyWidth(w) {
+      root.style.setProperty('--sw', w + 'px');
+      handle.setAttribute('aria-valuenow', String(w));
+    }
+    if (!isNaN(stored) && stored >= minW && stored <= maxW) {
+      handle.setAttribute('aria-valuenow', String(stored));
+    }
+    function onMove(ev) {
+      if (!dragging) return;
+      var x = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      applyWidth(clamp(Math.round(x)));
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('is-dragging');
+      document.body.classList.remove('sb-resizing');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+      var current = parseInt(getComputedStyle(root).getPropertyValue('--sw'), 10);
+      if (!isNaN(current)) window.localStorage.setItem('sra:sidebar-w', String(current));
+    }
+    function onDown(ev) {
+      ev.preventDefault();
+      dragging = true;
+      handle.classList.add('is-dragging');
+      document.body.classList.add('sb-resizing');
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, { passive: false });
+    handle.addEventListener('dblclick', function () {
+      applyWidth(minW);
+      window.localStorage.setItem('sra:sidebar-w', String(minW));
+    });
+    handle.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+      ev.preventDefault();
+      var current = parseInt(getComputedStyle(root).getPropertyValue('--sw'), 10) || minW;
+      var step = ev.shiftKey ? 32 : 8;
+      var w = clamp(current + (ev.key === 'ArrowRight' ? step : -step));
+      applyWidth(w);
+      window.localStorage.setItem('sra:sidebar-w', String(w));
+    });
+  }
+  initSidebarResizer();
 })();
       </script>
     {% endif %}

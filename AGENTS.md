@@ -2,23 +2,32 @@
 
 Este projeto e o SRA (Sistema de Relatorios de Atividades) do contrato PLI/SP-2050. Toda aplicacao roda em modo de producao real — nao crie mocks, dados ficticios ou atalhos.
 
-## Onde Ler As Instrucoes
+## Onde Ler As Instrucoes Canonicas
 
-As instrucoes canonicas estao em:
+- **`.cursor/project-instructions.md`** — fonte **unica de verdade** no repositorio: stack, modelo de dominio, permissoes, fluxos, banco, PDF, frontend, linting e validacao obrigatoria. No inicio do arquivo ha o indice da pasta `.cursor/` (rules, skills e agents). Leia integralmente antes de mudar qualquer comportamento persistente ou contrato de dados.
 
-- **`.github/copilot-instructions.md`** — fonte unica de verdade. Cobre stack, modelo de dominio, regras de permissao, fluxos principais, banco/performance, frontend, **linting**, e **validacao obrigatoria**. Leia integralmente antes de mudar qualquer arquivo.
-- **`.github/agents/*.agent.md`** — agentes especializados:
-  - `application-text-intelligence.agent.md` — extracao/classificacao de texto, importacao assistida.
-  - `performance-agility.agent.md` — postura para tarefas de performance.
-- **`.cursor/rules/*.mdc`** — regras especificas do Cursor IDE (linting, etc.).
+## Complementos No Cursor
+
+- **`.cursor/rules/*.mdc`** — regras do editor sempre aplicadas ou condicionadas (linting, postura codigo minimo, browser, documentacao). Encerramento de tarefa: **`.cursor/rules/task-completion.mdc`** (paridade terminal + lints do agente + aba Problemas do humano; releitura integral dos arquivos alterados).
+- **`.cursor/skills/*/SKILL.md`** — workflows especializados; usar `/nome-do-skill` na conversa em modo Agent:
+  - `application-text-intelligence` — texto, documentos e importacao assistida.
+  - `performance-agility` — mudancas cirurgicas de performance.
+  - `code-sanitization-efficiency` — checklist flake8/pylint/djlint sob demanda (`/`; a versao curta esta em `.cursor/rules`).
+  - `melhorar-upload-conteudo` — melhorias no fluxo `importacao`/upload.
+- **`.cursor/agents/*.md`** — subagentes do Cursor (prompt + frontmatter); no modo **Agent**, invoque com **`/nome`** (ex.: `/code-sanitization-efficiency`) ou peca delegacao. Alinhados a skills e regras:
+  - `application-text-intelligence`, `performance-agility`, `code-sanitization-efficiency`, `melhorar-upload-conteudo`
+  - `browser-tools`, `context-documentation`, `cursor-workbench-ui` (este ultimo: consulta de layout IDE, somente leitura)
+- **“Switch agent mode” (Agent / Ask / Plan / Debug):** esse selector e para o **modo de conversa** do Cursor, **nao** para escolher um ficheiro de `.cursor/agents/`. Os subagentes personalizados **nao** passam a aparecer ai por configuracao do repositorio — e limitacao/comportamento do produto, nao algo que o projeto possa registar num menu.
+- **Onde escolher subagentes e skills:** no **modo Agent**, no campo do chat, prima **`/`** — lista de **comandos** (skills, subagentes, etc.) para filtrar ou clicar; ou escreva `/nome` (ex.: `/browser-tools`). Com **`@`** pode anexar skills como contexto (ver documentacao Cursor). O que aparece depende da versao do Cursor.
+
+Os caminhos em `.github/agents/` e `.github/prompts/` e o antigo **`copilot-instructions.md`** foram removidos; o contexto de dominio ficou apenas em `.cursor/` para evitar duplicacao e dependencia do GitHub Copilot.
 
 ## O Que Toda Mudanca Deve Respeitar
 
-1. **Convencoes de codigo e dominio** descritas em `.github/copilot-instructions.md` (secoes "Convencoes De Codigo", "Modelo De Dominio", "Regras De Permissao", "Fluxos Principais").
-2. **Linters configurados** (`flake8`, `pylint`, `djlint`) com configuracao canonica em `pyproject.toml`. A aba Problemas do Cursor deve ficar zerada para os arquivos alterados antes de concluir. Detalhes na secao "Linting E Formatacao".
-3. **Validacao obrigatoria** descrita na secao "Validacao Obrigatoria" do mesmo arquivo: releitura integral dos arquivos alterados, checagem de Problemas, validacao objetiva (import, render, snippet) e relato final do que foi feito.
-4. **Documentacao viva**: se uma mudanca alterar funcionalidade, dominio, permissao, arquitetura, rotas, importacao, PDF, deploy ou tarefas de desenvolvimento de modo relevante, atualize `.github/copilot-instructions.md` na mesma entrega.
-5. **Ferramentas de navegador**: para tarefas de UI/fluxo web, use MCP de navegador, Playwright ou Puppeteer quando disponiveis, conforme o padrao em `.github/copilot-instructions.md`.
+1. Convencoes descritas em **`.cursor/project-instructions.md`** (secoes "Convencoes De Codigo", "Modelo De Dominio", "Regras De Permissao", "Fluxos Principais").
+2. Linters em `pyproject.toml`; a aba Problemas zerada para os arquivos alterados. Secao "Linting E Formatacao" no project-instructions.
+3. Validacao obrigatoria na mesma secao do project-instructions.
+4. **Documentacao viva**: mudancas relevantes de dominio, rotas ou arquitetura exigem atualizar **`.cursor/project-instructions.md`** na mesma entrega.
 
 ## Setup Local Minimo
 
@@ -29,4 +38,4 @@ python -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -c "import app.main; print('ok')"
 ```
 
-O Cursor deve usar o intérprete `./.venv/Scripts/python.exe`, ja apontado em `.vscode/settings.json`. Apos clonar e instalar, rode `Developer: Reload Window` para as extensoes (`flake8`, `pylint`, `djlint`, `jinjahtml`) carregarem corretamente.
+O Cursor deve usar o interpretador `./.venv/Scripts/python.exe`, ja em `.vscode/settings.json`. Apos clonar e instalar, rode `Developer: Reload Window` para flake8, pylint, djlint e jinja-html.

@@ -18,3 +18,66 @@ services:
         sync: false
       - key: APP_ENV
         value: production
+      # ---- Notificacoes mensais (Track 5: cron) ----
+      # Preencha SENDGRID_API_KEY no painel do Render (sync: false). Sem chave,
+      # o servico opera em sandbox (renderiza email mas nao envia).
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        value: no-reply@concremat.local
+      - key: SENDGRID_FROM_NAME
+        value: "SRA · PLI-SP"
+      - key: APP_BASE_URL
+        value: https://sra-pli.onrender.com
+      - key: NOTIFICAR_HABILITADO
+        value: "true"
+      - key: NOTIFICAR_SANDBOX
+        value: "false"
+      # Token compartilhado dos endpoints /admin/cron/* (string longa aleatoria).
+      - key: CRON_TOKEN
+        sync: false
+
+# ---------------------------------------------------------------------------
+# Servicos de cron (descomentar quando o plano permitir; cron eh pago no free).
+# Alternativa: cron externo (cron-job.org) chamando POST /admin/cron/...
+# com header X-Cron-Token = CRON_TOKEN.
+# ---------------------------------------------------------------------------
+#  - type: cron
+#    name: sra-cron-abrir-periodo
+#    runtime: docker
+#    schedule: "0 6 1 * *"  # 06:00 UTC = 03:00 BRT, dia 1 do mes
+#    dockerCommand: python -m app.cron.abrir_periodo
+#    envVars:
+#      - fromGroup: sra-pli-shared
+#
+#  - type: cron
+#    name: sra-cron-lembrete-d5
+#    runtime: docker
+#    schedule: "0 12 5 * *"  # 12:00 UTC = 09:00 BRT, dia 5
+#    dockerCommand: python -m app.cron.enviar_lembretes --tipo lembrete
+#    envVars:
+#      - fromGroup: sra-pli-shared
+#
+#  - type: cron
+#    name: sra-cron-lembrete-d8
+#    runtime: docker
+#    schedule: "0 12 8 * *"
+#    dockerCommand: python -m app.cron.enviar_lembretes --tipo lembrete
+#    envVars:
+#      - fromGroup: sra-pli-shared
+#
+#  - type: cron
+#    name: sra-cron-ultima-chamada
+#    runtime: docker
+#    schedule: "0 12 10 * *"
+#    dockerCommand: python -m app.cron.enviar_lembretes --tipo ultima_chamada
+#    envVars:
+#      - fromGroup: sra-pli-shared
+#
+#  - type: cron
+#    name: sra-cron-retry-falhas
+#    runtime: docker
+#    schedule: "*/30 * * * *"
+#    dockerCommand: python -m app.cron.retry_falhas
+#    envVars:
+#      - fromGroup: sra-pli-shared

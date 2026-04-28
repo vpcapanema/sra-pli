@@ -4,10 +4,11 @@
   "private": true,
   "description": "Apenas dependencias de tooling (cspell e dicionarios). O projeto principal e Python.",
   "scripts": {
-    "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.mdc\""
+    "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.{md,mdc}\""
   },
   "devDependencies": {
+    "@cspell/dict-pt-br": "^1.0.0",
     "cspell": "^9.2.0",
-    "@cspell/dict-pt-br": "^1.0.0"
+    "hint": "^7.1.13"
   }
 }

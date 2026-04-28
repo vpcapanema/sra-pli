@@ -33,31 +33,48 @@ def _section_filter(rel: Relatorio, escopo: str, secao_ids: list[int]) -> set[in
 
 
 @router.get("/relatorios/{rel_id}/pdf")
-def gerar_pdf(rel_id: int, request: Request, db: Session = Depends(get_db)):
+def gerar_pdf(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    embed: int = Query(default=0, ge=0, le=1),
+    secao_ids: list[int] = Query(default=[]),
+):
+    """`embed=1`: PDF para iframes (pré-visualização) sem eventos SSE de processo.
+
+    `secao_ids`: limita a renderização às seções indicadas (e a árvore acima
+    delas), permitindo que o iframe de pré-visualização acompanhe a Seção alvo
+    selecionada na página de upload sem recarregar o relatório inteiro.
+    """
     user = current_user(request, db)
     if not user:
         return response_login(request)
     rel = _get_relatorio_completo(db, rel_id)
     if not rel:
         raise HTTPException(404)
-    process_id = process_start(
-        request,
-        "Geração de PDF",
-        f"Composição do ficheiro final a partir de {rel.codigo}-{rel.versao}.",
-        data={"process_key": "gerar_pdf"},
-    )
-    process_log(
-        request,
-        process_id,
-        "O conteúdo em HTML do relatório é composto e convertido em PDF (WeasyPrint), com aplicação da folha de estilos do contrato.",
-        etapa="Conversão para PDF",
-        tarefa="Geração de PDF",
-        progresso_tarefa=55,
-        progresso_geral=48,
-    )
-    pdf = render_pdf(db, rel)
+    section_filter = _section_filter(rel, "selecionadas", secao_ids) if secao_ids else None
+    silent = embed == 1
+    process_id = None
+    if not silent:
+        process_id = process_start(
+            request,
+            "Geração de PDF",
+            f"Composição do ficheiro final a partir de {rel.codigo}-{rel.versao}.",
+            data={"process_key": "gerar_pdf"},
+        )
+        process_log(
+            request,
+            process_id,
+            "O conteúdo em HTML do relatório é composto e convertido em PDF (WeasyPrint), com aplicação da folha de estilos do contrato.",
+            etapa="Conversão para PDF",
+            tarefa="Geração de PDF",
+            progresso_tarefa=55,
+            progresso_geral=48,
+        )
+    pdf = render_pdf(db, rel, section_filter)
     fname = f"{rel.codigo}-{rel.versao}.pdf"
-    process_done(request, process_id, "PDF pronto", fname, process_key="gerar_pdf")
+    if not silent and process_id:
+        process_done(request, process_id, "PDF pronto", fname, process_key="gerar_pdf")
     return Response(
         content=pdf,
         media_type="application/pdf",

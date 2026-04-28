@@ -9,9 +9,7 @@ Saida: modelos_upload_doc_canonicos/
 from __future__ import annotations
 
 import io
-import re
 import sys
-import unicodedata
 import zipfile
 from pathlib import Path
 
@@ -24,6 +22,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.models import SECOES_PADRAO  # noqa: E402
+from app.notificacoes.modelos import filename_para, slug_titulo  # noqa: E402
 
 NUM_TO_TITLE: dict[str, str] = dict(SECOES_PADRAO)
 
@@ -51,13 +50,9 @@ def _docx_bytes_to_dotx(data: bytes) -> bytes:
     return out_buf.getvalue()
 
 
-def _slug_title(tit: str) -> str:
-    nfd = unicodedata.normalize("NFD", tit)
-    ascii_only = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
-    s = re.sub(r"[^a-zA-Z0-9._-]+", "_", ascii_only).strip("_")
-    if not s:
-        return "secao"
-    return s[:100]
+# Slug e nome de ficheiro vêm de `app.notificacoes.modelos` (fonte única).
+# Mantém alias local para compatibilidade com chamadas internas existentes.
+_slug_title = slug_titulo
 
 
 def _heading_level(numero: str) -> int:
@@ -275,9 +270,7 @@ def _build_document_for_secao(
 
 
 def _section_filename(num: str, tit: str) -> str:
-    slug = _slug_title(tit)
-    safe_num = re.sub(r"[^\d.]+", "", num) or "sec"
-    return f"secao_{safe_num.replace('.', '_')}_{slug}.dotx"
+    return filename_para(num, tit)
 
 
 def main() -> int:

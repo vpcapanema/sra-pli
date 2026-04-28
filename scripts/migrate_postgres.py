@@ -14,8 +14,8 @@ Estratégia:
 from __future__ import annotations
 import argparse
 import sys
-import io
-from sqlalchemy import create_engine, text, MetaData, Table
+
+from sqlalchemy import create_engine, MetaData, Table, text
 
 # garante import do pacote app
 import os

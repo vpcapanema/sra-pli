@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SRA · {{ relatorio_codigo }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;">
+    {% macro render_modelos_collapsible(nodes) %}
+      {% if nodes %}
+        {% for n in nodes %}
+          <details style="margin:6px 0;border:1px solid #dbe4ed;border-radius:4px;background:#fafbfc;">
+            <summary style="padding:8px 10px;cursor:pointer;font-size:13px;line-height:1.45;text-align:left;">
+              <span style="font-weight:700;color:#116593;">{{ n.numero }}</span>
+              <span style="font-weight:600;"> {{ n.titulo }}</span>
+              <span style="white-space:nowrap;">
+                —
+                <a href="{{ n.link_dotx }}" style="color:#2a9450;text-decoration:underline;">Baixar modelo .dotx</a>
+              </span>
+            </summary>
+            {% if n.filhos %}
+              <div style="padding:4px 10px 10px 14px;margin:0;border-top:1px solid #eef1f5;">
+                {{ render_modelos_collapsible(n.filhos) }}
+              </div>
+            {% endif %}
+          </details>
+        {% endfor %}
+      {% endif %}
+    {% endmacro %}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1f5;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="1200" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #d5dce6;border-radius:6px;width:1200px;max-width:100%;">
+            <tr>
+              <td style="background:#1c3d59;color:#ffffff;padding:18px 22px;border-top-left-radius:6px;border-top-right-radius:6px;">
+                <div style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#3ec26e;font-weight:700;">SRA · PLI-SP</div>
+                <div style="font-size:18px;font-weight:700;margin-top:4px;">{{ relatorio_codigo }} — {{ mes_referencia }}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px;font-size:14px;line-height:1.55;text-align:justify;border-bottom-left-radius:6px;border-bottom-right-radius:6px;">
+                <p style="margin:0 0 12px;text-align:justify;">Olá, <strong>{{ destinatario_nome }}</strong>.</p>
+                {% if tipo == 'abertura' %}
+                  <p style="margin:0 0 12px;text-align:justify;">
+                    O Sistema de Relatório de Atividades (SRA) já encontra-se aberto para o período de recebimento e registro do conteúdo que documenta as atividades técnicas desenvolvidas em <strong>{{ mes_referencia }}</strong>.
+                    Para enviar e registrar o conteúdo com suas atividades, siga as instruções a seguir:
+                  </p>
+                {% elif tipo == 'lembrete' %}
+                  <p style="margin:0 0 12px;text-align:justify;">
+                    <strong>Lembrete:</strong> o relatório <strong>{{ mes_referencia }}</strong> ainda aguarda o envio da sua parte. O ciclo continua aberto.
+                  </p>
+                {% elif tipo == 'ultima_chamada' %}
+                  <p style="margin:0 0 12px;background:#fff8e0;border-left:3px solid #c88000;padding:10px 12px;text-align:justify;">
+                    <strong>Última chamada:</strong> o ciclo de envio do <strong>{{ relatorio_codigo }}</strong> encerra em breve. Sua parte ainda não foi marcada como enviada.
+                  </p>
+                {% else %}
+                  <p style="margin:0 0 12px;text-align:justify;">Você tem ação pendente no relatório <strong>{{ relatorio_codigo }}</strong>.</p>
+                {% endif %}
+
+                <h3 style="margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#1c3d59;text-align:justify;">Instruções</h3>
+
+                <h4 style="margin:14px 0 8px;font-size:13px;font-weight:700;color:#1c3d59;text-align:justify;">1. Preparar o conteúdo</h4>
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>1.1</strong>
+                  Entre na página de
+                  <a href="{{ link_modelos_word_ajuda }}" style="color:#116593;text-decoration:underline;"><strong>Modelos de Importação Assistida</strong></a>
+                  e faça o download do modelo referente à seção sob sua responsabilidade. Caso você seja responsável por uma seção ou subseção não listada no sumário, baixe a que mais se aproxima e altere os índices (não é necessário indexar: deixe apenas como texto; o sistema entenderá e extrairá corretamente o conteúdo).
+                </p>
+                <p style="margin:0 0 14px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>1.2</strong>
+                  Abra o arquivo <code>.dotx</code> e adicione o seu conteúdo. Siga as instruções no próprio arquivo para ver como não perder o estilo dos tipos de elementos existentes.
+                  <strong>Dica:</strong> para manter o estilo das legendas de figuras e tabelas e das listas, <strong>não apague</strong> o texto em itálico — sobrescreva-o; isso ajuda o sistema na importação.
+                  Salve o trabalho como documento <code>.docx</code> antes de enviar ao SRA.
+                </p>
+
+                <h4 style="margin:14px 0 8px;font-size:13px;font-weight:700;color:#1c3d59;text-align:justify;">2. Enviar o arquivo preenchido para o SRA</h4>
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>2.1.</strong> Acesse a
+                  <a href="{{ link_login_sra }}" style="color:#116593;text-decoration:underline;">página do SRA</a>
+                  na internet e faça o login. Em seguida, abra a página de
+                  <a href="{{ link_painel_upload }}" style="color:#116593;text-decoration:underline;">Upload de conteúdo</a>
+                  ou use os links na seção <strong>Links diretos para download dos arquivos modelo, por seção</strong> abaixo.
+                </p>
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>2.2.</strong> Preencha os campos de <strong>Coordenação da seção e destino do upload</strong>: confirme que a seção indicada é aquela pela qual você é responsável.
+                  <strong>Responsável:</strong> selecione você mesmo (ou confira se já está correto). Confirme a atribuição do responsável e atualize o status conforme a interface.
+                </p>
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>2.3.</strong> <strong>Importar conteúdo:</strong> faça o upload do arquivo <code>.docx</code> gerado. Revise e, se necessário, edite o conteúdo após a importação.
+                </p>
+                <p style="margin:0 0 14px;font-size:14px;line-height:1.55;text-align:justify;">
+                  <strong>2.4.</strong> <strong>Confirmar blocos:</strong> confirme todos os blocos para envio ao relatório. Quando não houver pendências, sua entrega é registrada como <strong>enviada</strong>.
+                </p>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 18px;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:14px 16px;border:2px solid #7a1212;border-radius:6px;background:linear-gradient(180deg,#fff5f5 0%,#ffe8e8 100%);font-size:14px;line-height:1.55;color:#5c0f0f;font-weight:700;text-align:center;">
+                      <span style="display:block;font-size:15px;font-weight:800;margin-bottom:8px;letter-spacing:.02em;">ATENÇÃO — PRAZO PARA AUTORES</span>
+                      Envie e conclua o <strong>registro</strong> do seu conteúdo no SRA até
+                      <strong>{{ prazo_limite_conteudo_autor }}</strong>.
+                      O coordenador dispõe dos <strong>dois dias seguintes</strong> (até
+                      <strong>{{ prazo_envio }}</strong>) para revisar e compilar o relatório.
+                      Conteúdo registrado após o prazo dos autores pode resultar em complicações na medição.
+                    </td>
+                  </tr>
+                </table>
+
+                <h3 style="margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#1c3d59;text-align:justify;">Links diretos para download dos arquivos modelo, por seção</h3>
+                <p style="margin:0 0 10px;font-size:12.5px;color:#4f5d6e;text-align:justify;">
+                  Expanda cada seção de nível 1 para ver subseções e o link do modelo (<code>.dotx</code>) correspondente.
+                </p>
+                {% if arvore_secoes_links %}
+                  {{ render_modelos_collapsible(arvore_secoes_links) }}
+                {% else %}
+                  <p style="margin:0 0 12px;color:#4f5d6e;font-style:italic;text-align:justify;">Nenhuma seção cadastrada neste relatório.</p>
+                {% endif %}
+
+                <hr style="border:0;border-top:1px solid #d5dce6;margin:22px 0 14px;">
+
+                <p style="margin:0 0 6px;font-size:11.5px;color:#4f5d6e;text-align:justify;">
+                  Dúvidas sobre o preenchimento do Word: página
+                  <a href="{{ link_modelos_word_ajuda }}" style="color:#116593;">Modelos de Importação Assistida</a>
+                  ou o coordenador do relatório.
+                </p>
+                <p style="margin:0 0 6px;font-size:11.5px;color:#4f5d6e;text-align:justify;">
+                  Para pausar lembretes (férias ou afastamento), peça ao coordenador para ajustar suas notificações no SRA.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

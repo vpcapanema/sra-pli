@@ -1,0 +1,22 @@
+---
+description: Checklist obrigatorio ao final de toda tarefa — aba Problemas e releitura integral dos arquivos alterados
+alwaysApply: true
+---
+
+# Encerramento Obrigatorio Da Tarefa (Agentes)
+
+## Limite real (transparencia)
+
+O agente **nao enxerga** a sua aba **Problemas** nem o estado exato do seu IDE. O que o agente ve e: saida de terminal (flake8, pylint, djlint, spell, etc.) e **diagnosticos que o Cursor expoe a ferramenta de leitura de lints do agente** nos caminhos pedidos — isso **pode divergir** do que voce ve (filtros, arquivos nao salvos, extensoes, cache). Sem alinhar essas duas frentes, o humano e o agente falam de “zero problemas” com significados diferentes.
+
+## Antes de considerar a tarefa concluida
+
+1. **Paridade terminal + IDE (obrigatorio)** — Para **cada arquivo alterado nesta tarefa**:
+   - **Python:** `flake8` e `pylint` nesse arquivo (comandos em `linting.mdc`).
+   - **Template `app/templates/**/*.html` alterado:** incluir esse arquivo no `djlint` (pasta ou arquivo) conforme `linting.mdc`.
+   - **Diagnostico do workspace:** invocar a **ferramenta de leitura de lints do agente** nos mesmos caminhos alterados. Se ela reportar algo, corrigir antes de encerrar.
+   - **Spell:** `npm run spell` quando houver mudanca em texto/codigo coberto pelo `cspell.json`.
+2. **Aba Problemas (lado humano)** — O objetivo e o mesmo conjunto de avisos que **voce** ve: **zerar** notificacoes nos arquivos tocados. Se, apos os passos acima, **voce** ainda vir avisos, **nao** declare a tarefa limpa: peca ao usuario a lista (arquivo + mensagem) ou corrija ate alinhar.
+3. **Releitura integral** — **Leia na integra**, do inicio ao fim, **cada arquivo que voce modificou** apos a ultima edicao. Corrija inconsistencias (logica, estilo do projeto, imports, templates, duplicacao, comentarios obsoletos no trecho tocado, etc.).
+
+**Escopo desta regra:** com `alwaysApply: true`, aplica-se a **todos os agentes de IA neste workspace**. Para o mesmo habito em **outros repositorios**, replique estes itens em **Cursor Settings** — regras de usuario para IA (configuracao global do Cursor).

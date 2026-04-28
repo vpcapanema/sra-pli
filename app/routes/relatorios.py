@@ -1,11 +1,13 @@
 import re
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
 from starlette.responses import Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from dateutil import parser as dateparser
 
 from ..db import get_db, tx_session
 from ..models import Relatorio, Secao, Bloco, User
+from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status
 from ..bootstrap import criar_secoes_padrao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
 from ..sumario_extractor import (
@@ -15,6 +17,7 @@ from ..sumario_extractor import (
 from ..process_events import process_done, process_log, process_start
 from ..sra_process_modal import montar_data_modal_fim
 from .pages import (
+    response_conteudo_upload,
     response_dashboard,
     response_relatorio_detail,
     response_secao_edit,
@@ -52,6 +55,112 @@ def _u_or_login(
         return None, p
     assert u is not None
     return u, None
+
+
+@router.get("/{rel_id}/blocos-confirmados.json")
+def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
+    rel_id: int, request: Request, db: Session = Depends(get_db)
+):
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+    user = u
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+    pode_status, motivo_status = _pode_editar_status(user, rel)
+    blocos = (
+        db.query(Bloco)
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .options(selectinload(Bloco.autor))
+        .filter(Secao.relatorio_id == rel_id, Bloco.bloqueado.is_(True))
+        .order_by(Secao.ordem, Bloco.ordem)
+        .all()
+    )
+    sec_por_id = {
+        s.id: s for s in db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
+    }
+    payload_blocos = []
+    for b in blocos:
+        sec_row = sec_por_id.get(b.secao_id)
+        payload_blocos.append(
+            {
+                "id": b.id,
+                "secao_id": b.secao_id,
+                "secao_numero": sec_row.numero if sec_row else "",
+                "secao_titulo": sec_row.titulo if sec_row else "",
+                "tipo": b.tipo,
+                "ordem": b.ordem,
+                "titulo": b.titulo or "",
+                "conteudo": b.conteudo or "",
+                "legenda": b.legenda or "",
+                "fonte": b.fonte or "",
+                "figura_id": b.figura_id,
+                "bloqueado": True,
+                "pode_editar": False,
+                "autor_nome": b.autor.nome if b.autor else None,
+                "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+            }
+        )
+    return JSONResponse(
+        {
+            "modo": "todas_confirmadas",
+            "relatorio": {"status": rel.status},
+            "pode_editar_secao": pode_status,
+            "motivo_bloqueio": motivo_status,
+            "secao": None,
+            "blocos": payload_blocos,
+        }
+    )
+
+
+@router.post("/{rel_id}/blocos/excluir-todos-confirmados")
+def excluir_todos_blocos_confirmados(  # pylint: disable=too-many-locals
+    rel_id: int, request: Request, db: Session = Depends(get_db)
+):
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+    user = u
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    rel = _exigir_relatorio_editavel(db, rel_id)
+    ok_ed, motivo = _pode_editar_status(user, rel)
+    if not ok_ed:
+        raise HTTPException(403, detail=motivo)
+    blocos = (
+        db.query(Bloco)
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(Secao.relatorio_id == rel_id, Bloco.bloqueado.is_(True))
+        .all()
+    )
+    if not blocos:
+        return JSONResponse({"ok": True, "removidos": 0})
+    sec_ids = {b.secao_id for b in blocos}
+    process_id = process_start(
+        request,
+        "Exclusão em lote (confirmados)",
+        f"Removendo {len(blocos)} bloco(s) confirmado(s) do relatório.",
+    )
+    ids = [b.id for b in blocos]
+    afeta = any(_impacta_numeracao(b.tipo, b.conteudo) for b in blocos)
+    with tx_session() as txdb:
+        if afeta:
+            consolidar_referencias(txdb, rel_id)
+        txdb.query(Bloco).filter(Bloco.id.in_(ids)).delete(synchronize_session=False)
+    for sid in sec_ids:
+        _hook_recompute_entrega(db, rel_id, sid)
+    process_done(
+        request,
+        process_id,
+        "Blocos excluídos",
+        f"{len(blocos)} bloco(s) confirmado(s) removido(s).",
+    )
+    return JSONResponse({"ok": True, "removidos": len(blocos)})
 
 
 @router.post("")
@@ -422,45 +531,66 @@ def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_d
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/responsavel")
-def atribuir_responsavel(
+def atribuir_responsavel(  # pylint: disable=too-many-arguments
     rel_id: int,
     sec_id: int,
     request: Request,
+    *,
     responsavel_id: str = Form(""),
+    retorno: str = Form(""),
     db: Session = Depends(get_db),
 ):
     u, p = _u_or_login(request, db)
     if p is not None:
         return p
     user = u
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    sec.responsavel_id = int(responsavel_id) if responsavel_id else None
+    if user.role == "autor":
+        if not responsavel_id.strip():
+            raise HTTPException(400, detail="Selecione-se como responsável e confirme.")
+        rid = int(responsavel_id)
+        if rid != user.id:
+            raise HTTPException(403, detail="Autor só pode atribuir a si próprio.")
+        sec.responsavel_id = rid
+    else:
+        if user.role not in ("admin", "coordenador"):
+            raise HTTPException(403)
+        sec.responsavel_id = int(responsavel_id) if responsavel_id else None
     db.commit()
+    if retorno == "upload":
+        return response_conteudo_upload(request, db, rel_id, sec_id)
     return response_secao_edit(request, db, rel_id, sec_id)
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/status")
-def status_secao(
+def status_secao(  # pylint: disable=too-many-arguments
     rel_id: int,
     sec_id: int,
     request: Request,
+    *,
     status: str = Form(...),
+    retorno: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    _u, p = _u_or_login(request, db)
+    u, p = _u_or_login(request, db)
     if p is not None:
         return p
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
+    if u.role == "autor":
+        if sec.responsavel_id is not None and sec.responsavel_id != u.id:
+            raise HTTPException(403, detail="Sem permissão para alterar o status desta seção.")
+    elif u.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
     if status not in ("pendente", "em_andamento", "aprovada"):
         raise HTTPException(400)
     sec.status = status
     db.commit()
+    if retorno == "upload":
+        return response_conteudo_upload(request, db, rel_id, sec_id)
     return response_secao_edit(request, db, rel_id, sec_id)
 
 
@@ -475,6 +605,119 @@ def _ordem_for_numero(numero: str) -> tuple:
     return tuple(parts)
 
 
+def _numero_livre_no_nivel(
+    secoes: list[Secao], nivel: int, prefixo: str
+) -> str:
+    """Devolve um numero livre no nivel/prefixo indicado.
+
+    Varre TODAS as secoes (inclusive descendentes) sob ``prefixo`` e toma a
+    K-esima parte (``K = nivel - 1``); o resultado e ``prefixo + (max + 1)``,
+    garantindo zero colisao com numeros existentes ou com qualquer prefixo de
+    descendente. Necessario para inserir com shift-on-insert sem violar
+    ``UniqueConstraint(relatorio_id, numero)`` antes da renumeracao.
+    """
+    sufixos: list[int] = []
+    for sec in secoes:
+        num = sec.numero or ""
+        partes = num.split(".")
+        if len(partes) < nivel:
+            continue
+        if prefixo and not num.startswith(prefixo):
+            continue
+        try:
+            sufixos.append(int(partes[nivel - 1]))
+        except ValueError:
+            continue
+    proximo = (max(sufixos) + 1) if sufixos else 1
+    return f"{prefixo}{proximo}"
+
+
+def _inserir_secao_em_relatorio(
+    db_session: Session, rel_id: int, numero: str, titulo: str
+) -> None:
+    """Insere uma secao na posicao indicada por ``numero`` e renumera a arvore.
+
+    Comportamento:
+    - ``numero`` e um HINT DE POSICAO. Se ja existir secao com esse numero,
+      a inserida toma a posicao e a existente (e suas irmas posteriores) sao
+      empurradas via ``ordem``. A renumeracao recalcula os numeros finais.
+    - Para evitar ``IntegrityError`` no flush (UniqueConstraint), a nova
+      secao entra com um numero TEMPORARIO LIVRE no mesmo nivel/prefixo
+      (``_numero_livre_no_nivel``). O numero final sai do ``renumerar_relatorio``.
+    - Limitacao contratual D20: ``renumerar_relatorio`` PRESERVA o numero das
+      raizes (``numeracao.py``). Inserir entre raizes nao desloca; a nova fica
+      no proximo slot livre. O frontend reflete isso oferecendo max+1 no nivel 1.
+
+    Aplica em transacao explicita: consolida referencias textuais ANTES da
+    mutacao (estabiliza alvos por id), desloca a ``ordem`` das irmas posteriores,
+    persiste a nova secao e renumera por DFS.
+    """
+    todas = db_session.query(Secao).filter_by(relatorio_id=rel_id).all()
+    partes_alvo = numero.split(".")
+    nivel = len(partes_alvo)
+    prefixo_alvo = ".".join(partes_alvo[:-1]) + "." if nivel > 1 else ""
+    raiz_em_conflito = nivel == 1 and any(
+        (s.numero or "") == numero for s in todas
+    )
+    if raiz_em_conflito:
+        # Renumerar preserva numeros de raiz; deslocamento entre raizes nao e
+        # suportado. Append: ordem maxima + 1, sem mexer nos existentes.
+        nova_ordem = len(todas)
+        ids_deslocar: list[int] = []
+    else:
+        chave_alvo = _ordem_for_numero(numero)
+        nova_ordem = sum(
+            1 for s in todas if _ordem_for_numero(s.numero) < chave_alvo
+        )
+        ids_deslocar = [
+            s.id for s in todas if _ordem_for_numero(s.numero) >= chave_alvo
+        ]
+    numero_temp = _numero_livre_no_nivel(todas, nivel, prefixo_alvo)
+    with tx_session() as txdb:
+        consolidar_referencias(txdb, rel_id)
+        if ids_deslocar:
+            txdb.query(Secao).filter(Secao.id.in_(ids_deslocar)).update(
+                {Secao.ordem: Secao.ordem + 1}, synchronize_session=False
+            )
+        txdb.add(
+            Secao(
+                relatorio_id=rel_id,
+                numero=numero_temp,
+                titulo=titulo,
+                ordem=nova_ordem,
+            )
+        )
+        txdb.flush()
+        renumerar_relatorio(txdb, rel_id)
+
+
+def _proximo_numero_filho(
+    db_session: Session, rel_id: int, pai_numero: str
+) -> str:
+    """Calcula o proximo numero de filha direta de ``pai_numero``.
+
+    Retorna ``{pai_numero}.{max_filha_direta + 1}``, ou ``{pai_numero}.1``
+    quando ainda nao ha filhas diretas. Considera apenas filhas no nivel
+    imediatamente abaixo (ignora netos).
+    """
+    nivel_pai = pai_numero.count(".")
+    prefixo = pai_numero + "."
+    sufixos: list[int] = []
+    for sec in db_session.query(Secao).filter_by(relatorio_id=rel_id).all():
+        num = sec.numero or ""
+        if not num.startswith(prefixo) or num.count(".") != nivel_pai + 1:
+            continue
+        try:
+            sufixos.append(int(num[len(prefixo):]))
+        except ValueError:
+            continue
+    proximo = (max(sufixos) + 1) if sufixos else 1
+    return f"{prefixo}{proximo}"
+
+
+_RE_NUMERO_SECAO = re.compile(r"^\d+(?:\.\d+)*$")
+
+
 @router.post("/{rel_id}/secoes")
 def criar_subsecao(
     rel_id: int,
@@ -483,47 +726,66 @@ def criar_subsecao(
     titulo: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    """Cria uma subsecao no relatorio.
+    """Cria uma secao no relatorio na posicao indicada por ``numero``.
 
-    O ``numero`` informado e usado como hint de posicao (ex.: ``4.7`` insere
-    no slot da setima subsecao do nivel 4). Apos a insercao, ``renumerar_relatorio``
-    refaz a numeracao da arvore inteira para fechar buracos e propagar
-    deslocamentos. O usuario nao precisa garantir unicidade do numero alem
-    da disponibilidade imediata: colisoes com numeros tematicos sao resolvidas
-    pelo prefixo temporario na fase de renumeracao.
+    ``numero`` e o INDICE DESEJADO da nova secao (ex.: ``4.4`` insere antes
+    do atual ``4.4``, deslocando os irmaos posteriores). Para niveis >= 2 o
+    deslocamento e efetivo via ``_inserir_secao_em_relatorio``; para nivel 1
+    (raizes), ``renumerar_relatorio`` preserva os numeros existentes por
+    contrato D20 e a nova secao toma o proximo slot livre quando o indice
+    pedido ja esta ocupado.
     """
     u, p = _u_or_login(request, db)
     if p is not None:
         return p
-    user = u
-    if user.role not in ("admin", "coordenador"):
+    if u.role not in ("admin", "coordenador"):
         raise HTTPException(403)
     _exigir_relatorio_editavel(db, rel_id)
     numero = numero.strip()
     titulo = titulo.strip()
     if not numero or not titulo:
         raise HTTPException(400, detail="Informe número e título")
-    if db.query(Secao).filter_by(relatorio_id=rel_id, numero=numero).first():
-        raise HTTPException(400, detail="Número de seção já existe neste relatório")
-    todas = db.query(Secao).filter_by(relatorio_id=rel_id).all()
-    chave_nova = _ordem_for_numero(numero)
-    chaves = sorted(
-        [(_ordem_for_numero(s.numero), s.id) for s in todas] + [(chave_nova, None)]
-    )
-    nova_ordem = next(i for i, (_, sid) in enumerate(chaves) if sid is None)
-    ids_para_deslocar = [s.id for s in todas if _ordem_for_numero(s.numero) >= chave_nova]
-    with tx_session() as txdb:
-        # Refs textuais -> markers estaveis ANTES da mutacao para que apontem
-        # para o estado atual exibido (apos renumeracao, os numeros mudam mas
-        # os IDs preservados continuam validos).
-        consolidar_referencias(txdb, rel_id)
-        if ids_para_deslocar:
-            txdb.query(Secao).filter(Secao.id.in_(ids_para_deslocar)).update(
-                {Secao.ordem: Secao.ordem + 1}, synchronize_session=False
-            )
-        txdb.add(Secao(relatorio_id=rel_id, numero=numero, titulo=titulo, ordem=nova_ordem))
-        txdb.flush()
-        renumerar_relatorio(txdb, rel_id)
+    if not _RE_NUMERO_SECAO.match(numero):
+        raise HTTPException(
+            400, detail="Número de seção inválido (use apenas dígitos e pontos)"
+        )
+    _inserir_secao_em_relatorio(db, rel_id, numero, titulo)
+    return response_relatorio_detail(request, db, rel_id)
+
+
+@router.post("/{rel_id}/secoes/{sec_id}/subsecao")
+def criar_subsecao_filha(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    titulo: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Cria uma subsecao como ultima filha direta da secao indicada.
+
+    O numero da nova subsecao e calculado pelo servidor a partir do pai
+    via ``_proximo_numero_filho``. Apos a insercao, ``renumerar_relatorio``
+    recompoe a arvore inteira para fechar buracos e propagar deslocamentos.
+    """
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    if u.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    _exigir_relatorio_editavel(db, rel_id)
+    pai = db.get(Secao, sec_id)
+    if not pai or pai.relatorio_id != rel_id:
+        raise HTTPException(404)
+    titulo = titulo.strip()
+    if not titulo:
+        raise HTTPException(400, detail="Informe o título da subseção")
+    pai_numero = (pai.numero or "").strip()
+    if not pai_numero:
+        raise HTTPException(400, detail="Seção pai sem número definido")
+    novo_numero = _proximo_numero_filho(db, rel_id, pai_numero)
+    if db.query(Secao).filter_by(relatorio_id=rel_id, numero=novo_numero).first():
+        raise HTTPException(409, detail="Conflito de numeração; tente novamente.")
+    _inserir_secao_em_relatorio(db, rel_id, novo_numero, titulo)
     return response_relatorio_detail(request, db, rel_id)
 
 

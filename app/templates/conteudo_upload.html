@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block body_attrs %} class="page-conteudo-upload"{% endblock %}
+{% block body_class %}page-conteudo-upload page-rel-com-preview{% endblock %}
 {% block title %}Upload de conteúdo · {{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
 {% block header %}{{ rel.codigo }} · Upload · {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
 {% block content %}
@@ -7,72 +7,88 @@
     <h1>Upload de conteúdo — Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
     <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }}</div>
     <p>
-      <a href="/relatorios/{{ rel.id }}">← sumário do relatório</a>
-      ·
-      <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}">Editor clássico da seção</a>
+      {% if user.role in ['admin','coordenador'] %}
+        <a href="/relatorios/{{ rel.id }}">← sumário do relatório</a>
+        ·
+        <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}">Editor clássico da seção</a>
+        ·
+      {% endif %}
+      <a href="/modelos-word-importacao">Modelos Word e tutorial de importação</a>
     </p>
   </section>
   <div class="upload-layout">
     <div class="upload-main">
-      <section class="ss active-tab upload-coord-ss">
+      <section class="ss active-tab upload-coord-ss" id="ss-coord">
         <div class="ss-hdr">
-          <span class="sn">⚙</span><span class="st">Coordenação da seção e destino do upload</span>
+          <span class="sn">1</span><span class="st">Coordenação da seção e destino do upload</span>
         </div>
         <div class="sb2 upload-coord-wrap">
-          <div class="upload-sec-picker">
-            <label for="upload-sec-selector">Seção alvo</label>
-            <select id="upload-sec-selector" title="Alterar secção tratada nesta página" aria-label="Seção alvo do upload">
-              {% for s in rel.secoes %}
-                <option value="{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} — {{ s.titulo }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          {% if user.role not in ['admin','coordenador'] %}
-            <p class="upload-meta-readonly">Responsável: {% if sec.responsavel %}<strong>{{ sec.responsavel.nome }}</strong>{% else %}<span class="muted">—</span>{% endif %}
-              · Status: <strong>{{ sec.status }}</strong></p>
-          {% endif %}
-          {% if user.role in ['admin','coordenador'] %}
-            <div class="actions-row upload-coord-actions">
-              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
-                <label for="sel-sec-responsavel">Responsável</label>
-                <select id="sel-sec-responsavel" name="responsavel_id" title="Responsável pela seção">
-                  <option value="">—</option>
+          <div class="upload-coord-row">
+            <div class="ucr-field">
+              <label for="upload-sec-selector">Seção alvo</label>
+              <select id="upload-sec-selector" title="Alterar secção tratada nesta página" aria-label="Seção alvo do upload">
+                {% for s in rel.secoes %}
+                  <option value="{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} — {{ s.titulo }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% set status_sel = sec.status %}
+            {% if user.role == 'autor' and sec.status == 'pendente' %}
+              {% set status_sel = "em_andamento" %}
+            {% endif %}
+            <form class="ucr-field" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
+              <input type="hidden" name="retorno" value="upload" />
+              <label for="sel-sec-responsavel">Responsável</label>
+              <div class="ucr-input-wrap">
+                <select id="sel-sec-responsavel" name="responsavel_id" title="Responsável pela seção" {% if user.role == 'autor' %}required{% endif %}>
+                  {% if user.role in ['admin','coordenador'] %}<option value="">—</option>{% endif %}
                   {% for a in autores %}
-                    <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
+                    <option value="{{ a.id }}"
+                            {% if a.id != user.id and user.role == 'autor' %}disabled{% endif %}
+                            {% if sec.responsavel_id == a.id or (sec.responsavel_id is none and user.role == 'autor' and a.id == user.id) %}selected{% endif %}>{{ a.nome }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit">Atribuir</button>
-              </form>
-              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
-                <label for="sel-sec-status">Status</label>
+                <button type="submit" class="ucr-inline-btn" title="Confirmar responsável" aria-label="Confirmar responsável">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+            <form class="ucr-field" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
+              <input type="hidden" name="retorno" value="upload" />
+              <label for="sel-sec-status">Status</label>
+              <div class="ucr-side-wrap">
                 <select id="sel-sec-status" name="status" title="Status da seção">
-                  <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
-                  <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
-                  <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
+                  <option value="pendente" {% if status_sel == 'pendente' %}selected{% endif %}>Pendente</option>
+                  <option value="em_andamento" {% if status_sel == 'em_andamento' %}selected{% endif %}>Em andamento</option>
+                  <option value="aprovada" {% if status_sel == 'aprovada' %}selected{% endif %}>Aprovada</option>
                 </select>
-                <button type="submit">Atualizar</button>
-              </form>
-            </div>
-          {% endif %}
+                <button type="submit" class="ucr-side-btn" title="Confirmar status" aria-label="Confirmar status">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
       <section class="ss active-tab" id="importar-conteudo">
         <div class="ss-hdr">
-          <span class="sn">↑</span><span class="st">Importar conteúdo</span>
+          <span class="sn">2</span><span class="st">Importar conteúdo</span>
         </div>
         <div class="sb2">
           <form id="form-importar-conteudo" class="import-form">
-            <div>
-              <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
+            <label for="import-arquivo" class="import-arquivo-lbl">Arquivo estruturado (.txt ou .docx)</label>
+            <div class="import-arquivo-row">
               <input type="file" id="import-arquivo" name="arquivo" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+              <button type="submit">Analisar arquivo</button>
+              <span id="import-status" class="import-status" aria-live="polite"></span>
             </div>
-            <button type="submit">Analisar arquivo</button>
-            <span id="import-status" class="import-status" aria-live="polite"></span>
           </form>
-          <div class="import-help">
-            Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>, <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ... <code>[/TABELA]</code>.
-            Em DOCX, use estilos de título do Word, títulos iniciados por número de seção e tabelas nativas.
-          </div>
           <div id="import-review" class="import-review is-hidden">
             <div class="import-review-head">
               <div class="import-review-title">
@@ -89,9 +105,9 @@
           </div>
         </div>
       </section>
-      <section class="ss active-tab">
+      <section class="ss ss-sub active-tab{% if not sec.blocos %} is-hidden{% endif %}" id="ss-blocos">
         <div class="ss-hdr">
-          <span class="sn">●</span><span class="st">Blocos de conteúdo</span>
+          <span class="sn">2.1</span><span class="st">Blocos extraídos</span>
         </div>
         <div class="sb2 blocos-table-wrap">
           {% if sec.blocos %}
@@ -183,48 +199,76 @@
           {% endif %}
         </div>
       </section>
-      <section class="ss active-tab">
+      <section class="ss active-tab" id="ss-editar">
         <div class="ss-hdr">
-          <span class="sn">✎</span><span class="st">Editar bloco existente · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
+          <span class="sn">3</span><span class="st">Editar bloco existente · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
         </div>
         <div class="sb2">
-          {% if user.role in ['admin','coordenador'] %}
-            <div class="sec-control">
-              <div class="sec-control-row">
+          <div class="sec-control">
+            <div class="edit-bloco-row" id="edit-bloco-controls" data-rel-id="{{ rel.id }}" data-sec-atual="{{ sec.id }}">
+              <div class="ucr-field">
                 <label for="sec-nav">Seção atual</label>
-                <select id="sec-nav" title="Trocar de seção">
+                <select id="sec-nav" title="Selecionar seção para carregar blocos">
                   {% for s in rel.secoes %}
-                    <option value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
+                    {% set pode_sec = user.role in ['admin','coordenador'] or (user.role == 'autor' and (s.responsavel_id is none or s.responsavel_id == user.id)) %}
+                    {% if pode_sec %}
+                      <option value="{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
+                    {% endif %}
                   {% endfor %}
+                  {% if user.role in ['admin','coordenador'] %}
+                    <option value="__todas_confirmadas__">Todas (blocos confirmados)</option>
+                  {% endif %}
                 </select>
-                <button type="button" class="secondary" id="btn-renomear-sec" title="Renomear esta seção">✎ Renomear</button>
-                <button type="button" class="secondary" id="btn-nova-sub" title="Criar nova subseção">+ Subseção</button>
-                {% if '.' in sec.numero %}
-                  <form method="post"
-                        action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
-                        class="sec-control-inline"
-                        data-sra-confirm="secao_excluir"
-                        data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção.">
-                    <button type="submit" class="danger">🗑 Excluir</button>
-                  </form>
+              </div>
+              <div class="edit-bloco-actions">
+                <button type="button" class="ucr-side-btn" id="btn-edit-carregar" title="Carregar blocos da seção selecionada" aria-label="Carregar blocos da seção selecionada">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </button>
+                <button type="button" class="ucr-side-btn" id="btn-edit-salvar" title="Salvar localmente (rascunho no navegador)" aria-label="Salvar rascunho local" disabled>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                </button>
+                <button type="button" class="ucr-side-btn ucr-side-btn-primary" id="btn-edit-confirmar" title="Confirmar edição e enviar ao relatório" aria-label="Confirmar edição e enviar ao relatório" disabled>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+                {% if user.role in ['admin','coordenador'] %}
+                  <button type="button" class="btn-excluir-todos-confirmados is-hidden" id="btn-edit-excluir-confirmados" title="Excluir de uma vez todos os blocos confirmados do relatório" aria-label="Excluir todos os blocos confirmados">
+                    Excluir todos os blocos
+                  </button>
                 {% endif %}
               </div>
-              <form id="form-renomear-sec" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear">
-                <label for="inp-renomear-titulo">Novo título da seção {{ sec.numero }}</label>
-                <input id="inp-renomear-titulo" type="text" name="titulo" value="{{ sec.titulo }}" required>
-                <button type="submit">Salvar</button>
-                <button type="button" class="secondary" data-cancel="form-renomear-sec">Cancelar</button>
-              </form>
-              <form id="form-nova-sub" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes">
-                <label for="inp-nova-sub-numero">Número (ex.: {{ sec.numero }}.1)</label>
-                <input id="inp-nova-sub-numero" type="text" name="numero" placeholder="{{ sec.numero }}.1" required>
-                <label for="inp-nova-sub-titulo">Título da subseção</label>
-                <input id="inp-nova-sub-titulo" type="text" name="titulo" placeholder="Título" required>
-                <button type="submit">Criar subseção</button>
-                <button type="button" class="secondary" data-cancel="form-nova-sub">Cancelar</button>
-              </form>
+              <span id="edit-bloco-status" class="edit-bloco-status" aria-live="polite"></span>
             </div>
-          {% endif %}
+          </div>
+          <div id="edit-bloco-tabela-wrap" class="edit-bloco-tabela-wrap is-hidden" aria-live="polite">
+            <div class="edit-bloco-tabela-head">
+              <strong id="edit-bloco-tabela-titulo">Blocos da seção</strong>
+              <span id="edit-bloco-tabela-meta" class="edit-bloco-tabela-meta"></span>
+            </div>
+            <table class="bloco-table edit-bloco-tabela">
+              <thead>
+                <tr>
+                  <th>Nº seção</th>
+                  <th>Tipo</th>
+                  <th>Resumo</th>
+                  <th>Atualizado</th>
+                  <th>Rascunho?</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="edit-bloco-tabela-body">
+              </tbody>
+            </table>
+          </div>
           <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
             <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
             <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
@@ -371,11 +415,25 @@
       </section>
     </div>
     <aside class="upload-preview" aria-label="Pré-visualização do relatório em PDF">
-      <section class="ss active-tab upload-preview-inner">
+      <section class="ss active-tab upload-preview-inner" id="ss-preview">
         <div class="ss-hdr">
-          <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-          <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Atualizar</button>
-          <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir PDF</a>
+          <span class="sn">4</span><span class="st">Pré-visualização do relatório</span>
+          <button type="button" class="btn-pdf btn-pdf-icon" id="preview-zoom-out" title="Diminuir zoom na pré-visualização" aria-label="Diminuir zoom">−</button>
+          <button type="button" class="btn-pdf btn-pdf-icon" id="preview-zoom-in" title="Aumentar zoom na pré-visualização" aria-label="Aumentar zoom">+</button>
+          <button type="button" class="btn-pdf btn-pdf-icon" id="btn-preview-reload" title="Atualizar pré-visualização" aria-label="Atualizar pré-visualização">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
+          <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf btn-pdf-icon" title="Abrir PDF em nova aba" aria-label="Abrir PDF em nova aba">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
         </div>
         <div class="sb2">
           <details class="export-menu">
@@ -384,8 +442,12 @@
               <input id="export-scope-inteiro-u" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
               <input id="export-scope-selecionadas-u" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
               <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
-                <label class="export-tab export-tab-all" for="export-scope-inteiro-u"><span>Relatório inteiro</span></label>
-                <label class="export-tab export-tab-selected" for="export-scope-selecionadas-u"><span>Seções selecionadas</span></label>
+                <label class="export-tab export-tab-all" for="export-scope-inteiro-u">
+                  <span>Relatório inteiro</span>
+                </label>
+                <label class="export-tab export-tab-selected" for="export-scope-selecionadas-u">
+                  <span>Seções selecionadas</span>
+                </label>
               </div>
               <div class="export-panels">
                 <div class="export-panel export-panel-all" role="tabpanel"></div>
@@ -410,7 +472,15 @@
               </div>
             </form>
           </details>
-          <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
+          <div class="preview-frame-zoom-outer" id="preview-zoom-outer">
+            <div class="preview-zoom-inner" id="preview-zoom-inner">
+              <iframe id="preview-frame"
+                      src="/relatorios/{{ rel.id }}/pdf?embed=1&secao_ids={{ sec.id }}"
+                      data-src="/relatorios/{{ rel.id }}/pdf?embed=1&secao_ids={{ sec.id }}"
+                      class="preview-frame"
+                      title="Pré-visualização da seção {{ sec.numero }} – {{ sec.titulo }} no relatório em PDF"></iframe>
+            </div>
+          </div>
         </div>
       </section>
     </aside>
@@ -427,6 +497,43 @@
           '/relatorios/{{ rel.id }}/secoes/' + id + '/upload-conteudo';
       });
     })();
+  </script>
+  <script>
+(function () {
+  var inner = document.getElementById('preview-zoom-inner');
+  var frame = document.getElementById('preview-frame');
+  var reloadBtn = document.getElementById('btn-preview-reload');
+  var zIn = document.getElementById('preview-zoom-in');
+  var zOut = document.getElementById('preview-zoom-out');
+  if (!inner || !frame) return;
+  var scale = 1;
+  var minS = 0.5;
+  var maxS = 2;
+  var step = 0.1;
+  function applyZoom() {
+    scale = Math.round(Math.max(minS, Math.min(maxS, scale)) * 100) / 100;
+    var useZoom = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom', '1');
+    if (useZoom) {
+      inner.style.zoom = String(scale);
+      inner.style.transform = '';
+      inner.style.width = '';
+    } else {
+      inner.style.zoom = '';
+      inner.style.transform = 'scale(' + scale + ')';
+      inner.style.transformOrigin = 'top left';
+      inner.style.width = (100 / scale) + '%';
+    }
+  }
+  if (reloadBtn && frame.dataset.src) {
+    reloadBtn.addEventListener('click', function () {
+      var base = frame.dataset.src;
+      frame.src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    });
+  }
+  if (zIn) zIn.addEventListener('click', function () { scale += step; applyZoom(); });
+  if (zOut) zOut.addEventListener('click', function () { scale -= step; applyZoom(); });
+  applyZoom();
+})();
   </script>
   <script data-rel-id='{{ rel.id|tojson|forceescape }}' data-sec-numero='{{ sec.numero|tojson|forceescape }}' data-sec-titulo='{{ sec.titulo|tojson|forceescape }}' data-fig-base='{{ media_counts.fig_base|int|tojson|forceescape }}' data-tab-base='{{ media_counts.tab_base|int|tojson|forceescape }}' data-fig-global-base='{{ media_counts.fig_global_base|int|tojson|forceescape }}' data-tab-global-base='{{ media_counts.tab_global_base|int|tojson|forceescape }}'>
 const SECAO_EDIT_DATA = document.currentScript ? document.currentScript.dataset : {};
@@ -588,19 +695,7 @@ function readSecaoEditData(name, fallback) {
 
   form.addEventListener('submit', () => { syncTitulo(); });
 
-  const secNav = document.getElementById('sec-nav');
-  if (secNav) {
-    secNav.addEventListener('change', () => { if (secNav.value) window.location.href = secNav.value; });
-  }
-  function toggleForm(id, show){
-    const el = document.getElementById(id); if (!el) return;
-    el.classList.toggle('is-hidden', !show);
-  }
-  const btnRen = document.getElementById('btn-renomear-sec');
-  if (btnRen) btnRen.addEventListener('click', () => toggleForm('form-renomear-sec', document.getElementById('form-renomear-sec').classList.contains('is-hidden')));
-  const btnNova = document.getElementById('btn-nova-sub');
-  if (btnNova) btnNova.addEventListener('click', () => toggleForm('form-nova-sub', document.getElementById('form-nova-sub').classList.contains('is-hidden')));
-  document.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => toggleForm(b.dataset.cancel, false)));
+  initEditBlocoFlow();
 
   const upBtn = document.getElementById('ins-fig-upload-btn');
   const upFile = document.getElementById('ins-fig-upload-file');
@@ -847,12 +942,22 @@ function readSecaoEditData(name, fallback) {
   _atualizaExemplos();
 })();
 
-function editarBloco(id, titulo, tipo, conteudo) {
+function editarBloco(id, titulo, tipo, conteudo, secIdBloco) {
   document.getElementById('add-bloco-titulo').value = titulo || '';
   document.getElementById('add-bloco-tipo').value = tipo || 'texto';
   document.getElementById('add-bloco-conteudo').value = conteudo || '';
+  const wrapEc = document.getElementById('edit-bloco-controls');
+  const relIdEc = wrapEc ? wrapEc.dataset.relId : '{{ rel.id }}';
+  const selEc = document.getElementById('sec-nav');
+  let sid = secIdBloco != null && secIdBloco !== '' ? Number(secIdBloco) : NaN;
+  if (!Number.isFinite(sid) && selEc && selEc.value !== '__todas_confirmadas__') {
+    sid = Number(selEc.value);
+  }
+  if (!Number.isFinite(sid)) {
+    sid = Number(wrapEc && wrapEc.dataset.secAtual ? wrapEc.dataset.secAtual : '{{ sec.id }}');
+  }
   const frm = document.getElementById('form-add-bloco');
-  frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/' + id + '/editar';
+  frm.action = '/relatorios/' + relIdEc + '/secoes/' + sid + '/blocos/' + id + '/editar';
 
   const submitBtn = frm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.textContent = 'Salvar bloco editado';
@@ -865,9 +970,17 @@ function editarBloco(id, titulo, tipo, conteudo) {
     cancelBtn.className = 'secondary btn-cancel';
      cancelBtn.textContent = 'Cancelar edição';
      cancelBtn.onclick = function() {
-        frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos';
+        const w = document.getElementById('edit-bloco-controls');
+        const r = w ? w.dataset.relId : '{{ rel.id }}';
+        const sn = document.getElementById('sec-nav');
+        let rs = sn && sn.value !== '__todas_confirmadas__' ? Number(sn.value) : NaN;
+        if (!Number.isFinite(rs)) {
+          rs = Number(w && w.dataset.secAtual ? w.dataset.secAtual : '{{ sec.id }}');
+        }
+        frm.action = '/relatorios/' + r + '/secoes/' + rs + '/blocos';
         submitBtn.textContent = 'Inserir novo bloco';
-        document.getElementById('add-bloco-titulo').value = '{{ sec.numero }} – {{ sec.titulo }}';
+        const opt = sn && sn.selectedIndex >= 0 ? sn.options[sn.selectedIndex] : null;
+        document.getElementById('add-bloco-titulo').value = opt ? opt.text.trim() : '{{ sec.numero }} – {{ sec.titulo }}';
         document.getElementById('add-bloco-tipo').value = 'texto';
         document.getElementById('add-bloco-conteudo').value = '';
         if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
@@ -890,6 +1003,236 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
     );
   });
 });
+
+let _blocoIdEmEdicao = null;
+function initEditBlocoFlow() {
+  const wrap = document.getElementById('edit-bloco-controls');
+  if (!wrap) return;
+  const relId = wrap.dataset.relId;
+  const sel = document.getElementById('sec-nav');
+  const btnCarregar = document.getElementById('btn-edit-carregar');
+  const btnSalvar = document.getElementById('btn-edit-salvar');
+  const btnConfirmar = document.getElementById('btn-edit-confirmar');
+  const status = document.getElementById('edit-bloco-status');
+  const tabelaWrap = document.getElementById('edit-bloco-tabela-wrap');
+  const tabelaBody = document.getElementById('edit-bloco-tabela-body');
+  const tabelaTit = document.getElementById('edit-bloco-tabela-titulo');
+  const tabelaMeta = document.getElementById('edit-bloco-tabela-meta');
+  const taConteudo = document.getElementById('add-bloco-conteudo');
+  const inpTitulo = document.getElementById('add-bloco-titulo');
+  const inpTipo = document.getElementById('add-bloco-tipo');
+  const formAdd = document.getElementById('form-add-bloco');
+
+  function setStatus(msg, kind) {
+    status.textContent = msg || '';
+    status.dataset.kind = kind || '';
+  }
+  function localKey(id) { return 'sra:rascunho:bloco:' + id; }
+  function temRascunho(id) { return !!window.localStorage.getItem(localKey(id)); }
+  function lerRascunho(id) {
+    const raw = window.localStorage.getItem(localKey(id));
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  }
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+  function resumoBloco(b) {
+    const cont = (b.conteudo || '').replace(/\s+/g, ' ').trim();
+    return cont.length <= 80 ? (cont || '—') : (cont.slice(0, 77) + '…');
+  }
+  function tipoLabel(b) {
+    const t = (b.tipo || '').toLowerCase();
+    if (t === 'figura') return 'Figura';
+    if (t === 'tabela') return 'Tabela';
+    if (t === 'lista') return 'Lista';
+    const c = (b.conteudo || '').trim();
+    if (c.startsWith('## ')) return 'Subtítulo';
+    if (c.startsWith('# ')) return 'Título';
+    return 'Parágrafo';
+  }
+  function renderRow(b, secNumero) {
+    const draft = temRascunho(b.id);
+    const upd = b.updated_at ? new Date(b.updated_at).toLocaleString() : '—';
+    const podeEditar = b.pode_editar !== false && !b.bloqueado;
+    const numCol = (b.secao_numero != null && String(b.secao_numero) !== '') ? b.secao_numero : secNumero;
+    const payload = encodeURIComponent(JSON.stringify({
+      id: b.id,
+      secao_id: b.secao_id,
+      titulo: b.titulo || '',
+      tipo: b.tipo || 'texto',
+      conteudo: b.conteudo || '',
+    }));
+    let acaoCell;
+    if (b.bloqueado) {
+      acaoCell = '<span class="locked-lbl" title="Bloco bloqueado: desbloquear antes de editar">Bloqueado</span>';
+    } else if (!podeEditar) {
+      acaoCell = '<span class="locked-lbl" title="Status do relatório não permite edição">Sem permissão</span>';
+    } else {
+      acaoCell = '<button type="button" class="bloco-action btn-row-edit" data-payload="' + payload
+        + '" title="Editar este bloco no editor abaixo" aria-label="Editar bloco">✎</button>';
+    }
+    return '<tr data-bloco-id="' + b.id + '"' + (podeEditar ? '' : ' class="row-readonly"') + '>'
+      + '<td>' + escHtml(numCol) + '</td>'
+      + '<td>' + escHtml(tipoLabel(b)) + '</td>'
+      + '<td title="' + escHtml(b.conteudo || '') + '">' + escHtml(resumoBloco(b)) + '</td>'
+      + '<td>' + escHtml(upd) + '</td>'
+      + '<td>' + (draft ? '<span class="badge-draft">rascunho</span>' : '—') + '</td>'
+      + '<td>' + acaoCell + '</td>'
+      + '</tr>';
+  }
+
+  let _podeEditarSecao = true;
+  let _motivoBloqueio = '';
+
+  function syncFormActionNovoBloco() {
+    if (!formAdd || !sel) return;
+    const v = sel.value;
+    if (v === '__todas_confirmadas__') return;
+    if (formAdd.action.indexOf('/editar') !== -1) return;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return;
+    formAdd.action = '/relatorios/' + relId + '/secoes/' + n + '/blocos';
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && inpTitulo) inpTitulo.value = opt.text.trim();
+  }
+
+  function syncExcluirConfirmadosBtn() {
+    const bx = document.getElementById('btn-edit-excluir-confirmados');
+    if (!bx) return;
+    const onTodas = sel.value === '__todas_confirmadas__';
+    bx.classList.toggle('is-hidden', !onTodas);
+  }
+
+  async function carregar() {
+    const rawVal = sel.value;
+    const isTodas = rawVal === '__todas_confirmadas__';
+    const secId = isTodas ? null : Number(rawVal);
+    if (!isTodas && !Number.isFinite(secId)) return;
+    const secOpt = sel.options[sel.selectedIndex];
+    const secLabel = secOpt ? secOpt.text : '';
+    setStatus('Carregando blocos…', 'working');
+    try {
+      const url = isTodas
+        ? '/relatorios/' + relId + '/blocos-confirmados.json'
+        : '/relatorios/' + relId + '/secoes/' + secId + '/blocos.json';
+      const r = await fetch(url, {
+        credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+      });
+      if (r.status === 403) { setStatus('Sem permissão para aceder a estes dados.', 'danger'); return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const blocos = data.blocos || [];
+      const secNumero = (data.secao && data.secao.numero) || '';
+      _podeEditarSecao = data.pode_editar_secao !== false;
+      _motivoBloqueio = data.motivo_bloqueio || '';
+      if (!isTodas && Number.isFinite(secId)) {
+        wrap.dataset.secAtual = String(secId);
+      }
+      tabelaTit.textContent = isTodas
+        ? 'Blocos confirmados (todas as seções)'
+        : ('Blocos da seção ' + secLabel);
+      const totalEditaveis = blocos.filter((b) => b.pode_editar !== false && !b.bloqueado).length;
+      tabelaMeta.textContent = blocos.length + ' bloco(s)' + (
+        _podeEditarSecao ? ' · ' + totalEditaveis + ' editáveis' : ''
+      );
+      tabelaBody.innerHTML = blocos.length
+        ? blocos.map((b) => renderRow(b, secNumero)).join('')
+        : ('<tr><td colspan="6" class="empty-row">' + (isTodas ? 'Nenhum bloco confirmado no relatório.' : 'Nenhum bloco nesta seção.') + '</td></tr>');
+      tabelaWrap.classList.remove('is-hidden');
+      tabelaBody.querySelectorAll('.btn-row-edit').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          let p;
+          try { p = JSON.parse(decodeURIComponent(btn.dataset.payload)); }
+          catch (e) { setStatus('Erro ao ler bloco: ' + e.message, 'danger'); return; }
+          const draft = lerRascunho(p.id);
+          editarBloco(p.id, p.titulo, p.tipo, draft ? draft.conteudo : p.conteudo, p.secao_id);
+          _blocoIdEmEdicao = p.id;
+          btnSalvar.disabled = false;
+          btnConfirmar.disabled = false;
+          if (draft) setStatus('Rascunho local de ' + new Date(draft.ts).toLocaleString() + ' carregado.', 'info');
+          else setStatus('Bloco #' + p.id + ' carregado para edição.', 'info');
+        });
+      });
+      syncExcluirConfirmadosBtn();
+      if (!_podeEditarSecao) {
+        setStatus(_motivoBloqueio || 'Edição não permitida no status atual do relatório.', 'warn');
+      } else {
+        setStatus(blocos.length + ' bloco(s) carregados.', 'ok');
+      }
+    } catch (e) {
+      setStatus('Falha ao carregar: ' + e.message, 'danger');
+    }
+  }
+
+  function salvar() {
+    if (!_blocoIdEmEdicao) { setStatus('Carregue um bloco no editor antes de salvar.', 'warn'); return; }
+    const payload = {
+      id: _blocoIdEmEdicao,
+      titulo: inpTitulo.value || '',
+      tipo: inpTipo.value || 'texto',
+      conteudo: taConteudo.value || '',
+      ts: Date.now(),
+    };
+    try {
+      window.localStorage.setItem(localKey(_blocoIdEmEdicao), JSON.stringify(payload));
+      setStatus('Rascunho salvo localmente às ' + new Date().toLocaleTimeString() + '.', 'ok');
+    } catch (e) {
+      setStatus('Falha ao salvar localmente: ' + e.message, 'danger');
+    }
+  }
+
+  function confirmar() {
+    if (!_blocoIdEmEdicao) { setStatus('Carregue um bloco antes de confirmar.', 'warn'); return; }
+    formAdd.submit();
+  }
+
+  if (formAdd) {
+    formAdd.addEventListener('submit', () => {
+      const m = formAdd.action.match(/\/blocos\/(\d+)\/editar(?:\?|$|\/|#)/);
+      if (m) window.localStorage.removeItem(localKey(m[1]));
+    });
+  }
+
+  btnCarregar.addEventListener('click', carregar);
+  btnSalvar.addEventListener('click', salvar);
+  btnConfirmar.addEventListener('click', confirmar);
+  sel.addEventListener('change', () => {
+    syncFormActionNovoBloco();
+    syncExcluirConfirmadosBtn();
+  });
+  syncFormActionNovoBloco();
+  syncExcluirConfirmadosBtn();
+
+  const btnExcluirConf = document.getElementById('btn-edit-excluir-confirmados');
+  if (btnExcluirConf) {
+    btnExcluirConf.addEventListener('click', async () => {
+      if (sel.value !== '__todas_confirmadas__') return;
+      if (!window.confirm('Remover todos os blocos confirmados (bloqueados) deste relatório? Esta ação não pode ser desfeita.')) return;
+      setStatus('A excluir…', 'working');
+      try {
+        const r = await fetch('/relatorios/' + relId + '/blocos/excluir-todos-confirmados', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' },
+        });
+        let data = {};
+        try { data = await r.json(); } catch (e1) { data = {}; }
+        if (!r.ok) {
+          const d = data.detail;
+          const msg = typeof d === 'string' ? d : (Array.isArray(d) ? d.map((x) => x.msg || x).join('; ') : ('HTTP ' + r.status));
+          throw new Error(msg || ('HTTP ' + r.status));
+        }
+        setStatus((data.removidos || 0) + ' bloco(s) confirmado(s) removido(s).', 'ok');
+        await carregar();
+      } catch (e) {
+        setStatus('Falha: ' + e.message, 'danger');
+      }
+    });
+  }
+}
 
 (function(){
   const checks = Array.from(document.querySelectorAll('.bloco-select'));
@@ -1218,6 +1561,8 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
       return;
     }
     review.classList.remove('is-hidden');
+    const ssBlocos = document.getElementById('ss-blocos');
+    if (ssBlocos) ssBlocos.classList.remove('is-hidden');
     const groups = groupBySecao();
     const html = groups.map((g) => {
       const secN = (g.key === '__atual__' || !String(g.numero || '').trim())
@@ -1443,11 +1788,12 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
 .bloco-action:hover { background:#fff; border-color:var(--border); color:var(--navy); }
 .bloqueado-row { background:#fafafa; }
 .locked-lbl { font-size:10.5px; color:var(--muted); }
-.import-form { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px; }
-.import-form > div { flex:1 1 320px; }
-.import-status { font-size:12px; color:var(--muted); }
-.import-help { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
-.import-help code { color:var(--navy); font-weight:600; }
+.import-form { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.import-arquivo-lbl { font-size:11px; font-weight:600; color:var(--navy); text-transform:uppercase; letter-spacing:.04em; }
+.import-arquivo-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.import-arquivo-row input[type=file] { flex:0 1 360px; min-width:0; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:3px; background:#fff; }
+.import-arquivo-row button[type=submit] { padding:6px 14px; font-size:12px; font-weight:600; flex:0 0 auto; }
+.import-status { font-size:11.5px; color:var(--muted); flex:1 1 auto; }
 
 /* ===== Importação — Opção B (lista hierárquica) ===== */
 .import-review.is-hidden { display:none; }
@@ -1544,17 +1890,21 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
 .import-indice-readonly { background:#eef3f9; color:var(--navy); font-weight:600; font-size:12px; cursor:default; }
 /* ===== Fim Importação ===== */
 
-/* ---- Escala e largura da página (escopo: editor de seção) ---- */
-.page-conteudo-upload #content { max-width: none; width: min(1480px, 100%); margin: 0 auto; padding-left: 8px; padding-right: 8px; }
-.upload-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 16px; justify-content: space-between; width: 100%; }
-.upload-main { flex: 1 1 69%; max-width: 70%; min-width: min(380px, 100%); box-sizing: border-box; padding-right: 4px; }
-.upload-preview { flex: 1 1 28%; max-width: 30%; min-width: 260px; box-sizing: border-box; position: sticky; top: 12px; align-self: flex-start; }
-.upload-preview-inner { width: 100%; }
-.upload-preview-inner .preview-frame { min-height: 420px; height: clamp(380px, 58vh, 760px); width: 100%; border: 1px solid var(--border); border-radius: 5px; }
+/* ---- Escala da página: layout 2 colunas e #content vêm de app.css (.page-rel-com-preview) ---- */
 .upload-coord-wrap .upload-sec-picker { margin-bottom: 10px; }
 .upload-sec-picker select { width: 100%; max-width: 520px; padding: 6px 8px; }
 .upload-meta-readonly { font-size: 12.5px; margin: 0 0 6px 0; }
-.upload-coord-actions.actions-row { margin-top: 4px; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.upload-coord-actions.actions-row { margin-top: 4px; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; }
+.upload-coord-actions form { display:flex; align-items:flex-end; gap:8px; flex-wrap:nowrap; }
+.upload-coord-actions form label { font-size:11px; font-weight:600; color:var(--navy); text-transform:uppercase; letter-spacing:.04em; align-self:center; }
+.upload-coord-actions form select { padding:5px 8px; font-size:12px; }
+.upload-coord-actions form button[type=submit] { padding:6px 14px; font-size:12px; font-weight:600; }
+.ss.ss-sub { margin-left:24px; border-left:3px solid var(--blue); }
+.ss.ss-sub > .ss-hdr { background:#eaf3ff; color:var(--navy); }
+.ss.ss-sub > .ss-hdr .sn { background:var(--blue); color:#fff; }
+.ss.is-hidden { display:none; }
+.btn-pdf.btn-pdf-icon { display:inline-flex; align-items:center; justify-content:center; padding:0; min-width:24px; width:24px; height:24px; line-height:1; }
+.btn-pdf.btn-pdf-icon svg { display:block; }
 .add-bloco-conteudo-head .bloco-toolbar-wrap { display: flex; flex-direction: column; gap: 8px; }
 .bloco-toolbar-row {
   display: flex;
@@ -1563,12 +1913,6 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
   align-items: center;
 }
 .bloco-toolbar-inline span.bloco-toolbar-hint { flex: none; font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; align-self: center; margin-right: 6px; }
-@media (max-width: 1180px) {
-  .upload-main, .upload-preview { max-width: 100%; flex-basis: 100%; padding-right: 0; position: relative; top: auto; }
-}
-@media (max-width: 1100px) {
-  .page-conteudo-upload #content { width: 94%; padding-left: 4px; padding-right: 4px; }
-}
 .hero { padding:16px 20px; margin-bottom:14px; }
 .hero h1 { font-size:18px; }
 .hero .subtitle { font-size:12px; }

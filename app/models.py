@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy import (
-    Boolean, Column, Integer, String, Text, DateTime, Date, ForeignKey, LargeBinary, UniqueConstraint
+    Boolean, Column, Index, Integer, String, Text, DateTime, Date, ForeignKey,
+    LargeBinary, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from .db import Base
@@ -8,11 +9,17 @@ from .db import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("email", "role", name="uq_users_email_role"), Index("ix_users_email", "email"))
     id = Column(Integer, primary_key=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)
     nome = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(32), nullable=False, default="autor")  # admin, coordenador, autor
+    # Opt-out das notificações mensais. Default true: usuário recebe email
+    # quando for responsável por seção no relatório aberto. Coord/admin desliga
+    # apenas para férias/afastamento. Não substitui Secao.responsavel_id como
+    # fonte de verdade dos destinatários — só permite suprimir.
+    notificacoes_ativas = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -112,3 +119,81 @@ class Figura(Base):
     legenda = Column(String(512), nullable=True)
     fonte = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Ciclo de notificações e entregas mensais
+# ---------------------------------------------------------------------------
+#
+# Modelo: 1 EntregaRelatorio por (relatorio, usuario destinatário). 1:N
+# NotificacaoEnvio rastreia cada email disparado (abertura, lembrete, última
+# chamada, reenvio manual). Status do destinatário evolui de `notificado`
+# (após 1ª notificação) -> `aguardando_envio` (após 2ª) -> `enviado` (todos
+# os blocos das suas seções marcados como bloqueado=true) -> `validado`
+# (coord confirma o conteúdo). "Finalizado" continua sendo estado do
+# Relatorio inteiro, não do destinatário.
+ENTREGA_STATUS_VALIDOS = (
+    "notificado",
+    "aguardando_envio",
+    "enviado",
+    "validado",
+)
+NOTIFICACAO_TIPOS_VALIDOS = (
+    "abertura",
+    "lembrete",
+    "ultima_chamada",
+    "manual",
+)
+
+
+class EntregaRelatorio(Base):
+    __tablename__ = "entrega_relatorio"
+    id = Column(Integer, primary_key=True)
+    relatorio_id = Column(
+        Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String(32), nullable=False, default="notificado", server_default="notificado")
+    data_envio = Column(DateTime, nullable=True)
+    data_validacao = Column(DateTime, nullable=True)
+    validado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    atualizado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    atualizado_em = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    relatorio = relationship("Relatorio")
+    user = relationship("User", foreign_keys=[user_id])
+    validado_por = relationship("User", foreign_keys=[validado_por_id])
+    atualizado_por = relationship("User", foreign_keys=[atualizado_por_id])
+    notificacoes = relationship(
+        "NotificacaoEnvio",
+        back_populates="entrega",
+        cascade="all, delete-orphan",
+        order_by="NotificacaoEnvio.enviada_em",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("relatorio_id", "user_id", name="uq_entrega_rel_user"),
+    )
+
+
+class NotificacaoEnvio(Base):
+    __tablename__ = "notificacao_envio"
+    id = Column(Integer, primary_key=True)
+    entrega_id = Column(
+        Integer, ForeignKey("entrega_relatorio.id", ondelete="CASCADE"), nullable=False
+    )
+    tipo = Column(String(32), nullable=False)
+    enviada_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    sucesso = Column(Boolean, nullable=False, default=False)
+    erro = Column(Text, nullable=True)
+    # Snapshot do email no momento do envio: preserva auditoria mesmo se o
+    # User trocar de email depois.
+    destinatario_email = Column(String(255), nullable=False)
+    sendgrid_message_id = Column(String(255), nullable=True)
+
+    entrega = relationship("EntregaRelatorio", back_populates="notificacoes")
+
+    __table_args__ = (
+        Index("ix_notif_entrega_data", "entrega_id", "enviada_em"),
+    )

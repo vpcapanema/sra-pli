@@ -1,0 +1,97 @@
+SRA — R-MED-022 · Abril/2026 — Abril/2026
+========================================
+
+Olá, Autor exemplo.
+
+LEMBRETE: o relatório Abril/2026 ainda aguarda o envio da sua parte.
+O ciclo continua aberto.
+
+Instruções
+----------
+
+1. Preparar o conteúdo
+~~~~~~~~~~~~~~~~~~~~~~
+1.1 Entre na página de Modelos de Importação Assistida e faça o download do modelo referente à seção sob sua responsabilidade:
+    http://127.0.0.1:8001/modelos-word-importacao
+    Caso você seja responsável por uma seção ou subseção não listada no sumário, baixe a que mais se aproxima e altere os índices (não é necessário indexar: deixe apenas como texto; o sistema entenderá e extrairá corretamente o conteúdo).
+
+1.2 Abra o arquivo .dotx e adicione o seu conteúdo. Siga as instruções no próprio arquivo para ver como não perder o estilo dos tipos de elementos existentes.
+    Dica: para manter o estilo das legendas de figuras e tabelas e das listas, NÃO apague o texto em itálico — sobrescreva-o; isso ajuda o sistema na importação.
+    Salve o trabalho como documento .docx antes de enviar ao SRA.
+
+2. Enviar o arquivo preenchido para o SRA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.1. Acesse a página do SRA e faça o login: http://127.0.0.1:8001/login
+     Em seguida, abra a página de Upload de conteúdo: http://127.0.0.1:8001/painel-upload
+     ou use os links na seção "Links diretos para download dos arquivos modelo, por seção" abaixo.
+2.2. Preencha os campos de Coordenação da seção e destino do upload: confirme que a seção indicada é aquela pela qual você é responsável.
+     Responsável: selecione você mesmo (ou confira se já está correto). Confirme a atribuição do responsável e atualize o status conforme a interface.
+2.3. Importar conteúdo: faça o upload do arquivo .docx gerado. Revise e, se necessário, edite o conteúdo após a importação.
+2.4. Confirmar blocos: confirme todos os blocos para envio ao relatório. Quando não houver pendências, sua entrega é registrada como ENVIADA.
+
+*** ATENÇÃO — PRAZO PARA AUTORES ***
+Envie e conclua o REGISTRO do seu conteúdo no SRA até 08/05/2026 23:59.
+O coordenador dispõe dos DOIS DIAS SEGUINTES (até 10/05/2026 23:59) para revisar e compilar o relatório.
+Conteúdo registrado após o prazo dos autores pode resultar em complicações na medição.
+
+Links diretos para download dos arquivos modelo, por seção
+----------------------------------------------------------
+1 Apresentação
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10000/modelo.dotx
+2 Histórico do Contrato
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10001/modelo.dotx
+3 Relação de Produtos Entregues
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10002/modelo.dotx
+4 Visão Geral das Atividades Realizadas
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10003/modelo.dotx
+  4.1 Coordenação
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10004/modelo.dotx
+  4.2 Atividades Sistema de Informação
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10005/modelo.dotx
+  4.3 Comunicação Social
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10006/modelo.dotx
+    4.3.1 Principais Entregas e Ações Realizadas
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10007/modelo.dotx
+  4.4 Atividades de Apoio Técnico
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10008/modelo.dotx
+    4.4.1 Acompanhamento técnico em reuniões de interesse para o PLI
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10009/modelo.dotx
+    4.4.2 Apoio Administrativo e institucional
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10010/modelo.dotx
+    4.4.3 Análise do Panorama de Investimentos Estaduais em Rodovias de São Paulo
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10011/modelo.dotx
+    4.4.4 Preenchimento das fichas de obras rodoviárias – Produto D-10 (Caracterização da oferta futura)
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10012/modelo.dotx
+    4.4.5 Protótipos de Aplicações do PLI na SEMIL
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10013/modelo.dotx
+    4.4.6 Avaliação e ajuste dos VDMA das rodovias paulistas
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10014/modelo.dotx
+    4.4.7 Atividades de padronização e revisão de documentos
+      → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10015/modelo.dotx
+  4.5 Produtos medidos no período da medição
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10016/modelo.dotx
+5 Equipe de Apoio Técnico Mobilizada
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10017/modelo.dotx
+6 Gestão de Recursos
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10018/modelo.dotx
+7 Cronograma
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10019/modelo.dotx
+8 Análise de Risco
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10020/modelo.dotx
+  8.1 Planilha Medição do Produto D21
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10021/modelo.dotx
+9 Próximos Passos
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10022/modelo.dotx
+10 Produto D21 – Apoio Técnico
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10023/modelo.dotx
+  10.1 Declaração de participação dos profissionais de apoio técnico
+    → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10024/modelo.dotx
+11 Cronograma Físico-Financeiro: Previsto e Realizado
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10025/modelo.dotx
+12 Resumo da Medição
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10026/modelo.dotx
+13 Assinaturas
+  → modelo .dotx: http://127.0.0.1:8001/relatorios/22/secoes/10027/modelo.dotx
+
+Dúvidas sobre o preenchimento do Word: http://127.0.0.1:8001/modelos-word-importacao ou o coordenador do relatório.
+Para pausar lembretes (férias ou afastamento), peça ao coordenador para ajustar suas notificações no SRA.

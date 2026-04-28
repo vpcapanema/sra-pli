@@ -1,0 +1,53 @@
+SRA — {{ relatorio_codigo }} — {{ mes_referencia }}
+========================================
+
+Olá, {{ destinatario_nome }}.
+
+{% if tipo == 'abertura' -%}
+O Sistema de Relatório de Atividades (SRA) já encontra-se aberto para o período de recebimento e registro do conteúdo que documenta as atividades técnicas desenvolvidas em {{ mes_referencia }}.
+Para enviar e registrar o conteúdo com suas atividades, siga as instruções a seguir:
+{% elif tipo == 'lembrete' -%}
+LEMBRETE: o relatório {{ mes_referencia }} ainda aguarda o envio da sua parte.
+O ciclo continua aberto.
+{% elif tipo == 'ultima_chamada' -%}
+*** ÚLTIMA CHAMADA ***
+O ciclo de envio do {{ relatorio_codigo }} encerra em breve.
+Sua parte ainda não foi marcada como enviada.
+{% else -%}
+Você tem ação pendente no relatório {{ relatorio_codigo }}.
+{% endif %}
+
+Instruções
+----------
+
+1. Preparar o conteúdo
+~~~~~~~~~~~~~~~~~~~~~~
+1.1 Entre na página de Modelos de Importação Assistida e faça o download do modelo referente à seção sob sua responsabilidade:
+    {{ link_modelos_word_ajuda }}
+    Caso você seja responsável por uma seção ou subseção não listada no sumário, baixe a que mais se aproxima e altere os índices (não é necessário indexar: deixe apenas como texto; o sistema entenderá e extrairá corretamente o conteúdo).
+
+1.2 Abra o arquivo .dotx e adicione o seu conteúdo. Siga as instruções no próprio arquivo para ver como não perder o estilo dos tipos de elementos existentes.
+    Dica: para manter o estilo das legendas de figuras e tabelas e das listas, NÃO apague o texto em itálico — sobrescreva-o; isso ajuda o sistema na importação.
+    Salve o trabalho como documento .docx antes de enviar ao SRA.
+
+2. Enviar o arquivo preenchido para o SRA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.1. Acesse a página do SRA e faça o login: {{ link_login_sra }}
+     Em seguida, abra a página de Upload de conteúdo: {{ link_painel_upload }}
+     ou use os links na seção "Links diretos para download dos arquivos modelo, por seção" abaixo.
+2.2. Preencha os campos de Coordenação da seção e destino do upload: confirme que a seção indicada é aquela pela qual você é responsável.
+     Responsável: selecione você mesmo (ou confira se já está correto). Confirme a atribuição do responsável e atualize o status conforme a interface.
+2.3. Importar conteúdo: faça o upload do arquivo .docx gerado. Revise e, se necessário, edite o conteúdo após a importação.
+2.4. Confirmar blocos: confirme todos os blocos para envio ao relatório. Quando não houver pendências, sua entrega é registrada como ENVIADA.
+
+*** ATENÇÃO — PRAZO PARA AUTORES ***
+Envie e conclua o REGISTRO do seu conteúdo no SRA até {{ prazo_limite_conteudo_autor }}.
+O coordenador dispõe dos DOIS DIAS SEGUINTES (até {{ prazo_envio }}) para revisar e compilar o relatório.
+Conteúdo registrado após o prazo dos autores pode resultar em complicações na medição.
+
+Links diretos para download dos arquivos modelo, por seção
+----------------------------------------------------------
+{{ arvore_modelos_dotx_texto }}
+
+Dúvidas sobre o preenchimento do Word: {{ link_modelos_word_ajuda }} ou o coordenador do relatório.
+Para pausar lembretes (férias ou afastamento), peça ao coordenador para ajustar suas notificações no SRA.

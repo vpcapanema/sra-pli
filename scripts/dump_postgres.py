@@ -1,15 +1,20 @@
 """Dump todas as tabelas para um pickle local."""
 from __future__ import annotations
-import pickle, sys, os
+import os
+import pickle
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sqlalchemy import create_engine, MetaData
-from app.db import Base
-import app.models  # noqa
+
+import app.models  # noqa: F401 — registra os modelos para refletir o schema
 
 URL = sys.argv[1]
 OUT = sys.argv[2]
 eng = create_engine(URL.replace("postgresql://", "postgresql+psycopg2://"), isolation_level="AUTOCOMMIT")
-md = MetaData(); md.reflect(bind=eng)
+md = MetaData()
+md.reflect(bind=eng)
 data = {}
 with eng.connect() as c:
     for t in md.sorted_tables:

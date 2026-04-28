@@ -923,8 +923,8 @@ async def analisar_importacao(
     nome = arquivo.filename or ""
     process_id = process_start(
         request,
-        "Análise de importação",
-        f"Leitura do arquivo {nome or 'enviado'}; em seguida, o conteúdo proposto é exibido para revisão.",
+        "Importação assistida",
+        f"Análise do arquivo {nome or 'enviado'}; em seguida o conteúdo proposto aparece para revisão.",
         data={"process_key": "importacao_assistida_analise"},
     )
     raw = await arquivo.read()
@@ -944,11 +944,24 @@ async def analisar_importacao(
             process_id,
             "Extraem-se parágrafos, tabelas e imagens do ficheiro Word, segundo a organização do documento.",
             etapa="Leitura e interpretação do documento Office",
-            tarefa="Análise de importação",
+            tarefa="Importação assistida",
             progresso_tarefa=50,
             progresso_geral=42,
         )
         blocks = _parse_docx(raw, db, rel_id, sec_id)
+        process_log(
+            request,
+            process_id,
+            (
+                "Análise concluída. Confirme a importação para gravar; em seguida o painel recarrega e a "
+                "pré-visualização PDF incorporada mostra o relatório atualizado — integrado a esta rotina, "
+                "sem um segundo processo ao carregar o PDF lateral."
+            ),
+            etapa="Pré-visualização PDF",
+            tarefa="Importação assistida",
+            progresso_tarefa=96,
+            progresso_geral=88,
+        )
         process_done(
             request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
         )
@@ -959,7 +972,7 @@ async def analisar_importacao(
             process_id,
             "O texto é lido, é normalizado e é repartido em blocos, associados, quando cabível, às seções abertas.",
             etapa="Tratamento do ficheiro de texto",
-            tarefa="Análise de importação",
+            tarefa="Importação assistida",
             progresso_tarefa=55,
             progresso_geral=48,
         )
@@ -968,6 +981,19 @@ async def analisar_importacao(
         except UnicodeDecodeError:
             texto = raw.decode("latin-1")
         blocks = _parse_import_text(texto, db, rel_id, sec_id)
+        process_log(
+            request,
+            process_id,
+            (
+                "Análise concluída. Confirme a importação para gravar; em seguida o painel recarrega e a "
+                "pré-visualização PDF incorporada mostra o relatório atualizado — integrado a esta rotina, "
+                "sem um segundo processo ao carregar o PDF lateral."
+            ),
+            etapa="Pré-visualização PDF",
+            tarefa="Importação assistida",
+            progresso_tarefa=96,
+            progresso_geral=88,
+        )
         process_done(
             request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
         )
@@ -978,8 +1004,26 @@ async def analisar_importacao(
     raise HTTPException(400, detail="Envie um arquivo .txt ou .docx.")
 
 
+def _limpar_blocos_secao_importacao(txdb: Session, sec_ids: set[int]) -> None:
+    """Remove blocos (e figuras só ligadas a eles) antes de gravar a importação.
+
+    Assim o DOCX importado substitui o conteúdo clonado do período anterior na
+    mesma seção, em vez de acumular blocos duplicados."""
+    if not sec_ids:
+        return
+    blocos = txdb.query(Bloco).filter(Bloco.secao_id.in_(sec_ids)).all()
+    fig_ids = {b.figura_id for b in blocos if b.figura_id}
+    for bl in blocos:
+        txdb.delete(bl)
+    txdb.flush()
+    for fid in fig_ids:
+        fig = txdb.get(Figura, fid)
+        if fig:
+            txdb.delete(fig)
+
+
 @router.post("/confirmar")
-async def confirmar_importacao(
+async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-statements
     rel_id: int,
     sec_id: int,
     request: Request,
@@ -990,8 +1034,8 @@ async def confirmar_importacao(
     blocks = payload.get("blocks") or []
     process_id = process_start(
         request,
-        "Confirmação de importação",
-        "Conferência dos blocos selecionados e gravação no relatório, em uma única transação.",
+        "Importação assistida",
+        "Conferência dos blocos selecionados, gravação no relatório e alinhamento da pré-visualização PDF.",
         data={"process_key": "importacao_assistida_confirmar"},
     )
     selected_items = [item for item in blocks if item.get("selecionado", True)]
@@ -1025,6 +1069,7 @@ async def confirmar_importacao(
             resolved_items.append((item, sec))
 
         target_ids = {sec.id for _, sec in resolved_items}
+        _limpar_blocos_secao_importacao(txdb, target_ids)
         ordem_rows = (
             txdb.query(Bloco.secao_id, Bloco.ordem)
             .filter(Bloco.secao_id.in_(target_ids))
@@ -1038,7 +1083,7 @@ async def confirmar_importacao(
             process_id,
             f"Validam-se regras e alocam-se {len(selected_items)} bloco(s) selecionado(s) antes de qualquer inserção na base; eventuais ajustes de seções ocorrem nesta fase.",
             etapa="Validação da seleção e preparação",
-            tarefa="Confirmação de importação",
+            tarefa="Importação assistida",
             progresso_tarefa=15,
             progresso_geral=18,
         )
@@ -1097,7 +1142,7 @@ async def confirmar_importacao(
                         process_id,
                         f"Grava-se o bloco {idx + 1} de {n_blocos} e consolidam-se referências na secção.",
                         etapa="Gravação de blocos",
-                        tarefa="Confirmação de importação",
+                        tarefa="Importação assistida",
                         progresso_tarefa=t_pct,
                         progresso_geral=g_pct,
                     )
@@ -1109,6 +1154,18 @@ async def confirmar_importacao(
     structural_changes = len(structural_keys)
     if structural_changes:
         detalhe += f" {structural_changes} ajuste(s) de seção aplicado(s)."
+    process_log(
+        request,
+        process_id,
+        (
+            "Gravação concluída; ao recarregar o painel, o PDF incorporado atualiza sem iniciar "
+            "outro acompanhamento de processo apenas por esse pedido."
+        ),
+        etapa="Pré-visualização PDF",
+        tarefa="Importação assistida",
+        progresso_tarefa=97,
+        progresso_geral=96,
+    )
     process_done(
         request, process_id, "Importação concluída", detalhe, process_key="importacao_assistida_confirmar"
     )

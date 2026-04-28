@@ -46,7 +46,7 @@ _E2E_PW = os.environ.get("E2E_BOOTSTRAP_PASSWORD", "xK9mQ2-e2e-ephemeral-tools-l
 def _bootstrap_e2e_user() -> None:
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == _E2E_EMAIL).one_or_none()
+        user = db.query(User).filter(User.email == _E2E_EMAIL, User.role == "admin").one_or_none()
         h = hash_password(_E2E_PW)
         if user:
             user.password_hash = h
@@ -70,7 +70,7 @@ def _cleanup_e2e_user() -> None:
         return
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == _E2E_EMAIL).one_or_none()
+        user = db.query(User).filter(User.email == _E2E_EMAIL, User.role == "admin").one_or_none()
         if user:
             db.delete(user)
             db.commit()
@@ -120,6 +120,7 @@ def main() -> None:
 
                     page.goto(f"{BASE_URL}/login", wait_until="domcontentloaded", timeout=60000)
                     page.locator('input[name="email"]').fill(email)
+                    page.locator('select[name="role"]').select_option("admin")
                     page.locator('input[name="password"]').fill(password)
                     page.locator('form[action="/login"] button[type="submit"]').click()
                     page.wait_for_url("**/dashboard", timeout=60000)

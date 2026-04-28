@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block body_attrs %} class="page-secao-edit"{% endblock %}
+{% block body_class %}page-secao-edit{% endblock %}
 {% block title %}{{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
 {% block header %}{{ rel.codigo }} · Seção {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
 {% block content %}
@@ -43,7 +43,7 @@
   <section class="ss active-tab">
     <div class="ss-hdr">
       <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-      <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
+      <button type="button" class="btn-pdf" onclick="var f=document.getElementById('preview-frame');var u=f.dataset.src||'';f.src=u+(u.indexOf('?')>=0?'&':'?')+'t='+Date.now();">Carregar/atualizar</button>
       <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
     </div>
     <div class="sb2">
@@ -83,7 +83,7 @@
           </div>
         </form>
       </details>
-      <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
+      <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf?embed=1" data-src="/relatorios/{{ rel.id }}/pdf?embed=1" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
     </div>
   </section>
   <section class="ss active-tab">

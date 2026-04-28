@@ -8,14 +8,16 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session, load_only, selectinload
 from sqlalchemy.sql.functions import coalesce
-from starlette.responses import Response
+from starlette.responses import RedirectResponse, Response
 from ..db import get_db
 from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..auth import current_user, pode_editar_perfil_usuario
 from ..sumario_extractor import listar_pdfs_disponiveis
+from ..jinja_filters import registrar as _registrar_filtros_jinja
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+_registrar_filtros_jinja(templates.env.filters)
 
 MESES_PT = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -48,9 +50,17 @@ def _sugestao_proximo_relatorio(db: Session) -> dict:
     }
 
 
-def response_login(request: Request, error: str | None = None, status_code: int = 200) -> Response:
+def response_login(
+    request: Request,
+    error: str | None = None,
+    notice: str | None = None,
+    status_code: int = 200,
+) -> Response:
     return templates.TemplateResponse(
-        request, "login.html", {"error": error}, status_code=status_code
+        request,
+        "login.html",
+        {"error": error, "notice": notice},
+        status_code=status_code,
     )
 
 
@@ -67,9 +77,12 @@ def response_client_goto(path: str) -> HTMLResponse:
 
 
 def response_home(request: Request, db: Session) -> Response:
-    if request.session.get("user_id"):
-        return response_dashboard(request, db)
-    return response_login(request)
+    if not request.session.get("user_id"):
+        return response_login(request)
+    user = current_user(request, db)
+    if user and user.role == "autor":
+        return response_painel_upload(request, db)
+    return response_dashboard(request, db)
 
 
 def response_dashboard(request: Request, db: Session) -> Response:
@@ -92,20 +105,35 @@ def response_dashboard(request: Request, db: Session) -> Response:
 
 
 def response_painel_upload(request: Request, db: Session) -> Response:
-    """Hub com atalhos para `/relatorios/.../upload-conteudo` (primeira secção por ordem)."""
+    """Redireciona para o mesmo recurso que `/relatorios/{id}/secoes/{sid}/upload-conteudo`:
+    relatório mais recente, primeira secção por ``ordem``.
+    """
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    relatorios = (
+    rel = (
         db.query(Relatorio)
         .options(selectinload(Relatorio.secoes))
         .order_by(Relatorio.created_at.desc())
-        .all()
+        .first()
     )
-    return templates.TemplateResponse(
-        request,
-        "painel_upload.html",
-        {"user": user, "relatorios": relatorios},
+    if not rel:
+        return RedirectResponse(url="/dashboard", status_code=303)
+    secoes = sorted(rel.secoes, key=lambda s: (s.ordem, s.id))
+    if not secoes:
+        return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
+    if user.role == "autor":
+        minhas = [s for s in secoes if s.responsavel_id == user.id]
+        if minhas:
+            alvo = minhas[0]
+        else:
+            livres = [s for s in secoes if s.responsavel_id is None]
+            alvo = livres[0] if livres else secoes[0]
+    else:
+        alvo = secoes[0]
+    return RedirectResponse(
+        url=f"/relatorios/{rel.id}/secoes/{alvo.id}/upload-conteudo",
+        status_code=303,
     )
 
 
@@ -193,7 +221,11 @@ def _response_secao_page(
                 Secao.numero,
                 Secao.titulo,
                 Secao.ordem,
-            )
+                Secao.responsavel_id,
+            ),
+            selectinload(Relatorio.secoes)
+            .selectinload(Secao.responsavel)
+            .load_only(User.id, User.nome),
         )
         .filter(Relatorio.id == rel_id)
         .one_or_none()

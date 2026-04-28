@@ -7,7 +7,7 @@
     <div class="subtitle">Cadastro de autores, coordenadores e administradores</div>
   </section>
   {% if user.role in ['admin','coordenador'] %}
-    <section class="ss active-tab">
+    <section class="ss active-tab" id="ss-novo-usuario">
       <div class="ss-hdr">
         <span class="sn">+</span><span class="st">Novo usuário</span>
       </div>
@@ -46,7 +46,7 @@
       </div>
     </section>
   {% endif %}
-  <section class="ss active-tab">
+  <section class="ss active-tab" id="ss-equipe">
     <div class="ss-hdr">
       <span class="sn">●</span><span class="st">Equipe cadastrada</span>
     </div>
@@ -57,6 +57,7 @@
             <th>Nome</th>
             <th>E-mail</th>
             <th>Perfil</th>
+            <th title="Recebe notificações mensais do ciclo de relatório?">Relatório</th>
             <th>Criado em</th>
             <th>Ações</th>
           </tr>
@@ -70,6 +71,21 @@
               <td>{{ u.email }}</td>
               <td>
                 <span class="tag accent">{{ u.role }}</span>
+              </td>
+              <td>
+                {% if user.role in ['admin','coordenador'] %}
+                  <form method="post" action="/usuarios/{{ u.id }}/notificacoes-toggle" class="form-toggle-notif">
+                    <button type="submit"
+                            class="btn-toggle-notif {{ 'on' if u.notificacoes_ativas else 'off' }}"
+                            title="{{ 'Notificações ativas — clique para desligar (férias/afastamento)' if u.notificacoes_ativas else 'Notificações desligadas — clique para reativar' }}">
+                      {{ 'Sim' if u.notificacoes_ativas else 'Não' }}
+                    </button>
+                  </form>
+                {% else %}
+                  <span class="tag {{ 'accent' if u.notificacoes_ativas else '' }}">
+                    {{ 'Sim' if u.notificacoes_ativas else 'Não' }}
+                  </span>
+                {% endif %}
               </td>
               <td>{{ u.created_at.strftime("%d/%m/%Y") }}</td>
               <td>

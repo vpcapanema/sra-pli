@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Recuperar senha{% endblock %}
+{% block auth %}
+  <div class="login-card">
+    <h1>Recuperar senha</h1>
+    <p class="lede">Indique o mesmo e-mail e perfil que usa no login. Na página seguinte poderá definir uma nova senha.</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/recuperar-senha">
+      <label for="rec-email">E-mail</label>
+      <input id="rec-email" type="email" name="email" title="E-mail" placeholder="voce@empresa.com" required autofocus />
+      <label for="rec-role">Perfil</label>
+      <select id="rec-role" name="role" title="Perfil da conta" required>
+        <option value="" disabled selected>— selecione —</option>
+        <option value="autor">Autor</option>
+        <option value="coordenador">Coordenador</option>
+        <option value="admin">Administrador</option>
+      </select>
+      <button type="submit">Continuar</button>
+    </form>
+    <p class="login-extra">
+      <a class="login-forgot-link" href="/login">Voltar ao login</a>
+    </p>
+  </div>
+{% endblock %}

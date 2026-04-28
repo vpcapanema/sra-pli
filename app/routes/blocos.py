@@ -1,12 +1,13 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
+from ..notificacoes.service import recompute_status_enviado
 from ..numeracao import consolidar_referencias
 from ..process_events import process_done, process_log, process_start
 from .pages import response_secao_edit, user_or_login_page
@@ -14,14 +15,44 @@ from .pages import response_secao_edit, user_or_login_page
 router = APIRouter(prefix="/relatorios/{rel_id}/secoes/{sec_id}/blocos", tags=["blocos"])
 
 
+def _hook_recompute_entrega(db: Session, rel_id: int, sec_id: int) -> None:
+    """Após bloqueio de bloco(s), tenta promover a entrega do responsável
+    da seção para ``enviado``. No-op se a seção não tem responsável."""
+    sec = db.get(Secao, sec_id)
+    if not sec or not sec.responsavel_id:
+        return
+    recompute_status_enviado(db, sec.responsavel_id, rel_id)
+
+
+def _pode_editar_status(user: User, rel: Relatorio) -> tuple[bool, str]:
+    """Decide se o role do user pode editar conteudo deste relatorio.
+
+    Regras (de Relatorio.status):
+    - ``aberto``: todos os roles editam.
+    - ``em_revisao``: somente ``admin`` e ``coordenador``.
+    - ``finalizado``: ninguem edita pela interface; reverter status antes.
+    - outro: bloqueia por seguranca.
+    """
+    status = rel.status
+    if status == "aberto":
+        return True, ""
+    if status == "em_revisao":
+        if user.role in ("admin", "coordenador"):
+            return True, ""
+        return False, "Relatorio em revisao: apenas coordenador/admin podem editar."
+    if status == "finalizado":
+        return False, "Relatorio finalizado: reverta o status antes de alterar."
+    return False, f"Status do relatorio '{status}' nao permite edicao."
+
+
 def _check(
     request, db, rel_id, sec_id, *, exigir_editavel: bool = False
 ) -> tuple[User, Secao] | Response:
-    """Valida login, posse da secao e (opcional) status mutavel do relatorio.
+    """Valida login, posse da secao e (opcional) permissao de edicao.
 
-    ``exigir_editavel=True`` bloqueia mutacoes estruturais (criar/excluir/mover
-    bloco) em relatorios finalizados; o usuario precisa reverter o status
-    antes de mexer na estrutura que afeta numeracao de figuras/tabelas.
+    ``exigir_editavel=True`` aplica ``_pode_editar_status``: bloqueia autor em
+    ``em_revisao`` e qualquer role em ``finalizado``. Sem essa flag, permite
+    leitura mesmo em estados onde a edicao esta vedada.
 
     Se nao houver sessao, devolve a pagina de login (sem HTTP redirect).
     """
@@ -37,13 +68,11 @@ def _check(
         raise HTTPException(403, detail="Não autorizado")
     if exigir_editavel:
         rel = db.get(Relatorio, rel_id)
-        if rel is not None and rel.status == "finalizado":
-            raise HTTPException(
-                400,
-                detail=(
-                    "Relatorio finalizado: reverta o status antes de alterar a estrutura."
-                ),
-            )
+        if rel is None:
+            raise HTTPException(404)
+        ok, motivo = _pode_editar_status(user, rel)
+        if not ok:
+            raise HTTPException(403, detail=motivo)
     return user, sec
 
 
@@ -58,6 +87,57 @@ def _impacta_numeracao(tipo: str, conteudo: str | None) -> bool:
     if not conteudo:
         return False
     return "[[FIGURA:" in conteudo or "[[TABELA" in conteudo
+
+
+@router.get(".json")
+def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
+    """Retorna os blocos de uma secao em JSON, para edicao em buffer no cliente.
+
+    Inclui ``pode_editar_secao`` (combinando role x status do relatorio) e
+    ``pode_editar`` por bloco (false se ``bloqueado`` ou se a secao nao for
+    editavel para o role atual). O frontend usa esses flags para desabilitar
+    a UI proativamente; o backend ainda valida em todas as rotas de mutacao.
+    """
+    chk = _check(request, db, rel_id, sec_id)
+    if isinstance(chk, Response):
+        return chk
+    user, sec = chk
+    rel = db.get(Relatorio, rel_id)
+    if rel is None:
+        raise HTTPException(404)
+    pode_status, motivo_status = _pode_editar_status(user, rel)
+    blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).order_by(Bloco.ordem).all()
+    payload = {
+        "secao": {
+            "id": sec.id,
+            "numero": sec.numero,
+            "titulo": sec.titulo,
+            "responsavel_id": sec.responsavel_id,
+            "status": sec.status,
+        },
+        "relatorio": {"status": rel.status},
+        "pode_editar_secao": pode_status,
+        "motivo_bloqueio": motivo_status,
+        "blocos": [
+            {
+                "id": b.id,
+                "secao_id": sec_id,
+                "tipo": b.tipo,
+                "ordem": b.ordem,
+                "titulo": b.titulo or "",
+                "conteudo": b.conteudo or "",
+                "legenda": b.legenda or "",
+                "fonte": b.fonte or "",
+                "figura_id": b.figura_id,
+                "bloqueado": bool(b.bloqueado),
+                "pode_editar": pode_status and not bool(b.bloqueado),
+                "autor_nome": b.autor.nome if b.autor else None,
+                "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+            }
+            for b in blocos
+        ],
+    }
+    return JSONResponse(payload)
 
 
 @router.post("")
@@ -127,7 +207,7 @@ def aprovar_blocos_lote(
     bloco_ids: list[int] = Form(...),
     db: Session = Depends(get_db),
 ):
-    chk = _check(request, db, rel_id, sec_id)
+    chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
     blocos = _blocos_selecionados(db, sec_id, bloco_ids)
@@ -139,6 +219,7 @@ def aprovar_blocos_lote(
             {Bloco.bloqueado: True, Bloco.updated_at: agora},
             synchronize_session=False,
         )
+    _hook_recompute_entrega(db, rel_id, sec_id)
     process_done(request, process_id, "Blocos aprovados", f"{len(blocos)} bloco(s) bloqueado(s).")
     return response_secao_edit(request, db, rel_id, sec_id)
 
@@ -188,7 +269,7 @@ def editar_bloco(
     figura_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    chk = _check(request, db, rel_id, sec_id)
+    chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
     b = db.get(Bloco, bloco_id)
@@ -234,7 +315,7 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
 
 @router.post("/{bloco_id}/confirmar")
 def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db: Session = Depends(get_db)):
-    chk = _check(request, db, rel_id, sec_id)
+    chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
     b = db.get(Bloco, bloco_id)
@@ -245,6 +326,7 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
 
     b.updated_at = datetime.utcnow()
     db.commit()
+    _hook_recompute_entrega(db, rel_id, sec_id)
     process_done(request, process_id, "Bloco confirmado", f"Bloco #{bloco_id} bloqueado para revisão.")
     return response_secao_edit(request, db, rel_id, sec_id)
 

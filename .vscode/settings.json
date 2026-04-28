@@ -23,10 +23,15 @@
   "djlint.pythonPath": "${workspaceFolder}/.venv/Scripts/python.exe",
   "djlint.ignore": [
     "**/*.py",
-    "**/.github/**/*.md"
+    "**/.github/**/*.md",
+    "**/.cursor/**/*.md",
+    "**/tmp/**/*.html"
   ],
 
+  "vscode-edge-devtools.webhint": false,
+
   "files.associations": {
+    "**/tmp/**/*.html": "plaintext",
     "**/.github/**/*.md": "markdown",
     "**/templates/**/*.html": "jinja-html",
     "**/templates/**/*.htm": "jinja-html",

@@ -13,7 +13,7 @@ Ao alterar código neste projeto, aja como especialista em sanitização, otimiz
 - Priorize performance e eficiência sem sacrificar estabilidade, segurança, dados, permissões ou comportamento existente.
 - Corrija causa raiz, não sintomas. Evite fallback amplo, `try/except` genérico, logs temporários e TODOs.
 - Questione pedidos que aumentem risco, complexidade ou latência sem ganho real.
-- Preserve padrões locais, nomes de domínio em português e instruções de `.github/copilot-instructions.md`.
+- Preserve padroes locais, nomes de dominio em portugues e instrucoes de `.cursor/project-instructions.md`.
 
 ## Antes De Editar
 

@@ -1,5 +1,10 @@
 {
   "recommendations": [
+    "eamodio.gitlens",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig",
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
     "cweijan.vscode-database-client2",
     "mtxr.sqltools",
     "mtxr.sqltools-driver-pg",

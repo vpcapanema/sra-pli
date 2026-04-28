@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Documentacao De Contexto Para Agentes
 
-`.github/copilot-instructions.md` e a fonte canonica de contexto da aplicacao para novos agentes de IA.
+`.cursor/project-instructions.md` e a fonte canonica de contexto da aplicacao para agentes no Cursor e no repositorio.
 
 Ao fazer mudancas significativas, atualize esse arquivo na mesma entrega quando a alteracao:
 

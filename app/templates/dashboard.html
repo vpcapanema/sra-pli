@@ -8,7 +8,7 @@
     <p>Cada autor preenche apenas a sua seção; o sistema valida, compila e gera o PDF final.</p>
   </section>
   {% if user.role in ['admin','coordenador'] %}
-    <section class="ss active-tab">
+    <section class="ss active-tab" id="ss-novo">
       <div class="ss-hdr">
         <span class="sn">+</span><span class="st">Novo relatório</span>
       </div>
@@ -22,9 +22,13 @@
             <label for="rel-novo-mes">Mês de referência</label>
             <input id="rel-novo-mes" name="mes_referencia" title="Mês de referência" placeholder="Abril/2026" value="{{ sugestao.mes_referencia }}" required>
           </div>
-          <div class="full">
+          <div>
             <label for="rel-novo-titulo">Título</label>
             <input id="rel-novo-titulo" name="titulo" title="Título" placeholder="Relatório Mensal D20-13" value="{{ sugestao.titulo }}" required>
+          </div>
+          <div>
+            <label for="rel-novo-medicao">Nº medição</label>
+            <input id="rel-novo-medicao" name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ sugestao.numero_medicao }}">
           </div>
           <div>
             <label for="rel-novo-pi">Período início</label>
@@ -34,32 +38,32 @@
             <label for="rel-novo-pf">Período fim</label>
             <input id="rel-novo-pf" type="date" name="periodo_fim" title="Período fim" placeholder="AAAA-MM-DD" value="{{ sugestao.periodo_fim }}" required>
           </div>
-          <div>
-            <label for="rel-novo-medicao">Nº medição</label>
-            <input id="rel-novo-medicao" name="numero_medicao" type="number" min="1" title="Número da medição" placeholder="1, 2, 3..." value="{{ sugestao.numero_medicao }}">
-          </div>
           <fieldset class="full fonte-secoes-fieldset">
             <legend>Sumário base</legend>
             <p class="sdesc sdesc-tight">Selecione um relatório entregue para reaproveitar sua estrutura, ou envie um PDF próprio.</p>
             <div class="fonte-secoes">
-              <label class="radio-line">
-                <input type="radio" name="fonte_secoes" value="pdf_disponivel" checked>
-                <span>Relatório entregue:</span>
-              </label>
-              <div class="indent fonte-secoes-control">
-                <label for="rel-novo-pdf-disponivel">PDF do relatório base</label>
-                <select id="rel-novo-pdf-disponivel" name="pdf_disponivel" title="PDF base">
-                  <option value="">— selecione —</option>
-                  {% for nome in pdfs_disponiveis %}<option value="{{ nome }}">{{ nome }}</option>{% endfor %}
-                </select>
+              <div class="fonte-secoes-col">
+                <label class="radio-line">
+                  <input type="radio" name="fonte_secoes" value="pdf_disponivel" checked>
+                  <span>Relatório entregue:</span>
+                </label>
+                <div class="indent fonte-secoes-control">
+                  <label for="rel-novo-pdf-disponivel">PDF do relatório base</label>
+                  <select id="rel-novo-pdf-disponivel" name="pdf_disponivel" title="PDF base">
+                    <option value="">— selecione —</option>
+                    {% for nome in pdfs_disponiveis %}<option value="{{ nome }}">{{ nome }}</option>{% endfor %}
+                  </select>
+                </div>
               </div>
-              <label class="radio-line">
-                <input type="radio" name="fonte_secoes" value="upload">
-                <span>Upload de PDF:</span>
-              </label>
-              <div class="indent fonte-secoes-control">
-                <label for="rel-novo-pdf-upload">Arquivo PDF</label>
-                <input id="rel-novo-pdf-upload" type="file" name="pdf_upload" accept="application/pdf,.pdf" title="PDF do relatório base">
+              <div class="fonte-secoes-col">
+                <label class="radio-line">
+                  <input type="radio" name="fonte_secoes" value="upload">
+                  <span>Upload de PDF:</span>
+                </label>
+                <div class="indent fonte-secoes-control">
+                  <label for="rel-novo-pdf-upload">Arquivo PDF</label>
+                  <input id="rel-novo-pdf-upload" type="file" name="pdf_upload" accept="application/pdf,.pdf" title="PDF do relatório base">
+                </div>
               </div>
             </div>
           </fieldset>
@@ -70,7 +74,7 @@
       </div>
     </section>
   {% endif %}
-  <section class="ss active-tab">
+  <section class="ss active-tab" id="ss-cadastrados">
     <div class="ss-hdr">
       <span class="sn">●</span><span class="st">Relatórios cadastrados</span>
     </div>
