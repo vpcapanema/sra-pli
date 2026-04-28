@@ -15,10 +15,9 @@ class User(Base):
     nome = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(32), nullable=False, default="autor")  # admin, coordenador, autor
-    # Opt-out das notificações mensais. Default true: usuário recebe email
-    # quando for responsável por seção no relatório aberto. Coord/admin desliga
-    # apenas para férias/afastamento. Não substitui Secao.responsavel_id como
-    # fonte de verdade dos destinatários — só permite suprimir.
+    # Coluna «Relatório» na UI (autores). Abertura, lembretes e última chamada
+    # vão aos autores com valor true (lista pode não ter secções atribuídas).
+    # Coord/admin desliga para férias/afastamento.
     notificacoes_ativas = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -1,4 +1,5 @@
-"""CLI: abre o relatório do mês corrente e dispara Mensagem 1.
+"""CLI: abre o relatório do mês corrente e dispara Mensagem 1 (todos os autores
+com coluna Relatorio ativa — ver ``destinatarios_mensagem_abertura``).
 
 Uso (PowerShell):
 

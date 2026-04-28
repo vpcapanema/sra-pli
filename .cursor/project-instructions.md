@@ -128,7 +128,7 @@ Cada secao possui `Bloco` em ordem. Um bloco pode ser:
 
 Notificacoes mensais (modelos novos):
 
-- `User.notificacoes_ativas` (bool, default true): opt-out do ciclo. Coord/admin desliga em ferias/afastamento via toggle em `/usuarios`. Nao substitui `Secao.responsavel_id` como fonte de destinatarios — apenas suprime envio.
+- `User.notificacoes_ativas` (bool, default true): coluna **Relatorio** na UI; so utilizadores `role=autor` com valor true entram na lista de destinatarios do ciclo (abertura, lembrete, ultima chamada). Opt-out em `/usuarios`. Secoes atribuídas ao autor no relatorio alimentam o corpo do e-mail (lista de secoes sob responsabilidade) e podem estar vazias.
 - `EntregaRelatorio` (1 por par `relatorio` × `user`): registro de entrega com `status` (`notificado`/`aguardando_envio`/`enviado`/`validado`), `data_envio`, `data_validacao`, `validado_por_id` e auditoria (`atualizado_por_id`/`atualizado_em`). Estado "finalizado" continua sendo do `Relatorio` inteiro, derivado pelo template — nao e estado por usuario.
 - `NotificacaoEnvio` (1:N por `EntregaRelatorio`): histórico de envios com `tipo` (`abertura`/`lembrete`/`ultima_chamada`/`manual`), `enviada_em`, `sucesso`, `erro`, `destinatario_email` (snapshot, preserva auditoria mesmo se usuario trocar de email) e `sendgrid_message_id`.
 
@@ -217,8 +217,8 @@ Objetivo: **não** restringir o importador, mas oferecer ao usuario um ficheiro 
 
 Orquestrado por `app/notificacoes/service.py`. Quatro pontos de entrada ja idempotentes:
 
-- `abrir_periodo(db, *, force=False, data_referencia=None)`: cria o relatorio do mes corrente clonando seções, blocos e figuras do ultimo `finalizado` (fallback: mais recente). Substitui no texto strings de periodo/codigo/titulo/medicao para o novo relatorio e remapeia `[[REF:]]`. Responsaveis **nao** sao copiados (`NULL`). So dispara e-mail se ja houver secao com responsavel; caso contrario aviso no resumo — use `notificar_autores_abertura` depois de atribuir. `data_referencia` simula data (e2e).
-- `notificar_autores_abertura(db, rel_id)`: Mensagem 1 para responsaveis atuais; idempotente se `abertura` ja teve sucesso.
+- `abrir_periodo(db, *, force=False, data_referencia=None)`: cria o relatorio do mes corrente clonando seções, blocos e figuras do ultimo `finalizado` (fallback: mais recente). Substitui no texto strings de periodo/codigo/titulo/medicao para o novo relatorio e remapeia `[[REF:]]`. Responsaveis **nao** sao copiados (`NULL`). Em seguida envia Mensagem 1 a **todos** os `User` com `role=autor` e coluna Relatorio (`notificacoes_ativas`) ativa; nao exige secção atribuída. `data_referencia` simula data (e2e).
+- `notificar_autores_abertura(db, rel_id)`: Mensagem 1 para autores com Relatorio ativo que ainda nao receberam `abertura` com sucesso; idempotente.
 - `enviar_lembretes(db, *, tipo, relatorio_id=None)`: envia Mensagem 2. `tipo` em `{lembrete, ultima_chamada}`. Filtro: status `notificado`/`aguardando_envio`, ultimo envio bem-sucedido > 22h. Apos 2 envios bem-sucedidos status vai para `aguardando_envio`. `relatorio_id` restringe a um relatorio (manutencao manual / e2e).
 - `retry_falhas(db)`: reenvia falhas dos ultimos 7 dias, ate 3 tentativas por par `(entrega, tipo)`. Cria nova linha em `notificacao_envio` por tentativa para preservar audit trail.
 - `recompute_status_enviado(db, user_id, rel_id)`: avalia se a entrega pode ser promovida a `enviado` (todas as secoes do user com pelo menos 1 bloco e todos `bloqueado=true`). Nao regride a partir de `enviado`/`validado`. Hook chamado por `app/routes/blocos.py` em `confirmar_bloco` e `aprovar_blocos_lote` via `_hook_recompute_entrega`.
@@ -241,6 +241,7 @@ Cron (Track 5):
 
 - CLIs em `app/cron/`: `python -m app.cron.abrir_periodo [--force]`, `python -m app.cron.enviar_lembretes --tipo {lembrete|ultima_chamada} [--relatorio-id N]`, `python -m app.cron.retry_falhas`. Cada um abre `SessionLocal()` proprio e fecha.
 - HTTP em `/admin/cron/{abrir-periodo,notificar-autores-abertura?relatorio_id=N,lembretes,retry}`: equivalente JSON, exige header `X-Cron-Token == settings.CRON_TOKEN`. Token vazio = 503 (fail-closed). Comparacao em tempo constante.
+- Teste prático dos mesmos contratos: `scripts/teste_http_cron_notificacao.py` (`--http` contra `APP_BASE_URL` ou `--in-process` chamando o serviço direto; `--cadeia-atribuir` simula atribuir uma seção e disparar Mensagem 1). E2E completo de notificações: `scripts/_e2e_notificacoes.py`.
 - Schedules sugeridas (UTC, comentadas em `render.yaml`): abrir `0 6 1 * *` (03:00 BRT dia 1), lembretes `0 12 5 * *` e `0 12 8 * *`, ultima chamada `0 12 10 * *`, retry `*/30 * * * *`. Cron services no Render sao pagos no plano free; alternativa: cron externo (cron-job.org) batendo nos endpoints HTTP com `X-Cron-Token`.
 
 Variaveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `CRON_TOKEN`.

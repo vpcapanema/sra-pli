@@ -4,12 +4,13 @@ Pontos de entrada principais:
 
 - :func:`abrir_periodo` — dia 1, 03:00 BRT. Cria o relatório do mês clonando
   **seções e conteúdos** do relatório-base (último ``finalizado``, fallback:
-  mais recente). Responsáveis das seções ficam ``NULL`` — coord/autor atribuem
-  na UI. **Não dispara email** até existir ao menos uma seção com responsável;
-  então use :func:`notificar_autores_abertura` após revisar/atribuir.
-- :func:`notificar_autores_abertura` — envia Mensagem 1 (abertura) para cada
-  usuário que é responsável por seção no relatório e tem ``notificacoes_ativas``.
-  Idempotente: não reenvia ``abertura`` bem-sucedida ao mesmo usuário.
+  mais recente). Responsáveis das seções ficam ``NULL``. Em seguida envia
+  Mensagem 1 a **todos** os utilizadores com ``role=autor`` e coluna Relatório
+  (``notificacoes_ativas``) ativa — não exige secção atribuída; a lista de
+  secções no e-mail pode estar vazia até o coordenador atribuir.
+- :func:`notificar_autores_abertura` — reenvia Mensagem 1 só a quem ainda não
+  recebeu ``abertura`` com sucesso (mesmo critério de destinatários: autor +
+  ``notificacoes_ativas``).
 - :func:`enviar_lembretes` — dias 5, 8, 10 (lembrete / última chamada).
 - :func:`retry_falhas` — retenta falhas recentes de envio.
 - :func:`recompute_status_enviado` — hook quando blocos são confirmados.
@@ -37,6 +38,7 @@ from ..models import (
     Secao,
     User,
 )
+from . import destinatarios as destinatarios_ciclo
 from .email_context_arvore import (
     arvore_secoes_com_links,
     format_arvore_secoes_email_plaintext,
@@ -461,31 +463,6 @@ def _montar_contexto_email(
     }
 
 
-def _destinatarios_efetivos(
-    db: Session, rel: Relatorio
-) -> list[tuple[User, list[Secao]]]:
-    """Lista (user, secoes) para autores ativos com seção sob responsabilidade
-    no relatório dado. Ordenado por nome."""
-    secoes = (
-        db.query(Secao)
-        .options(selectinload(Secao.responsavel))
-        .filter(Secao.relatorio_id == rel.id, Secao.responsavel_id.isnot(None))
-        .all()
-    )
-    por_user: dict[int, list[Secao]] = {}
-    user_obj: dict[int, User] = {}
-    for s in secoes:
-        if not s.responsavel_id or not s.responsavel:
-            continue
-        if not s.responsavel.notificacoes_ativas:
-            continue
-        por_user.setdefault(s.responsavel_id, []).append(s)
-        user_obj[s.responsavel_id] = s.responsavel
-    pares = [(user_obj[uid], sorted(ss, key=lambda x: x.ordem)) for uid, ss in por_user.items()]
-    pares.sort(key=lambda p: p[0].nome)
-    return pares
-
-
 def _entrega_para(
     db: Session, rel_id: int, user_id: int
 ) -> EntregaRelatorio:
@@ -601,7 +578,7 @@ def _tem_abertura_enviada_com_sucesso(db: Session, entrega_id: int) -> bool:
 
 
 def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutores:
-    """Envia Mensagem 1 (abertura) para cada responsável com notificações ativas.
+    """Envia Mensagem 1 (abertura) para cada autor com notificações ativas.
 
     Idempotente: usuários que já receberam ``abertura`` com ``sucesso`` são
     ignorados (``pulados_ja_enviados``). Use após atribuir responsáveis ao
@@ -615,10 +592,10 @@ def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutor
     if rel.status == "finalizado":
         resumo.avisos.append("Relatório finalizado; não envie abertura.")
         return resumo
-    pares = _destinatarios_efetivos(db, rel)
+    pares = destinatarios_ciclo.destinatarios_mensagem_abertura(db, rel)
     if not pares:
         resumo.avisos.append(
-            "Nenhuma seção com responsável atribuído e notificações ativas."
+            "Nenhum utilizador com perfil autor e notificações do relatório ativas."
         )
         return resumo
     todas_map = {
@@ -707,7 +684,7 @@ def abrir_periodo(
     todas_map = {s.numero: s for s in db.query(Secao)
                  .options(selectinload(Secao.responsavel))
                  .filter(Secao.relatorio_id == novo.id).all()}
-    pares = _destinatarios_efetivos(db, novo)
+    pares = destinatarios_ciclo.destinatarios_mensagem_abertura(db, novo)
     log.info(
         "[notif/abrir_periodo] relatorio=%s destinatarios=%d modo_email=%s",
         novo.codigo, len(pares), modo_atual(),
@@ -722,8 +699,8 @@ def abrir_periodo(
         resumo.entregas_criadas += 1
     if resumo.criou_relatorio and not pares:
         resumo.avisos.append(
-            "Relatório criado com conteúdo clonado; nenhum responsável nas "
-            "seções — atribua na tela do relatório e use «Notificar autores»."
+            "Relatório criado com conteúdo clonado; nenhum autor com "
+            "notificações do relatório ativas — nada a enviar."
         )
     db.commit()
     return resumo
@@ -739,6 +716,8 @@ def enviar_lembretes(
     relatorio_id: int | None = None,
 ) -> ResumoLembretes:
     """Manda Mensagem 2 para entregas pendentes em relatórios em aberto.
+
+    Destinatários: mesmos de Mensagem 1 (``destinatarios_mensagem_abertura``).
 
     ``tipo`` ∈ {'lembrete', 'ultima_chamada'}.
     ``relatorio_id`` restringe a um relatório específico (útil para reenviar
@@ -761,7 +740,7 @@ def enviar_lembretes(
         todas_map = {s.numero: s for s in db.query(Secao)
                      .options(selectinload(Secao.responsavel))
                      .filter(Secao.relatorio_id == rel.id).all()}
-        for user_obj, secoes_user in _destinatarios_efetivos(db, rel):
+        for user_obj, secoes_user in destinatarios_ciclo.destinatarios_mensagem_abertura(db, rel):
             entrega = _entrega_para(db, rel.id, user_obj.id)
             if entrega.status in ("enviado", "validado"):
                 continue
