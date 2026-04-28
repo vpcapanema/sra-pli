@@ -95,6 +95,8 @@
               </td>
               <td>
                 <a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}">editar →</a>
+                <span aria-hidden="true"> · </span>
+                <a href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" title="Painel upload e importação">upload</a>
                 {% if user.role in ['admin','coordenador'] and '.' in s.numero and rel.status != 'finalizado' %}
                   <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover" class="inline-form" title="Mover para cima">
                     <input type="hidden" name="direcao" value="cima">

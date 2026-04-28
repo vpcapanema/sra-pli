@@ -25,6 +25,8 @@ if str(ROOT) not in sys.path:
 
 from app.models import SECOES_PADRAO  # noqa: E402
 
+NUM_TO_TITLE: dict[str, str] = dict(SECOES_PADRAO)
+
 OUT_DIR = ROOT / "modelos_upload_doc_canonicos"
 NAVY = RGBColor(0x1C, 0x3D, 0x59)
 MUTED = RGBColor(0x4F, 0x5D, 0x6E)
@@ -61,6 +63,20 @@ def _slug_title(tit: str) -> str:
 def _heading_level(numero: str) -> int:
     dots = (numero or "").count(".")
     return min(1 + dots, 3)
+
+
+def _section_chain(numero: str) -> list[tuple[str, str]]:
+    """Cadeia numerica presente em SECOES_PADRAO ate `numero` (ex.: 4.4.7 -> 4, 4.4, 4.4.7)."""
+    raw = str(numero or "").strip()
+    if not raw:
+        return []
+    parts = raw.split(".")
+    chain = []
+    for i in range(len(parts)):
+        prefix = ".".join(parts[: i + 1])
+        if prefix in NUM_TO_TITLE:
+            chain.append((prefix, NUM_TO_TITLE[prefix]))
+    return chain
 
 
 def _apply_base_styles(document: Document) -> None:
@@ -221,6 +237,27 @@ def _build_document_for_secao(
     for i, (num, tit) in enumerate(secoes):
         if all_sections and i:
             document.add_page_break()
+        if not all_sections and len(secoes) == 1:
+            chain = _section_chain(num)
+            if chain and len(chain) > 1:
+                for cn, ctit in chain[:-1]:
+                    _add_section_header(document, cn, ctit)
+                    ctx = document.add_paragraph(
+                        "Titulo ancestral (somente contexto neste modelo). Escreva o texto na ultima "
+                        "subseccao deste documento ou no ficheiro .dotx dessa parte."
+                    )
+                    for ru in ctx.runs:
+                        ru.font.size = Pt(9)
+                        ru.font.italic = True
+                        ru.font.color.rgb = MUTED
+                    ctx.paragraph_format.space_after = Pt(12)
+                _add_section_header(document, chain[-1][0], chain[-1][1])
+                _add_bloco_texto(document)
+                _add_bloco_lista(document)
+                _add_bloco_figura(document)
+                _add_bloco_tabela(document)
+                continue
+
         _add_section_header(document, num, tit)
         if not all_sections:
             _add_bloco_texto(document)
@@ -260,7 +297,9 @@ def main() -> int:
     readme = (
         "Modelos Word (.dotx) para preenchimento e importacao da secao no SRA (importacao assistida).\n"
         + "- `SRA_todas_secoes.dotx`: grelha com titulos de todas as secoes padrao (referencia do sumario).\n"
-        + "- `secao_*.dotx`: um ficheiro por secao — use o que corresponder ao seu numero (ex. 4.4.7…).\n"
+        + "- `secao_*.dotx`: um ficheiro por secao — use o que corresponder ao seu numero (ex. 4.4.7…). Se o "
+        + "numero tiver ascendencia no sumario, o modelo inclui ate tres titulos Word (Heading 1 a 3) encadeados; "
+        + "somente a ultima subseccao traz os exemplos texto/lista/figura/tabela.\n"
         + "Preencha apenas conteudo; prefira listas, tabelas e legendas reais de Word, conforme as "
         + "caixas de exemplo. Guarde o ficheiro e envie em Importar na edicao de secao.\n"
     )

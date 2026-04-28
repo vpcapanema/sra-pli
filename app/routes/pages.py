@@ -91,6 +91,24 @@ def response_dashboard(request: Request, db: Session) -> Response:
     )
 
 
+def response_painel_upload(request: Request, db: Session) -> Response:
+    """Hub com atalhos para `/relatorios/.../upload-conteudo` (primeira secção por ordem)."""
+    user = current_user(request, db)
+    if not user:
+        return response_login(request)
+    relatorios = (
+        db.query(Relatorio)
+        .options(selectinload(Relatorio.secoes))
+        .order_by(Relatorio.created_at.desc())
+        .all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "painel_upload.html",
+        {"user": user, "relatorios": relatorios},
+    )
+
+
 def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Response:
     user = current_user(request, db)
     if not user:
@@ -156,7 +174,13 @@ def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
     }
 
 
-def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
+def _response_secao_page(
+    request: Request,
+    db: Session,
+    rel_id: int,
+    sec_id: int,
+    template_name: str,
+) -> Response:
     user = current_user(request, db)
     if not user:
         return response_login(request)
@@ -176,7 +200,10 @@ def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int)
     )
     sec = (
         db.query(Secao)
-        .options(selectinload(Secao.blocos).selectinload(Bloco.autor).load_only(User.id, User.nome))
+        .options(
+            selectinload(Secao.responsavel).load_only(User.id, User.nome),
+            selectinload(Secao.blocos).selectinload(Bloco.autor).load_only(User.id, User.nome),
+        )
         .filter(Secao.id == sec_id, Secao.relatorio_id == rel_id)
         .one_or_none()
     )
@@ -195,7 +222,7 @@ def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int)
     media_counts = _media_counts(db, rel.id, sec.id)
     return templates.TemplateResponse(
         request,
-        "secao_edit.html",
+        template_name,
         {
             "user": user,
             "rel": rel,
@@ -205,6 +232,14 @@ def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int)
             "media_counts": media_counts,
         },
     )
+
+
+def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
+    return _response_secao_page(request, db, rel_id, sec_id, "secao_edit.html")
+
+
+def response_conteudo_upload(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
+    return _response_secao_page(request, db, rel_id, sec_id, "conteudo_upload.html")
 
 
 def response_usuarios(
@@ -258,6 +293,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     return response_dashboard(request, db)
 
 
+@router.get("/painel-upload")
+def painel_upload(request: Request, db: Session = Depends(get_db)):
+    return response_painel_upload(request, db)
+
+
 @router.get("/relatorios/{rel_id}")
 def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db)):
     return response_relatorio_detail(request, db, rel_id)
@@ -266,3 +306,8 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
 @router.get("/relatorios/{rel_id}/secoes/{sec_id}")
 def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
     return response_secao_edit(request, db, rel_id, sec_id)
+
+
+@router.get("/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo")
+def conteudo_upload(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
+    return response_conteudo_upload(request, db, rel_id, sec_id)

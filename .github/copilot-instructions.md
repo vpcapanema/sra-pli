@@ -121,6 +121,8 @@ O dashboard lista relatorios e sugere proximo D20 com base na ultima medicao. A 
 
 ### Edicao De Secao
 
+Endpoints de UI: `/relatorios/{id}` (sumario); `/painel-upload` hub com lista de relatorios e atalhos para cada `.../upload-conteudo` (primeira secao por `ordem`); `/relatorios/{id}/secoes/{sec_id}` (template `secao_edit.html` — editor principal da secao); `/relatorios/{id}/secoes/{sec_id}/upload-conteudo` (`conteudo_upload.html`) — painel combinado para envio e importacao com import revisado, blocos, editor na coluna esquerda e pre-visualizacao PDF a direita. Usa os mesmos POST que o editor principal (`_response_secao_page`).
+
 A tela de secao permite:
 
 - visualizar blocos em tabela;
@@ -176,7 +178,7 @@ Objetivo: **não** restringir o importador, mas oferecer ao usuario um ficheiro 
 - Tabela: objecto tabela; opcional legenda com `Tabela ...` na imediações (fluxo de `_parse_docx`).
 - Evitar: numeracao manual so com espacos a fingir listas (quebra o `w:numPr`); legendas de figura/tabela sem a forma minima que as regex exigem.
 
-**Ficheiros no repositorio**: a pasta `modelos_upload_doc_canonicos/` inclui `SRA_todas_secoes.dotx` (sumario com todas as secoes padrao) e um ficheiro `.dotx` por secao em `SECOES_PADRAO` (`app/models.py`), para o autor descarregar so o da sua responsabilidade. Regenerar com `scripts/build_canonical_upload_dotx.py` quando a lista de secoes padrao mudar.
+**Ficheiros no repositorio**: a pasta `modelos_upload_doc_canonicos/` inclui `SRA_todas_secoes.dotx` (sumario com todas as secoes padrao) e um ficheiro `.dotx` por secao em `SECOES_PADRAO` (`app/models.py`), para o autor descarregar so o da sua responsabilidade. Cada `secao_*.dotx` inclui titulos Word (Heading 1 a 3 conforme numero) desde a ascendencia ate a peca atual: niveis superiores so como contexto; os exemplos texto/lista/figura/tabela ficam apenas na subsecao alvo deste `.dotx`. Regenerar com `scripts/build_canonical_upload_dotx.py` quando a lista de secoes padrao mudar.
 
 ### PDF Final
 

@@ -185,6 +185,9 @@ orientacao
 funcao
 funcoes
 nivel
+niveis
+ascendencia
+peca
 padrao
 PADRAO
 possiveis

@@ -1,398 +1,433 @@
 {% extends "base.html" %}
-{% block body_attrs %} class="page-secao-edit"{% endblock %}
-{% block title %}{{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
-{% block header %}{{ rel.codigo }} · Seção {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
+{% block body_attrs %} class="page-conteudo-upload"{% endblock %}
+{% block title %}Upload de conteúdo · {{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
+{% block header %}{{ rel.codigo }} · Upload · {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
 {% block content %}
   <section class="hero">
-    <h1>Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
+    <h1>Upload de conteúdo — Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
     <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }}</div>
     <p>
-      <a href="/relatorios/{{ rel.id }}">← voltar ao sumário</a>
+      <a href="/relatorios/{{ rel.id }}">← sumário do relatório</a>
       ·
-      <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/upload-conteudo">Painel upload de conteúdo →</a>
+      <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}">Editor clássico da seção</a>
     </p>
   </section>
-  {% if user.role in ['admin','coordenador'] %}
-    <section class="ss active-tab">
-      <div class="ss-hdr">
-        <span class="sn">⚙</span><span class="st">Coordenação da seção</span>
-      </div>
-      <div class="sb2 actions-row">
-        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
-          <label for="sel-sec-responsavel">Responsável</label>
-          <select id="sel-sec-responsavel" name="responsavel_id" title="Responsável pela seção">
-            <option value="">—</option>
-            {% for a in autores %}
-              <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit">Atribuir</button>
-        </form>
-        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
-          <label for="sel-sec-status">Status</label>
-          <select id="sel-sec-status" name="status" title="Status da seção">
-            <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
-            <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
-            <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
-          </select>
-          <button type="submit">Atualizar</button>
-        </form>
-      </div>
-    </section>
-  {% endif %}
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-      <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Carregar/atualizar</button>
-      <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
-    </div>
-    <div class="sb2">
-      <details class="export-menu">
-        <summary>Exportar relatório</summary>
-        <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
-          <input id="export-scope-inteiro" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
-          <input id="export-scope-selecionadas" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
-          <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
-            <label class="export-tab export-tab-all" for="export-scope-inteiro">
-              <span>Relatório inteiro</span>
-            </label>
-            <label class="export-tab export-tab-selected" for="export-scope-selecionadas">
-              <span>Seções selecionadas</span>
-            </label>
-          </div>
-          <div class="export-panels">
-            <div class="export-panel export-panel-all" role="tabpanel"></div>
-            <div class="export-panel export-panel-selected" role="tabpanel">
-              <div class="export-sections" aria-label="Seções para exportar">
-                {% for s in rel.secoes %}
-                  {% set nivel = s.numero.count('.') + 1 %}
-                  <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
-                    <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
-                    <label class="export-section-check">
-                      <input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}>
-                      <span>{{ s.numero }} – {{ s.titulo }}</span>
-                    </label>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-          </div>
-          <div class="export-actions">
-            <button type="submit" name="formato" value="pdf">Exportar PDF</button>
-            <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
-          </div>
-        </form>
-      </details>
-      <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
-    </div>
-  </section>
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">●</span><span class="st">Blocos de conteúdo</span>
-    </div>
-    <div class="sb2 blocos-table-wrap">
-      {% if sec.blocos %}
-        <div class="bloco-bulk-actions" aria-label="Ações em lote para blocos selecionados">
-          <span class="bulk-count" id="bulk-count">0 selecionados</span>
-          <form id="bulk-aprovar-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/aprovar-lote" class="inline-form">
-          </form>
-          <form id="bulk-excluir-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/excluir-lote" class="inline-form">
-          </form>
-          <button type="submit" form="bulk-aprovar-form" class="secondary bulk-action-btn" data-bulk-submit disabled>Aprovar</button>
-          <button type="submit" form="bulk-excluir-form" class="danger bulk-action-btn" data-bulk-submit data-bulk-delete disabled>Deletar blocão</button>
+  <div class="upload-layout">
+    <div class="upload-main">
+      <section class="ss active-tab upload-coord-ss">
+        <div class="ss-hdr">
+          <span class="sn">⚙</span><span class="st">Coordenação da seção e destino do upload</span>
         </div>
-        <table class="blocos-table">
-          <thead>
-            <tr>
-              <th class="select-col">
-                <input type="checkbox" id="bulk-select-all" title="Selecionar todos os blocos disponíveis" aria-label="Selecionar todos os blocos disponíveis">
-              </th>
-              <th>Índice da seção</th>
-              <th>Título da seção</th>
-              <th>Tipo do elemento</th>
-              <th>Textos e Char</th>
-              <th>Adicionado por</th>
-              <th>Data de adição</th>
-              <th>Data da atualização</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for b in sec.blocos %}
-              {% set conteudo_bloco = b.conteudo or '' %}
-              {% set conteudo_limpo = conteudo_bloco.strip() %}
-              {% if b.tipo == 'texto' and conteudo_limpo.startswith('## ') %}
-                {% set categoria_bloco = "subtítulo" %}
-              {% elif b.tipo == 'texto' and conteudo_limpo.startswith('# ') %}
-                {% set categoria_bloco = "título" %}
-              {% elif b.tipo == 'texto' %}
-                {% set categoria_bloco = "parágrafo" %}
-              {% elif b.tipo == 'lista' %}
-                {% set categoria_bloco = "lista" %}
-              {% elif b.tipo == 'figura' %}
-                {% set categoria_bloco = "figura" %}
-              {% elif b.tipo == 'tabela' %}
-                {% set categoria_bloco = "tabela" %}
-              {% else %}
-                {% set categoria_bloco = "conteúdo" %}
-              {% endif %}
-              <tr class="{% if b.bloqueado %}bloqueado-row{% endif %}" id="bloco-row-{{ b.id }}">
-                <td class="select-col">
-                  <input type="checkbox" class="bloco-select" value="{{ b.id }}" title="Selecionar bloco" aria-label="Selecionar bloco {{ loop.index }}" {% if b.bloqueado %}disabled{% endif %}>
-                </td>
-                <td>{{ sec.numero }}</td>
-                <td>{{ sec.titulo }}</td>
-                <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
-                <td>
-                  <small>{{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)</small>
-                </td>
-                <td>{{ b.autor.nome if b.autor else '—' }}</td>
-                <td>{{ b.created_at.strftime("%d/%m/%y %H:%M") }}</td>
-                <td>{{ b.updated_at.strftime("%d/%m/%y %H:%M") }}</td>
-                <td class="td-actions">
-                  {% if not b.bloqueado %}
-                    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar" class="inline-form" data-sra-confirm="bloco_confirmar">
-                      <button type="submit" class="bloco-action" title="Confirmar" aria-label="Confirmar bloco">✓</button>
-                    </form>
-                    <button type="button"
-                            class="bloco-action edit-bloco-btn"
-                            title="Editar no container"
-                            aria-label="Editar bloco"
-                            data-bloco-id="{{ b.id }}"
-                            data-bloco-titulo='{{ (b.titulo or "")|tojson|forceescape }}'
-                            data-bloco-tipo='{{ (b.tipo or "texto")|tojson|forceescape }}'
-                            data-bloco-conteudo='{{ (b.conteudo or "")|tojson|forceescape }}'>✎</button>
-                  {% else %}
-                    <span class="locked-lbl">Bloqueado</span>
-                  {% endif %}
-                  {% if not b.bloqueado %}
-                    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir" class="inline-form" data-sra-confirm="bloco_excluir">
-                      <button type="submit" class="bloco-action" title="Excluir bloco" aria-label="Excluir bloco">×</button>
-                    </form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="sdesc">Nenhum bloco ainda. Adicione abaixo.</p>
-      {% endif %}
-    </div>
-  </section>
-  <section class="ss active-tab" id="importar-conteudo">
-    <div class="ss-hdr">
-      <span class="sn">↑</span><span class="st">Importar conteúdo</span>
-    </div>
-    <div class="sb2">
-      <form id="form-importar-conteudo" class="import-form">
-        <div>
-          <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
-          <input type="file" id="import-arquivo" name="arquivo" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
-        </div>
-        <button type="submit">Analisar arquivo</button>
-        <span id="import-status" class="import-status" aria-live="polite"></span>
-      </form>
-      <div class="import-help">
-        Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>, <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ... <code>[/TABELA]</code>.
-        Em DOCX, use estilos de título do Word, títulos iniciados por número de seção e tabelas nativas.
-      </div>
-      <div id="import-review" class="import-review is-hidden">
-        <div class="import-review-head">
-          <div class="import-review-title">
-            <strong>Revisar blocos detectados</strong>
-            <span id="import-summary" class="import-summary"></span>
-          </div>
-          <div class="import-review-actions">
-            <button type="button" id="import-all-on" class="secondary-mini" title="Selecionar todos os blocos">✓ todos</button>
-            <button type="button" id="import-all-off" class="secondary-mini" title="Deselecionar todos os blocos">✗ nenhum</button>
-            <button type="button" id="import-confirm" class="primary-mini">Importar selecionados</button>
-          </div>
-        </div>
-        <div id="import-list" class="import-review-list" data-secoes-existentes='{{ rel.secoes|map(attribute="numero") |list|tojson }}'></div>
-      </div>
-    </div>
-  </section>
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">+</span><span class="st">Adicionar bloco · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
-    </div>
-    <div class="sb2">
-      {% if user.role in ['admin','coordenador'] %}
-        <div class="sec-control">
-          <div class="sec-control-row">
-            <label for="sec-nav">Seção atual</label>
-            <select id="sec-nav" title="Trocar de seção">
+        <div class="sb2 upload-coord-wrap">
+          <div class="upload-sec-picker">
+            <label for="upload-sec-selector">Seção alvo</label>
+            <select id="upload-sec-selector" title="Alterar secção tratada nesta página" aria-label="Seção alvo do upload">
               {% for s in rel.secoes %}
-                <option value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
+                <option value="{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} — {{ s.titulo }}</option>
               {% endfor %}
             </select>
-            <button type="button" class="secondary" id="btn-renomear-sec" title="Renomear esta seção">✎ Renomear</button>
-            <button type="button" class="secondary" id="btn-nova-sub" title="Criar nova subseção">+ Subseção</button>
-            {% if '.' in sec.numero %}
-              <form method="post"
-                    action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
-                    class="sec-control-inline"
-                    data-sra-confirm="secao_excluir"
-                    data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção.">
-                <button type="submit" class="danger">🗑 Excluir</button>
-              </form>
-            {% endif %}
           </div>
-          <form id="form-renomear-sec" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear">
-            <label for="inp-renomear-titulo">Novo título da seção {{ sec.numero }}</label>
-            <input id="inp-renomear-titulo" type="text" name="titulo" value="{{ sec.titulo }}" required>
-            <button type="submit">Salvar</button>
-            <button type="button" class="secondary" data-cancel="form-renomear-sec">Cancelar</button>
-          </form>
-          <form id="form-nova-sub" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes">
-            <label for="inp-nova-sub-numero">Número (ex.: {{ sec.numero }}.1)</label>
-            <input id="inp-nova-sub-numero" type="text" name="numero" placeholder="{{ sec.numero }}.1" required>
-            <label for="inp-nova-sub-titulo">Título da subseção</label>
-            <input id="inp-nova-sub-titulo" type="text" name="titulo" placeholder="Título" required>
-            <button type="submit">Criar subseção</button>
-            <button type="button" class="secondary" data-cancel="form-nova-sub">Cancelar</button>
-          </form>
-        </div>
-      {% endif %}
-      <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
-        <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
-        <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
-        <div class="full add-bloco-grid">
-          <div class="add-bloco-conteudo-head">
-            <label for="add-bloco-conteudo">Conteúdo</label>
-            <div class="bloco-toolbar" role="toolbar" aria-label="Formatação do conteúdo">
-              <button type="button" data-act="titulo" title="Inserir título (# )">H1</button>
-              <button type="button" data-act="subtitulo" title="Inserir subtítulo (## )">H2</button>
-              <button type="button" data-act="paragrafo" title="Marcar como parágrafo (texto livre)">¶</button>
-              <button type="button" data-act="lista" title="Marcar como lista (uma linha por item)">≣ Lista</button>
-              <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
-            </div>
-          </div>
-          <div class="add-bloco-conteudo-body">
-            <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
-            <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
-              <span class="bs-lbl">Linha atual:</span>
-              <span class="bs-tag" id="bs-tag">Parágrafo</span>
-              <span class="bs-sep">·</span>
-              <span class="bs-info" id="bs-info">linha 1, coluna 1</span>
-            </div>
-          </div>
-          <aside class="add-bloco-side">
-            <div class="mini-card mini-card-figura">
-              <div class="mini-card-hdr">
-                <span>🖼 Figura</span>
-              </div>
-              <div class="mini-card-body">
-                <label class="mini-label" for="ins-fig-sel">Figura existente</label>
-                <select id="ins-fig-sel" title="Figura disponível">
-                  <option value="">— selecione —</option>
-                  {% for f in figuras %}<option value="{{ f.id }}" data-nome="{{ f.nome }}">#{{ f.id }} {{ f.nome }}</option>{% endfor %}
+          {% if user.role not in ['admin','coordenador'] %}
+            <p class="upload-meta-readonly">Responsável: {% if sec.responsavel %}<strong>{{ sec.responsavel.nome }}</strong>{% else %}<span class="muted">—</span>{% endif %}
+              · Status: <strong>{{ sec.status }}</strong></p>
+          {% endif %}
+          {% if user.role in ['admin','coordenador'] %}
+            <div class="actions-row upload-coord-actions">
+              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
+                <label for="sel-sec-responsavel">Responsável</label>
+                <select id="sel-sec-responsavel" name="responsavel_id" title="Responsável pela seção">
+                  <option value="">—</option>
+                  {% for a in autores %}
+                    <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
+                  {% endfor %}
                 </select>
-                <div id="ins-fig-preview" class="mini-fig-preview is-hidden">
-                  <img alt="prévia da figura" id="ins-fig-img">
-                </div>
-                <label class="mini-label" for="ins-fig-leg">Legenda</label>
-                <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="fig-est">Estilo de indexação</label>
-                  <select id="fig-est">
-                    <option id="fig-opt-R" value="R">Por seção (Ex: FIGURA {{ sec.numero.split(".")[0] }}.1)</option>
-                    <option id="fig-opt-C" value="C">Sequencial (Ex: FIGURA 1)</option>
-                  </select>
-                </div>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="fig-pos">Posição da legenda</label>
-                  <select id="fig-pos">
-                    <option value="S">Superior</option>
-                    <option value="I" selected>Inferior</option>
-                  </select>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
-                  <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
-                </div>
-                <input type="file" id="ins-fig-upload-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="is-hidden">
+                <button type="submit">Atribuir</button>
+              </form>
+              <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
+                <label for="sel-sec-status">Status</label>
+                <select id="sel-sec-status" name="status" title="Status da seção">
+                  <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
+                  <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
+                  <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
+                </select>
+                <button type="submit">Atualizar</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+      <section class="ss active-tab" id="importar-conteudo">
+        <div class="ss-hdr">
+          <span class="sn">↑</span><span class="st">Importar conteúdo</span>
+        </div>
+        <div class="sb2">
+          <form id="form-importar-conteudo" class="import-form">
+            <div>
+              <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
+              <input type="file" id="import-arquivo" name="arquivo" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+            </div>
+            <button type="submit">Analisar arquivo</button>
+            <span id="import-status" class="import-status" aria-live="polite"></span>
+          </form>
+          <div class="import-help">
+            Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>, <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ... <code>[/TABELA]</code>.
+            Em DOCX, use estilos de título do Word, títulos iniciados por número de seção e tabelas nativas.
+          </div>
+          <div id="import-review" class="import-review is-hidden">
+            <div class="import-review-head">
+              <div class="import-review-title">
+                <strong>Revisar blocos detectados</strong>
+                <span id="import-summary" class="import-summary"></span>
+              </div>
+              <div class="import-review-actions">
+                <button type="button" id="import-all-on" class="secondary-mini" title="Selecionar todos os blocos">✓ todos</button>
+                <button type="button" id="import-all-off" class="secondary-mini" title="Deselecionar todos os blocos">✗ nenhum</button>
+                <button type="button" id="import-confirm" class="primary-mini">Importar selecionados</button>
               </div>
             </div>
-            <div class="mini-card mini-card-tabela">
-              <div class="mini-card-hdr">
-                <span>▦ Tabela</span>
+            <div id="import-list" class="import-review-list" data-secoes-existentes='{{ rel.secoes|map(attribute="numero") |list|tojson }}'></div>
+          </div>
+        </div>
+      </section>
+      <section class="ss active-tab">
+        <div class="ss-hdr">
+          <span class="sn">●</span><span class="st">Blocos de conteúdo</span>
+        </div>
+        <div class="sb2 blocos-table-wrap">
+          {% if sec.blocos %}
+            <div class="bloco-bulk-actions" aria-label="Ações em lote para blocos selecionados">
+              <span class="bulk-count" id="bulk-count">0 selecionados</span>
+              <form id="bulk-aprovar-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/aprovar-lote" class="inline-form">
+              </form>
+              <form id="bulk-excluir-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/excluir-lote" class="inline-form">
+              </form>
+              <button type="submit" form="bulk-aprovar-form" class="secondary bulk-action-btn" data-bulk-submit disabled>Aprovar</button>
+              <button type="submit" form="bulk-excluir-form" class="danger bulk-action-btn" data-bulk-submit data-bulk-delete disabled>Deletar blocão</button>
+            </div>
+            <table class="blocos-table">
+              <thead>
+                <tr>
+                  <th class="select-col">
+                    <input type="checkbox" id="bulk-select-all" title="Selecionar todos os blocos disponíveis" aria-label="Selecionar todos os blocos disponíveis">
+                  </th>
+                  <th>Índice da seção</th>
+                  <th>Título da seção</th>
+                  <th>Tipo do elemento</th>
+                  <th>Textos e Char</th>
+                  <th>Adicionado por</th>
+                  <th>Data de adição</th>
+                  <th>Data da atualização</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in sec.blocos %}
+                  {% set conteudo_bloco = b.conteudo or '' %}
+                  {% set conteudo_limpo = conteudo_bloco.strip() %}
+                  {% if b.tipo == 'texto' and conteudo_limpo.startswith('## ') %}
+                    {% set categoria_bloco = "subtítulo" %}
+                  {% elif b.tipo == 'texto' and conteudo_limpo.startswith('# ') %}
+                    {% set categoria_bloco = "título" %}
+                  {% elif b.tipo == 'texto' %}
+                    {% set categoria_bloco = "parágrafo" %}
+                  {% elif b.tipo == 'lista' %}
+                    {% set categoria_bloco = "lista" %}
+                  {% elif b.tipo == 'figura' %}
+                    {% set categoria_bloco = "figura" %}
+                  {% elif b.tipo == 'tabela' %}
+                    {% set categoria_bloco = "tabela" %}
+                  {% else %}
+                    {% set categoria_bloco = "conteúdo" %}
+                  {% endif %}
+                  <tr class="{% if b.bloqueado %}bloqueado-row{% endif %}" id="bloco-row-{{ b.id }}">
+                    <td class="select-col">
+                      <input type="checkbox" class="bloco-select" value="{{ b.id }}" title="Selecionar bloco" aria-label="Selecionar bloco {{ loop.index }}" {% if b.bloqueado %}disabled{% endif %}>
+                    </td>
+                    <td>{{ sec.numero }}</td>
+                    <td>{{ sec.titulo }}</td>
+                    <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
+                    <td>
+                      <small>{{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)</small>
+                    </td>
+                    <td>{{ b.autor.nome if b.autor else '—' }}</td>
+                    <td>{{ b.created_at.strftime("%d/%m/%y %H:%M") }}</td>
+                    <td>{{ b.updated_at.strftime("%d/%m/%y %H:%M") }}</td>
+                    <td class="td-actions">
+                      {% if not b.bloqueado %}
+                        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar" class="inline-form" data-sra-confirm="bloco_confirmar">
+                          <button type="submit" class="bloco-action" title="Confirmar" aria-label="Confirmar bloco">✓</button>
+                        </form>
+                        <button type="button"
+                                class="bloco-action edit-bloco-btn"
+                                title="Editar no container"
+                                aria-label="Editar bloco"
+                                data-bloco-id="{{ b.id }}"
+                                data-bloco-titulo='{{ (b.titulo or "")|tojson|forceescape }}'
+                                data-bloco-tipo='{{ (b.tipo or "texto")|tojson|forceescape }}'
+                                data-bloco-conteudo='{{ (b.conteudo or "")|tojson|forceescape }}'>✎</button>
+                      {% else %}
+                        <span class="locked-lbl">Bloqueado</span>
+                      {% endif %}
+                      {% if not b.bloqueado %}
+                        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir" class="inline-form" data-sra-confirm="bloco_excluir">
+                          <button type="submit" class="bloco-action" title="Excluir bloco" aria-label="Excluir bloco">×</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="sdesc">Nenhum bloco ainda — use Importar ou o editor abaixo.</p>
+          {% endif %}
+        </div>
+      </section>
+      <section class="ss active-tab">
+        <div class="ss-hdr">
+          <span class="sn">✎</span><span class="st">Editar bloco existente · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
+        </div>
+        <div class="sb2">
+          {% if user.role in ['admin','coordenador'] %}
+            <div class="sec-control">
+              <div class="sec-control-row">
+                <label for="sec-nav">Seção atual</label>
+                <select id="sec-nav" title="Trocar de seção">
+                  {% for s in rel.secoes %}
+                    <option value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="secondary" id="btn-renomear-sec" title="Renomear esta seção">✎ Renomear</button>
+                <button type="button" class="secondary" id="btn-nova-sub" title="Criar nova subseção">+ Subseção</button>
+                {% if '.' in sec.numero %}
+                  <form method="post"
+                        action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
+                        class="sec-control-inline"
+                        data-sra-confirm="secao_excluir"
+                        data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção.">
+                    <button type="submit" class="danger">🗑 Excluir</button>
+                  </form>
+                {% endif %}
               </div>
-              <div class="mini-card-body">
-                <div class="mini-row">
-                  <div>
-                    <label class="mini-label" for="ins-tab-rows">Linhas</label>
-                    <input type="number" id="ins-tab-rows" min="1" max="50" value="3" title="Linhas de dados (sem contar cabeçalho)">
+              <form id="form-renomear-sec" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear">
+                <label for="inp-renomear-titulo">Novo título da seção {{ sec.numero }}</label>
+                <input id="inp-renomear-titulo" type="text" name="titulo" value="{{ sec.titulo }}" required>
+                <button type="submit">Salvar</button>
+                <button type="button" class="secondary" data-cancel="form-renomear-sec">Cancelar</button>
+              </form>
+              <form id="form-nova-sub" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes">
+                <label for="inp-nova-sub-numero">Número (ex.: {{ sec.numero }}.1)</label>
+                <input id="inp-nova-sub-numero" type="text" name="numero" placeholder="{{ sec.numero }}.1" required>
+                <label for="inp-nova-sub-titulo">Título da subseção</label>
+                <input id="inp-nova-sub-titulo" type="text" name="titulo" placeholder="Título" required>
+                <button type="submit">Criar subseção</button>
+                <button type="button" class="secondary" data-cancel="form-nova-sub">Cancelar</button>
+              </form>
+            </div>
+          {% endif %}
+          <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
+            <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
+            <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
+            <div class="full add-bloco-grid">
+              <div class="add-bloco-conteudo-head bloco-toolbar-wrap">
+                <label for="add-bloco-conteudo">Conteúdo</label>
+                <div class="bloco-toolbar-row">
+                  <div class="bloco-toolbar bloco-toolbar-structural" role="toolbar" aria-label="Estrutura e marcadores">
+                    <button type="button" data-act="titulo" title="Inserir título (# )">H1</button>
+                    <button type="button" data-act="subtitulo" title="Inserir subtítulo (## )">H2</button>
+                    <button type="button" data-act="paragrafo" title="Marcar como parágrafo (texto livre)">¶</button>
+                    <button type="button" data-act="lista" title="Marcar como lista (uma linha por item)">≣ Lista</button>
+                    <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
                   </div>
-                  <div>
-                    <label class="mini-label" for="ins-tab-cols">Colunas</label>
-                    <input type="number" id="ins-tab-cols" min="1" max="12" value="3" title="Número de colunas">
+                  <div class="bloco-toolbar bloco-toolbar-inline" role="toolbar" aria-label="Ênfase no texto Markdown">
+                    <span class="bloco-toolbar-hint">Ênfase:</span>
+                    <button type="button" data-act="wrap-bold" title="Envolver seleção em negrito (Markdown **)">**B**</button>
+                    <button type="button" data-act="wrap-italic" title="Envolver seleção em itálico (Markdown _)">_I_</button>
                   </div>
                 </div>
-                <label class="mini-label" for="ins-tab-leg">Legenda</label>
-                <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="tab-est">Estilo de indexação</label>
-                  <select id="tab-est">
-                    <option id="tab-opt-R" value="R">Por seção (Ex: TABELA {{ sec.numero.split(".")[0] }}.1)</option>
-                    <option id="tab-opt-C" value="C">Sequencial (Ex: TABELA 1)</option>
-                  </select>
-                </div>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="tab-pos">Posição da legenda</label>
-                  <select id="tab-pos">
-                    <option value="S">Superior</option>
-                    <option value="I">Inferior</option>
-                  </select>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
-                  <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
+              </div>
+              <div class="add-bloco-conteudo-body">
+                <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
+                <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
+                  <span class="bs-lbl">Linha atual:</span>
+                  <span class="bs-tag" id="bs-tag">Parágrafo</span>
+                  <span class="bs-sep">·</span>
+                  <span class="bs-info" id="bs-info">linha 1, coluna 1</span>
                 </div>
               </div>
+              <aside class="add-bloco-side">
+                <div class="mini-card mini-card-figura">
+                  <div class="mini-card-hdr">
+                    <span>🖼 Figura</span>
+                  </div>
+                  <div class="mini-card-body">
+                    <label class="mini-label" for="ins-fig-sel">Figura existente</label>
+                    <select id="ins-fig-sel" title="Figura disponível">
+                      <option value="">— selecione —</option>
+                      {% for f in figuras %}<option value="{{ f.id }}" data-nome="{{ f.nome }}">#{{ f.id }} {{ f.nome }}</option>{% endfor %}
+                    </select>
+                    <div id="ins-fig-preview" class="mini-fig-preview is-hidden">
+                      <img alt="prévia da figura" id="ins-fig-img">
+                    </div>
+                    <label class="mini-label" for="ins-fig-leg">Legenda</label>
+                    <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
+                    <div class="mini-fmt-sel">
+                      <label class="mini-label" for="fig-est">Estilo de indexação</label>
+                      <select id="fig-est">
+                        <option id="fig-opt-R" value="R">Por seção (Ex: FIGURA {{ sec.numero.split(".")[0] }}.1)</option>
+                        <option id="fig-opt-C" value="C">Sequencial (Ex: FIGURA 1)</option>
+                      </select>
+                    </div>
+                    <div class="mini-fmt-sel">
+                      <label class="mini-label" for="fig-pos">Posição da legenda</label>
+                      <select id="fig-pos">
+                        <option value="S">Superior</option>
+                        <option value="I" selected>Inferior</option>
+                      </select>
+                    </div>
+                    <div class="mini-actions">
+                      <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
+                      <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
+                    </div>
+                    <input type="file" id="ins-fig-upload-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="is-hidden">
+                  </div>
+                </div>
+                <div class="mini-card mini-card-tabela">
+                  <div class="mini-card-hdr">
+                    <span>▦ Tabela</span>
+                  </div>
+                  <div class="mini-card-body">
+                    <div class="mini-row">
+                      <div>
+                        <label class="mini-label" for="ins-tab-rows">Linhas</label>
+                        <input type="number" id="ins-tab-rows" min="1" max="50" value="3" title="Linhas de dados (sem contar cabeçalho)">
+                      </div>
+                      <div>
+                        <label class="mini-label" for="ins-tab-cols">Colunas</label>
+                        <input type="number" id="ins-tab-cols" min="1" max="12" value="3" title="Número de colunas">
+                      </div>
+                    </div>
+                    <label class="mini-label" for="ins-tab-leg">Legenda</label>
+                    <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
+                    <div class="mini-fmt-sel">
+                      <label class="mini-label" for="tab-est">Estilo de indexação</label>
+                      <select id="tab-est">
+                        <option id="tab-opt-R" value="R">Por seção (Ex: TABELA {{ sec.numero.split(".")[0] }}.1)</option>
+                        <option id="tab-opt-C" value="C">Sequencial (Ex: TABELA 1)</option>
+                      </select>
+                    </div>
+                    <div class="mini-fmt-sel">
+                      <label class="mini-label" for="tab-pos">Posição da legenda</label>
+                      <select id="tab-pos">
+                        <option value="S">Superior</option>
+                        <option value="I">Inferior</option>
+                      </select>
+                    </div>
+                    <div class="mini-actions">
+                      <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
+                      <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
+                    </div>
+                  </div>
+                </div>
+              </aside>
             </div>
-          </aside>
-        </div>
-        <div class="full">
-          <button type="submit">Adicionar bloco</button>
-        </div>
-      </form>
-      <!-- Editor visual de tabela (modal) -->
-      <div id="tab-editor" class="tab-editor-overlay is-hidden" role="dialog" aria-modal="true" aria-labelledby="tab-editor-title">
-        <div class="tab-editor-box">
-          <div class="tab-editor-hdr">
-            <strong id="tab-editor-title">Editor de tabela</strong>
-            <button type="button" class="tab-editor-close" id="tab-editor-close" aria-label="Fechar">×</button>
-          </div>
-          <div class="tab-editor-body">
-            <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
-            <input type="text" id="tab-editor-leg" placeholder="Ex.: Quantitativo de serviços">
-            <div class="tab-editor-toolbar">
-              <button type="button" data-tab-act="add-row">+ Linha</button>
-              <button type="button" data-tab-act="del-row">− Linha</button>
-              <button type="button" data-tab-act="add-col">+ Coluna</button>
-              <button type="button" data-tab-act="del-col">− Coluna</button>
-              <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+            <div class="full">
+              <button type="submit">Inserir novo bloco</button>
             </div>
-            <div class="tab-editor-scroll">
-              <table id="tab-editor-table" class="tab-editor-table">
-                <thead>
-                </thead>
-                <tbody>
-                </tbody>
-              </table>
+          </form>
+          <!-- Editor visual de tabela (modal) -->
+          <div id="tab-editor" class="tab-editor-overlay is-hidden" role="dialog" aria-modal="true" aria-labelledby="tab-editor-title">
+            <div class="tab-editor-box">
+              <div class="tab-editor-hdr">
+                <strong id="tab-editor-title">Editor de tabela</strong>
+                <button type="button" class="tab-editor-close" id="tab-editor-close" aria-label="Fechar">×</button>
+              </div>
+              <div class="tab-editor-body">
+                <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
+                <input type="text" id="tab-editor-leg" placeholder="Ex.: Quantitativo de serviços">
+                <div class="tab-editor-toolbar">
+                  <button type="button" data-tab-act="add-row">+ Linha</button>
+                  <button type="button" data-tab-act="del-row">− Linha</button>
+                  <button type="button" data-tab-act="add-col">+ Coluna</button>
+                  <button type="button" data-tab-act="del-col">− Coluna</button>
+                  <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+                </div>
+                <div class="tab-editor-scroll">
+                  <table id="tab-editor-table" class="tab-editor-table">
+                    <thead>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-editor-foot">
+                <button type="button" class="secondary-mini" id="tab-editor-cancel">Cancelar</button>
+                <button type="button" class="primary-mini" id="tab-editor-confirm">Inserir tabela</button>
+              </div>
             </div>
           </div>
-          <div class="tab-editor-foot">
-            <button type="button" class="secondary-mini" id="tab-editor-cancel">Cancelar</button>
-            <button type="button" class="primary-mini" id="tab-editor-confirm">Inserir tabela</button>
-          </div>
         </div>
-      </div>
+      </section>
     </div>
-  </section>
+    <aside class="upload-preview" aria-label="Pré-visualização do relatório em PDF">
+      <section class="ss active-tab upload-preview-inner">
+        <div class="ss-hdr">
+          <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
+          <button type="button" class="btn-pdf" onclick="const f=document.getElementById('preview-frame'); f.src=f.dataset.src;">Atualizar</button>
+          <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir PDF</a>
+        </div>
+        <div class="sb2">
+          <details class="export-menu">
+            <summary>Exportar relatório</summary>
+            <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
+              <input id="export-scope-inteiro-u" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
+              <input id="export-scope-selecionadas-u" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
+              <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
+                <label class="export-tab export-tab-all" for="export-scope-inteiro-u"><span>Relatório inteiro</span></label>
+                <label class="export-tab export-tab-selected" for="export-scope-selecionadas-u"><span>Seções selecionadas</span></label>
+              </div>
+              <div class="export-panels">
+                <div class="export-panel export-panel-all" role="tabpanel"></div>
+                <div class="export-panel export-panel-selected" role="tabpanel">
+                  <div class="export-sections" aria-label="Seções para exportar">
+                    {% for s in rel.secoes %}
+                      {% set nivel = s.numero.count('.') + 1 %}
+                      <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
+                        <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
+                        <label class="export-section-check">
+                          <input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}>
+                          <span>{{ s.numero }} – {{ s.titulo }}</span>
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              <div class="export-actions">
+                <button type="submit" name="formato" value="pdf">Exportar PDF</button>
+                <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
+              </div>
+            </form>
+          </details>
+          <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf" data-src="/relatorios/{{ rel.id }}/pdf" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
+        </div>
+      </section>
+    </aside>
+  </div>
   <script src="/static/js/import_texto_tools.js"></script>
+  <script>
+    (function () {
+      var sel = document.getElementById('upload-sec-selector');
+      if (!sel) return;
+      sel.addEventListener('change', function () {
+        var id = sel.value;
+        if (!id) return;
+        window.location.href =
+          '/relatorios/{{ rel.id }}/secoes/' + id + '/upload-conteudo';
+      });
+    })();
+  </script>
   <script data-rel-id='{{ rel.id|tojson|forceescape }}' data-sec-numero='{{ sec.numero|tojson|forceescape }}' data-sec-titulo='{{ sec.titulo|tojson|forceescape }}' data-fig-base='{{ media_counts.fig_base|int|tojson|forceescape }}' data-tab-base='{{ media_counts.tab_base|int|tojson|forceescape }}' data-fig-global-base='{{ media_counts.fig_global_base|int|tojson|forceescape }}' data-tab-global-base='{{ media_counts.tab_global_base|int|tojson|forceescape }}'>
 const SECAO_EDIT_DATA = document.currentScript ? document.currentScript.dataset : {};
 function parseJsonValue(raw, fallback) {
@@ -481,6 +516,16 @@ function readSecaoEditData(name, fallback) {
     ta.selectionStart = start + prefix.length;
     ta.selectionEnd = start + inserted.length;
   }
+  function wrapMarkdown(before, after) {
+    const endMark = (after === undefined || after === null) ? before : after;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const sel = ta.value.slice(start, end);
+    const ins = before + sel + endMark;
+    ta.value = ta.value.slice(0, start) + ins + ta.value.slice(end);
+    ta.focus();
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + sel.length;
+  }
   document.querySelectorAll('.bloco-toolbar button').forEach(btn => {
     btn.addEventListener('click', () => {
       const act = btn.dataset.act;
@@ -489,6 +534,8 @@ function readSecaoEditData(name, fallback) {
       else if (act === 'paragrafo') { tipoIn.value = 'texto'; }
       else if (act === 'lista')     { tipoIn.value = 'lista'; insertAtCursor('- ', true); }
       else if (act === 'bullet')    { insertAtCursor('- ', true); }
+      else if (act === 'wrap-bold') { wrapMarkdown('**', '**'); tipoIn.value = 'texto'; }
+      else if (act === 'wrap-italic') { wrapMarkdown('_', '_'); tipoIn.value = 'texto'; }
     });
   });
 
@@ -819,7 +866,7 @@ function editarBloco(id, titulo, tipo, conteudo) {
      cancelBtn.textContent = 'Cancelar edição';
      cancelBtn.onclick = function() {
         frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos';
-        submitBtn.textContent = 'Adicionar bloco';
+        submitBtn.textContent = 'Inserir novo bloco';
         document.getElementById('add-bloco-titulo').value = '{{ sec.numero }} – {{ sec.titulo }}';
         document.getElementById('add-bloco-tipo').value = 'texto';
         document.getElementById('add-bloco-conteudo').value = '';
@@ -1498,8 +1545,30 @@ document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
 /* ===== Fim Importação ===== */
 
 /* ---- Escala e largura da página (escopo: editor de seção) ---- */
-.page-secao-edit #content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
-@media (max-width: 1100px) { .page-secao-edit #content { width: 94%; } }
+.page-conteudo-upload #content { max-width: none; width: min(1480px, 100%); margin: 0 auto; padding-left: 8px; padding-right: 8px; }
+.upload-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 16px; justify-content: space-between; width: 100%; }
+.upload-main { flex: 1 1 69%; max-width: 70%; min-width: min(380px, 100%); box-sizing: border-box; padding-right: 4px; }
+.upload-preview { flex: 1 1 28%; max-width: 30%; min-width: 260px; box-sizing: border-box; position: sticky; top: 12px; align-self: flex-start; }
+.upload-preview-inner { width: 100%; }
+.upload-preview-inner .preview-frame { min-height: 420px; height: clamp(380px, 58vh, 760px); width: 100%; border: 1px solid var(--border); border-radius: 5px; }
+.upload-coord-wrap .upload-sec-picker { margin-bottom: 10px; }
+.upload-sec-picker select { width: 100%; max-width: 520px; padding: 6px 8px; }
+.upload-meta-readonly { font-size: 12.5px; margin: 0 0 6px 0; }
+.upload-coord-actions.actions-row { margin-top: 4px; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.add-bloco-conteudo-head .bloco-toolbar-wrap { display: flex; flex-direction: column; gap: 8px; }
+.bloco-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+.bloco-toolbar-inline span.bloco-toolbar-hint { flex: none; font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; align-self: center; margin-right: 6px; }
+@media (max-width: 1180px) {
+  .upload-main, .upload-preview { max-width: 100%; flex-basis: 100%; padding-right: 0; position: relative; top: auto; }
+}
+@media (max-width: 1100px) {
+  .page-conteudo-upload #content { width: 94%; padding-left: 4px; padding-right: 4px; }
+}
 .hero { padding:16px 20px; margin-bottom:14px; }
 .hero h1 { font-size:18px; }
 .hero .subtitle { font-size:12px; }

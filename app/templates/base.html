@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/static/css/app.css" />
     {% if user %}<script src="/static/js/sra_process_ui.js"></script>{% endif %}
   </head>
-  <body>
+  <body{% block body_attrs %}{% endblock %}>
     {% if user %}
       <aside id="sb">
         <div id="sb-hdr">
@@ -26,13 +26,17 @@
           <a class="ni {% if request.url.path == '/dashboard' %}active{% endif %}" href="/dashboard">
             <span class="num">01</span><span class="nlbl">Relatórios</span>
           </a>
+          <a class="ni {% if request.url.path == '/painel-upload' or request.url.path.endswith('/upload-conteudo') %}active{% endif %}"
+             href="/painel-upload">
+            <span class="num">02</span><span class="nlbl">Upload conteúdo</span>
+          </a>
           {% if user.role in ['admin','coordenador'] %}
             <a class="ni {% if request.url.path == '/usuarios' %}active{% endif %}" href="/usuarios">
-              <span class="num">02</span><span class="nlbl">Usuários</span>
+              <span class="num">03</span><span class="nlbl">Usuários</span>
             </a>
           {% else %}
             <a class="ni {% if request.url.path.startswith('/usuarios') %}active{% endif %}" href="/usuarios">
-              <span class="num">02</span><span class="nlbl">Usuários</span>
+              <span class="num">03</span><span class="nlbl">Usuários</span>
             </a>
           {% endif %}
         </nav>
