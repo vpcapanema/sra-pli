@@ -14,9 +14,36 @@ Este arquivo (`project-instructions.md`) e a **unica referencia completa** de do
 | `skills/*/SKILL.md` | Workflows especializados; comando `/nome-do-skill` no modo Agent.                                              |
 | `agents/*.md`       | Subagentes; `/nome` no Agent; doc em cursor.com/docs/subagents.md.                                             |
 
-Checklist obrigatorio ao encerrar qualquer tarefa: **`.cursor/rules/task-completion.mdc`** — alinhar **terminal** (`flake8`/`pylint`/`djlint` nos arquivos tocados), **diagnosticos expostos ao agente** e a **aba Problemas** do humano; releitura integral dos arquivos alterados. O agente nao ve a aba Problemas diretamente; sem essa paridade, humano e agente nao compartilham a mesma definicao de “zerado”. Para o mesmo habito em outros workspaces, replique o texto nas regras de usuario do Cursor.
+Checklist obrigatorio ao encerrar qualquer tarefa: **`.cursor/rules/task-completion.mdc`** — executar **`scripts/dump_agent_diagnostics.py`** (ler `artifacts/agent-diagnostics.txt`, corrigir ate saida limpa), **diagnosticos expostos ao agente** nos ficheiros tocados e a **aba Problemas** do humano; releitura integral dos arquivos alterados. O agente nao ve a aba Problemas diretamente; sem essa paridade, humano e agente nao compartilham a mesma definicao de "zerado". Para o mesmo habito em outros workspaces, replique o texto nas regras de usuario do Cursor.
 
 Lista resumida de skills e convencoes para agentes: **`AGENTS.md`** na raiz do repositorio.
+
+## Instrucoes Especificas Gerais Para Agentes (economia E qualidade)
+
+Objetivo: gastar o minimo de tokens (entrada e saida) sem sacrificar verdade, completude, clareza, transparencia explicita (lisura), rigor tecnico e precisao.
+
+Prioridade em conflito: corretude, seguranca e cumprimento fiel ao que foi pedido vencem economia de texto.
+
+Respostas concisas (obrigatorio)
+
+- Responda direto ao que foi pedido; evite preambulo, elogios e “vamos fazer”.
+- Nao repita na resposta blocos longos que o usuario ja escreveu; cite so o minimo para desambiguar.
+- Prefira estrutura densa quando reduzir volume de palavras (topicos curtos; listas numeradas so para sequencias reais).
+- Nao adicione documentacao ou “proximos passos” genericos salvo se o usuario pedir ou for necessario para seguranca/integridade.
+
+Qualidade (obrigatoria)
+
+- Entregue todas as partes explicitas do pedido; se um detalhe critico faltar, faca no maximo 2 perguntas objetivas que bloqueiem resposta segura; nao invente fatos quando faltar evidencia.
+- Marque incerteza e duvidas onde faltar evidencia de forma explicita e minima; nao compacte ate virar ambiguidade perigosa.
+- Preserve precisao onde o pedido exige (nomes, valores, comandos exatos, contratos).
+- Em codigo, mostre so o trecho necessario; para arquivos grandes, use ponteiros (arquivo + funcao ou trecho) em vez de colar o arquivo inteiro, exceto se o pedido exigir o conteudo completo.
+
+Trabalho no repositorio (economia tecnica)
+
+- Localize com busca direcionada antes de ler arquivos inteiros; leia so trechos relevantes.
+- Em mudancas grandes, evite repetir blocos inalterados entre trechos citados.
+
+Relacionamento com outras instrucoes: nao duplique o mesmo mandamento em dois lugares; se coexistir com regras em `.cursor/rules/*.mdc` ou secoes tecnicas deste documento, uma fonte por tipo de instrucao.
 
 ## O Que E Esta Aplicacao
 
@@ -40,7 +67,7 @@ O sistema deve funcionar em modo de producao real. Evite mocks, dados ficticios 
 
 Arquivos centrais:
 
-- `app/main.py`: cria a aplicacao FastAPI, registra middleware, arquivos estaticos e routers; `SraAutorRouteGuardMiddleware` + `SraEnsureProcessSessionMiddleware` + `SessionMiddleware` (ordem em `add_middleware`). O segundo chama `process_session_id` em pedidos HTTP autenticados exceto `/static/`; middlewares `@app.middleware("http")` ficam por fora da sessao. `sra_http_audit_log` regista metodo, caminho, codigo HTTP e duracao (ms) para `/relatorios`, `/usuarios`, URLs que terminam em `upload-conteudo` e rotas com `/importar/` (logger `app.http`, visivel no painel SSE via `ProcessLogHandler`).
+- `app/main.py`: cria a aplicacao FastAPI, registra middleware, arquivos estaticos e routers; `SraAutorRouteGuardMiddleware` + `SessionMiddleware` (ordem em `add_middleware`). Middlewares `@app.middleware("http")` ficam por fora da sessao. `sra_http_audit_log` regista metodo, caminho, codigo HTTP e duracao (ms) para `/relatorios`, `/usuarios`, URLs que terminam em `upload-conteudo` e rotas com `/importar/` (logger `app.http`).
 - `app/access_control.py`: URLs permitidas a `autor` e `SraAutorRouteGuardMiddleware`.
 - `app/db.py`: cria engine SQLAlchemy, normaliza `DATABASE_URL` para `postgresql+psycopg2` e configura pool/latencia para Postgres remoto.
 - `app/models.py`: define `User`, `Relatorio`, `Secao`, `Bloco`, `Figura`, `EntregaRelatorio`, `NotificacaoEnvio` e `SECOES_PADRAO`.
@@ -49,47 +76,38 @@ Arquivos centrais:
 - `app/routes/`: rotas de paginas, relatorios, blocos, figuras, importacao e PDF.
 - `app/pdf_render.py`: monta contexto do relatorio e converte blocos para HTML/PDF.
 - `app/list_lines.py`: deteccao e renderizacao de listas em texto bruto (paragrafos + listas; HTML para PDF e ramo de bloco `lista`).
-- `app/templates/secao_edit.html`: tela principal de edicao de secoes, tabela de blocos, importacao assistida e editor manual.
+- `app/templates/secao_edit_conteudo_upload.html`: única UI de edição e gestão por secção — coordenação (responsável/status), importação assistida com revisão, tabela de blocos com aprovação em lote, editor de blocos e pré-visualização PDF.
 
 ## Mapa Atual Da Aplicacao
 
 Use este mapa como orientacao inicial antes de procurar pontos de entrada:
 
 - `app/routes/auth.py`: login, logout e gestao de usuarios.
-- `app/routes/pages.py`: dashboard, detalhe do relatorio e tela de edicao de secao.
-- `app/routes/relatorios.py`: criacao, edicao, status, versao, duplicacao, reversao e gestao de secoes; `GET /relatorios/{id}/blocos-confirmados.json` (blocos `bloqueados` em todo o relatorio, so admin/coord) e `POST /relatorios/{id}/blocos/excluir-todos-confirmados` (exclui todos esses blocos; `_exigir_relatorio_editavel` + `_pode_editar_status` importados de `blocos.py`). `app/routes/relatorio_exclusao.py`: `POST /relatorios/{id}/excluir` e `POST /relatorios/{id}/secoes/{sid}/excluir` (mesmo prefixo no `main`), com SSE e `sra_fim_pendente`.
+- `app/routes/pages.py`: dashboard, detalhe do relatorio e páginas de secção (`upload-conteudo`; `GET /relatorios/{id}/secoes/{sid}` redireciona `303` para `upload-conteudo`).
+- `app/routes/relatorios.py`: criacao, edicao, status, versao, duplicacao, reversao e gestao de secoes; `GET /relatorios/{id}/secoes/{sid}/status` redireciona (`303`) para `upload-conteudo` (qualquer papel autorizado), evitando `405` se a URL for aberta no navegador; `GET /relatorios/{id}/blocos-confirmados.json` (blocos `bloqueados` em todo o relatorio, so admin/coord) e `POST /relatorios/{id}/blocos/excluir-todos-confirmados` (exclui todos esses blocos; `_exigir_relatorio_editavel` + `_pode_editar_status` importados de `blocos.py`). `app/routes/relatorio_exclusao.py`: `POST /relatorios/{id}/excluir` e `POST /relatorios/{id}/secoes/{sid}/excluir` (mesmo prefixo no `main`); resposta HTML após transação (dashboard ou detalhe).
 - `app/routes/blocos.py`: criacao, edicao, confirmacao/bloqueio, exclusao, movimentacao e acoes em lote de blocos.
 - `app/routes/figuras.py`: upload de figuras e entrega dos binarios armazenados no banco.
 - `app/routes/importacao.py`: analise e confirmacao da importacao assistida de TXT/DOCX.
 - `app/routes/pdf.py`: PDF final, preview HTML e exportacao por escopo.
-- `app/routes/processos.py`: eventos de progresso para operacoes longas.
 - `app/routes/notificacoes.py`: toggle do opt-out (`notificacoes_ativas`), painel de entregas por relatorio (`/relatorios/{id}/entregas`), acoes do coord (status / reenvio manual) e download autenticado dos modelos `.dotx`.
 - `app/routes/cron_admin.py`: endpoints `POST /admin/cron/...` token-protegidos (`X-Cron-Token`); equivalentes HTTP dos jobs CLI.
 - `app/notificacoes/`: orquestracao do ciclo mensal — `service.py` (`abrir_periodo` clona seções + blocos + figuras do relatório-base, ajusta texto do período/código no conteúdo, remapeia `[[REF:]]`; `notificar_autores_abertura` dispara Mensagem 1 após responsáveis atribuídos; `enviar_lembretes`, `retry_falhas`, `recompute_status_enviado`, `alterar_status_entrega`, `reenviar_manual`), `email_sender.py`, `modelos.py`, `templates/email_notificacao.{html,txt}`.
 - `app/cron/`: pontos de entrada CLI dos jobs (`abrir_periodo`, `enviar_lembretes`, `retry_falhas`) — invocaveis via `python -m app.cron.NOME_DO_JOB` no Render Cron ou cron externo (`NOME_DO_JOB` = modulo em `app/cron/`).
 - `app/sumario_extractor.py`: extracao de sumario a partir de PDFs entregues/disponiveis.
-- `app/process_events.py`: registro e streaming de progresso de processos; `process_start` envia `data` com `tarefa` (nome do fluxo), `subtarefa` inicial, `progresso_geral` e `progresso_tarefa` (1..100, passo de 1 %); `process_log` aceita opcionalmente `tarefa`, `progresso_geral`, `progresso_tarefa` e usa `etapa` como rótulo de subtarefa em `data.subtarefa`; `process_done` acrescenta `progresso_*` em 100 e `tarefa` ao título; aceita `process_key`, `outcome`, `detalhe`, `recomendacao`; eventos trazem `data.channel=process` para o modal de acompanhamento. `ProcessLogHandler` encaminha logs INFO+ de `uvicorn.error`, `fastapi` e `app` para o SSE (`kind=server_log`, `publish_all`). Parcial `complementos/painel_logs_servidor.html` + `static/js/sra_live_log.js` mostram essas linhas nas paginas de relatorio, upload e utilizadores; pagina dedicada `GET /usuarios/registro-atividade` (admin/coordenador; item **03 Usuarios** no menu).
-- `app/sra_process_modal.py`: contrato de chaves e helpers (`montar_data_modal_fim`, `nivel_e_status_por_outcome`) alinhados aos slots dos parciais em `templates/complementos/`.
 - `app/numeracao.py`: renumeracao hierarquica consolidada (`renumerar_relatorio`) e consolidacao de referencias textuais para marcadores estaveis (`consolidar_referencias`).
-- `app/templates/`: telas Jinja da aplicacao; `app/templates/pdf/relatorio.html` e o template do PDF final; `app/templates/complementos/`: parciais HTML reutilizaveis (modais de confirmacao, acompanhamento de processo e status: sucesso, ressalvas, falha), incluidos em `base.html` quando o usuario esta autenticado.
+- `app/templates/`: telas Jinja da aplicacao; `app/templates/pdf/relatorio.html` e o template do PDF final.
 - Layout autenticado: em `base.html`, o documento autenticado aplica a classe CSS `sra-app` no elemento raiz da pagina quando ha sessao (`padding-left: var(--sw)` em `app/static/css/app.css` reserva a largura da sidebar fixa). Classes por pagina usam o bloco Jinja nomeado `body_class` (substitui o antigo `body_attrs`). O contentor principal fica com largura total dentro da area de conteudo do flex, sem `margin-left` sobreposto ao padding.
-- `app/routes/dev_ui.py`: `GET /dev/modais` — pré-visualização local dos modais de complemento; `GET /dev/preview-emails-notificacao` — **uma página com as três mensagens** (abertura, lembrete, última chamada), cada qual renderizada com `preview_corpo_notificacao` / `email_notificacao.html` como no envio; `GET /dev/preview-email-notificacao` — uma mensagem só, barra com assunto + iframe `data:text/html;base64,...` (evita segundo GET sem cookie com `SameSite=lax`); `?raw=1` devolve só o HTML do e-mail; query opcional `tipo=...`, `relatorio_id=N` (dados reais). Requer login; ativo com `APP_ENV=development` ou `SRA_MODAL_PREVIEW=1`; se desligado, devolve página HTML com instruções; use `SRA_MODAL_PREVIEW=0` para forçar desligado. As rotas permanecem acessíveis por URL quando o preview está ativo (`modais_preview_allowed()` + middleware em `app/main.py`); não há entrada dedicada na barra lateral.
+- `app/routes/dev_ui.py`: `GET /dev/modais` — pré-visualização local de `window.confirm` (fluxo `SRAComplementos`); `GET /dev/preview-emails-notificacao` — **uma página com as três mensagens** (abertura, lembrete, última chamada), cada qual renderizada com `preview_corpo_notificacao` / `email_notificacao.html` como no envio; `GET /dev/preview-email-notificacao` — uma mensagem só, barra com assunto + iframe `data:text/html;base64,...` (evita segundo GET sem cookie com `SameSite=lax`); `?raw=1` devolve só o HTML do e-mail; query opcional `tipo=...`, `relatorio_id=N` (dados reais). Requer login; ativo com `APP_ENV=development` ou `SRA_MODAL_PREVIEW=1`; se desligado, devolve página HTML com instruções; use `SRA_MODAL_PREVIEW=0` para forçar desligado. As rotas permanecem acessíveis por URL quando o preview está ativo (`modais_preview_allowed()` + middleware em `app/main.py`); não há entrada dedicada na barra lateral.
 - `app/static/`: CSS e assets estaticos.
 
-### Modais de feedback de processo (complementos)
+### Confirmação no browser (interface)
 
-- Parciais em `app/templates/complementos/`: **confirmar** (cabeçalho, lead, detalhe opcional, pergunta; botões Cancelar e Continuar); **acompanhamento** (cabeçalho, sublinha opcional `process_key`, caixa única de estado com tarefa/etapa/mensagem, duas barras horizontais: progresso da tarefa atual e progresso geral do fluxo, em %); **sucesso** (cabeçalho, mensagem, detalhe opcional, botão Entendi); **ressalvas** (cabeçalho, mensagem, bloco ressalvas, Entendi); **falha** (cabeçalho, erro, detalhe opcional, O que fazer, Entendi).
-- Evento SSE: `title` e `message` no topo; `data` com `channel=process`, `process_key`, `titulo`/`mensagem` (espelho semântico), `outcome`, `detalhe`, `recomendacao` quando houver. Processos de uma tarefa única devem manter o canal de notificação, não duplicar estes modais.
-- Nos modais de fim de processo (sucesso, ressalvas, falha), o botão **Entendi** em `base.html` (`wireFimStatusModais`) fecha o wrap e em seguida recarrega a página atual (`location.reload()`). O clique no fundo apenas fecha o wrap, sem recarregar. Após `POST /relatorios` (criação), a resposta é **200** com o HTML do detalhe do relatório (sem HTTP redirect); antes disso grava-se `sra_fim_pendente` na sessão com `process_id` e o mesmo `data` do `process_done`. O mesmo padrão aplica-se a `POST /relatorios/{id}/excluir` (**dashboard**, `response_dashboard`) e `POST /relatorios/{id}/secoes/{sid}/excluir` (**detalhe**). A renderização de `dashboard.html`/`relatorio_detail` remove a chave da sessão e passa `sra_fim_pendente` ao template — `base.html` chama `SRAProcess.mostrarFimAposRedirect` para abrir o modal sem depender do replay SSE (necessário se o evento foi publicado noutro worker). O cliente regista `omitSseFim[process_id]` para ignorar o mesmo fim quando o EventSource repetir o evento.
-- A barra de cabeçalho não exibe controle de processo: só os toasts (avisos) e os modais de complemento (confirmar, acompanhamento, status) recebem o feedback; o cliente ignora toasts para eventos `data.channel=process` (ficam no modal de acompanhamento).
-- Preencher `process_key` com identificador estável por fluxo; textos de domínio por rota, não frases genéricas no backend.
-- Confirmação reutilizável: rota `GET /processos/fluxo-confirmacao/{chave}` (sessão obrigatória) devolve JSON de textos (`title`, `lead`, `detail`, `ask`, `show_detail`) em `app/sra_fluxo_confirmacao.py`.
-- Chaves de fluxo a documentar: `importacao_assistida_analise`, `importacao_assistida_confirmar`, `relatorio_criar`, `relatorio_excluir`, `exportar_relatorio`, `secao_excluir`, `bloco_confirmar`, `bloco_excluir`, `blocos_lote_excluir`, `blocos_lote_aprovar`.
-- Cliente `sra_process_ui.js` (com `base.html` e sessão) expõe `window.SRAComplementos`. Formulários com atributo `data-sra-confirm` (chave) podem ainda levar título, lead, detalhe e ask com os `data-sra` correspondentes (nomes alinhados ao script).
-- Importação assistida e ações em lote: modal com `confirmarComChave` em scripts sem submit clássico. Em `relatorio_criar` (`dashboard.html`), a segunda linha de mensagem no cliente lembra a fonte do sumário («Relatório entregue» / «Upload de PDF»); o trecho fica no bloco com id `#sra-cpl-confirm-lead-source`.
-- No formulário, atributo `data-sra-iniciar-acompanhamento` (valor 1): no primeiro `submit` válido (fase **capture** em `sra_process_ui.js`), chama-se `SRAProcess.openTrackPendente` com a chave de `data-sra-confirm`, **antes** do `preventDefault` e do modal de confirmação — o canal SSE já liga em background ao carregar o runtime. O modal de confirmação fica acima do acompanhamento (`#sra-cpl-confirm` com `z-index` maior em `app.css`). **Cancelar** no confirmar chama `SRAProcess.hideTrack`. Textos por chave: `window.SRAProcessTrackDefaults` em `sra_process_runtime.js` ou `SRAProcess.registerTrackDefaults`.
-- `sra_process_runtime.js` resolve o DOM com `getElementById` em cada uso (scripts no `<head>`; o body ainda não existe no parse). Ganchos de fechar modais de fim e acompanhamento registam-se em `DOMContentLoaded`.
-- Scripts autenticados em `base.html` (por ordem): `sra_live_log.js`, `sra_process_runtime.js` (SSE, `SRAProcess`), `sra_process_ui.js`. Apenas payloads JSON vindos da sessão (ex.: `sra_fim_pendente`) ficam como bloco de script incorporado ao template (sem duplicar ficheiros estáticos).
+- **Confirmar:** `sra_process_ui.js` — formulários com `data-sra-confirm` e atributos `data-sra-title`, `data-sra-lead`, `data-sra-detail`, `data-sra-ask` opcionais disparam `window.confirm` no `submit` (via `SRAComplementos`). Em `relatorio_criar`, a linha de fonte do sumário entra no texto de confirmação a partir do formulário (sem parcial HTML).
+- Operações longas não publicam eventos nem sessão `sra_fim_pendente` no servidor.
+- `data-sra-iniciar-acompanhamento="1"` pode permanecer em formulários como legado inerte.
+- Chaves de fluxo (textos em `sra_process_ui.js`): `importacao_assistida_analise`, `importacao_assistida_confirmar`, `relatorio_criar`, `relatorio_excluir`, `exportar_relatorio`, `secao_excluir`, `bloco_confirmar`, `bloco_excluir`, `blocos_lote_excluir`, `blocos_lote_aprovar`.
+- Cliente `sra_process_ui.js` expõe `window.SRAComplementos` (`init`, `carregarChave`, `confirmarComChave`, `abrirDireto`, `fecharConfirm`).
+- Scripts autenticados em `base.html`: `sra_log.js` (`SRA_LOG` no **console** do browser — DevTools → Consola; `debug`/`info` com hostname loopback **ou** com `APP_ENV=development`, via `window.__SRA_CONSOLE_VERBOSE__` injetado no HTML), `sra_auth_fetch.js` (em modo verbose regista cada `fetch`), `sra_process_ui.js`.
 
 ## Funcionalidades Atuais
 
@@ -104,7 +122,6 @@ Use este mapa como orientacao inicial antes de procurar pontos de entrada:
 - Upload e reutilizacao de figuras armazenadas no banco.
 - Importacao assistida de TXT/DOCX com revisao humana antes da persistencia.
 - Geracao, preview e exportacao de PDF no padrao visual do contrato.
-- Eventos de progresso para processos longos, como criacao/importacao.
 - Ciclo mensal de notificacoes: dia 1 03:00 BRT abre o relatorio do mes (clona estrutura e conteudo do ultimo `finalizado`; responsaveis iniciam em `NULL` — coord/autor atribuem). Mensagem 1 (abertura) apos «Notificar autores» ou `notificar_autores_abertura`. Importacao assistida na secao **substitui** blocos existentes (inclui clone do mes anterior). Lembretes 5/8, ultima chamada 10. Status: `notificado` -> `aguardando_envio` -> `enviado` (blocos confirmados) -> `validado`. Painel `/relatorios/{id}/entregas`.
 - Tasks de desenvolvimento no Cursor agrupadas por TaskBari em `.vscode/tasks.json`.
 - **Database Client** (`cweijan.vscode-database-client2`): vista "Database" no painel do **Explorador** (manifesto local `contributes.views.explorer`; se a extensao atualizar, pode ser preciso repetir o patch). **SQLTools** + Driver PG na mesma lista; ligacoes SQLTools via `tools/sync_sqltools_connections.py` para `%APPDATA%\\Cursor\\User\\settings.json` (SQLTools fica com icone proprio na barra, nao duplicado no Explorador).
@@ -141,9 +158,9 @@ Roles existentes:
 
 - `admin`: acesso amplo.
 - `coordenador`: acesso de gestao/revisao.
-- `autor`: deve editar apenas secoes sem responsavel ou secoes em que seja o responsavel (regra por rota em blocos/relatorios); **ao nivel de URL**, autores ficam restritos ao fluxo de **upload de conteudo** — ver `app/access_control.py` (`SraAutorRouteGuardMiddleware`, lista `_AUTOR_PATH_RES`): `GET /painel-upload`, `GET /modelos-word-importacao` (+ `baixar`), `GET /relatorios/{id}/secoes/{sid}/upload-conteudo`, `POST` na mesma secao para `responsavel` (so pode atribuir a si) e `status`, APIs usadas por essa pagina (blocos.json, importar analisar/confirmar, figuras, PDF/exportar/preview, SSE `/processos/eventos`, fluxo-confirmacao), `GET /` e login/logout. **Admin e coordenador** nao passam por essa lista. A sessao guarda `user_role` no login (`app/routes/auth.py`) para o guard nao consultar o banco em todo pedido; ao editar o proprio perfil, `user_role` na sessao e atualizado se o papel mudar. No painel de upload (`conteudo_upload.html`), o autor ve listas de responsavel e status com confirmacao; responsaveis que nao sejam ele aparecem desabilitados; com secao `pendente`, o formulario sugere `em_andamento` ate confirmar. `POST` com `retorno=upload` volta para a pagina de upload (nao para o editor clássico). Em «Editar bloco existente», o seletor «Seção atual» do autor limita-se às secções em que pode atuar; a opção «Todas (blocos confirmados)» e o botão «Excluir todos os blocos» existem só para admin/coord (`blocos-confirmados.json` / `excluir-todos-confirmados`).
+- `autor`: deve editar apenas secoes sem responsavel ou secoes em que seja o responsavel (regra por rota em blocos/relatorios); **ao nivel de URL**, autores ficam restritos ao fluxo de **gerenciamento de secao e upload** — ver `app/access_control.py` (`SraAutorRouteGuardMiddleware`, lista `_AUTOR_PATH_RES`): `GET /`, `GET /painel-upload` (autor: redireciona ao sumário `/relatorios/{id}` do relatório mais recente), `GET /relatorios/{id}` (sumário), `GET /modelos-word-importacao` (+ `baixar`), `GET /relatorios/{id}/secoes/{sid}/upload-conteudo`, `POST` na mesma secao para `responsavel` (so pode atribuir a si) e `status`, APIs usadas por essa pagina (blocos.json, importar analisar/confirmar, figuras, PDF/exportar/preview) e login/logout. Apos login bem-sucedido (`POST /login`), destino do autor é `/relatorios/{id}` quando existe relatório (`url_hub_autor` em `app/routes/pages.py`). **Admin e coordenador** nao passam por essa lista. A sessao guarda `user_role` no login (`app/routes/auth.py`) para o guard nao consultar o banco em todo pedido; ao editar o proprio perfil, `user_role` na sessao e atualizado se o papel mudar. Em `secao_edit_conteudo_upload.html`, o cartão «Coordenação da seção» (seção 1) reúne seção alvo, responsável e status: mudar **Seção alvo** navega para o `upload-conteudo` dessa seção; o botão **Confirmar** (estilo alinhado ao de analisar ficheiro) envia em sequência `POST .../responsavel` e `POST .../status` com `retorno=upload` para a seção da página atual; indicadores verde/vermelho nos três campos marcam alinhamento com o esperado. Responsáveis que não sejam ele aparecem desabilitados; com seção `pendente`, o formulário sugere `em_andamento` até confirmar. `POST` com `retorno=upload` volta para a mesma página de gestão. Em «Editar bloco existente», o seletor «Seção atual» do autor limita-se às secções em que pode atuar; a opção «Todas (blocos confirmados)» e o botão «Excluir todos os blocos» existem só para admin/coord (`blocos-confirmados.json` / `excluir-todos-confirmados`).
 
-Sempre reutilize `current_user`, `require_user`, `require_admin` e os checks locais das rotas. Ao criar endpoint novo para secao/bloco, replique a regra de autor responsavel. **Novas rotas necessarias ao painel `upload-conteudo`** devem ser acrescentadas em `path_allowed_for_autor` (ou o middleware bloqueara autores).
+Sempre reutilize `current_user`, `require_user`, `require_admin` e os checks locais das rotas. Ao criar endpoint novo para secao/bloco, replique a regra de autor responsavel. **Novas rotas necessarias ao fluxo de gerenciamento de secao e upload** (`upload-conteudo`, APIs associadas) devem ser acrescentadas em `path_allowed_for_autor` (ou o middleware bloqueara autores).
 
 Mutacoes estruturais (criar/excluir/mover subsecao em `app/routes/relatorios.py`; criar/excluir/mover bloco em `app/routes/blocos.py`) tambem precisam passar pelo guard de status: relatorio com `status == 'finalizado'` rejeita a operacao. Em `relatorios.py` use o helper `_exigir_relatorio_editavel(rel)`; em `blocos.py` chame `_check(..., exigir_editavel=True)`.
 
@@ -155,7 +172,7 @@ O dashboard lista relatorios e sugere proximo D20 com base na ultima medicao. A 
 
 ### Edicao De Secao
 
-Endpoints de UI: `/relatorios/{id}` (`relatorio_detail.html`, `page-rel-com-preview`): mesmo layout em duas colunas que `upload-conteudo` — sumário/ações à esquerda (botão `+` por linha do sumário cria subseção inline como última filha direta via `POST /relatorios/{rel_id}/secoes/{sec_id}/subsecao`; o servidor decide o número (`_proximo_numero_filho`) e roda `consolidar_referencias`+`renumerar_relatorio`), pré-visualização PDF à direita (css em `app/static/css/app.css` junto com `upload-conteudo`, classe combinada `page-conteudo-upload page-rel-com-preview`); `GET /painel-upload` redireciona (`303`) para `/relatorios/{id}/secoes/{sec_id}/upload-conteudo` do relatório mais recente e primeira secao por `ordem` (sem página intermédia); `/relatorios/{id}/secoes/{sec_id}` (template `secao_edit.html` — editor principal da secao); `/relatorios/{id}/secoes/{sec_id}/upload-conteudo` (`conteudo_upload.html`) — painel combinado para envio e importacao com import revisado, blocos, editor na coluna esquerda e pre-visualizacao PDF a direita. Usa os mesmos POST que o editor principal (`_response_secao_page`).
+Endpoints de UI: `/relatorios/{id}` (`relatorio_detail.html`, `page-rel-com-preview`): mesmo layout em duas colunas que `upload-conteudo` — sumário/ações à esquerda (botão `+` por linha do sumário cria subseção inline como última filha direta via `POST /relatorios/{rel_id}/secoes/{sec_id}/subsecao`; o servidor decide o número (`_proximo_numero_filho`) e roda `consolidar_referencias`+`renumerar_relatorio`), pré-visualização PDF à direita (css em `app/static/css/app.css` junto com `upload-conteudo`, classe combinada `page-conteudo-upload page-rel-com-preview`); `GET /painel-upload`: perfil **autor** redireciona (`303`) ao sumário `/relatorios/{id}` do relatório mais recente; **admin/coord** redirecionam (`303`) para `/relatorios/{id}/secoes/{sec_id}/upload-conteudo` (primeira secao por `ordem`); **`GET /relatorios/{id}/secoes/{sec_id}`** redireciona (`303`) para **`…/upload-conteudo`** (único modelo de página para edição/gestão); **`GET /relatorios/{id}/secoes/{sec_id}/upload-conteudo`** serve `secao_edit_conteudo_upload.html` — gestão da secção: coordenação, importação assistida com revisão, tabela de blocos e editor; pré-visualização PDF à direita. Usa `_response_secao_page` e os mesmos POST de mutação da secção/blocos.
 
 A tela de secao permite:
 
@@ -182,7 +199,7 @@ Cuidados importantes:
 - DOCX pode conter imagem em um paragrafo e legenda no paragrafo seguinte; mantenha associacao entre imagem extraida e legenda/fonte.
 - Imagem embutida de DOCX deve virar `Figura` real ao confirmar importacao.
 - Nao repita o titulo da secao como `Bloco.titulo` em todos os blocos importados.
-- Listas no conteudo sao formatacao **local** (independente da numeracao de secoes): `app/list_lines.py` define o texto bruto com recuo em multiplos de 2 espacos e marcadores (`-`, `1.`, `a)`, romano, etc.). A revisao de importacao em `secao_edit.html` inclui barra de ferramentas que so atua no textarea (com `import_texto_tools.js`). DOCX com `w:numPr` e mapeamento em `word/numbering.xml` e normalizado para esse texto bruto na analise.
+- Listas no conteudo sao formatacao **local** (independente da numeracao de secoes): `app/list_lines.py` define o texto bruto com recuo em multiplos de 2 espacos e marcadores (`-`, `1.`, `a)`, romano, etc.). A revisao de importacao em `secao_edit_conteudo_upload.html` inclui barra de ferramentas que so atua no textarea (com `import_texto_tools.js`). DOCX com `w:numPr` e mapeamento em `word/numbering.xml` e normalizado para esse texto bruto na analise.
 
 ### Modelo de documento canonico (Word/TXT) para preenchimento
 
@@ -259,7 +276,7 @@ Teste ponta a ponta com **conteudo real** (mesmo relatorio/secoes da base e mesm
 
 `app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`.
 
-`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` publica eventos de processo (geracao). `GET /relatorios/{id}/pdf?embed=1` devolve o mesmo PDF **sem** `process_start` / `process_done` — usar em iframes da pre-visualizacao lateral para nao repetir o fluxo de feedback ao carregar/recarregar a pagina. Links "Abrir PDF" / exportacao seguem sem `embed`.
+`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` devolve PDF (opcional `secao_ids` na _query string_ para limitar o âmbito em iframes da pré-visualização). `GET /relatorios/{id}/preview` (HTML) e `GET /relatorios/{id}/exportar` (`pdf`/`docx`, âmbito inteiro ou seções selecionadas).
 
 Cuidados importantes:
 
@@ -354,6 +371,7 @@ O projeto tem linters integrados ao Cursor/VSCode via extensoes oficiais. Toda m
 - `djlint`: linter de templates Jinja2/HTML, perfil `jinja`. Config em `[tool.djlint]`. Roda em `app/templates/**/*.html`.
 - `Pylance`: `typeCheckingMode = "off"` (so erros de import/undefined). Diagnostic mode `openFilesOnly` (menos carga que análise do workspace inteiro).
 - `cSpell` (Code Spell Checker): verificacao ortografica em pt-BR + ingles. Config em `cspell.json` raiz, dicionario customizado em `.cspell/projeto.txt`. Extensoes `streetsidesoftware.code-spell-checker` e `code-spell-checker-portuguese-brazilian` no Cursor; pacote `@cspell/dict-pt-br` em `node_modules/` para validacao via CLI.
+- `markdownlint` (extensao VS Code/Cursor) + CLI `markdownlint-cli2`: regras para `.md`/`.mdc`. Na raiz, `.markdownlint.json` desliga `MD013` (comprimento de linha); o script de diagnostico corre `npm run mdlint` sobre `.cursor/**/*.mdc`.
 - Interpretador: SEMPRE o do `.venv` do projeto (`./.venv/Scripts/python.exe` no Windows). Extensoes ja apontam para ele.
 
 ### Codigo Python — O Que Evitar Em Codigo Novo
@@ -389,7 +407,10 @@ Warnings pre-existentes de `pylint` como `too-many-locals`, `too-many-branches`,
 .\.venv\Scripts\python.exe -m pylint --rcfile=pyproject.toml app
 .\.venv\Scripts\python.exe -m djlint app/templates
 npm run spell
+npm run mdlint
 ```
+
+Para **exportar para o agente** o que o terminal ja mede (nao e a aba Problemas): `.\.venv\Scripts\python.exe scripts\dump_agent_diagnostics.py` gera `artifacts/agent-diagnostics.txt` — inclui flake8, pylint, djlint, `npm run spell` e `npm run mdlint`. Anexe no chat com `@artifacts/agent-diagnostics.txt`. Detalhes em `.cursor/rules/linting.mdc`.
 
 A aba Problemas do Cursor reflete tudo isso automaticamente apos `Developer: Reload Window`.
 
@@ -400,7 +421,7 @@ Antes de concluir qualquer tarefa de implementacao neste repositorio:
 - Releia integralmente todos os arquivos alterados apos a ultima edicao.
 - Procure inconsistencias em todo o arquivo relido, estejam elas diretamente ligadas ou nao a alteracao feita.
 - Corrija inconsistencias encontradas na releitura sempre que estiverem no arquivo alterado e puderem afetar eficiencia, estabilidade, legibilidade ou comportamento.
-- Rode os linters da secao "Linting E Formatacao" para os arquivos alterados e deixe a aba Problemas zerada para eles.
+- Execute **`scripts/dump_agent_diagnostics.py`** conforme **`task-completion.mdc`** (relatorio em `artifacts/agent-diagnostics.txt`; corrija ate codigo de saida 0), depois a ferramenta de lints nos ficheiros alterados e deixe a aba Problemas zerada para eles.
 - Execute uma validacao objetiva do que foi afetado: import do app, snippet focado, teste de parser, chamada de endpoint, render de template/PDF ou comando equivalente.
 - Informe na resposta final o que foi alterado e como foi validado.
 

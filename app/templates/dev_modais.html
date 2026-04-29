@@ -1,11 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Prévia modais{% endblock %}
-{% block header %}Prévia de modais{% endblock %}
+{% block title %}Prévia confirmações{% endblock %}
+{% block header %}Prévia de confirmações{% endblock %}
 {% block content %}
   <div class="hero">
-    <h1>Prévia — complementos (processo)</h1>
+    <h1>Prévia — confirmação nativa</h1>
     <p class="subtitle">
-      Cada botão abre o modal de exemplo, em português culto (Brasil), alinhado ao contrato: cabeçalho, mensagem, detalhe, ressalvas e o que fazer. Utilize Entendi, Cancelar ou o clique fora.
+      Os formulários com <code>data-sra-confirm</code> usam <code>window.confirm</code>
+      (<code>sra_process_ui.js</code> / <code>SRAComplementos</code>), sem modal HTML nem
+      endpoint no servidor.
     </p>
     <p class="subtitle">
       <strong>E-mails do ciclo (consolidados):</strong>
@@ -20,134 +22,23 @@
       — opcional: <code>?relatorio_id=N</code> (dados reais do relatório).
     </p>
     <div class="sra-dev-preview-row">
-      <button type="button" class="sra-cpl-ok" data-sra-preview="sra-cpl-confirm">Confirmação</button>
-      <button type="button" class="sra-cpl-ok" data-sra-preview="sra-cpl-track">Acompanhamento</button>
-      <button type="button" class="sra-cpl-ok" data-sra-preview="sra-cpl-status-ok">Status sucesso</button>
-      <button type="button" class="sra-cpl-ok" data-sra-preview="sra-cpl-status-partial">Status ressalvas</button>
-      <button type="button" class="sra-cpl-ok" data-sra-preview="sra-cpl-status-fail">Status falha</button>
+      <button type="button" id="sra-dev-preview-confirm">Simular análise assistida (confirm)</button>
     </div>
+    <p class="subtitle" id="sra-dev-preview-result" aria-live="polite"></p>
   </div>
   <script>
 (function () {
-  function hide(el) {
-    if (el) {
-      el.classList.add("is-hidden");
-    }
-  }
-  function showOne(id) {
-    document.querySelectorAll(".sra-cpl-wrap").forEach(function (n) {
-      n.classList.add("is-hidden");
-    });
-    const t = document.getElementById(id);
-    if (t) {
-      t.classList.remove("is-hidden");
-    }
-  }
-  function setSlot(wrapId, show) {
-    const w = document.getElementById(wrapId);
-    if (!w) {
-      return;
-    }
-    if (show) {
-      w.classList.remove("is-hidden");
-      w.setAttribute("aria-hidden", "false");
-    } else {
-      w.classList.add("is-hidden");
-      w.setAttribute("aria-hidden", "true");
-    }
-  }
-  function applyDemo(anchorId) {
-    if (anchorId === "sra-cpl-confirm") {
-      document.getElementById("sra-cpl-confirm-title").textContent = "Confirmar importação assistida";
-      document.getElementById("sra-cpl-confirm-lead").textContent = "O arquivo DOCX é analisado, os blocos propostos são exibidos para revisão; a gravação ocorre apenas após a confirmação na tela de revisão.";
-      const leadSrc = document.getElementById("sra-cpl-confirm-lead-source");
-      if (leadSrc) {
-        leadSrc.textContent = "";
-        leadSrc.classList.add("is-hidden");
-        leadSrc.setAttribute("aria-hidden", "true");
-      }
-      document.getElementById("sra-cpl-confirm-detail").textContent = "A operação pode levar de segundos a cerca de um minuto, conforme o tamanho do documento. Você pode sair deste passo: nada é gravado enquanto a revisão não for confirmada.";
-      setSlot("sra-cpl-confirm-detail-wrap", true);
-      document.getElementById("sra-cpl-confirm-ask").textContent = "Deseja continuar?";
-    } else if (anchorId === "sra-cpl-track") {
-      document.getElementById("sra-cpl-track-title").textContent = "Acompanhamento do processo";
-      const st = document.getElementById("sra-cpl-track-sub");
-      st.textContent = "importacao_assistida_analise";
-      st.classList.remove("is-hidden");
-      st.setAttribute("aria-hidden", "false");
-      document.getElementById("sra-cpl-now-tarefa").textContent = "Análise de importação";
-      const sw = document.getElementById("sra-cpl-now-sub-wrap");
-      document.getElementById("sra-cpl-now-sub").textContent = "Leitura e interpretação do documento Office";
-      sw.classList.remove("is-hidden");
-      sw.setAttribute("aria-hidden", "false");
-      document.getElementById("sra-cpl-now-msg").textContent =
-        "Extraindo parágrafos, tabelas e figuras, conforme a ordem lógica do ficheiro Word.";
-      document.getElementById("sra-cpl-pct-tarefa").textContent = "64%";
-      document.getElementById("sra-cpl-pct-geral").textContent = "47%";
-      document.getElementById("sra-cpl-bar-tarefa-fill").style.width = "64%";
-      document.getElementById("sra-cpl-bar-geral-fill").style.width = "47%";
-      document.getElementById("sra-cpl-bar-tarefa").setAttribute("aria-valuenow", "64");
-      document.getElementById("sra-cpl-bar-geral").setAttribute("aria-valuenow", "47");
-    } else if (anchorId === "sra-cpl-status-ok") {
-      document.getElementById("sra-cpl-status-ok-title").textContent = "Importação concluída";
-      document.getElementById("sra-cpl-status-ok-message").textContent = "Foram gravados 12 bloco(s) na seção 4.1, conforme a seleção na revisão.";
-      document.getElementById("sra-cpl-status-ok-detail").textContent = "Relatório D20-15, revisão R01. Você pode fechar este aviso e retomar a edição da seção.";
-      setSlot("sra-cpl-status-ok-detail-wrap", true);
-    } else if (anchorId === "sra-cpl-status-partial") {
-      document.getElementById("sra-cpl-status-partial-title").textContent = "Conclusão com ressalvas";
-      document.getElementById("sra-cpl-status-partial-message").textContent = "A maior parte do conteúdo foi convertida em blocos e inserida no relatório.";
-      document.getElementById("sra-cpl-status-partial-detail").textContent = "Dois blocos de tabela deixaram de reproduzir títulos demasiado longos: recomenda-se rever a seção importada, com confronto com o documento de origem.";
-      setSlot("sra-cpl-status-partial-detail-wrap", true);
-    } else if (anchorId === "sra-cpl-status-fail") {
-      document.getElementById("sra-cpl-status-fail-title").textContent = "Operação interrompida";
-      document.getElementById("sra-cpl-status-fail-error").textContent = "A estrutura do arquivo encaminhado não pôde ser lida como documento Office (DOCX) suportado.";
-      document.getElementById("sra-cpl-status-fail-detail").textContent = "A leitura do conteúdo binário falhou: possível corrupção do arquivo, extensão incompatível ou confusão de formato.";
-      document.getElementById("sra-cpl-status-fail-hint").textContent = "Gere de novo o DOCX a partir do Word, ou adote o modelo fornecido; se o conteúdo for apenas texto, utilize o fluxo de arquivo TXT, conforme o manual de importação.";
-      setSlot("sra-cpl-status-fail-detail-wrap", true);
-    }
-  }
-  function wireClose(wrapId, btnIds) {
-    btnIds.forEach(function (bid) {
-      const b = document.getElementById(bid);
-      if (b) {
-        b.addEventListener("click", function () {
-          hide(document.getElementById(wrapId));
-        });
-      }
-    });
-  }
-  document.querySelectorAll("[data-sra-preview]").forEach(function (btn) {
+  var btn = document.getElementById("sra-dev-preview-confirm");
+  var out = document.getElementById("sra-dev-preview-result");
+  if (btn && window.SRAComplementos) {
     btn.addEventListener("click", function () {
-      const id = btn.getAttribute("data-sra-preview");
-      applyDemo(id);
-      showOne(id);
-    });
-  });
-  wireClose("sra-cpl-confirm", ["sra-cpl-confirm-ok", "sra-cpl-confirm-cancel"]);
-  wireClose("sra-cpl-track", ["sra-cpl-track-close"]);
-  wireClose("sra-cpl-status-ok", ["sra-cpl-status-ok-btn"]);
-  wireClose("sra-cpl-status-partial", ["sra-cpl-status-partial-btn"]);
-  wireClose("sra-cpl-status-fail", ["sra-cpl-status-fail-btn"]);
-  document.getElementById("sra-cpl-confirm").addEventListener("click", function (e) {
-    if (e.target.id === "sra-cpl-confirm") {
-      hide(e.currentTarget);
-    }
-  });
-  document.getElementById("sra-cpl-track").addEventListener("click", function (e) {
-    if (e.target.id === "sra-cpl-track") {
-      hide(e.currentTarget);
-    }
-  });
-  ["sra-cpl-status-ok", "sra-cpl-status-partial", "sra-cpl-status-fail"].forEach(function (rid) {
-    const node = document.getElementById(rid);
-    if (node) {
-      node.addEventListener("click", function (e) {
-        if (e.target === node) {
-          hide(node);
+      window.SRAComplementos.confirmarComChave("importacao_assistida_analise").then(function (sim) {
+        if (out) {
+          out.textContent = sim ? "Utilizador confirmou (OK)." : "Utilizador cancelou.";
         }
       });
-    }
-  });
+    });
+  }
 })();
   </script>
 {% endblock %}

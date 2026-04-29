@@ -1,5 +1,5 @@
 ---
-description: Checklist obrigatorio ao final de toda tarefa — aba Problemas e releitura integral dos arquivos alterados
+description: Checklist de encerramento — diagnostico agregado, lints, releitura integral
 alwaysApply: true
 ---
 
@@ -7,16 +7,28 @@ alwaysApply: true
 
 ## Limite real (transparencia)
 
-O agente **nao enxerga** a sua aba **Problemas** nem o estado exato do seu IDE. O que o agente ve e: saida de terminal (flake8, pylint, djlint, spell, etc.) e **diagnosticos que o Cursor expoe a ferramenta de leitura de lints do agente** nos caminhos pedidos — isso **pode divergir** do que voce ve (filtros, arquivos nao salvos, extensoes, cache). Sem alinhar essas duas frentes, o humano e o agente falam de “zero problemas” com significados diferentes.
+O agente **nao enxerga** a sua aba **Problemas** nem o estado exato do seu IDE. O que o agente ve e: saida de terminal (incluindo o relatorio de `scripts/dump_agent_diagnostics.py`), **diagnosticos que o Cursor expoe a ferramenta de leitura de lints do agente** nos caminhos pedidos — isso **pode divergir** do que voce ve (filtros, ficheiros nao gravados, extensoes, cache). Sem alinhar essas frentes, humano e agente falam de "zero problemas" com significados diferentes.
 
 ## Antes de considerar a tarefa concluida
 
-1. **Paridade terminal + IDE (obrigatorio)** — Para **cada arquivo alterado nesta tarefa**:
-   - **Python:** `flake8` e `pylint` nesse arquivo (comandos em `linting.mdc`).
-   - **Template `app/templates/**/*.html` alterado:** incluir esse arquivo no `djlint` (pasta ou arquivo) conforme `linting.mdc`.
-   - **Diagnostico do workspace:** invocar a **ferramenta de leitura de lints do agente** nos mesmos caminhos alterados. Se ela reportar algo, corrigir antes de encerrar.
-   - **Spell:** `npm run spell` quando houver mudanca em texto/codigo coberto pelo `cspell.json`.
-2. **Aba Problemas (lado humano)** — O objetivo e o mesmo conjunto de avisos que **voce** ve: **zerar** notificacoes nos arquivos tocados. Se, apos os passos acima, **voce** ainda vir avisos, **nao** declare a tarefa limpa: peca ao usuario a lista (arquivo + mensagem) ou corrija ate alinhar.
-3. **Releitura integral** — **Leia na integra**, do inicio ao fim, **cada arquivo que voce modificou** apos a ultima edicao. Corrija inconsistencias (logica, estilo do projeto, imports, templates, duplicacao, comentarios obsoletos no trecho tocado, etc.).
+1. **Relatorio agregado (obrigatorio)** — Na raiz do repositorio, executar:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\dump_agent_diagnostics.py --paths …
+   ```
+
+   - Coloque em `--paths` **todos** os ficheiros `.py` e `.html` que **alterou nesta tarefa** (caminhos relativos ao repo). Se omitir um `.html` alterado, o `djlint` **nao** corre sobre ele — liste todos os tocados ou, em duvida, execute **sem** `--paths` (varredura em `app/` e `app/templates`; mais lenta).
+   - **Leia** `artifacts/agent-diagnostics.txt` apos cada execucao e **corrija** o que flake8, pylint, djlint e cspell apontarem.
+   - **Repita** ate o comando terminar com **codigo de saida 0**. **Nao** use
+     `--no-pylint`, `--no-djlint`, `--no-spell` nem `--no-markdownlint` no
+     encerramento salvo ordem explicita do utilizador ou evidencia documentada na
+     resposta final de que uma ferramenta **nao esta disponivel** no ambiente.
+2. **Diagnostico do IDE (obrigatorio)** — Invocar a **ferramenta de leitura de lints do agente** nos caminhos alterados. Corrigir o que aparecer e que o passo 1 nao cubra (ex.: Pylance).
+3. **Aba Problemas (lado humano)** — Objetivo: **zerar** avisos nos ficheiros tocados. Se, apos os passos acima, **voce** ainda vir problemas, **nao** declare a tarefa limpa: peca ao usuario a lista (arquivo + mensagem) ou corrija ate alinhar.
+4. **Releitura integral** — **Leia na integra** cada ficheiro que modificou apos a ultima edicao.
+
+O passo 1 **substitui** no encerramento a obrigatoriedade de correr `flake8`/`pylint`/`djlint`/`npm run spell` **separadamente** para cada ficheiro (o script ja os orquestra). Durante o trabalho, comandos por ficheiro em `linting.mdc` continuam uteis para feedback imediato.
+
+O relatorio do script **inclui** `npm run mdlint` (markdownlint em `.cursor/**/*.mdc`), alinhado a extensao markdownlint do editor quando este usa `.markdownlint.json` na raiz.
 
 **Escopo desta regra:** com `alwaysApply: true`, aplica-se a **todos os agentes de IA neste workspace**. Para o mesmo habito em **outros repositorios**, replique estes itens em **Cursor Settings** — regras de usuario para IA (configuracao global do Cursor).

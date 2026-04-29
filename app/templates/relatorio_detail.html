@@ -92,24 +92,12 @@
               <td>
                 <div class="td-actions">
                   <a
-                    href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}"
-                    class="link-quiet"
-                    title="Editar seção {{ s.numero }}"
-                    aria-label="Editar seção {{ s.numero }}"
-                    >✎</a
-                  >
-                  <a
                     href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo"
                     class="link-quiet"
-                    title="Upload e importação em {{ s.numero }}"
-                    aria-label="Upload e importação em {{ s.numero }}"
+                    title="Gerenciador e editor de seção e upload — {{ s.numero }}"
+                    aria-label="Gerenciador e editor de seção e upload — {{ s.numero }}"
+                    >✎</a
                   >
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </a>
                   {% if user.role in ['admin','coordenador'] and rel.status != 'finalizado' %}
                     <button
                       type="button"
@@ -297,8 +285,8 @@
           <div class="preview-zoom-inner" id="rel-sum-preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="/relatorios/{{ rel.id }}/pdf?embed=1"
-              data-src="/relatorios/{{ rel.id }}/pdf?embed=1"
+              src="/relatorios/{{ rel.id }}/pdf"
+              data-src="/relatorios/{{ rel.id }}/pdf"
               class="preview-frame"
               title="Pré-visualização do relatório em PDF"
             ></iframe>
@@ -308,7 +296,6 @@
     </section>
   </aside>
 </div>
-{% include "complementos/painel_logs_servidor.html" %}
 <script>
   (function () {
     var inner = document.getElementById("rel-sum-preview-zoom-inner");

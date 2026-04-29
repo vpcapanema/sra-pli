@@ -9,8 +9,11 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/css/app.css" />
     {% if user %}
-      <script src="/static/js/sra_live_log.js"></script>
-      <script src="/static/js/sra_process_runtime.js"></script>
+      <script>
+        window.__SRA_CONSOLE_VERBOSE__ = {{ 'true' if sra_console_verbose else 'false' }};
+      </script>
+      <script src="/static/js/sra_log.js"></script>
+      <script src="/static/js/sra_auth_fetch.js"></script>
       <script src="/static/js/sra_process_ui.js"></script>
     {% endif %}
   </head>
@@ -28,8 +31,10 @@
         <nav>
           <span class="sb-sep">Navegação</span>
           {% set _path = request.url.path %}
-          {% set _on_rel = _path == '/dashboard' or (_path.startswith('/relatorios') and not _path.endswith('/upload-conteudo')) %}
-          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') %}
+          {% set _parts_hub = _path.strip('/').split('/') %}
+          {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
+          {% set _on_rel = (_path == '/dashboard' or (_path.startswith('/relatorios') and not _path.endswith('/upload-conteudo'))) and not _relatorio_sumario %}
+          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') or _relatorio_sumario %}
           {% set _on_usu = _path.startswith('/usuarios') %}
           {% set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %}
           {% set _open_rel = 'open' if _on_rel else '' %}
@@ -52,7 +57,7 @@
           {% endif %}
           <details class="{{ _cls_upload }}" {{ _open_upload }}>
             <summary class="ni ni-toggle">
-              <span class="num">02</span><span class="nlbl">Upload conteúdo</span>
+              <span class="num">02</span><span class="nlbl">Gerenciamento de seção e upload</span>
               <span class="ni-caret" aria-hidden="true">▾</span>
             </summary>
             <div class="ni-sub">
@@ -75,7 +80,7 @@
                 <a class="ni-sub-link" href="/usuarios">Página inicial</a>
                 <a class="ni-sub-link" href="/usuarios#ss-novo-usuario">Novo usuário</a>
                 <a class="ni-sub-link" href="/usuarios#ss-equipe">Equipe cadastrada</a>
-                <a class="ni-sub-link" href="/usuarios/registro-atividade">Registro do servidor (tempo real)</a>
+                <a class="ni-sub-link" href="/usuarios/registro-atividade">Registro do servidor</a>
               </div>
             </details>
           {% endif %}
@@ -113,19 +118,24 @@
               </a>
             {% endif %}
           {% endmacro %}
-          {% set _arvore = rel.secoes | secoes_arvore((sec.numero if sec is defined and sec else None)) %}
-          <nav class="sb-painel">
+          {% set _arvore = rel.secoes | secoes_arvore((sec.numero if sec is defined and sec else None), false) %}
+          <nav class="sb-painel" aria-label="Painel de seções do relatório">
             <span class="sb-sep">Painel de seções</span>
-            <div class="sb-painel-meta">
-              <span class="sb-painel-cod">{{ rel.codigo }}</span>
-              <span class="sb-painel-mes">{{ rel.mes_referencia }}</span>
-            </div>
-            <div class="sb-painel-arvore" aria-label="Árvore de seções do relatório">
-              {% for no in _arvore %}{{ render_no_secao(no, rel) }}{% endfor %}
-              {% if not _arvore %}
-                <p class="sb-painel-vazio">Sem seções cadastradas.</p>
-              {% endif %}
-            </div>
+            <details class="ni-grp sb-painel-relatorio">
+              <summary class="ni ni-toggle sb-painel-relatorio-sum" title="{{ rel.codigo }} · {{ rel.mes_referencia }}">
+                <span class="sb-painel-relatorio-head">
+                  <span class="sb-painel-cod">{{ rel.codigo }}</span>
+                  <span class="sb-painel-mes">{{ rel.mes_referencia }}</span>
+                </span>
+                <span class="ni-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ni-sub sb-painel-arvore" aria-label="Árvore de seções">
+                {% for no in _arvore %}{{ render_no_secao(no, rel) }}{% endfor %}
+                {% if not _arvore %}
+                  <p class="sb-painel-vazio">Sem seções cadastradas.</p>
+                {% endif %}
+              </div>
+            </details>
           </nav>
         {% endif %}
         <div id="sb-foot">
@@ -153,40 +163,12 @@
           {% block content %}{% endblock %}
         </div>
       </div>
-      <div id="process-toasts" class="process-toasts" aria-live="polite"></div>
-      {% include "complementos/modal_processo_confirmacao.html" %}
-      {% include "complementos/modal_processo_acompanhamento.html" %}
-      {% include "complementos/modal_status_sucesso.html" %}
-      {% include "complementos/modal_status_ressalvas.html" %}
-      {% include "complementos/modal_status_falha.html" %}
     {% else %}
       <div id="auth-wrap">
         {% block auth %}{% endblock %}
       </div>
     {% endif %}
     {% if user %}
-      {% if sra_fim_pendente is defined and sra_fim_pendente %}
-        <script id="sra-fim-pendente-data" type="application/json">{{ sra_fim_pendente | tojson }}</script>
-        <script>
-(function () {
-  if (!window.SRAProcess || typeof window.SRAProcess.mostrarFimAposRedirect !== 'function') {
-    return;
-  }
-  var node = document.getElementById('sra-fim-pendente-data');
-  if (!node) {
-    return;
-  }
-  try {
-    var payload = JSON.parse(node.textContent || 'null');
-    if (payload) {
-      window.SRAProcess.mostrarFimAposRedirect(payload);
-    }
-  } catch (err) {
-    /* payload inválido — nada a fazer */
-  }
-})();
-        </script>
-      {% endif %}
       <script>
 (function(){
   function initExportTree(container) {

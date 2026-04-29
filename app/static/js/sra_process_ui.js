@@ -1,44 +1,145 @@
 /**
- * Complementos SRA: modal de confirmação reutilizável e integração com GET /processos/fluxo-confirmacao/{chave}.
- * Depende dos elementos sra-cpl-confirm* em base.html e de window.SRAProcess (sra_process_runtime.js, carregado antes).
+ * Confirmações destrutivas ou longas via window.confirm (sem modal HTML nem API).
+ * Textos equivalentes ao antigo fluxo por chave.
  */
 (function () {
   "use strict";
 
-  var PENDING = null;
-  /** Atributo HTML para o segundo passo do submit (evita reabrir o modal). */
   var SKIP = "data-sra-confirm-skip";
 
-  function byId(id) {
-    return document.getElementById(id);
-  }
+  var FLUXO = {
+    importacao_assistida_analise: {
+      title: "Confirmar análise assistida",
+      lead:
+        "O ficheiro TXT ou DOCX é analisado; os blocos propostos serão exibidos para revisão. " +
+        "Nada é gravado no relatório neste passo.",
+      detail:
+        "A duração depende do tamanho do documento (típico: segundos a cerca de um minuto). " +
+        "Mantém-se a sessão; pode sair de Importar conteúdo sem perder a revisão, desde que não confirme a gravação.",
+      ask: "Iniciar a análise do ficheiro selecionado?",
+      show_detail: true,
+    },
+    importacao_assistida_confirmar: {
+      title: "Confirmar gravação da importação",
+      lead:
+        "Os blocos selecionados serão inseridos no relatório em transação única, com eventuais ajustes de secções, " +
+        "quando a estrutura o exigir.",
+      detail: "Operação de escrita: verifique a lista de revisão antes de continuar.",
+      ask: "Gravar no relatório os blocos selecionados?",
+      show_detail: true,
+    },
+    relatorio_criar: {
+      title: "Confirmar criação do relatório",
+      lead:
+        "Será criado um novo D20 com as secções de acordo com a fonte de sumário indicada:",
+      detail: "Após a criação, o código não poderá ser alterado; a versão inicia em R00.",
+      ask: "Criar o relatório com estes parâmetros?",
+      show_detail: true,
+    },
+    exportar_relatorio: {
+      title: "Confirmar exportação",
+      lead:
+        "Gera-se o ficheiro (PDF ou DOCX) a partir do conteúdo atual do relatório, segundo o âmbito escolhido.",
+      detail:
+        "O processo pode levar de alguns segundos a minutos, conforme o volume. O download abre noutro separador.",
+      ask: "Iniciar a exportação?",
+      show_detail: true,
+    },
+    relatorio_excluir: {
+      title: "Confirmar exclusão do relatório",
+      lead:
+        "O relatório e os dados associados serão removidos de forma definitiva. Esta ação não pode ser desfeita.",
+      detail: "",
+      ask: "Excluir definitivamente este relatório?",
+      show_detail: false,
+    },
+    secao_excluir: {
+      title: "Confirmar exclusão da secção",
+      lead:
+        "A subsecção e todos os respetivos blocos serão removidos. Esta ação não se pode anular de forma simples no sistema.",
+      detail: "",
+      ask: "Excluir definitivamente esta secção e o seu conteúdo?",
+      show_detail: false,
+    },
+    bloco_confirmar: {
+      title: "Confirmar e bloquear bloco",
+      lead:
+        "O bloco deixa de ser editável, passando a estado bloqueado para revisão, conforme o fluxo de coordenação.",
+      detail: "",
+      ask: "Bloquear este bloco para revisão?",
+      show_detail: false,
+    },
+    bloco_excluir: {
+      title: "Confirmar exclusão do bloco",
+      lead:
+        "O bloco será removido de forma definitiva. Contagens e numeração podem ser ajustadas automaticamente após a exclusão.",
+      detail: "",
+      ask: "Excluir permanentemente este bloco?",
+      show_detail: false,
+    },
+    blocos_lote_excluir: {
+      title: "Confirmar exclusão em lote",
+      lead: "Os blocos selecionados serão excluídos. Verifique a seleção no quadro de blocos.",
+      detail: "",
+      ask: "Excluir definitivamente os blocos selecionados?",
+      show_detail: false,
+    },
+    blocos_lote_aprovar: {
+      title: "Confirmar aprovação em lote",
+      lead:
+        "Os blocos selecionados serão bloqueados para revisão, em sequência, uma única operação de escrita na base.",
+      detail: "",
+      ask: "Bloquear os blocos selecionados para revisão?",
+      show_detail: false,
+    },
+  };
 
-  function setText(id, value) {
-    var el = byId(id);
-    if (el) el.textContent = value != null ? String(value) : "";
-  }
-
-  function setLeadSourceLine(value) {
-    var el = byId("sra-cpl-confirm-lead-source");
-    if (!el) {
-      return;
+  function basePayload(chave) {
+    var row = FLUXO[chave];
+    if (!row) {
+      return {
+        title: "Confirmar",
+        lead: "Deseja continuar?",
+        detail: "",
+        ask: "Continuar?",
+        show_detail: false,
+      };
     }
-    var t = value != null ? String(value).trim() : "";
-    if (!t) {
-      el.textContent = "";
-      el.classList.add("is-hidden");
-      el.setAttribute("aria-hidden", "true");
-      return;
-    }
-    el.textContent = "";
-    var s = document.createElement("strong");
-    s.textContent = t;
-    el.appendChild(s);
-    el.classList.remove("is-hidden");
-    el.setAttribute("aria-hidden", "false");
+    return {
+      title: row.title || "Confirmar",
+      lead: row.lead || "",
+      detail: row.detail || "",
+      ask: row.ask || "Deseja continuar?",
+      show_detail: Boolean(row.show_detail && String(row.detail || "").trim()),
+    };
   }
 
-  /** Resumo legível da fonte de sumário (dashboard — novo relatório). */
+  function mergePayload(base, ov) {
+    if (!ov) {
+      return base;
+    }
+    var out = {
+      title: ov.title || base.title,
+      lead: ov.lead || base.lead,
+      detail:
+        ov.detail != null && String(ov.detail).length ? ov.detail : base.detail,
+      ask: ov.ask || base.ask,
+      show_detail:
+        ov.show_detail === true || ov.show_detail === false
+          ? ov.show_detail
+          : base.show_detail,
+    };
+    if ((out.detail || "").trim().length > 0) {
+      out.show_detail = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(ov, "source_line")) {
+      out.source_line = ov.source_line;
+    } else if (base && Object.prototype.hasOwnProperty.call(base, "source_line")) {
+      out.source_line = base.source_line;
+    }
+    return out;
+  }
+
   function relatorioCriarSourceLine(form) {
     var r = form.querySelector('input[name="fonte_secoes"]:checked');
     if (!r) {
@@ -63,168 +164,55 @@
     return "";
   }
 
-  function setDetailVisible(show) {
-    var wrap = byId("sra-cpl-confirm-detail-wrap");
-    var d = byId("sra-cpl-confirm-detail");
-    if (!wrap) return;
-    wrap.classList.toggle("is-hidden", !show);
-    wrap.setAttribute("aria-hidden", show ? "false" : "true");
-    if (d && !show) d.textContent = "";
-  }
-
-  function abrirComPayload(payload) {
-    var p = payload || {};
-    setText("sra-cpl-confirm-title", p.title || "Confirmar");
-    setText("sra-cpl-confirm-lead", p.lead || "");
-    if (Object.prototype.hasOwnProperty.call(p, "source_line")) {
-      setLeadSourceLine(p.source_line);
-    } else {
-      setLeadSourceLine("");
+  function buildConfirmText(p) {
+    var parts = [];
+    if (p.title) {
+      parts.push(p.title);
     }
-    setText("sra-cpl-confirm-detail", p.detail || "");
-    setText("sra-cpl-ask", p.ask || "Deseja continuar?");
-    setDetailVisible(Boolean(p.show_detail) && (p.detail || "").trim().length > 0);
-    var w = byId("sra-cpl-confirm");
-    if (w) w.classList.remove("is-hidden");
-  }
-
-  function fecharConfirm() {
-    var w = byId("sra-cpl-confirm");
-    if (w) w.classList.add("is-hidden");
-  }
-
-  function mergePayload(base, ov) {
-    if (!ov) return base;
-    var out = {};
-    out.title = ov.title || base.title;
-    out.lead = ov.lead || base.lead;
-    out.detail = ov.detail != null && String(ov.detail).length ? ov.detail : base.detail;
-    out.ask = ov.ask || base.ask;
-    var sd = ov.show_detail;
-    if (sd === true || sd === false) {
-      out.show_detail = sd;
-    } else {
-      out.show_detail = base.show_detail;
+    var lead = p.lead || "";
+    if (Object.prototype.hasOwnProperty.call(p, "source_line") && p.source_line) {
+      lead = lead + "\n\n" + p.source_line;
     }
-    if ((out.detail || "").trim().length > 0) {
-      out.show_detail = true;
+    if (lead.trim()) {
+      parts.push(lead.trim());
     }
-    if (Object.prototype.hasOwnProperty.call(ov, "source_line")) {
-      out.source_line = ov.source_line;
-    } else if (base && Object.prototype.hasOwnProperty.call(base, "source_line")) {
-      out.source_line = base.source_line;
+    if (p.show_detail && (p.detail || "").trim()) {
+      parts.push("Detalhe: " + String(p.detail).trim());
     }
-    return out;
+    parts.push(p.ask || "Deseja continuar?");
+    return parts.join("\n\n");
   }
 
   function carregarChave(chave) {
-    return fetch("/processos/fluxo-confirmacao/" + encodeURIComponent(chave), {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    }).then(function (r) {
-      if (!r.ok) return Promise.reject(new Error("Fluxo desconhecido"));
-      return r.json();
-    });
+    return Promise.resolve(mergePayload(basePayload(chave), null));
   }
 
   function confirmarComChave(chave, override) {
-    return carregarChave(chave)
-      .then(function (j) {
-        return abrirDireto(mergePayload(j, override));
-      })
-      .catch(function () {
-        return abrirDireto(
-          mergePayload(
-            {
-              title: "Confirmar",
-              lead: "Não foi possível carregar o texto deste passo. Deseja continuar?",
-              ask: "Continuar?",
-              show_detail: false,
-            },
-            override
-          )
-        );
-      });
+    var p = mergePayload(basePayload(chave), override || null);
+    return Promise.resolve(window.confirm(buildConfirmText(p)));
   }
 
   function abrirDireto(p) {
-    return new Promise(function (resolve) {
-      PENDING = { resolve: resolve };
-      abrirComPayload(p);
-    });
+    return Promise.resolve(window.confirm(buildConfirmText(p || {})));
   }
 
-  function onCancel() {
-    fecharConfirm();
-    if (
-      window.SRAProcess &&
-      typeof window.SRAProcess.hideTrack === "function"
-    ) {
-      window.SRAProcess.hideTrack();
-    }
-    if (PENDING) {
-      PENDING.resolve(false);
-      PENDING = null;
-    }
-  }
-
-  function onOk() {
-    fecharConfirm();
-    if (PENDING) {
-      PENDING.resolve(true);
-      PENDING = null;
-    }
-  }
-
-  function initBotoesModal() {
-    var ok = byId("sra-cpl-confirm-ok");
-    var c = byId("sra-cpl-confirm-cancel");
-    if (ok && !ok.dataset.sraWired) {
-      ok.dataset.sraWired = "1";
-      ok.addEventListener("click", onOk);
-    }
-    if (c && !c.dataset.sraWired) {
-      c.dataset.sraWired = "1";
-      c.addEventListener("click", onCancel);
-    }
-    var wrap = byId("sra-cpl-confirm");
-    if (wrap && !wrap.dataset.sraWired) {
-      wrap.dataset.sraWired = "1";
-      wrap.addEventListener("click", function (e) {
-        if (e.target === wrap) onCancel();
-      });
-    }
-  }
+  function fecharConfirm() {}
 
   function initDataConfirmForms() {
     document.querySelectorAll("form[data-sra-confirm]").forEach(function (form) {
-      if (form.dataset.sraWired) return;
+      if (form.dataset.sraWired) {
+        return;
+      }
       form.dataset.sraWired = "1";
-      form.addEventListener(
-        "submit",
-        function () {
-          if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
-            return;
-          }
-          var ch0 = form.getAttribute("data-sra-confirm");
-          if (!ch0) return;
-          if (
-            form.getAttribute("data-sra-iniciar-acompanhamento") === "1" &&
-            window.SRAProcess &&
-            typeof window.SRAProcess.openTrackPendente === "function"
-          ) {
-            window.SRAProcess.openTrackPendente({ chave: ch0 });
-          }
-        },
-        true
-      );
       form.addEventListener("submit", function (e) {
         if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
           form.removeAttribute(SKIP);
           return;
         }
         var ch = form.getAttribute("data-sra-confirm");
-        if (!ch) return;
+        if (!ch) {
+          return;
+        }
         e.preventDefault();
         var ov = {
           title: form.getAttribute("data-sra-title"),
@@ -244,17 +232,21 @@
           }
         });
         confirmarComChave(ch, ov).then(function (sim) {
-          if (!sim) return;
+          if (!sim) {
+            return;
+          }
           form.setAttribute(SKIP, "1");
-          if (form.requestSubmit) form.requestSubmit();
-          else form.submit();
+          if (form.requestSubmit) {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
         });
       });
     });
   }
 
   function init() {
-    initBotoesModal();
     initDataConfirmForms();
   }
 

@@ -13,7 +13,7 @@ Fluxo existente na tela de secao/importacao — nao redesenhar a aplicacao do ze
 ## Contexto Do Codigo Atual
 
 - Importador principal: `app/routes/importacao.py`.
-- Interface: `app/templates/secao_edit.html`.
+- Interface: `app/templates/secao_edit_conteudo_upload.html`.
 - Fluxo atual: aceita `.txt` e `.docx`, analisa, retorna blocos para revisao, persiste apos confirmacao; DOCX pode criar `Figura` quando houver imagem embutida.
 
 ## Objetivo
@@ -29,7 +29,7 @@ Melhorar extracao, reconhecimento de estruturas e alocacao em secoes/blocos/grup
 ## Prioridade De Arquivos
 
 - `app/routes/importacao.py`
-- `app/templates/secao_edit.html`
+- `app/templates/secao_edit_conteudo_upload.html`
 - `app/models.py`, `app/pdf_render.py`, `app/templates/pdf/relatorio.html`, `.cursor/project-instructions.md`
 
 ## Diretrizes Tecnicas

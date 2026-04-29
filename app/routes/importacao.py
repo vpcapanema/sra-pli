@@ -1,5 +1,6 @@
-# pylint: disable=protected-access,too-many-lines
+# pylint: disable=protected-access,too-many-lines,too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
 import base64
+from collections import Counter
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 import re
@@ -19,7 +20,6 @@ from ..db import get_db, tx_session
 from ..list_lines import block_is_homogeneous_list, line_is_list_item, list_line_body
 from ..models import Bloco, Figura, Secao, User
 from ..numeracao import consolidar_referencias
-from ..process_events import process_done, process_log, process_start
 
 router = APIRouter(
     prefix="/relatorios/{rel_id}/secoes/{sec_id}/importar",
@@ -920,87 +920,20 @@ async def analisar_importacao(
     db: Session = Depends(get_db),
 ):
     _check(request, db, rel_id, sec_id)
-    nome = arquivo.filename or ""
-    process_id = process_start(
-        request,
-        "Importação assistida",
-        f"Análise do arquivo {nome or 'enviado'}; em seguida o conteúdo proposto aparece para revisão.",
-        data={"process_key": "importacao_assistida_analise"},
-    )
     raw = await arquivo.read()
     if len(raw) > 5_000_000:
-        process_done(
-            request,
-            process_id,
-            "Arquivo recusado",
-            "Arquivo muito grande para importação assistida.",
-            ok=False,
-            process_key="importacao_assistida_analise",
-        )
         raise HTTPException(400, detail="Arquivo muito grande para importação assistida.")
-    if nome.lower().endswith(".docx"):
-        process_log(
-            request,
-            process_id,
-            "Extraem-se parágrafos, tabelas e imagens do ficheiro Word, segundo a organização do documento.",
-            etapa="Leitura e interpretação do documento Office",
-            tarefa="Importação assistida",
-            progresso_tarefa=50,
-            progresso_geral=42,
-        )
+    nome = (arquivo.filename or "").lower()
+    if nome.endswith(".docx"):
         blocks = _parse_docx(raw, db, rel_id, sec_id)
-        process_log(
-            request,
-            process_id,
-            (
-                "Análise concluída. Confirme a importação para gravar; em seguida o painel recarrega e a "
-                "pré-visualização PDF incorporada mostra o relatório atualizado — integrado a esta rotina, "
-                "sem um segundo processo ao carregar o PDF lateral."
-            ),
-            etapa="Pré-visualização PDF",
-            tarefa="Importação assistida",
-            progresso_tarefa=96,
-            progresso_geral=88,
-        )
-        process_done(
-            request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
-        )
         return JSONResponse({"blocks": blocks, "total": len(blocks)})
-    if nome.lower().endswith(".txt"):
-        process_log(
-            request,
-            process_id,
-            "O texto é lido, é normalizado e é repartido em blocos, associados, quando cabível, às seções abertas.",
-            etapa="Tratamento do ficheiro de texto",
-            tarefa="Importação assistida",
-            progresso_tarefa=55,
-            progresso_geral=48,
-        )
+    if nome.endswith(".txt"):
         try:
             texto = raw.decode("utf-8-sig")
         except UnicodeDecodeError:
             texto = raw.decode("latin-1")
         blocks = _parse_import_text(texto, db, rel_id, sec_id)
-        process_log(
-            request,
-            process_id,
-            (
-                "Análise concluída. Confirme a importação para gravar; em seguida o painel recarrega e a "
-                "pré-visualização PDF incorporada mostra o relatório atualizado — integrado a esta rotina, "
-                "sem um segundo processo ao carregar o PDF lateral."
-            ),
-            etapa="Pré-visualização PDF",
-            tarefa="Importação assistida",
-            progresso_tarefa=96,
-            progresso_geral=88,
-        )
-        process_done(
-            request, process_id, "Análise concluída", f"{len(blocks)} bloco(s) detectado(s).", process_key="importacao_assistida_analise"
-        )
         return JSONResponse({"blocks": blocks, "total": len(blocks)})
-    process_done(
-        request, process_id, "Arquivo recusado", "Formato inválido para importação.", ok=False, process_key="importacao_assistida_analise"
-    )
     raise HTTPException(400, detail="Envie um arquivo .txt ou .docx.")
 
 
@@ -1032,13 +965,7 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
     user, sec_atual = _check(request, db, rel_id, sec_id)
     payload = await request.json()
     blocks = payload.get("blocks") or []
-    process_id = process_start(
-        request,
-        "Importação assistida",
-        "Conferência dos blocos selecionados, gravação no relatório e alinhamento da pré-visualização PDF.",
-        data={"process_key": "importacao_assistida_confirmar"},
-    )
-    selected_items = [item for item in blocks if item.get("selecionado", True)]
+    selected_items = [item for item in blocks if item.get("selecionado") is not False]
 
     structural_keys: set[tuple[str, str]] = set()
     created = 0
@@ -1078,19 +1005,8 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
         ordens: dict[int, int] = {}
         for secao_id, ordem_atual in ordem_rows:
             ordens[secao_id] = max(ordens.get(secao_id, 0), (ordem_atual or -1) + 1)
-        process_log(
-            request,
-            process_id,
-            f"Validam-se regras e alocam-se {len(selected_items)} bloco(s) selecionado(s) antes de qualquer inserção na base; eventuais ajustes de seções ocorrem nesta fase.",
-            etapa="Validação da seleção e preparação",
-            tarefa="Importação assistida",
-            progresso_tarefa=15,
-            progresso_geral=18,
-        )
 
-        n_blocos = len(resolved_items)
-        g_marca = -1
-        for idx, (item, sec) in enumerate(resolved_items):
+        for item, sec in resolved_items:
             tipo = (item.get("tipo") or "texto").strip().lower()
             if tipo not in VALID_TYPES:
                 tipo = "texto"
@@ -1129,44 +1045,29 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
             if sec.status == "pendente":
                 sec.status = "em_andamento"
             created += 1
-            if n_blocos:
-                t_pct = 16 + int(round(83 * (idx + 1) / n_blocos))
-                g_pct = 20 + int(round(78 * (idx + 1) / n_blocos))
-                t_pct = min(99, max(1, t_pct))
-                g_pct = min(99, max(1, g_pct))
-                marca = (idx + 1) * 100 // n_blocos
-                if marca != g_marca or idx == 0 or idx == n_blocos - 1:
-                    g_marca = marca
-                    process_log(
-                        request,
-                        process_id,
-                        f"Grava-se o bloco {idx + 1} de {n_blocos} e consolidam-se referências na secção.",
-                        etapa="Gravação de blocos",
-                        tarefa="Importação assistida",
-                        progresso_tarefa=t_pct,
-                        progresso_geral=g_pct,
-                    )
+
+        counts = Counter(sec.id for _, sec in resolved_items)
+        por_secao_rows = []
+        for sid in sorted(counts.keys()):
+            row_sec = txdb.get(Secao, sid)
+            if row_sec:
+                por_secao_rows.append(
+                    {
+                        "secao_id": sid,
+                        "numero": row_sec.numero,
+                        "titulo": row_sec.titulo,
+                        "inseridos": counts[sid],
+                    }
+                )
 
         txdb.flush()
         _finalizar_persistencia_importacao(txdb, rel_id)
 
-    detalhe = f"{created} bloco(s) criado(s)."
     structural_changes = len(structural_keys)
-    if structural_changes:
-        detalhe += f" {structural_changes} ajuste(s) de seção aplicado(s)."
-    process_log(
-        request,
-        process_id,
-        (
-            "Gravação concluída; ao recarregar o painel, o PDF incorporado atualiza sem iniciar "
-            "outro acompanhamento de processo apenas por esse pedido."
-        ),
-        etapa="Pré-visualização PDF",
-        tarefa="Importação assistida",
-        progresso_tarefa=97,
-        progresso_geral=96,
+    return JSONResponse(
+        {
+            "created": created,
+            "section_changes": structural_changes,
+            "por_secao": por_secao_rows,
+        }
     )
-    process_done(
-        request, process_id, "Importação concluída", detalhe, process_key="importacao_assistida_confirmar"
-    )
-    return JSONResponse({"created": created, "section_changes": structural_changes})

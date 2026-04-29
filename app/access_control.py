@@ -1,4 +1,4 @@
-"""Restrições de rota por perfil (ex.: autor só no fluxo de upload de conteúdo)."""
+"""Restrições de rota por perfil (ex.: autor só no fluxo de gerenciamento de seção e upload)."""
 
 from __future__ import annotations
 
@@ -10,16 +10,15 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from .db import SessionLocal
 from .models import User
 
-# Rotas necessárias ao painel `upload-conteudo`, `modelos-word-importacao` e suporte (PDF, SSE, figuras, blocos).
+# Rotas necessárias ao hub `/relatorios/{id}`, `upload-conteudo`, `modelos-word-importacao` e suporte.
 _AUTOR_PATH_RES: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p)
     for p in (
         r"^/$",
         r"^/painel-upload$",
+        r"^/relatorios/\d+$",
         r"^/modelos-word-importacao$",
         r"^/modelos-word-importacao/baixar/.+$",
-        r"^/processos/eventos$",
-        r"^/processos/fluxo-confirmacao/[^/]+$",
         r"^/relatorios/\d+/secoes/\d+/upload-conteudo$",
         r"^/relatorios/\d+/secoes/\d+/responsavel$",
         r"^/relatorios/\d+/secoes/\d+/status$",
@@ -63,7 +62,7 @@ def _accept_prefers_json(scope: Scope) -> bool:
 
 
 class SraAutorRouteGuardMiddleware:
-    """Bloqueia autores fora do conjunto de URLs do painel de upload (e APIs usadas por ele)."""
+    """Bloqueia autores fora do conjunto de URLs de gerenciamento de seção e upload."""
 
     def __init__(self, asgi_app: ASGIApp) -> None:
         self.asgi_app = asgi_app
@@ -103,11 +102,11 @@ class SraAutorRouteGuardMiddleware:
             return
 
         msg = (
-            "Permissão negada: perfil autor acede apenas ao upload de conteúdo "
-            "e páginas públicas de login."
+            "Permissão negada: perfil autor acede apenas ao gerenciamento de seção "
+            "e upload e páginas públicas de login."
         )
         if _accept_prefers_json(scope):
             resp = JSONResponse({"detail": msg}, status_code=403)
         else:
-            resp = RedirectResponse(url="/painel-upload", status_code=303)
+            resp = RedirectResponse(url="/", status_code=303)
         await resp(scope, receive, send)

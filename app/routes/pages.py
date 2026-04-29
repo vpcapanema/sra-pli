@@ -14,10 +14,12 @@ from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..auth import current_user, pode_editar_perfil_usuario
 from ..sumario_extractor import listar_pdfs_disponiveis
 from ..jinja_filters import registrar as _registrar_filtros_jinja
+from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 _registrar_filtros_jinja(templates.env.filters)
+_registrar_globais_jinja(templates.env)
 
 MESES_PT = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -26,6 +28,14 @@ MESES_PT = [
 
 # Última medição já produzida fora do sistema; próximo sugerido = NUMERO_BASE + 1.
 NUMERO_BASE = 14
+
+
+def url_hub_autor(db: Session) -> str | None:
+    """`/relatorios/{id}` do relatório mais recente — entrada do perfil autor após login."""
+    rel = db.query(Relatorio).order_by(Relatorio.created_at.desc()).first()
+    if rel is None:
+        return None
+    return f"/relatorios/{rel.id}"
 
 
 def _sugestao_proximo_relatorio(db: Session) -> dict:
@@ -81,6 +91,9 @@ def response_home(request: Request, db: Session) -> Response:
         return response_login(request)
     user = current_user(request, db)
     if user and user.role == "autor":
+        hub = url_hub_autor(db)
+        if hub:
+            return RedirectResponse(url=hub, status_code=303)
         return response_painel_upload(request, db)
     return response_dashboard(request, db)
 
@@ -92,7 +105,6 @@ def response_dashboard(request: Request, db: Session) -> Response:
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     sugestao = _sugestao_proximo_relatorio(db)
     pdfs_disponiveis = listar_pdfs_disponiveis()
-    sra_fim = request.session.pop("sra_fim_pendente", None)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -101,14 +113,15 @@ def response_dashboard(request: Request, db: Session) -> Response:
             "relatorios": relatorios,
             "sugestao": sugestao,
             "pdfs_disponiveis": pdfs_disponiveis,
-            "sra_fim_pendente": sra_fim,
         },
     )
 
 
 def response_painel_upload(request: Request, db: Session) -> Response:
-    """Redireciona para o mesmo recurso que `/relatorios/{id}/secoes/{sid}/upload-conteudo`:
-    relatório mais recente, primeira secção por ``ordem``.
+    """Perfil autor: `/relatorios/{id}` do relatório mais recente.
+
+    Admin/coord: redireciona para ``…/upload-conteudo`` (relatório mais recente,
+    primeira secção por ``ordem``).
     """
     user = current_user(request, db)
     if not user:
@@ -121,18 +134,12 @@ def response_painel_upload(request: Request, db: Session) -> Response:
     )
     if not rel:
         return RedirectResponse(url="/dashboard", status_code=303)
+    if user.role == "autor":
+        return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
     secoes = sorted(rel.secoes, key=lambda s: (s.ordem, s.id))
     if not secoes:
         return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
-    if user.role == "autor":
-        minhas = [s for s in secoes if s.responsavel_id == user.id]
-        if minhas:
-            alvo = minhas[0]
-        else:
-            livres = [s for s in secoes if s.responsavel_id is None]
-            alvo = livres[0] if livres else secoes[0]
-    else:
-        alvo = secoes[0]
+    alvo = secoes[0]
     return RedirectResponse(
         url=f"/relatorios/{rel.id}/secoes/{alvo.id}/upload-conteudo",
         status_code=303,
@@ -154,9 +161,8 @@ def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Res
     )
     if not rel:
         return response_dashboard(request, db)
-    sra_fim = request.session.pop("sra_fim_pendente", None)
     return templates.TemplateResponse(
-        request, "relatorio_detail.html", {"user": user, "rel": rel, "sra_fim_pendente": sra_fim}
+        request, "relatorio_detail.html", {"user": user, "rel": rel}
     )
 
 
@@ -268,12 +274,11 @@ def _response_secao_page(
     )
 
 
-def response_secao_edit(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
-    return _response_secao_page(request, db, rel_id, sec_id, "secao_edit.html")
-
-
 def response_conteudo_upload(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
-    return _response_secao_page(request, db, rel_id, sec_id, "conteudo_upload.html")
+    """Página única de gestão da secção: coordenação, importação assistida, blocos e editor."""
+    return _response_secao_page(
+        request, db, rel_id, sec_id, "secao_edit_conteudo_upload.html"
+    )
 
 
 def response_usuarios(
@@ -288,14 +293,10 @@ def response_usuarios(
     )
 
 
-def response_usuario_edit(
-    request: Request,
-    db: Session,
-    user_id: int,
-    *,
-    ok: str | None = None,
-    error: str | None = None,
-) -> Response:
+def usuario_edit_precheck(
+    request: Request, db: Session, user_id: int
+) -> Response | tuple[User, User]:
+    """Sessão válida e permissão para editar o perfil `user_id`; senão página de erro."""
     viewer = current_user(request, db)
     if not viewer:
         return response_login(request)
@@ -304,6 +305,21 @@ def response_usuario_edit(
         return response_usuarios(request, db)
     if not pode_editar_perfil_usuario(viewer, alvo):
         return response_usuarios(request, db)
+    return viewer, alvo
+
+
+def response_usuario_edit(
+    request: Request,
+    db: Session,
+    user_id: int,
+    *,
+    ok: str | None = None,
+    error: str | None = None,
+) -> Response:
+    pre = usuario_edit_precheck(request, db, user_id)
+    if isinstance(pre, Response):
+        return pre
+    viewer, alvo = pre
     ok_effective = ok if ok is not None else request.query_params.get("ok")
     return templates.TemplateResponse(
         request,
@@ -338,8 +354,12 @@ def relatorio_detail(rel_id: int, request: Request, db: Session = Depends(get_db
 
 
 @router.get("/relatorios/{rel_id}/secoes/{sec_id}")
-def secao_edit(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
-    return response_secao_edit(request, db, rel_id, sec_id)
+def secao_edit_redirect_upload_conteudo(rel_id: int, sec_id: int):
+    """Redireciona para ``…/upload-conteudo`` — único template de edição e gestão da secção."""
+    return RedirectResponse(
+        url=f"/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo",
+        status_code=303,
+    )
 
 
 @router.get("/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo")

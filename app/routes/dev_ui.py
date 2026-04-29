@@ -22,11 +22,13 @@ from ..notificacoes.email_context_arvore import (
     arvore_secoes_padrao_para_preview,
     format_arvore_secoes_email_plaintext,
 )
+from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 from ..notificacoes.service import _montar_contexto_email
 from .pages import response_login
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+_registrar_globais_jinja(templates.env)
 
 
 _TIPOS_EMAIL_PREVIEW = frozenset({"abertura", "lembrete", "ultima_chamada"})

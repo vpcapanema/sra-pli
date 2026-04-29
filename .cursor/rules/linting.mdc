@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Linting Obrigatorio
 
-Toda mudanca de codigo deve respeitar os linters configurados em `pyproject.toml` e `.vscode/settings.json`. A aba **Problemas** do Cursor deve ficar zerada nos arquivos alterados antes de concluir a tarefa. O agente **nao** ve essa aba: use **terminal** (`flake8`/`pylint`/`djlint` nos arquivos tocados) **e** a ferramenta de leitura de lints do agente nos mesmos caminhos, para aproximar o que o humano ve em **Problemas** (ver `task-completion.mdc`).
+Toda mudanca de codigo deve respeitar os linters configurados em `pyproject.toml` e `.vscode/settings.json`. A aba **Problemas** do Cursor deve ficar zerada nos arquivos alterados antes de concluir a tarefa. O agente **nao** ve essa aba: no **encerramento** deve seguir **`task-completion.mdc`** (script `dump_agent_diagnostics.py` + leitura de lints). Para comandos por ficheiro durante o trabalho, veja abaixo e **`linting.mdc`**.
 
 ## Ferramentas E Configuracao
 
@@ -37,7 +37,9 @@ Warnings pre-existentes de complexidade do `pylint` (`too-many-locals`, `too-man
 
 ## Validacao Antes De Concluir
 
-Substitua pelos arquivos **que voce alterou** (nao apenas um exemplo):
+No **encerramento da tarefa**, o agente deve usar **`scripts/dump_agent_diagnostics.py`** como em **`task-completion.mdc`** (nao substitua por apenas os comandos abaixo salvo excecao documentada).
+
+Durante o trabalho, comandos por ficheiro:
 
 ```powershell
 .\.venv\Scripts\python.exe -m flake8 caminho/do/arquivo.py
@@ -47,3 +49,20 @@ npm run spell
 ```
 
 Para varios `.py`, repita `flake8`/`pylint` por arquivo ou passe uma lista de caminhos aceita pela ferramenta. Alem disso, invoque a leitura de lints do agente nesses mesmos paths (`task-completion.mdc`).
+
+## Relatorio agregado (`dump_agent_diagnostics.py`)
+
+O Cursor **nao** exporta a aba **Problemas** para ficheiro. O script junta flake8, pylint, djlint, cspell e `npm run mdlint` (markdownlint em `.cursor/**/*.mdc`) num unico relatorio.
+
+- **Agentes (obrigatorio ao encerrar tarefa):** ver **`task-completion.mdc`** — executar o script com `--paths` em todos os `.py`/`.html` alterados (ou sem `--paths` se preferir varredura completa), ler `artifacts/agent-diagnostics.txt`, corrigir e repetir ate codigo de saida 0.
+- **Humanos (opcional):** grave os separadores (`Ctrl+K S`) ou `files.autoSave`; depois pode anexar `@artifacts/agent-diagnostics.txt` num chat se quiser mostrar o estado ao agente.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\dump_agent_diagnostics.py --paths app/routes/x.py app/templates/y.html
+```
+
+Sem `--paths`: lint completo em `app/` e `app/templates` (mais lento). Flags `--no-pylint`, `--no-markdownlint` etc. **nao** devem ser usadas no encerramento pelo agente salvo excecao documentada.
+
+**Nota:** Pylance usa `diagnosticMode: openFilesOnly` — o relatorio do terminal nao e identico ao Pylance; por isso o agente tambem chama a ferramenta de lints nos ficheiros tocados (`task-completion.mdc`).
+
+Alternativa: `npm run dump-diags` (requer `python` no PATH, de preferencia com venv ativo).

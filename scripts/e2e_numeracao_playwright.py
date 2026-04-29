@@ -130,13 +130,6 @@ def main() -> None:
                     # ``networkidle`` nunca ocorre: iframe do PDF e preview mantem rede ativa.
                     page.goto(f"{BASE_URL}/relatorios/{rel_id}", wait_until="load", timeout=120000)
 
-                    # Apos redirect (ex.: criacao de relatorio) o modal de sucesso pode
-                    # estar aberto por flash de sessao; fechar para nao bloquear o formulario.
-                    wrap_ok = page.locator("#sra-cpl-status-ok")
-                    if wrap_ok.is_visible():
-                        page.locator("#sra-cpl-status-ok-btn").click()
-                        expect(wrap_ok).to_be_hidden(timeout=10000)
-
                     add_form = page.locator('form.grid-form[action*="/secoes"]').filter(
                         has=page.locator('input[name="numero"]')
                     )

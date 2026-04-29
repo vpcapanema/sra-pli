@@ -8,7 +8,7 @@ Este projeto e o SRA (Sistema de Relatorios de Atividades) do contrato PLI/SP-20
 
 ## Complementos No Cursor
 
-- **`.cursor/rules/*.mdc`** — regras do editor sempre aplicadas ou condicionadas (linting, postura codigo minimo, browser, documentacao). Encerramento de tarefa: **`.cursor/rules/task-completion.mdc`** (paridade terminal + lints do agente + aba Problemas do humano; releitura integral dos arquivos alterados).
+- **`.cursor/rules/*.mdc`** — regras do editor sempre aplicadas ou condicionadas (linting, postura codigo minimo, browser, documentacao). Encerramento de tarefa: **`.cursor/rules/task-completion.mdc`** — obrigatorio executar `scripts/dump_agent_diagnostics.py`, ler `artifacts/agent-diagnostics.txt`, corrigir até saida limpa; depois lints do agente e aba Problemas do humano; releitura integral dos arquivos alterados.
 - **`.cursor/skills/*/SKILL.md`** — workflows especializados; usar `/nome-do-skill` na conversa em modo Agent:
   - `application-text-intelligence` — texto, documentos e importacao assistida.
   - `performance-agility` — mudancas cirurgicas de performance.

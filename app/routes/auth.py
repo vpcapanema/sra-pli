@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -14,17 +14,20 @@ from ..auth import (
     hash_password,
     current_user,
     formatar_nome_pessoa,
-    pode_editar_perfil_usuario,
 )
+from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 from .pages import (
     response_client_goto,
     response_login,
     response_usuario_edit,
     response_usuarios,
+    url_hub_autor,
+    usuario_edit_precheck,
 )
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+_registrar_globais_jinja(templates.env)
 _log = logging.getLogger(__name__)
 
 _ROLES_LOGIN = frozenset({"admin", "coordenador", "autor"})
@@ -93,7 +96,10 @@ def login_submit(
     _clear_pwd_reset_session(request)
     request.session["user_id"] = user.id
     request.session["user_role"] = user.role
-    destino = "/painel-upload" if user.role == "autor" else "/dashboard"
+    destino = "/dashboard"
+    if user.role == "autor":
+        hub = url_hub_autor(db)
+        destino = hub if hub else "/painel-upload"
     return response_client_goto(destino)
 
 
@@ -231,11 +237,11 @@ def usuarios_registro_atividade(request: Request, db: Session = Depends(get_db))
     if not user:
         return response_login(request)
     if user.role not in ("admin", "coordenador"):
-        return RedirectResponse(url="/painel-upload", status_code=303)
+        return RedirectResponse(url="/", status_code=303)
     return templates.TemplateResponse(
         request,
         "registro_servidor.html",
-        {"user": user, "sra_logs_altura": "alta"},
+        {"user": user},
     )
 
 
@@ -355,14 +361,10 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
     password: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    viewer = current_user(request, db)
-    if not viewer:
-        return response_login(request)
-    alvo = db.get(User, user_id)
-    if not alvo:
-        return response_usuarios(request, db)
-    if not pode_editar_perfil_usuario(viewer, alvo):
-        return response_usuarios(request, db)
+    pre = usuario_edit_precheck(request, db, user_id)
+    if isinstance(pre, Response):
+        return pre
+    viewer, alvo = pre
 
     _log.info(
         "Edição utilizador: início id=%s operador_id=%s",

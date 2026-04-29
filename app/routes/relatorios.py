@@ -1,7 +1,8 @@
 import re
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
-from starlette.responses import Response
+
+from starlette.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session, selectinload
 from dateutil import parser as dateparser
 
@@ -14,15 +15,14 @@ from ..sumario_extractor import (
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
 )
-from ..process_events import process_done, process_log, process_start
-from ..sra_process_modal import montar_data_modal_fim
+
 from .pages import (
     response_conteudo_upload,
     response_dashboard,
     response_relatorio_detail,
-    response_secao_edit,
     user_or_login_page,
 )
+
 from .relatorios_secao_numeracao import (
     RE_NUMERO_SECAO,
     _achar_par_swap,
@@ -141,11 +141,6 @@ def excluir_todos_blocos_confirmados(  # pylint: disable=too-many-locals
     if not blocos:
         return JSONResponse({"ok": True, "removidos": 0})
     sec_ids = {b.secao_id for b in blocos}
-    process_id = process_start(
-        request,
-        "Exclusão em lote (confirmados)",
-        f"Removendo {len(blocos)} bloco(s) confirmado(s) do relatório.",
-    )
     ids = [b.id for b in blocos]
     afeta = any(_impacta_numeracao(b.tipo, b.conteudo) for b in blocos)
     with tx_session() as txdb:
@@ -154,12 +149,6 @@ def excluir_todos_blocos_confirmados(  # pylint: disable=too-many-locals
         txdb.query(Bloco).filter(Bloco.id.in_(ids)).delete(synchronize_session=False)
     for sid in sec_ids:
         _hook_recompute_entrega(db, rel_id, sid)
-    process_done(
-        request,
-        process_id,
-        "Blocos excluídos",
-        f"{len(blocos)} bloco(s) confirmado(s) removido(s).",
-    )
     return JSONResponse({"ok": True, "removidos": len(blocos)})
 
 
@@ -185,12 +174,6 @@ async def criar_relatorio(
         raise HTTPException(403)
     if db.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
         raise HTTPException(400, detail="Código já existe")
-    process_id = process_start(
-        request,
-        "Criação de relatório",
-        f"Configuração inicial do código {codigo.strip()} e da estrutura de seções.",
-        data={"process_key": "relatorio_criar"},
-    )
 
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
@@ -198,94 +181,28 @@ async def criar_relatorio(
     if fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
-            process_done(
-                request,
-                process_id,
-                "Criação interrompida",
-                "PDF disponível não selecionado.",
-                ok=False,
-                process_key="relatorio_criar",
-            )
             raise HTTPException(400, detail="Selecione o PDF disponível.")
         try:
-            process_log(
-                request,
-                process_id,
-                f"Lê-se o sumário no PDF de referência “{nome}” e extrai-se a hierarquia prevista para o relatório.",
-                etapa="Obtenção do sumário",
-                tarefa="Criação de relatório",
-                progresso_tarefa=35,
-                progresso_geral=28,
-            )
             secoes_explicitas = extrair_sumario_pdf_disponivel(nome)
         except ValueError as exc:
-            process_done(request, process_id, "Falha no sumário", str(exc), ok=False, process_key="relatorio_criar")
             raise HTTPException(400, detail=str(exc))
         if not secoes_explicitas:
-            process_done(
-                request,
-                process_id,
-                "Falha no sumário",
-                f"Não foi possível extrair o sumário de {nome}.",
-                ok=False,
-                process_key="relatorio_criar",
-            )
             raise HTTPException(400, detail=f"Não foi possível extrair o sumário de {nome}.")
     elif fonte == "upload":
         if pdf_upload is None or not pdf_upload.filename:
-            process_done(
-                request, process_id, "Criação interrompida", "PDF não enviado.", ok=False, process_key="relatorio_criar"
-            )
             raise HTTPException(400, detail="Envie um arquivo PDF.")
         if not pdf_upload.filename.lower().endswith(".pdf"):
-            process_done(
-                request,
-                process_id,
-                "Arquivo recusado",
-                "O arquivo enviado não é um PDF.",
-                ok=False,
-                process_key="relatorio_criar",
-            )
             raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
         dados = await pdf_upload.read()
         if not dados:
-            process_done(
-                request, process_id, "Arquivo recusado", "Arquivo PDF vazio.", ok=False, process_key="relatorio_criar"
-            )
             raise HTTPException(400, detail="Arquivo PDF vazio.")
         try:
-            process_log(
-                request,
-                process_id,
-                f"Lê-se o ficheiro enviado ({pdf_upload.filename}) e extrai-se a hierarquia de secções para o novo relatório.",
-                etapa="Obtenção do sumário",
-                tarefa="Criação de relatório",
-                progresso_tarefa=38,
-                progresso_geral=30,
-            )
             secoes_explicitas = extrair_sumario(dados)
         except Exception as exc:  # noqa: BLE001
-            process_done(request, process_id, "Falha ao ler PDF", str(exc), ok=False, process_key="relatorio_criar")
             raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
         if not secoes_explicitas:
-            process_done(
-                request,
-                process_id,
-                "Falha no sumário",
-                "Não foi possível extrair o sumário do PDF enviado.",
-                ok=False,
-                process_key="relatorio_criar",
-            )
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
     else:
-        process_done(
-            request,
-            process_id,
-            "Criação interrompida",
-            "Fonte de seções inválida.",
-            ok=False,
-            process_key="relatorio_criar",
-        )
         raise HTTPException(400, detail="Selecione um relatório entregue ou envie um PDF.")
 
     rel = Relatorio(
@@ -298,36 +215,10 @@ async def criar_relatorio(
     )
     # Criar relatório + seções padrão em uma única transação (multi-statement).
     with tx_session() as txdb:
-        process_log(
-            request,
-            process_id,
-            f"Persistem-se o relatório e {len(secoes_explicitas or [])} secção(ões) em transação única, com renumeração consistente.",
-            etapa="Persistência",
-            tarefa="Criação de relatório",
-            progresso_tarefa=85,
-            progresso_geral=78,
-        )
         txdb.add(rel)
         txdb.flush()
         rel_id_novo = rel.id
         criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
-    msg_ok = f"{codigo.strip()} disponível para edição."
-    process_done(
-        request,
-        process_id,
-        "Relatório criado",
-        msg_ok,
-        process_key="relatorio_criar",
-    )
-    # Permite exibir o modal de sucesso na resposta; em produção com vários
-    # workers o SSE pode servir a outro processo e o evento não ser repetido.
-    fin_data = montar_data_modal_fim(
-        process_key="relatorio_criar",
-        titulo="Relatório criado",
-        mensagem=msg_ok,
-        outcome="success",
-    )
-    request.session["sra_fim_pendente"] = {"process_id": process_id, "data": fin_data}
     return response_relatorio_detail(request, db, rel_id_novo)
 
 
@@ -553,7 +444,34 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments
     db.commit()
     if retorno == "upload":
         return response_conteudo_upload(request, db, rel_id, sec_id)
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
+
+
+@router.get("/{rel_id}/secoes/{sec_id}/status")
+def status_secao_get(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Abrir ``/status`` no navegador não deve devolver 405; redireciona à página com o formulário."""
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    sec = db.get(Secao, sec_id)
+    if not sec or sec.relatorio_id != rel_id:
+        raise HTTPException(404)
+    if u.role == "autor":
+        if sec.responsavel_id is not None and sec.responsavel_id != u.id:
+            raise HTTPException(
+                403, detail="Sem permissão para alterar o status desta seção."
+            )
+        url = f"/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo"
+    elif u.role in ("admin", "coordenador"):
+        url = f"/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo"
+    else:
+        raise HTTPException(403)
+    return RedirectResponse(url=url, status_code=303)
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/status")
@@ -583,7 +501,7 @@ def status_secao(  # pylint: disable=too-many-arguments
     db.commit()
     if retorno == "upload":
         return response_conteudo_upload(request, db, rel_id, sec_id)
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/{rel_id}/secoes")
@@ -726,4 +644,4 @@ def renomear_secao(
         raise HTTPException(400, detail="Título não pode ser vazio")
     sec.titulo = titulo
     db.commit()
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)

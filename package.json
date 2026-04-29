@@ -4,11 +4,14 @@
   "private": true,
   "description": "Apenas dependencias de tooling (cspell e dicionarios). O projeto principal e Python.",
   "scripts": {
-    "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.{md,mdc}\""
+    "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.{md,mdc}\"",
+    "mdlint": "markdownlint-cli2 \".cursor/**/*.mdc\"",
+    "dump-diags": "python scripts/dump_agent_diagnostics.py"
   },
   "devDependencies": {
     "@cspell/dict-pt-br": "^1.0.0",
     "cspell": "^9.2.0",
-    "hint": "^7.1.13"
+    "hint": "^7.1.13",
+    "markdownlint-cli2": "^0.22.0"
   }
 }

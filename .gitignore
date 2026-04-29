@@ -22,3 +22,6 @@ _t.py
 # Tooling Node (cspell + dicionarios)
 node_modules/
 package-lock.json
+
+# Relatorio de lint gerado para o agente (scripts/dump_agent_diagnostics.py)
+artifacts/agent-diagnostics.txt

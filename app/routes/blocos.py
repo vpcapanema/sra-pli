@@ -9,8 +9,7 @@ from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
 from ..notificacoes.service import recompute_status_enviado
 from ..numeracao import consolidar_referencias
-from ..process_events import process_done, process_log, process_start
-from .pages import response_secao_edit, user_or_login_page
+from .pages import response_conteudo_upload, user_or_login_page
 
 router = APIRouter(prefix="/relatorios/{rel_id}/secoes/{sec_id}/blocos", tags=["blocos"])
 
@@ -141,7 +140,7 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
 
 
 @router.post("")
-def criar_bloco(
+def criar_bloco(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     rel_id: int,
     sec_id: int,
     request: Request,
@@ -159,7 +158,7 @@ def criar_bloco(
     user, sec = chk
     if tipo not in ("texto", "figura", "tabela", "lista"):
         raise HTTPException(400)
-    process_id = process_start(request, "Bloco de conteúdo", f"Criando bloco do tipo {tipo}.")
+
     ordem = (db.query(func.max(Bloco.ordem)).filter(Bloco.secao_id == sec_id).scalar() or -1) + 1
     sec_status_atual = sec.status
     with tx_session() as txdb:
@@ -185,8 +184,7 @@ def criar_bloco(
             txdb.query(Secao).filter(Secao.id == sec_id).update(
                 {Secao.status: "em_andamento"}, synchronize_session=False
             )
-    process_done(request, process_id, "Bloco criado", f"Seção {sec.numero} atualizada.")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 def _blocos_selecionados(db: Session, sec_id: int, bloco_ids: list[int]) -> list[Bloco]:
@@ -211,7 +209,6 @@ def aprovar_blocos_lote(
     if isinstance(chk, Response):
         return chk
     blocos = _blocos_selecionados(db, sec_id, bloco_ids)
-    process_id = process_start(request, "Aprovação em lote", f"Bloqueando {len(blocos)} bloco(s).")
     ids = [bloco.id for bloco in blocos]
     agora = datetime.utcnow()
     with tx_session() as txdb:
@@ -220,8 +217,7 @@ def aprovar_blocos_lote(
             synchronize_session=False,
         )
     _hook_recompute_entrega(db, rel_id, sec_id)
-    process_done(request, process_id, "Blocos aprovados", f"{len(blocos)} bloco(s) bloqueado(s).")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/excluir-lote")
@@ -236,28 +232,19 @@ def excluir_blocos_lote(
     if isinstance(chk, Response):
         return chk
     blocos = _blocos_selecionados(db, sec_id, bloco_ids)
-    process_id = process_start(request, "Exclusão em lote", f"Validando {len(blocos)} bloco(s).")
     if any(getattr(bloco, "bloqueado", False) for bloco in blocos):
-        process_done(request, process_id, "Exclusão recusada", "Há bloco bloqueado na seleção.", ok=False)
         raise HTTPException(403, detail="Blocos bloqueados não podem ser excluídos.")
-    process_log(
-        request,
-        process_id,
-        "Em sequência, o sistema exclui os blocos selecionados, atualizando contadores e referências quando necessário.",
-        etapa="Exclusão em lote",
-    )
     ids = [bloco.id for bloco in blocos]
     afeta_numeracao = any(_impacta_numeracao(b.tipo, b.conteudo) for b in blocos)
     with tx_session() as txdb:
         if afeta_numeracao:
             consolidar_referencias(txdb, rel_id)
         txdb.query(Bloco).filter(Bloco.id.in_(ids)).delete(synchronize_session=False)
-    process_done(request, process_id, "Blocos excluídos", f"{len(blocos)} bloco(s) removido(s).")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/{bloco_id}/editar")
-def editar_bloco(
+def editar_bloco(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     rel_id: int,
     sec_id: int,
     bloco_id: int,
@@ -277,7 +264,6 @@ def editar_bloco(
         raise HTTPException(404)
     if getattr(b, "bloqueado", False):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser editado.")
-    process_id = process_start(request, "Edição de bloco", f"Atualizando bloco #{bloco_id}.")
 
     b.titulo = titulo.strip() or None
     b.conteudo = conteudo
@@ -287,8 +273,7 @@ def editar_bloco(
 
     b.updated_at = datetime.utcnow()
     db.commit()
-    process_done(request, process_id, "Bloco atualizado", f"Bloco #{bloco_id} salvo.")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/{bloco_id}/excluir")
@@ -301,7 +286,6 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
         raise HTTPException(404)
     if getattr(b, "bloqueado", False):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser excluído.")
-    process_id = process_start(request, "Exclusão de bloco", f"Removendo bloco #{bloco_id}.")
     afeta_numeracao = _impacta_numeracao(b.tipo, b.conteudo)
     with tx_session() as txdb:
         if afeta_numeracao:
@@ -309,8 +293,7 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
         bloco_tx = txdb.get(Bloco, bloco_id)
         if bloco_tx is not None:
             txdb.delete(bloco_tx)
-    process_done(request, process_id, "Bloco excluído", f"Bloco #{bloco_id} removido.")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/{bloco_id}/confirmar")
@@ -321,18 +304,16 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
     b = db.get(Bloco, bloco_id)
     if not b or b.secao_id != sec_id:
         raise HTTPException(404)
-    process_id = process_start(request, "Confirmação de bloco", f"Bloqueando bloco #{bloco_id}.")
     b.bloqueado = True
 
     b.updated_at = datetime.utcnow()
     db.commit()
     _hook_recompute_entrega(db, rel_id, sec_id)
-    process_done(request, process_id, "Bloco confirmado", f"Bloco #{bloco_id} bloqueado para revisão.")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
 @router.post("/{bloco_id}/mover")
-def mover_bloco(
+def mover_bloco(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     rel_id: int,
     sec_id: int,
     bloco_id: int,
@@ -348,7 +329,6 @@ def mover_bloco(
         raise HTTPException(404)
     if getattr(b, "bloqueado", False):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser movido.")
-    process_id = process_start(request, "Movimentação de bloco", f"Movendo bloco #{bloco_id}.")
 
     blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).order_by(Bloco.ordem).all()
     idx = next((i for i, bx in enumerate(blocos) if bx.id == bloco_id), -1)
@@ -369,7 +349,4 @@ def mover_bloco(
             txdb.query(Bloco).filter(Bloco.id == b_id).update(
                 {Bloco.ordem: a_ord}, synchronize_session=False
             )
-        process_done(request, process_id, "Bloco movido", f"Direção: {direcao}.")
-    else:
-        process_done(request, process_id, "Movimento ignorado", "Bloco já está no limite da lista.")
-    return response_secao_edit(request, db, rel_id, sec_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
