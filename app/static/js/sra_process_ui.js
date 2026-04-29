@@ -1,6 +1,13 @@
 /**
  * Confirmações destrutivas ou longas via window.confirm (sem modal HTML nem API).
  * Textos equivalentes ao antigo fluxo por chave.
+ *
+ * Chrome [Violation] "handler submit levou Xms": inclui o tempo em que o utilizador
+ * deixa o diálogo nativo `confirm()` aberto; não é latência do servidor nem do POST.
+ *
+ * Logs `[fluxo confirm]`: metadados em JSON numa linha (evita expansão do Object na consola).
+ * Fluxos com validação HTML5 (criar relatório, importação) usam segunda fase SKIP+requestSubmit;
+ * os restantes usam form.submit() direto após o confirm.
  */
 (function () {
   "use strict";
@@ -198,6 +205,85 @@
 
   function fecharConfirm() {}
 
+  /** Logs de etapa para a consola (acompanhar confirm → POST). */
+  function stringifyFluxoExtra(obj) {
+    try {
+      return JSON.stringify(obj);
+    } catch (err) {
+      return String(obj);
+    }
+  }
+
+  /** Só estes fluxos precisam de ``requestSubmit`` + SKIP (validação HTML5 antes do POST). */
+  function precisaSegundaFaseValidacao(chave) {
+    return (
+      chave === "relatorio_criar" ||
+      chave === "importacao_assistida_analise" ||
+      chave === "importacao_assistida_confirmar"
+    );
+  }
+
+  function logFluxoConfirmar(etapa, mensagem, extra) {
+    var texto = "[fluxo confirm] " + etapa + ": " + mensagem;
+    if (extra !== undefined && extra !== null) {
+      texto += " | " + stringifyFluxoExtra(extra);
+    }
+    if (typeof window.SRA_LOG !== "undefined") {
+      window.SRA_LOG.info(texto);
+      return;
+    }
+    console.info("[SRA]", texto);
+  }
+
+  /** Mensagem por chave de confirm quando não há data-sra-busy-msg. */
+  var BUSY_DEFAULT_BY_CONFIRM = {
+    relatorio_excluir: "A excluir o relatório no servidor…",
+    relatorio_criar: "A criar o relatório…",
+    secao_excluir: "A excluir a secção…",
+  };
+
+  function obterMensagemBusy(form, chaveConfirm) {
+    var attr = form.getAttribute("data-sra-busy-msg");
+    if (attr && String(attr).trim()) {
+      return String(attr).trim();
+    }
+    if (chaveConfirm && BUSY_DEFAULT_BY_CONFIRM[chaveConfirm]) {
+      return BUSY_DEFAULT_BY_CONFIRM[chaveConfirm];
+    }
+    return "A processar o pedido no servidor…";
+  }
+
+  /**
+   * Feedback durante POST após confirmação: log na consola e faixa fixa.
+   * Ativado por data-sra-iniciar-acompanhamento="1" no formulário.
+   * Não desativa botões submit antes de requestSubmit(): botão desativado impede o envio.
+   */
+  function iniciarAcompanhamentoSubmit(form, chaveConfirm) {
+    if (form.getAttribute("data-sra-iniciar-acompanhamento") !== "1") {
+      return;
+    }
+    var msg = obterMensagemBusy(form, chaveConfirm);
+    var url = form.action || "";
+    if (typeof window.SRA_LOG !== "undefined") {
+      window.SRA_LOG.info(
+        "Submissão POST (aguardar servidor) | url=" + url + " | faixa=" + msg
+      );
+      window.SRA_LOG.debug("[acompanhamento] " + msg);
+    }
+    form.classList.add("sra-form-busy");
+    var bar = document.getElementById("sra-submit-busy");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "sra-submit-busy";
+      bar.setAttribute("role", "status");
+      bar.setAttribute("aria-live", "polite");
+      bar.className = "sra-submit-busy";
+      document.body.appendChild(bar);
+    }
+    bar.textContent = msg;
+    bar.classList.add("is-visible");
+  }
+
   function initDataConfirmForms() {
     document.querySelectorAll("form[data-sra-confirm]").forEach(function (form) {
       if (form.dataset.sraWired) {
@@ -207,12 +293,24 @@
       form.addEventListener("submit", function (e) {
         if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
           form.removeAttribute(SKIP);
+          logFluxoConfirmar("5-post-nativo", "envio HTML normal (sem segundo confirm)", {
+            action: form.action || "",
+            chave: form.getAttribute("data-sra-confirm"),
+          });
           return;
         }
         var ch = form.getAttribute("data-sra-confirm");
         if (!ch) {
           return;
         }
+        var actionUrl = form.action || "";
+        var t0 =
+          typeof performance !== "undefined" && performance.now ? performance.now() : null;
+        logFluxoConfirmar("1-interceptado", "confirmação pendente", {
+          chave: ch,
+          action: actionUrl,
+          method: (form.method || "get").toLowerCase(),
+        });
         e.preventDefault();
         var ov = {
           title: form.getAttribute("data-sra-title"),
@@ -233,14 +331,50 @@
         });
         confirmarComChave(ch, ov).then(function (sim) {
           if (!sim) {
+            var cancelTxt =
+              "[fluxo confirm] cancelado — POST não enviado | " +
+              stringifyFluxoExtra({ chave: ch, action: actionUrl });
+            if (typeof window.SRA_LOG !== "undefined") {
+              window.SRA_LOG.warn(cancelTxt);
+            } else {
+              console.warn("[SRA]", cancelTxt);
+            }
             return;
           }
-          form.setAttribute(SKIP, "1");
-          if (form.requestSubmit) {
-            form.requestSubmit();
-          } else {
-            form.submit();
-          }
+          var dt =
+            t0 !== null && typeof performance !== "undefined" && performance.now
+              ? Math.round(performance.now() - t0)
+              : null;
+          logFluxoConfirmar("2-confirmado", "utilizador aceitou — a preparar envio", {
+            chave: ch,
+            action: actionUrl,
+            msAposInterceptar: dt,
+          });
+          // Liberta o ciclo atual antes da segunda submissão (SKIP): ajuda o browser a pintar a faixa «busy».
+          queueMicrotask(function () {
+            logFluxoConfirmar("3-microtask", "antes do envio após confirm", {
+              chave: ch,
+              segundaFaseValidacao: precisaSegundaFaseValidacao(ch),
+              temAcompanhamento: form.getAttribute("data-sra-iniciar-acompanhamento") === "1",
+            });
+            iniciarAcompanhamentoSubmit(form, ch);
+            if (precisaSegundaFaseValidacao(ch)) {
+              form.setAttribute(SKIP, "1");
+              if (form.requestSubmit) {
+                logFluxoConfirmar("4-requestSubmit", "segunda fase (SKIP+validação HTML5)");
+                form.requestSubmit();
+              } else {
+                logFluxoConfirmar("4-submit", "fallback form.submit()");
+                form.submit();
+              }
+            } else {
+              logFluxoConfirmar(
+                "4-submit-direto",
+                "form.submit() — sem SKIP (evita requestSubmit bloqueado por CSS ou segunda fase)"
+              );
+              form.submit();
+            }
+          });
         });
       });
     });
@@ -256,6 +390,7 @@
     confirmarComChave: confirmarComChave,
     abrirDireto: abrirDireto,
     fecharConfirm: fecharConfirm,
+    logFluxoConfirmar: logFluxoConfirmar,
   };
 
   if (document.readyState === "loading") {

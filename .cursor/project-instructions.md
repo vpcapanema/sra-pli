@@ -104,7 +104,7 @@ Use este mapa como orientacao inicial antes de procurar pontos de entrada:
 
 - **Confirmar:** `sra_process_ui.js` — formulários com `data-sra-confirm` e atributos `data-sra-title`, `data-sra-lead`, `data-sra-detail`, `data-sra-ask` opcionais disparam `window.confirm` no `submit` (via `SRAComplementos`). Em `relatorio_criar`, a linha de fonte do sumário entra no texto de confirmação a partir do formulário (sem parcial HTML).
 - Operações longas não publicam eventos nem sessão `sra_fim_pendente` no servidor.
-- `data-sra-iniciar-acompanhamento="1"` pode permanecer em formulários como legado inerte.
+- `data-sra-iniciar-acompanhamento="1"` — após `window.confirm`, `sra_process_ui.js` regista na consola (`SRA_LOG`), mostra faixa inferior fixa e desativa botões até o navegador receber a resposta do POST. Opcional: `data-sra-busy-msg` para o texto da faixa.
 - Chaves de fluxo (textos em `sra_process_ui.js`): `importacao_assistida_analise`, `importacao_assistida_confirmar`, `relatorio_criar`, `relatorio_excluir`, `exportar_relatorio`, `secao_excluir`, `bloco_confirmar`, `bloco_excluir`, `blocos_lote_excluir`, `blocos_lote_aprovar`.
 - Cliente `sra_process_ui.js` expõe `window.SRAComplementos` (`init`, `carregarChave`, `confirmarComChave`, `abrirDireto`, `fecharConfirm`).
 - Scripts autenticados em `base.html`: `sra_log.js` (`SRA_LOG` no **console** do browser — DevTools → Consola; `debug`/`info` com hostname loopback **ou** com `APP_ENV=development`, via `window.__SRA_CONSOLE_VERBOSE__` injetado no HTML), `sra_auth_fetch.js` (em modo verbose regista cada `fetch`), `sra_process_ui.js`.

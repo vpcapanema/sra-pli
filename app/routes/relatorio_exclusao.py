@@ -1,6 +1,7 @@
 """Rotas POST de exclusão de relatório inteiro ou de subseção."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from ..db import get_db, tx_session
@@ -24,13 +25,15 @@ def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_d
     user = u
     if user.role not in ("admin", "coordenador"):
         raise HTTPException(403)
-    rel = db.get(Relatorio, rel_id)
-    if not rel:
-        raise HTTPException(404)
+    # Não usar ``with db.begin()`` aqui: ``_u_or_login`` já disparou SELECT na
+    # sessão ``db`` e o SQLAlchemy recusa um segundo ``begin()`` na mesma Session.
+    # DELETE em sessão dedicada (transação explícita); CASCADE no Postgres.
     with tx_session() as txdb:
-        rel_tx = txdb.get(Relatorio, rel_id)
-        if rel_tx is not None:
-            txdb.delete(rel_tx)
+        result = txdb.execute(sa.delete(Relatorio).where(Relatorio.id == rel_id))
+        deleted = result.rowcount
+        if deleted == 0:
+            raise HTTPException(404)
+    db.expire_all()
     return response_dashboard(request, db)
 
 

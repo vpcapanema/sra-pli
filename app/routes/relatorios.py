@@ -8,9 +8,10 @@ from dateutil import parser as dateparser
 
 from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
-from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status
+from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status, campos_json_bloco_transversal
 from ..bootstrap import criar_secoes_padrao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
+from .. import ref_resolve
 from ..sumario_extractor import (
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
@@ -70,10 +71,11 @@ def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
     user = u
     if user.role not in ("admin", "coordenador"):
         raise HTTPException(403)
-    rel = db.get(Relatorio, rel_id)
+    rel = ref_resolve.carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         raise HTTPException(404)
     pode_status, motivo_status = _pode_editar_status(user, rel)
+    mapas_ref = ref_resolve.calcular_mapas_referencia(rel.secoes)
     blocos = (
         db.query(Bloco)
         .join(Secao, Secao.id == Bloco.secao_id)
@@ -88,21 +90,12 @@ def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
         sec_row = sec_por_id.get(b.secao_id)
         payload_blocos.append(
             {
-                "id": b.id,
+                **campos_json_bloco_transversal(b),
                 "secao_id": b.secao_id,
                 "secao_numero": sec_row.numero if sec_row else "",
                 "secao_titulo": sec_row.titulo if sec_row else "",
-                "tipo": b.tipo,
-                "ordem": b.ordem,
-                "titulo": b.titulo or "",
-                "conteudo": b.conteudo or "",
-                "legenda": b.legenda or "",
-                "fonte": b.fonte or "",
-                "figura_id": b.figura_id,
                 "bloqueado": True,
                 "pode_editar": False,
-                "autor_nome": b.autor.nome if b.autor else None,
-                "updated_at": b.updated_at.isoformat() if b.updated_at else None,
             }
         )
     return JSONResponse(
@@ -111,6 +104,7 @@ def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
             "relatorio": {"status": rel.status},
             "pode_editar_secao": pode_status,
             "motivo_bloqueio": motivo_status,
+            "ref_mapas": ref_resolve.mapas_para_json(mapas_ref),
             "secao": None,
             "blocos": payload_blocos,
         }
@@ -153,7 +147,7 @@ def excluir_todos_blocos_confirmados(  # pylint: disable=too-many-locals
 
 
 @router.post("")
-async def criar_relatorio(
+async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches
     request: Request,
     codigo: str = Form(...),
     titulo: str = Form(...),
@@ -246,7 +240,7 @@ def alterar_status(
 
 
 @router.post("/{rel_id}/editar")
-def editar_relatorio(
+def editar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     rel_id: int,
     request: Request,
     codigo: str = Form(...),
@@ -323,7 +317,7 @@ def nova_versao(rel_id: int, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/{rel_id}/duplicar")
-def duplicar_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
+def duplicar_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):  # pylint: disable=too-many-locals
     u, p = _u_or_login(request, db)
     if p is not None:
         return p

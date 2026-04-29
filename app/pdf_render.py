@@ -8,23 +8,12 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from zipfile import ZipFile
+
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.orm import Session
+
 from .models import Relatorio, Figura
-
-
-@dataclass(frozen=True)
-class _MapasRef:
-    """Mapas de IDs estaveis para numeros exibidos, usados por
-    ``[[REF:..]]`` no render. Centraliza o trio (figura/tabela/secao) para
-    nao inflar assinaturas das funcoes de render.
-    """
-    figuras: dict[int, str] = field(default_factory=dict)
-    tabelas: dict[int, str] = field(default_factory=dict)
-    secoes: dict[int, str] = field(default_factory=dict)
-
-    def vazio(self) -> bool:
-        return not (self.figuras or self.tabelas or self.secoes)
+from . import ref_resolve
 
 
 @dataclass(frozen=True)
@@ -34,7 +23,7 @@ class _RenderCtx:
     referencias estaveis. Mantem assinaturas das funcoes de render curtas.
     """
     figuras_by_id: dict[int, "Figura"] = field(default_factory=dict)
-    mapas: _MapasRef = field(default_factory=_MapasRef)
+    mapas: ref_resolve.MapasRef = field(default_factory=ref_resolve.MapasRef)
 
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -97,44 +86,10 @@ def _produto_codigo_capa(codigo: str | None) -> str:
 
 _RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
 _RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
-# Marcador estavel emitido por ``app.numeracao.consolidar_referencias`` para
-# referencias textuais a Figura/Tabela/Secao. O alvo e um id estavel
-# (Bloco.id ou Secao.id) e o numero exibido e resolvido em tempo de render
-# usando os mapas calculados em ``_montar_contexto``.
-_RE_REF = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
 
 
 def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
-
-
-def _resolver_referencias(texto: str, mapas: _MapasRef) -> str:
-    """Resolve marcadores ``[[REF:..]]`` para texto humano com o numero atual.
-
-    Se o alvo nao for encontrado (foi excluido), preserva o marcador para
-    sinalizar a inconsistencia ao revisor em vez de produzir "Figura None".
-    """
-    if not texto or "[[REF:" not in texto:
-        return texto
-
-    def _sub(match: re.Match) -> str:
-        tipo = match.group(1)
-        alvo = int(match.group(2))
-        if tipo == "figura":
-            numero = mapas.figuras.get(alvo)
-            if numero:
-                return f"Figura {numero}"
-        elif tipo == "tabela":
-            numero = mapas.tabelas.get(alvo)
-            if numero:
-                return f"Tabela {numero}"
-        elif tipo == "secao":
-            numero = mapas.secoes.get(alvo)
-            if numero:
-                return f"Se\u00e7\u00e3o {numero}"
-        return match.group(0)
-
-    return _RE_REF.sub(_sub, texto)
 
 
 def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
@@ -236,8 +191,8 @@ def _figura_ids_no_texto(conteudo: str) -> set[int]:
 
 
 def _label_secao(sec_top: str, n: int) -> str:
-    """Rotulo de figura/tabela ('X.Y' se houver top-level, 'Y' caso contrario)."""
-    return f"{sec_top}.{n}" if sec_top else str(n)
+    """Rótulo PLI alinhado a ``ref_resolve.label_numero_pli``."""
+    return ref_resolve.label_numero_pli(sec_top, n)
 
 
 def _idx_efetivo(idx_raw: str, derivado: str) -> str:
@@ -295,7 +250,7 @@ def _parse_tabela_marker(match: re.Match) -> tuple[str, str, str, str]:
     return idx_raw, posicao, legenda, match.group(4) or ""
 
 
-def _render_texto_html(
+def _render_texto_html(  # pylint: disable=too-many-locals
     ctx: _RenderCtx,
     conteudo: str,
     fig_counter: int,
@@ -321,7 +276,7 @@ def _render_texto_html(
         return "", fig_counter, tab_counter
 
     if not ctx.mapas.vazio():
-        conteudo = _resolver_referencias(conteudo, ctx.mapas)
+        conteudo = ref_resolve.resolver_referencias(conteudo, ctx.mapas)
 
     sec_top = (sec_numero or "").split(".")[0]
 
@@ -354,43 +309,6 @@ def _render_texto_html(
     return "".join(out_html), fig_counter, tab_counter
 
 
-def _calcular_mapas_referencia(secoes_relatorio) -> _MapasRef:
-    """Pre-pass que reproduz a contagem do render para mapear IDs estaveis
-    em numeros exibidos. Usado para resolver ``[[REF:..]]`` consistentemente
-    com a numeracao final do PDF.
-
-    Apenas blocos ``tipo=figura``/``tipo=tabela`` entram nos mapas de bloco
-    (sao os unicos com ID estavel referenciavel). Markers inline em texto
-    contam para o contador, mas nao geram entrada nos mapas.
-    """
-    mapas = _MapasRef()
-    fig_by_top: dict[str, int] = {}
-    tab_by_top: dict[str, int] = {}
-    for sec in secoes_relatorio:
-        if sec.numero:
-            mapas.secoes[sec.id] = sec.numero
-        sec_top = (sec.numero or "").split(".")[0]
-        fig_counter = fig_by_top.get(sec_top, 0)
-        tab_counter = tab_by_top.get(sec_top, 0)
-        for bloco in sec.blocos:
-            if bloco.tipo == "figura":
-                fig_counter += 1
-                mapas.figuras[bloco.id] = (
-                    f"{sec_top}.{fig_counter}" if sec_top else str(fig_counter)
-                )
-            elif bloco.tipo == "tabela":
-                tab_counter += 1
-                mapas.tabelas[bloco.id] = (
-                    f"{sec_top}.{tab_counter}" if sec_top else str(tab_counter)
-                )
-            elif bloco.conteudo:
-                fig_counter += len(re.findall(r"\[\[FIGURA:", bloco.conteudo))
-                tab_counter += len(re.findall(r"\[\[TABELA(?::|\||\]\])", bloco.conteudo))
-        fig_by_top[sec_top] = fig_counter
-        tab_by_top[sec_top] = tab_counter
-    return mapas
-
-
 def _render_bloco_item(
     bloco,
     ctx: _RenderCtx,
@@ -403,7 +321,7 @@ def _render_bloco_item(
     para manter ``_montar_contexto`` enxuto e legivel.
     """
     legenda = (
-        _resolver_referencias(bloco.legenda, ctx.mapas) if bloco.legenda else bloco.legenda
+        ref_resolve.resolver_referencias(bloco.legenda, ctx.mapas) if bloco.legenda else bloco.legenda
     )
     item: dict = {
         "tipo": bloco.tipo,
@@ -414,7 +332,7 @@ def _render_bloco_item(
     }
 
     def _label(n: int) -> str:
-        return f"{sec_top}.{n}" if sec_top else str(n)
+        return ref_resolve.label_numero_pli(sec_top, n)
 
     if bloco.tipo == "figura":
         contadores["fig"] += 1
@@ -430,7 +348,7 @@ def _render_bloco_item(
     elif bloco.tipo == "lista":
         from .list_lines import list_text_to_html
 
-        bruto = _resolver_referencias(bloco.conteudo or "", ctx.mapas)
+        bruto = ref_resolve.resolver_referencias(bloco.conteudo or "", ctx.mapas)
         item["lista_html"] = list_text_to_html(bruto) or ""
     else:
         html_render, contadores["fig"], contadores["tab"] = _render_texto_html(
@@ -444,7 +362,7 @@ def _render_bloco_item(
     return item
 
 
-def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):
+def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):  # pylint: disable=too-many-locals
     figura_ids: set[int] = set()
     secoes_relatorio = [sec for sec in rel.secoes if section_ids is None or sec.id in section_ids]
     for sec in secoes_relatorio:
@@ -458,7 +376,7 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
 
     ctx = _RenderCtx(
         figuras_by_id=figuras_by_id,
-        mapas=_calcular_mapas_referencia(secoes_relatorio),
+        mapas=ref_resolve.calcular_mapas_referencia(secoes_relatorio),
     )
 
     # Contadores por top-level da secao: tudo dentro de "4" e "4.1.2"

@@ -35,8 +35,9 @@ _TMP_PREFIX = "__t"
 
 # Regex para deteccao de referencias textuais. Aceita tanto "4.1" quanto "4-1"
 # (separador comum em legendas oficiais do contrato).
-_RE_FIGURA_TXT = re.compile(r"\bFigura\s+(\d+(?:[.\-]\d+)+)\b")
-_RE_TABELA_TXT = re.compile(r"\bTabela\s+(\d+(?:[.\-]\d+)+)\b")
+# Referências textuais: aceita ``4.1``, ``4-1``, ``4 - 1`` etc.
+_RE_FIGURA_TXT = re.compile(r"\bFigura\s+(\d+(?:\s*[.\-]\s*\d+)+)\b", re.IGNORECASE)
+_RE_TABELA_TXT = re.compile(r"\bTabela\s+(\d+(?:\s*[.\-]\s*\d+)+)\b", re.IGNORECASE)
 _RE_SECAO_TXT = re.compile(r"\b(?:Se(?:c|\u00e7)(?:a|\u00e3)o)\s+(\d+(?:\.\d+)*)\b")
 
 # Regex para evitar reprocessar texto ja convertido (idempotencia).
@@ -215,8 +216,9 @@ def _mapear_blocos_alvo(
 
 
 def _normalizar_numero_legenda(raw: str) -> str:
-    """Converte '4-1' para '4.1' (separadores oficiais de legenda)."""
-    return raw.replace("-", ".")
+    """Normaliza para chave ``X.Y`` (remove espaços; ``-`` → ``.``)."""
+    s = "".join((raw or "").split())
+    return s.replace("-", ".")
 
 
 def _substituir_referencias(

@@ -9,6 +9,7 @@ from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
 from ..notificacoes.service import recompute_status_enviado
 from ..numeracao import consolidar_referencias
+from .. import ref_resolve
 from .pages import response_conteudo_upload, user_or_login_page
 
 router = APIRouter(prefix="/relatorios/{rel_id}/secoes/{sec_id}/blocos", tags=["blocos"])
@@ -88,6 +89,22 @@ def _impacta_numeracao(tipo: str, conteudo: str | None) -> bool:
     return "[[FIGURA:" in conteudo or "[[TABELA" in conteudo
 
 
+def campos_json_bloco_transversal(b: Bloco) -> dict:
+    """Campos partilhados pelos payloads JSON de blocos (por secção / confirmados)."""
+    return {
+        "id": b.id,
+        "tipo": b.tipo,
+        "ordem": b.ordem,
+        "titulo": b.titulo or "",
+        "conteudo": b.conteudo or "",
+        "legenda": b.legenda or "",
+        "fonte": b.fonte or "",
+        "figura_id": b.figura_id,
+        "autor_nome": b.autor.nome if b.autor else None,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+    }
+
+
 @router.get(".json")
 def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
     """Retorna os blocos de uma secao em JSON, para edicao em buffer no cliente.
@@ -101,10 +118,11 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
     if isinstance(chk, Response):
         return chk
     user, sec = chk
-    rel = db.get(Relatorio, rel_id)
+    rel = ref_resolve.carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if rel is None:
         raise HTTPException(404)
     pode_status, motivo_status = _pode_editar_status(user, rel)
+    mapas_ref = ref_resolve.calcular_mapas_referencia(rel.secoes)
     blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).order_by(Bloco.ordem).all()
     payload = {
         "secao": {
@@ -117,21 +135,13 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
         "relatorio": {"status": rel.status},
         "pode_editar_secao": pode_status,
         "motivo_bloqueio": motivo_status,
+        "ref_mapas": ref_resolve.mapas_para_json(mapas_ref),
         "blocos": [
             {
-                "id": b.id,
+                **campos_json_bloco_transversal(b),
                 "secao_id": sec_id,
-                "tipo": b.tipo,
-                "ordem": b.ordem,
-                "titulo": b.titulo or "",
-                "conteudo": b.conteudo or "",
-                "legenda": b.legenda or "",
-                "fonte": b.fonte or "",
-                "figura_id": b.figura_id,
                 "bloqueado": bool(b.bloqueado),
                 "pode_editar": pode_status and not bool(b.bloqueado),
-                "autor_nome": b.autor.nome if b.autor else None,
-                "updated_at": b.updated_at.isoformat() if b.updated_at else None,
             }
             for b in blocos
         ],

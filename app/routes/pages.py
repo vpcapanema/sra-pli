@@ -38,7 +38,10 @@ def url_hub_autor(db: Session) -> str | None:
     return f"/relatorios/{rel.id}"
 
 
-def _sugestao_proximo_relatorio(db: Session) -> dict:
+def _sugestao_proximo_relatorio(
+    db: Session,
+    relatorios: list[Relatorio] | None = None,
+) -> dict:
     hoje = date.today()
     # Período: dia 11 do mês anterior → dia 11 do mês atual.
     if hoje.month == 1:
@@ -47,8 +50,12 @@ def _sugestao_proximo_relatorio(db: Session) -> dict:
         ini = date(hoje.year, hoje.month - 1, 11)
     fim = date(hoje.year, hoje.month, 11)
 
-    # Próximo número de medição.
-    max_num = db.query(func.max(Relatorio.numero_medicao)).scalar() or NUMERO_BASE
+    # Próximo número de medição (evita segundo SELECT quando já temos a lista).
+    if relatorios is not None:
+        nums = [r.numero_medicao for r in relatorios if r.numero_medicao is not None]
+        max_num = max(nums) if nums else NUMERO_BASE
+    else:
+        max_num = db.query(func.max(Relatorio.numero_medicao)).scalar() or NUMERO_BASE
     proximo = max_num + 1
     return {
         "codigo": f"D20-{proximo}",
@@ -103,7 +110,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
     if not user:
         return response_login(request)
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
-    sugestao = _sugestao_proximo_relatorio(db)
+    sugestao = _sugestao_proximo_relatorio(db, relatorios)
     pdfs_disponiveis = listar_pdfs_disponiveis()
     return templates.TemplateResponse(
         request,

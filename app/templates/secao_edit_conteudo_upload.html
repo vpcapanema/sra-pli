@@ -1925,8 +1925,26 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           })[c],
       );
     }
+    let refMapas = null;
+    function resolverRefs(texto, mapas) {
+      if (!texto || texto.indexOf("[[REF:") === -1) return texto || "";
+      const fig = (mapas && mapas.figuras) || {};
+      const tab = (mapas && mapas.tabelas) || {};
+      const sec = (mapas && mapas.secoes) || {};
+      return texto.replace(
+        /\[\[REF:(figura|tabela|secao)\|(\d+)\]\]/g,
+        function (full, tipo, id) {
+          const k = String(id);
+          if (tipo === "figura" && fig[k]) return "Figura " + fig[k];
+          if (tipo === "tabela" && tab[k]) return "Tabela " + tab[k];
+          if (tipo === "secao" && sec[k]) return "Seção " + sec[k];
+          return full;
+        },
+      );
+    }
     function resumoBloco(b) {
-      const cont = (b.conteudo || "").replace(/\s+/g, " ").trim();
+      let cont = (b.conteudo || "").replace(/\s+/g, " ").trim();
+      cont = resolverRefs(cont, refMapas);
       return cont.length <= 80 ? cont || "—" : cont.slice(0, 77) + "…";
     }
     function tipoLabel(b) {
@@ -1982,7 +2000,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         escHtml(tipoLabel(b)) +
         "</td>" +
         '<td title="' +
-        escHtml(b.conteudo || "") +
+        escHtml(resolverRefs(b.conteudo || "", refMapas)) +
         '">' +
         escHtml(resumoBloco(b)) +
         "</td>" +
@@ -2043,6 +2061,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         }
         if (!r.ok) throw new Error("HTTP " + r.status);
         const data = await r.json();
+        refMapas = data.ref_mapas || null;
         const blocos = data.blocos || [];
         const secNumero = (data.secao && data.secao.numero) || "";
         _podeEditarSecao = data.pode_editar_secao !== false;
