@@ -1,1593 +1,3401 @@
-{% extends "base.html" %}
-{% block body_class %}page-secao-edit{% endblock %}
-{% block title %}{{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
-{% block header %}{{ rel.codigo }} · Seção {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
-{% block content %}
-  <section class="hero">
-    <h1>Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
-    <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }}</div>
-    <p>
-      <a href="/relatorios/{{ rel.id }}">← voltar ao sumário</a>
-      ·
-      <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/upload-conteudo">Painel upload de conteúdo →</a>
-    </p>
-  </section>
-  {% if user.role in ['admin','coordenador'] %}
-    <section class="ss active-tab">
-      <div class="ss-hdr">
-        <span class="sn">⚙</span><span class="st">Coordenação da seção</span>
-      </div>
-      <div class="sb2 actions-row">
-        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel">
-          <label for="sel-sec-responsavel">Responsável</label>
-          <select id="sel-sec-responsavel" name="responsavel_id" title="Responsável pela seção">
-            <option value="">—</option>
-            {% for a in autores %}
-              <option value="{{ a.id }}" {% if sec.responsavel_id==a.id %}selected{% endif %}>{{ a.nome }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit">Atribuir</button>
-        </form>
-        <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status">
-          <label for="sel-sec-status">Status</label>
-          <select id="sel-sec-status" name="status" title="Status da seção">
-            <option value="pendente" {% if sec.status=='pendente' %}selected{% endif %}>Pendente</option>
-            <option value="em_andamento" {% if sec.status=='em_andamento' %}selected{% endif %}>Em andamento</option>
-            <option value="aprovada" {% if sec.status=='aprovada' %}selected{% endif %}>Aprovada</option>
-          </select>
-          <button type="submit">Atualizar</button>
-        </form>
-      </div>
-    </section>
-  {% endif %}
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">□</span><span class="st">Pré-visualização do relatório</span>
-      <button type="button" class="btn-pdf" onclick="var f=document.getElementById('preview-frame');var u=f.dataset.src||'';f.src=u+(u.indexOf('?')>=0?'&':'?')+'t='+Date.now();">Carregar/atualizar</button>
-      <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
-    </div>
-    <div class="sb2">
-      <details class="export-menu">
-        <summary>Exportar relatório</summary>
-        <form method="get" action="/relatorios/{{ rel.id }}/exportar" target="_blank">
-          <input id="export-scope-inteiro" class="export-scope export-scope-all" type="radio" name="escopo" value="inteiro" checked>
-          <input id="export-scope-selecionadas" class="export-scope export-scope-selected" type="radio" name="escopo" value="selecionadas">
-          <div class="export-tabs" role="tablist" aria-label="Escopo da exportação">
-            <label class="export-tab export-tab-all" for="export-scope-inteiro">
-              <span>Relatório inteiro</span>
-            </label>
-            <label class="export-tab export-tab-selected" for="export-scope-selecionadas">
-              <span>Seções selecionadas</span>
-            </label>
-          </div>
-          <div class="export-panels">
-            <div class="export-panel export-panel-all" role="tabpanel"></div>
-            <div class="export-panel export-panel-selected" role="tabpanel">
-              <div class="export-sections" aria-label="Seções para exportar">
-                {% for s in rel.secoes %}
-                  {% set nivel = s.numero.count('.') + 1 %}
-                  <div class="export-section-node export-tree-lvl-{{ nivel }}" data-section-node data-section-number="{{ s.numero }}" data-section-level="{{ nivel }}">
-                    <button type="button" class="export-tree-toggle" aria-expanded="true" aria-label="Recolher seção {{ s.numero }}"></button>
-                    <label class="export-section-check">
-                      <input type="checkbox" name="secao_ids" value="{{ s.id }}" {% if s.id == sec.id %}checked{% endif %}>
-                      <span>{{ s.numero }} – {{ s.titulo }}</span>
-                    </label>
-                  </div>
-                {% endfor %}
+{% extends "base.html" %} {% block body_class %}page-secao-edit{% endblock %} {%
+block title %}{{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
+{% block header %}{{ rel.codigo }} · Seção {{ sec.numero }} – {{ sec.titulo }}{%
+endblock %} {% block content %}
+<section class="hero">
+  <h1>Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
+  <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }}</div>
+  <p>
+    <a href="/relatorios/{{ rel.id }}">← voltar ao sumário</a>
+    ·
+    <a href="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/upload-conteudo">Painel upload de conteúdo →</a>
+  </p>
+</section>
+{% if user.role in ['admin','coordenador'] %}
+<section class="ss active-tab">
+  <div class="ss-hdr">
+    <span class="sn">⚙</span><span class="st">Coordenação da seção</span>
+  </div>
+  <div class="sb2 actions-row">
+    <form
+      method="post"
+      action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/responsavel"
+    >
+      <label for="sel-sec-responsavel">Responsável</label>
+      <select
+        id="sel-sec-responsavel"
+        name="responsavel_id"
+        title="Responsável pela seção"
+      >
+        <option value="">—</option>
+        {% for a in autores %}
+        <option
+          value="{{ a.id }}"
+          {% if sec.responsavel_id == a.id %}selected{% endif %}
+        >
+          {{ a.nome }}
+        </option>
+        {% endfor %}
+      </select>
+      <button type="submit">Atribuir</button>
+    </form>
+    <form
+      method="post"
+      action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/status"
+    >
+      <label for="sel-sec-status">Status</label>
+      <select id="sel-sec-status" name="status" title="Status da seção">
+        <option
+          value="pendente"
+          {% if sec.status == 'pendente' %}selected{% endif %}
+        >
+          Pendente
+        </option>
+        <option
+          value="em_andamento"
+          {% if sec.status == 'em_andamento' %}selected{% endif %}
+        >
+          Em andamento
+        </option>
+        <option
+          value="aprovada"
+          {% if sec.status == 'aprovada' %}selected{% endif %}
+        >
+          Aprovada
+        </option>
+      </select>
+      <button type="submit">Atualizar</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+<section class="ss active-tab">
+  <div class="ss-hdr">
+    <span class="sn">□</span>
+    <span class="st">Pré-visualização do relatório</span>
+    <button
+      type="button"
+      class="btn-pdf"
+      onclick="
+        var f = document.getElementById('preview-frame');
+        var u = f.dataset.src || '';
+        f.src = u + (u.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      "
+    >
+      Carregar/atualizar
+    </button>
+    <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf">Abrir em nova aba</a>
+  </div>
+  <div class="sb2">
+    <details class="export-menu">
+      <summary>Exportar relatório</summary>
+      <form
+        method="get"
+        action="/relatorios/{{ rel.id }}/exportar"
+        target="_blank"
+      >
+        <input
+          id="export-scope-inteiro"
+          class="export-scope export-scope-all"
+          type="radio"
+          name="escopo"
+          value="inteiro"
+          checked
+        />
+        <input
+          id="export-scope-selecionadas"
+          class="export-scope export-scope-selected"
+          type="radio"
+          name="escopo"
+          value="selecionadas"
+        />
+        <div
+          class="export-tabs"
+          role="tablist"
+          aria-label="Escopo da exportação"
+        >
+          <label class="export-tab export-tab-all" for="export-scope-inteiro">
+            <span>Relatório inteiro</span>
+          </label>
+          <label
+            class="export-tab export-tab-selected"
+            for="export-scope-selecionadas"
+          >
+            <span>Seções selecionadas</span>
+          </label>
+        </div>
+        <div class="export-panels">
+          <div class="export-panel export-panel-all" role="tabpanel"></div>
+          <div class="export-panel export-panel-selected" role="tabpanel">
+            <div class="export-sections" aria-label="Seções para exportar">
+              {% for s in rel.secoes %} {% set nivel = s.numero.count('.') + 1
+              %}
+              <div
+                class="export-section-node export-tree-lvl-{{ nivel }}"
+                data-section-node
+                data-section-number="{{ s.numero }}"
+                data-section-level="{{ nivel }}"
+              >
+                <button
+                  type="button"
+                  class="export-tree-toggle"
+                  aria-expanded="true"
+                  aria-label="Recolher seção {{ s.numero }}"
+                ></button>
+                <label class="export-section-check">
+                  <input
+                    type="checkbox"
+                    name="secao_ids"
+                    value="{{ s.id }}"
+                    {% if s.id == sec.id %}checked="checked"{% endif %}
+                  />
+                  <span>{{ s.numero }} – {{ s.titulo }}</span>
+                </label>
               </div>
-            </div>
-          </div>
-          <div class="export-actions">
-            <button type="submit" name="formato" value="pdf">Exportar PDF</button>
-            <button type="submit" name="formato" value="docx" class="secondary">Exportar DOCX</button>
-          </div>
-        </form>
-      </details>
-      <iframe id="preview-frame" src="/relatorios/{{ rel.id }}/pdf?embed=1" data-src="/relatorios/{{ rel.id }}/pdf?embed=1" class="preview-frame" title="Pré-visualização do relatório em PDF"></iframe>
-    </div>
-  </section>
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">●</span><span class="st">Blocos de conteúdo</span>
-    </div>
-    <div class="sb2 blocos-table-wrap">
-      {% if sec.blocos %}
-        <div class="bloco-bulk-actions" aria-label="Ações em lote para blocos selecionados">
-          <span class="bulk-count" id="bulk-count">0 selecionados</span>
-          <form id="bulk-aprovar-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/aprovar-lote" class="inline-form">
-          </form>
-          <form id="bulk-excluir-form" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/excluir-lote" class="inline-form">
-          </form>
-          <button type="submit" form="bulk-aprovar-form" class="secondary bulk-action-btn" data-bulk-submit disabled>Aprovar</button>
-          <button type="submit" form="bulk-excluir-form" class="danger bulk-action-btn" data-bulk-submit data-bulk-delete disabled>Deletar blocão</button>
-        </div>
-        <table class="blocos-table">
-          <thead>
-            <tr>
-              <th class="select-col">
-                <input type="checkbox" id="bulk-select-all" title="Selecionar todos os blocos disponíveis" aria-label="Selecionar todos os blocos disponíveis">
-              </th>
-              <th>Índice da seção</th>
-              <th>Título da seção</th>
-              <th>Tipo do elemento</th>
-              <th>Textos e Char</th>
-              <th>Adicionado por</th>
-              <th>Data de adição</th>
-              <th>Data da atualização</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for b in sec.blocos %}
-              {% set conteudo_bloco = b.conteudo or '' %}
-              {% set conteudo_limpo = conteudo_bloco.strip() %}
-              {% if b.tipo == 'texto' and conteudo_limpo.startswith('## ') %}
-                {% set categoria_bloco = "subtítulo" %}
-              {% elif b.tipo == 'texto' and conteudo_limpo.startswith('# ') %}
-                {% set categoria_bloco = "título" %}
-              {% elif b.tipo == 'texto' %}
-                {% set categoria_bloco = "parágrafo" %}
-              {% elif b.tipo == 'lista' %}
-                {% set categoria_bloco = "lista" %}
-              {% elif b.tipo == 'figura' %}
-                {% set categoria_bloco = "figura" %}
-              {% elif b.tipo == 'tabela' %}
-                {% set categoria_bloco = "tabela" %}
-              {% else %}
-                {% set categoria_bloco = "conteúdo" %}
-              {% endif %}
-              <tr class="{% if b.bloqueado %}bloqueado-row{% endif %}" id="bloco-row-{{ b.id }}">
-                <td class="select-col">
-                  <input type="checkbox" class="bloco-select" value="{{ b.id }}" title="Selecionar bloco" aria-label="Selecionar bloco {{ loop.index }}" {% if b.bloqueado %}disabled{% endif %}>
-                </td>
-                <td>{{ sec.numero }}</td>
-                <td>{{ sec.titulo }}</td>
-                <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
-                <td>
-                  <small>{{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)</small>
-                </td>
-                <td>{{ b.autor.nome if b.autor else '—' }}</td>
-                <td>{{ b.created_at.strftime("%d/%m/%y %H:%M") }}</td>
-                <td>{{ b.updated_at.strftime("%d/%m/%y %H:%M") }}</td>
-                <td class="td-actions">
-                  {% if not b.bloqueado %}
-                    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar" class="inline-form" data-sra-confirm="bloco_confirmar">
-                      <button type="submit" class="bloco-action" title="Confirmar" aria-label="Confirmar bloco">✓</button>
-                    </form>
-                    <button type="button"
-                            class="bloco-action edit-bloco-btn"
-                            title="Editar no container"
-                            aria-label="Editar bloco"
-                            data-bloco-id="{{ b.id }}"
-                            data-bloco-titulo='{{ (b.titulo or "")|tojson|forceescape }}'
-                            data-bloco-tipo='{{ (b.tipo or "texto")|tojson|forceescape }}'
-                            data-bloco-conteudo='{{ (b.conteudo or "")|tojson|forceescape }}'>✎</button>
-                  {% else %}
-                    <span class="locked-lbl">Bloqueado</span>
-                  {% endif %}
-                  {% if not b.bloqueado %}
-                    <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir" class="inline-form" data-sra-confirm="bloco_excluir">
-                      <button type="submit" class="bloco-action" title="Excluir bloco" aria-label="Excluir bloco">×</button>
-                    </form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="sdesc">Nenhum bloco ainda. Adicione abaixo.</p>
-      {% endif %}
-    </div>
-  </section>
-  <section class="ss active-tab" id="importar-conteudo">
-    <div class="ss-hdr">
-      <span class="sn">↑</span><span class="st">Importar conteúdo</span>
-    </div>
-    <div class="sb2">
-      <form id="form-importar-conteudo" class="import-form">
-        <div>
-          <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
-          <input type="file" id="import-arquivo" name="arquivo" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
-        </div>
-        <button type="submit">Analisar arquivo</button>
-        <span id="import-status" class="import-status" aria-live="polite"></span>
-      </form>
-      <div class="import-help">
-        Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>, <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ... <code>[/TABELA]</code>.
-        Em DOCX, use estilos de título do Word, títulos iniciados por número de seção e tabelas nativas.
-      </div>
-      <div id="import-review" class="import-review is-hidden">
-        <div class="import-review-head">
-          <div class="import-review-title">
-            <strong>Revisar blocos detectados</strong>
-            <span id="import-summary" class="import-summary"></span>
-          </div>
-          <div class="import-review-actions">
-            <button type="button" id="import-all-on" class="secondary-mini" title="Selecionar todos os blocos">✓ todos</button>
-            <button type="button" id="import-all-off" class="secondary-mini" title="Deselecionar todos os blocos">✗ nenhum</button>
-            <button type="button" id="import-confirm" class="primary-mini">Importar selecionados</button>
-          </div>
-        </div>
-        <div id="import-list" class="import-review-list" data-secoes-existentes='{{ rel.secoes|map(attribute="numero") |list|tojson }}'></div>
-      </div>
-    </div>
-  </section>
-  <section class="ss active-tab">
-    <div class="ss-hdr">
-      <span class="sn">+</span><span class="st">Adicionar bloco · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
-    </div>
-    <div class="sb2">
-      {% if user.role in ['admin','coordenador'] %}
-        <div class="sec-control">
-          <div class="sec-control-row">
-            <label for="sec-nav">Seção atual</label>
-            <select id="sec-nav" title="Trocar de seção">
-              {% for s in rel.secoes %}
-                <option value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}" {% if s.id == sec.id %}selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>
               {% endfor %}
-            </select>
-            <button type="button" class="secondary" id="btn-renomear-sec" title="Renomear esta seção">✎ Renomear</button>
-            <button type="button" class="secondary" id="btn-nova-sub" title="Criar nova subseção">+ Subseção</button>
-            {% if '.' in sec.numero %}
-              <form method="post"
-                    action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
-                    class="sec-control-inline"
-                    data-sra-confirm="secao_excluir"
-                    data-sra-iniciar-acompanhamento="1"
-                    data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção.">
-                <button type="submit" class="danger">🗑 Excluir</button>
-              </form>
-            {% endif %}
+            </div>
           </div>
-          <form id="form-renomear-sec" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear">
-            <label for="inp-renomear-titulo">Novo título da seção {{ sec.numero }}</label>
-            <input id="inp-renomear-titulo" type="text" name="titulo" value="{{ sec.titulo }}" required>
-            <button type="submit">Salvar</button>
-            <button type="button" class="secondary" data-cancel="form-renomear-sec">Cancelar</button>
-          </form>
-          <form id="form-nova-sub" class="sec-sub-form is-hidden" method="post" action="/relatorios/{{ rel.id }}/secoes">
-            <label for="inp-nova-sub-numero">Número (ex.: {{ sec.numero }}.1)</label>
-            <input id="inp-nova-sub-numero" type="text" name="numero" placeholder="{{ sec.numero }}.1" required>
-            <label for="inp-nova-sub-titulo">Título da subseção</label>
-            <input id="inp-nova-sub-titulo" type="text" name="titulo" placeholder="Título" required>
-            <button type="submit">Criar subseção</button>
-            <button type="button" class="secondary" data-cancel="form-nova-sub">Cancelar</button>
-          </form>
         </div>
-      {% endif %}
-      <form method="post" action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos" class="grid-form" id="form-add-bloco">
-        <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto">
-        <input type="hidden" name="titulo" id="add-bloco-titulo" value="{{ sec.numero }} – {{ sec.titulo }}">
-        <div class="full add-bloco-grid">
-          <div class="add-bloco-conteudo-head">
-            <label for="add-bloco-conteudo">Conteúdo</label>
-            <div class="bloco-toolbar" role="toolbar" aria-label="Formatação do conteúdo">
-              <button type="button" data-act="titulo" title="Inserir título (# )">H1</button>
-              <button type="button" data-act="subtitulo" title="Inserir subtítulo (## )">H2</button>
-              <button type="button" data-act="paragrafo" title="Marcar como parágrafo (texto livre)">¶</button>
-              <button type="button" data-act="lista" title="Marcar como lista (uma linha por item)">≣ Lista</button>
-              <button type="button" data-act="bullet" title="Adicionar bullet na linha atual">• Bullet</button>
-            </div>
-          </div>
-          <div class="add-bloco-conteudo-body">
-            <textarea name="conteudo" id="add-bloco-conteudo" rows="14" title="Conteúdo do bloco" placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."></textarea>
-            <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
-              <span class="bs-lbl">Linha atual:</span>
-              <span class="bs-tag" id="bs-tag">Parágrafo</span>
-              <span class="bs-sep">·</span>
-              <span class="bs-info" id="bs-info">linha 1, coluna 1</span>
-            </div>
-          </div>
-          <aside class="add-bloco-side">
-            <div class="mini-card mini-card-figura">
-              <div class="mini-card-hdr">
-                <span>🖼 Figura</span>
-              </div>
-              <div class="mini-card-body">
-                <label class="mini-label" for="ins-fig-sel">Figura existente</label>
-                <select id="ins-fig-sel" title="Figura disponível">
-                  <option value="">— selecione —</option>
-                  {% for f in figuras %}<option value="{{ f.id }}" data-nome="{{ f.nome }}">#{{ f.id }} {{ f.nome }}</option>{% endfor %}
-                </select>
-                <div id="ins-fig-preview" class="mini-fig-preview is-hidden">
-                  <img alt="prévia da figura" id="ins-fig-img">
-                </div>
-                <label class="mini-label" for="ins-fig-leg">Legenda</label>
-                <textarea id="ins-fig-leg" class="mini-leg" placeholder="Ex.: Vista aérea da obra"></textarea>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="fig-est">Estilo de indexação</label>
-                  <select id="fig-est">
-                    <option id="fig-opt-R" value="R">Por seção (Ex: FIGURA {{ sec.numero.split(".")[0] }}.1)</option>
-                    <option id="fig-opt-C" value="C">Sequencial (Ex: FIGURA 1)</option>
-                  </select>
-                </div>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="fig-pos">Posição da legenda</label>
-                  <select id="fig-pos">
-                    <option value="S">Superior</option>
-                    <option value="I" selected>Inferior</option>
-                  </select>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" id="ins-fig-btn" class="primary-mini">Inserir figura</button>
-                  <button type="button" id="ins-fig-upload-btn" class="secondary-mini" title="Enviar uma nova figura e inserir no cursor">Upload</button>
-                </div>
-                <input type="file" id="ins-fig-upload-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="is-hidden">
-              </div>
-            </div>
-            <div class="mini-card mini-card-tabela">
-              <div class="mini-card-hdr">
-                <span>▦ Tabela</span>
-              </div>
-              <div class="mini-card-body">
-                <div class="mini-row">
-                  <div>
-                    <label class="mini-label" for="ins-tab-rows">Linhas</label>
-                    <input type="number" id="ins-tab-rows" min="1" max="50" value="3" title="Linhas de dados (sem contar cabeçalho)">
-                  </div>
-                  <div>
-                    <label class="mini-label" for="ins-tab-cols">Colunas</label>
-                    <input type="number" id="ins-tab-cols" min="1" max="12" value="3" title="Número de colunas">
-                  </div>
-                </div>
-                <label class="mini-label" for="ins-tab-leg">Legenda</label>
-                <textarea id="ins-tab-leg" class="mini-leg" placeholder="Ex.: Quantitativo de serviços"></textarea>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="tab-est">Estilo de indexação</label>
-                  <select id="tab-est">
-                    <option id="tab-opt-R" value="R">Por seção (Ex: TABELA {{ sec.numero.split(".")[0] }}.1)</option>
-                    <option id="tab-opt-C" value="C">Sequencial (Ex: TABELA 1)</option>
-                  </select>
-                </div>
-                <div class="mini-fmt-sel">
-                  <label class="mini-label" for="tab-pos">Posição da legenda</label>
-                  <select id="tab-pos">
-                    <option value="S">Superior</option>
-                    <option value="I">Inferior</option>
-                  </select>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" id="ins-tab-btn" class="primary-mini">Nova tabela</button>
-                  <button type="button" id="edit-tab-btn" class="secondary-mini" title="Editar visualmente a tabela onde está o cursor" disabled>Editar tabela</button>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
-        <div class="full">
-          <button type="submit">Adicionar bloco</button>
+        <div class="export-actions">
+          <button type="submit" name="formato" value="pdf">Exportar PDF</button>
+          <button type="submit" name="formato" value="docx" class="secondary">
+            Exportar DOCX
+          </button>
         </div>
       </form>
-      <!-- Editor visual de tabela (modal) -->
-      <div id="tab-editor" class="tab-editor-overlay is-hidden" role="dialog" aria-modal="true" aria-labelledby="tab-editor-title">
-        <div class="tab-editor-box">
-          <div class="tab-editor-hdr">
-            <strong id="tab-editor-title">Editor de tabela</strong>
-            <button type="button" class="tab-editor-close" id="tab-editor-close" aria-label="Fechar">×</button>
+    </details>
+    <iframe
+      id="preview-frame"
+      src="/relatorios/{{ rel.id }}/pdf?embed=1"
+      data-src="/relatorios/{{ rel.id }}/pdf?embed=1"
+      class="preview-frame"
+      title="Pré-visualização do relatório em PDF"
+    ></iframe>
+  </div>
+</section>
+<section class="ss active-tab">
+  <div class="ss-hdr">
+    <span class="sn">●</span><span class="st">Blocos de conteúdo</span>
+  </div>
+  <div class="sb2 blocos-table-wrap">
+    {% if sec.blocos %}
+    <div
+      class="bloco-bulk-actions"
+      aria-label="Ações em lote para blocos selecionados"
+    >
+      <span class="bulk-count" id="bulk-count">0 selecionados</span>
+      <form
+        id="bulk-aprovar-form"
+        method="post"
+        action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/aprovar-lote"
+        class="inline-form"
+      ></form>
+      <form
+        id="bulk-excluir-form"
+        method="post"
+        action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/excluir-lote"
+        class="inline-form"
+      ></form>
+      <button
+        type="submit"
+        form="bulk-aprovar-form"
+        class="secondary bulk-action-btn"
+        data-bulk-submit
+        disabled
+      >
+        Aprovar
+      </button>
+      <button
+        type="submit"
+        form="bulk-excluir-form"
+        class="danger bulk-action-btn"
+        data-bulk-submit
+        data-bulk-delete
+        disabled
+      >
+        Excluir em lote
+      </button>
+    </div>
+    <table class="blocos-table">
+      <thead>
+        <tr>
+          <th class="select-col">
+            <input
+              type="checkbox"
+              id="bulk-select-all"
+              title="Selecionar todos os blocos disponíveis"
+              aria-label="Selecionar todos os blocos disponíveis"
+            />
+          </th>
+          <th>Índice da seção</th>
+          <th>Título da seção</th>
+          <th>Tipo do elemento</th>
+          <th>Textos e Char</th>
+          <th>Adicionado por</th>
+          <th>Data de adição</th>
+          <th>Data da atualização</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in sec.blocos %} {% set conteudo_bloco = b.conteudo or '' %} {%
+        set conteudo_limpo = conteudo_bloco.strip() %} {% if b.tipo == 'texto'
+        and conteudo_limpo.startswith('## ') %} {% set categoria_bloco =
+        "subtítulo" %} {% elif b.tipo == 'texto' and
+        conteudo_limpo.startswith('# ') %} {% set categoria_bloco = "título" %}
+        {% elif b.tipo == 'texto' %} {% set categoria_bloco = "parágrafo" %} {%
+        elif b.tipo == 'lista' %} {% set categoria_bloco = "lista" %} {% elif
+        b.tipo == 'figura' %} {% set categoria_bloco = "figura" %} {% elif
+        b.tipo == 'tabela' %} {% set categoria_bloco = "tabela" %} {% else %} {%
+        set categoria_bloco = "conteúdo" %} {% endif %}
+        <tr
+          class="{% if b.bloqueado %}bloqueado-row{% endif %}"
+          id="bloco-row-{{ b.id }}"
+        >
+          <td class="select-col">
+            <input
+              type="checkbox"
+              class="bloco-select"
+              value="{{ b.id }}"
+              title="Selecionar bloco"
+              aria-label="Selecionar bloco {{ loop.index }}"
+              {% if b.bloqueado %}disabled{% endif %}
+            />
+          </td>
+          <td>{{ sec.numero }}</td>
+          <td>{{ sec.titulo }}</td>
+          <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
+          <td>
+            <small>
+              {{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)
+            </small>
+          </td>
+          <td>{{ b.autor.nome if b.autor else '—' }}</td>
+          <td>{{ b.created_at.strftime("%d/%m/%y %H:%M") }}</td>
+          <td>{{ b.updated_at.strftime("%d/%m/%y %H:%M") }}</td>
+          <td class="td-actions">
+            {% if not b.bloqueado %}
+            <form
+              method="post"
+              action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/confirmar"
+              class="inline-form"
+              data-sra-confirm="bloco_confirmar"
+            >
+              <button
+                type="submit"
+                class="bloco-action"
+                title="Confirmar"
+                aria-label="Confirmar bloco"
+              >
+                ✓
+              </button>
+            </form>
+            <button
+              type="button"
+              class="bloco-action edit-bloco-btn"
+              title="Editar no container"
+              aria-label="Editar bloco"
+              data-bloco-id="{{ b.id }}"
+              data-bloco-titulo='{{ (b.titulo or "")|tojson|forceescape }}'
+              data-bloco-tipo='{{ (b.tipo or "texto")|tojson|forceescape }}'
+              data-bloco-conteudo='{{ (b.conteudo or "")|tojson|forceescape }}'
+            >
+              ✎
+            </button>
+            {% else %}
+            <span class="locked-lbl">Bloqueado</span>
+            {% endif %} {% if not b.bloqueado %}
+            <form
+              method="post"
+              action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/{{ b.id }}/excluir"
+              class="inline-form"
+              data-sra-confirm="bloco_excluir"
+            >
+              <button
+                type="submit"
+                class="bloco-action"
+                title="Excluir bloco"
+                aria-label="Excluir bloco"
+              >
+                ×
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="sdesc">Nenhum bloco ainda. Adicione abaixo.</p>
+    {% endif %}
+  </div>
+</section>
+<section class="ss active-tab" id="importar-conteudo">
+  <div class="ss-hdr">
+    <span class="sn">↑</span><span class="st">Importar conteúdo</span>
+  </div>
+  <div class="sb2">
+    <form id="form-importar-conteudo" class="import-form">
+      <div>
+        <label for="import-arquivo">Arquivo estruturado (.txt ou .docx)</label>
+        <input
+          type="file"
+          id="import-arquivo"
+          name="arquivo"
+          accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          required
+        />
+      </div>
+      <button type="submit">Analisar arquivo</button>
+      <span id="import-status" class="import-status" aria-live="polite"></span>
+    </form>
+    <div class="import-help">
+      Em TXT, use <code>[SECAO: {{ sec.numero }}]</code>, <code>#</code>,
+      <code>##</code>, <code>-</code> e <code>[TABELA: legenda]</code> ...
+      <code>[/TABELA]</code>. Em DOCX, use estilos de título do Word, títulos
+      iniciados por número de seção e tabelas nativas.
+    </div>
+    <div id="import-review" class="import-review is-hidden">
+      <div class="import-review-head">
+        <div class="import-review-title">
+          <strong>Revisar blocos detectados</strong>
+          <span id="import-summary" class="import-summary"></span>
+        </div>
+        <div class="import-review-actions">
+          <button
+            type="button"
+            id="import-all-on"
+            class="secondary-mini"
+            title="Selecionar todos os blocos"
+          >
+            ✓ todos
+          </button>
+          <button
+            type="button"
+            id="import-all-off"
+            class="secondary-mini"
+            title="Deselecionar todos os blocos"
+          >
+            ✗ nenhum
+          </button>
+          <button type="button" id="import-confirm" class="primary-mini">
+            Importar selecionados
+          </button>
+        </div>
+      </div>
+      <div
+        id="import-list"
+        class="import-review-list"
+        data-secoes-existentes='{{ rel.secoes|map(attribute="numero") |list|tojson }}'
+      ></div>
+    </div>
+  </div>
+</section>
+<section class="ss active-tab">
+  <div class="ss-hdr">
+    <span class="sn">+</span>
+    <span class="st">Adicionar bloco · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
+  </div>
+  <div class="sb2">
+    {% if user.role in ['admin','coordenador'] %}
+    <div class="sec-control">
+      <div class="sec-control-row">
+        <label for="sec-nav">Seção atual</label>
+        <select id="sec-nav" title="Trocar de seção">
+          {% for s in rel.secoes %}
+          <option
+            value="/relatorios/{{ rel.id }}/secoes/{{ s.id }}"
+            {% if s.id == sec.id %}selected{% endif %}
+          >
+            {{ s.numero }} – {{ s.titulo }}
+          </option>
+          {% endfor %}
+        </select>
+        <button
+          type="button"
+          class="secondary"
+          id="btn-renomear-sec"
+          title="Renomear esta seção"
+        >
+          ✎ Renomear
+        </button>
+        <button
+          type="button"
+          class="secondary"
+          id="btn-nova-sub"
+          title="Criar nova subseção"
+        >
+          + Subseção
+        </button>
+        {% if '.' in sec.numero %}
+        <form
+          method="post"
+          action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/excluir"
+          class="sec-control-inline"
+          data-sra-confirm="secao_excluir"
+          data-sra-iniciar-acompanhamento="1"
+          data-sra-detail="Secção {{ sec.numero }} – {{ sec.titulo|e }} — todos os blocos desta subseção."
+        >
+          <button type="submit" class="danger">🗑 Excluir</button>
+        </form>
+        {% endif %}
+      </div>
+      <form
+        id="form-renomear-sec"
+        class="sec-sub-form is-hidden"
+        method="post"
+        action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/renomear"
+      >
+        <label for="inp-renomear-titulo">
+          Novo título da seção {{ sec.numero }}
+        </label>
+        <input
+          id="inp-renomear-titulo"
+          type="text"
+          name="titulo"
+          value="{{ sec.titulo }}"
+          required
+        />
+        <button type="submit">Salvar</button>
+        <button type="button" class="secondary" data-cancel="form-renomear-sec">
+          Cancelar
+        </button>
+      </form>
+      <form
+        id="form-nova-sub"
+        class="sec-sub-form is-hidden"
+        method="post"
+        action="/relatorios/{{ rel.id }}/secoes"
+      >
+        <label for="inp-nova-sub-numero">Número (ex.: {{ sec.numero }}.1)</label>
+        <input
+          id="inp-nova-sub-numero"
+          type="text"
+          name="numero"
+          placeholder="{{ sec.numero }}.1"
+          required
+        />
+        <label for="inp-nova-sub-titulo">Título da subseção</label>
+        <input
+          id="inp-nova-sub-titulo"
+          type="text"
+          name="titulo"
+          placeholder="Título"
+          required
+        />
+        <button type="submit">Criar subseção</button>
+        <button type="button" class="secondary" data-cancel="form-nova-sub">
+          Cancelar
+        </button>
+      </form>
+    </div>
+    {% endif %}
+    <form
+      method="post"
+      action="/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos"
+      class="grid-form"
+      id="form-add-bloco"
+    >
+      <input type="hidden" name="tipo" id="add-bloco-tipo" value="texto" />
+      <input
+        type="hidden"
+        name="titulo"
+        id="add-bloco-titulo"
+        value="{{ sec.numero }} – {{ sec.titulo }}"
+      />
+      <div class="full add-bloco-grid">
+        <div class="add-bloco-conteudo-head">
+          <label for="add-bloco-conteudo">Conteúdo</label>
+          <div
+            class="bloco-toolbar"
+            role="toolbar"
+            aria-label="Formatação do conteúdo"
+          >
+            <button type="button" data-act="titulo" title="Inserir título (# )">
+              H1
+            </button>
+            <button
+              type="button"
+              data-act="subtitulo"
+              title="Inserir subtítulo (## )"
+            >
+              H2
+            </button>
+            <button
+              type="button"
+              data-act="paragrafo"
+              title="Marcar como parágrafo (texto livre)"
+            >
+              ¶
+            </button>
+            <button
+              type="button"
+              data-act="lista"
+              title="Marcar como lista (uma linha por item)"
+            >
+              ≣ Lista
+            </button>
+            <button
+              type="button"
+              data-act="bullet"
+              title="Adicionar bullet na linha atual"
+            >
+              • Bullet
+            </button>
           </div>
-          <div class="tab-editor-body">
-            <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
-            <input type="text" id="tab-editor-leg" placeholder="Ex.: Quantitativo de serviços">
-            <div class="tab-editor-toolbar">
-              <button type="button" data-tab-act="add-row">+ Linha</button>
-              <button type="button" data-tab-act="del-row">− Linha</button>
-              <button type="button" data-tab-act="add-col">+ Coluna</button>
-              <button type="button" data-tab-act="del-col">− Coluna</button>
-              <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+        </div>
+        <div class="add-bloco-conteudo-body">
+          <textarea
+            name="conteudo"
+            id="add-bloco-conteudo"
+            rows="14"
+            title="Conteúdo do bloco"
+            placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."
+          ></textarea>
+          <div class="bloco-status-bar" id="bloco-status" aria-live="polite">
+            <span class="bs-lbl">Linha atual:</span>
+            <span class="bs-tag" id="bs-tag">Parágrafo</span>
+            <span class="bs-sep">·</span>
+            <span class="bs-info" id="bs-info">linha 1, coluna 1</span>
+          </div>
+        </div>
+        <aside class="add-bloco-side">
+          <div class="mini-card mini-card-figura">
+            <div class="mini-card-hdr">
+              <span>🖼 Figura</span>
             </div>
-            <div class="tab-editor-scroll">
-              <table id="tab-editor-table" class="tab-editor-table">
-                <thead>
-                </thead>
-                <tbody>
-                </tbody>
-              </table>
+            <div class="mini-card-body">
+              <label class="mini-label" for="ins-fig-sel">Figura existente</label>
+              <select id="ins-fig-sel" title="Figura disponível">
+                <option value="">— selecione —</option>
+                {% for f in figuras %}
+                <option value="{{ f.id }}" data-nome="{{ f.nome }}">
+                  #{{ f.id }} {{ f.nome }}
+                </option>
+                {% endfor %}
+              </select>
+              <div id="ins-fig-preview" class="mini-fig-preview is-hidden">
+                <img alt="prévia da figura" id="ins-fig-img" />
+              </div>
+              <label class="mini-label" for="ins-fig-leg">Legenda</label>
+              <textarea
+                id="ins-fig-leg"
+                class="mini-leg"
+                placeholder="Ex.: Vista aérea da obra"
+              ></textarea>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="fig-est">Estilo de indexação</label>
+                <select id="fig-est">
+                  <option id="fig-opt-R" value="R">
+                    Por seção (Ex: FIGURA {{ sec.numero.split(".")[0] }}.1)
+                  </option>
+                  <option id="fig-opt-C" value="C">
+                    Sequencial (Ex: FIGURA 1)
+                  </option>
+                </select>
+              </div>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="fig-pos">Posição da legenda</label>
+                <select id="fig-pos">
+                  <option value="S">Superior</option>
+                  <option value="I" selected>Inferior</option>
+                </select>
+              </div>
+              <div class="mini-actions">
+                <button type="button" id="ins-fig-btn" class="primary-mini">
+                  Inserir figura
+                </button>
+                <button
+                  type="button"
+                  id="ins-fig-upload-btn"
+                  class="secondary-mini"
+                  title="Enviar uma nova figura e inserir no cursor"
+                >
+                  Upload
+                </button>
+              </div>
+              <input
+                type="file"
+                id="ins-fig-upload-file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                class="is-hidden"
+              />
             </div>
           </div>
-          <div class="tab-editor-foot">
-            <button type="button" class="secondary-mini" id="tab-editor-cancel">Cancelar</button>
-            <button type="button" class="primary-mini" id="tab-editor-confirm">Inserir tabela</button>
+          <div class="mini-card mini-card-tabela">
+            <div class="mini-card-hdr">
+              <span>▦ Tabela</span>
+            </div>
+            <div class="mini-card-body">
+              <div class="mini-row">
+                <div>
+                  <label class="mini-label" for="ins-tab-rows">Linhas</label>
+                  <input
+                    type="number"
+                    id="ins-tab-rows"
+                    min="1"
+                    max="50"
+                    value="3"
+                    title="Linhas de dados (sem contar cabeçalho)"
+                  />
+                </div>
+                <div>
+                  <label class="mini-label" for="ins-tab-cols">Colunas</label>
+                  <input
+                    type="number"
+                    id="ins-tab-cols"
+                    min="1"
+                    max="12"
+                    value="3"
+                    title="Número de colunas"
+                  />
+                </div>
+              </div>
+              <label class="mini-label" for="ins-tab-leg">Legenda</label>
+              <textarea
+                id="ins-tab-leg"
+                class="mini-leg"
+                placeholder="Ex.: Quantitativo de serviços"
+              ></textarea>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="tab-est">Estilo de indexação</label>
+                <select id="tab-est">
+                  <option id="tab-opt-R" value="R">
+                    Por seção (Ex: TABELA {{ sec.numero.split(".")[0] }}.1)
+                  </option>
+                  <option id="tab-opt-C" value="C">
+                    Sequencial (Ex: TABELA 1)
+                  </option>
+                </select>
+              </div>
+              <div class="mini-fmt-sel">
+                <label class="mini-label" for="tab-pos">Posição da legenda</label>
+                <select id="tab-pos">
+                  <option value="S">Superior</option>
+                  <option value="I">Inferior</option>
+                </select>
+              </div>
+              <div class="mini-actions">
+                <button type="button" id="ins-tab-btn" class="primary-mini">
+                  Nova tabela
+                </button>
+                <button
+                  type="button"
+                  id="edit-tab-btn"
+                  class="secondary-mini"
+                  title="Editar visualmente a tabela onde está o cursor"
+                  disabled
+                >
+                  Editar tabela
+                </button>
+              </div>
+            </div>
           </div>
+        </aside>
+      </div>
+      <div class="full">
+        <button type="submit">Adicionar bloco</button>
+      </div>
+    </form>
+    <!-- Editor visual de tabela (modal) -->
+    <div
+      id="tab-editor"
+      class="tab-editor-overlay is-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tab-editor-title"
+    >
+      <div class="tab-editor-box">
+        <div class="tab-editor-hdr">
+          <strong id="tab-editor-title">Editor de tabela</strong>
+          <button
+            type="button"
+            class="tab-editor-close"
+            id="tab-editor-close"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+        <div class="tab-editor-body">
+          <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
+          <input
+            type="text"
+            id="tab-editor-leg"
+            placeholder="Ex.: Quantitativo de serviços"
+          />
+          <div class="tab-editor-toolbar">
+            <button type="button" data-tab-act="add-row">+ Linha</button>
+            <button type="button" data-tab-act="del-row">− Linha</button>
+            <button type="button" data-tab-act="add-col">+ Coluna</button>
+            <button type="button" data-tab-act="del-col">− Coluna</button>
+            <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+          </div>
+          <div class="tab-editor-scroll">
+            <table id="tab-editor-table" class="tab-editor-table">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-editor-foot">
+          <button type="button" class="secondary-mini" id="tab-editor-cancel">
+            Cancelar
+          </button>
+          <button type="button" class="primary-mini" id="tab-editor-confirm">
+            Inserir tabela
+          </button>
         </div>
       </div>
     </div>
-  </section>
-  <script src="/static/js/import_texto_tools.js"></script>
-  <script data-rel-id='{{ rel.id|tojson|forceescape }}' data-sec-numero='{{ sec.numero|tojson|forceescape }}' data-sec-titulo='{{ sec.titulo|tojson|forceescape }}' data-fig-base='{{ media_counts.fig_base|int|tojson|forceescape }}' data-tab-base='{{ media_counts.tab_base|int|tojson|forceescape }}' data-fig-global-base='{{ media_counts.fig_global_base|int|tojson|forceescape }}' data-tab-global-base='{{ media_counts.tab_global_base|int|tojson|forceescape }}'>
-const SECAO_EDIT_DATA = document.currentScript ? document.currentScript.dataset : {};
-function parseJsonValue(raw, fallback) {
-  if (raw === undefined || raw === '') return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    return fallback;
-  }
-}
-function readSecaoEditData(name, fallback) {
-  return parseJsonValue(SECAO_EDIT_DATA[name], fallback);
-}
-
-(function(){
-  const form = document.getElementById('form-add-bloco'); if (!form) return;
-  const tipoIn = document.getElementById('add-bloco-tipo');
-  const tituloHidden = document.getElementById('add-bloco-titulo');
-  const ta = document.getElementById('add-bloco-conteudo');
-  const relId = readSecaoEditData('relId', 0);
-  const secNumero = readSecaoEditData('secNumero', '');
-  const secTop = secNumero.split('.')[0];
-  const figBase = readSecaoEditData('figBase', 0);
-  const tabBase = readSecaoEditData('tabBase', 0);
-  const figGlobalBase = readSecaoEditData('figGlobalBase', 0);
-  const tabGlobalBase = readSecaoEditData('tabGlobalBase', 0);
-  function _countTaFig(){ return (ta.value.match(/\[\[FIGURA:/g) || []).length; }
-  function _countTaTab(){
-    const op = (ta.value.match(/\[\[TABELA(?::|\||\]\])/g) || []).length;
-    const cl = (ta.value.match(/\[\[\/TABELA\]\]/g) || []).length;
-    return cl; // tabelas já fechadas no textarea
-  }
-  function nextFigIdx(estilo){
-    const n = (estilo === 'C' ? figGlobalBase : figBase) + _countTaFig() + 1;
-    return estilo === 'C' ? String(n) : (secTop + '.' + n);
-  }
-  function nextTabIdx(estilo){
-    const n = (estilo === 'C' ? tabGlobalBase : tabBase) + _countTaTab() + 1;
-    return estilo === 'C' ? String(n) : (secTop + '.' + n);
-  }
-  function _figEst(){ const s = document.getElementById('fig-est'); return s ? s.value : 'R'; }
-  function _figPos(){ const s = document.getElementById('fig-pos'); return s ? s.value : 'I'; }
-  function _tabEst(){ const s = document.getElementById('tab-est'); return s ? s.value : 'R'; }
-  function _tabPos(){ const s = document.getElementById('tab-pos'); return s ? s.value : 'S'; }
-  function _atualizaExemplos(){
-    const fr = document.getElementById('fig-opt-R'); if (fr) fr.textContent = 'Por seção (Ex: FIGURA ' + (secTop + '.' + (figBase + _countTaFig() + 1)) + ')';
-    const fc = document.getElementById('fig-opt-C'); if (fc) fc.textContent = 'Sequencial (Ex: FIGURA ' + (figGlobalBase + _countTaFig() + 1) + ')';
-    const tr = document.getElementById('tab-opt-R'); if (tr) tr.textContent = 'Por seção (Ex: TABELA ' + (secTop + '.' + (tabBase + _countTaTab() + 1)) + ')';
-    const tc = document.getElementById('tab-opt-C'); if (tc) tc.textContent = 'Sequencial (Ex: TABELA ' + (tabGlobalBase + _countTaTab() + 1) + ')';
-  }
-  window.atualizaExemplosBloco = _atualizaExemplos;
-  function syncTitulo(){ /* título fixo da seção atual */ }
-
-  let lastCursor = { start: 0, end: 0 };
-  ta.addEventListener('blur', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
-  ta.addEventListener('keyup', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
-  ta.addEventListener('mouseup', () => { lastCursor = { start: ta.selectionStart, end: ta.selectionEnd }; });
-
-  function insertText(text, opts){
-    opts = opts || {};
-    const pos = (document.activeElement === ta) ? { start: ta.selectionStart, end: ta.selectionEnd } : lastCursor;
-    let before = ta.value.slice(0, pos.start);
-    let after = ta.value.slice(pos.end);
-    if (opts.blockLine) {
-      if (before.length && !before.endsWith('\n')) before += '\n';
-      if (after.length && !after.startsWith('\n')) text = text + '\n';
+  </div>
+</section>
+<script src="/static/js/import_texto_tools.js"></script>
+<script
+  data-rel-id="{{ rel.id|tojson|forceescape }}"
+  data-sec-numero="{{ sec.numero|tojson|forceescape }}"
+  data-sec-titulo="{{ sec.titulo|tojson|forceescape }}"
+  data-fig-base="{{ media_counts.fig_base|int|tojson|forceescape }}"
+  data-tab-base="{{ media_counts.tab_base|int|tojson|forceescape }}"
+  data-fig-global-base="{{ media_counts.fig_global_base|int|tojson|forceescape }}"
+  data-tab-global-base="{{ media_counts.tab_global_base|int|tojson|forceescape }}"
+>
+  const SECAO_EDIT_DATA = document.currentScript
+    ? document.currentScript.dataset
+    : {};
+  function parseJsonValue(raw, fallback) {
+    if (raw === undefined || raw === "") return fallback;
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      return fallback;
     }
-    ta.value = before + text + after;
-    const newPos = before.length + text.length;
-    ta.focus();
-    ta.selectionStart = ta.selectionEnd = newPos;
-    lastCursor = { start: newPos, end: newPos };
+  }
+  function readSecaoEditData(name, fallback) {
+    return parseJsonValue(SECAO_EDIT_DATA[name], fallback);
   }
 
-  function insertAtCursor(prefix, perLine){
-    const start = ta.selectionStart, end = ta.selectionEnd;
-    const before = ta.value.slice(0, start), sel = ta.value.slice(start, end), after = ta.value.slice(end);
-    let inserted;
-    if (perLine && sel) {
-      inserted = sel.split('\n').map(l => l ? prefix + l : l).join('\n');
-    } else {
-      inserted = prefix + sel;
+  (function () {
+    const form = document.getElementById("form-add-bloco");
+    if (!form) return;
+    const tipoIn = document.getElementById("add-bloco-tipo");
+    const tituloHidden = document.getElementById("add-bloco-titulo");
+    const ta = document.getElementById("add-bloco-conteudo");
+    const relId = readSecaoEditData("relId", 0);
+    const secNumero = readSecaoEditData("secNumero", "");
+    const secTop = secNumero.split(".")[0];
+    const figBase = readSecaoEditData("figBase", 0);
+    const tabBase = readSecaoEditData("tabBase", 0);
+    const figGlobalBase = readSecaoEditData("figGlobalBase", 0);
+    const tabGlobalBase = readSecaoEditData("tabGlobalBase", 0);
+    function _countTaFig() {
+      return (ta.value.match(/\[\[FIGURA:/g) || []).length;
     }
-    ta.value = before + inserted + after;
-    ta.focus();
-    ta.selectionStart = start + prefix.length;
-    ta.selectionEnd = start + inserted.length;
-  }
-  document.querySelectorAll('.bloco-toolbar button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const act = btn.dataset.act;
-      if (act === 'titulo')         { insertAtCursor('# ');  tipoIn.value = 'texto'; }
-      else if (act === 'subtitulo') { insertAtCursor('## '); tipoIn.value = 'texto'; }
-      else if (act === 'paragrafo') { tipoIn.value = 'texto'; }
-      else if (act === 'lista')     { tipoIn.value = 'lista'; insertAtCursor('- ', true); }
-      else if (act === 'bullet')    { insertAtCursor('- ', true); }
+    function _countTaTab() {
+      const op = (ta.value.match(/\[\[TABELA(?::|\||\]\])/g) || []).length;
+      const cl = (ta.value.match(/\[\[\/TABELA\]\]/g) || []).length;
+      return cl; // tabelas já fechadas no textarea
+    }
+    function nextFigIdx(estilo) {
+      const n = (estilo === "C" ? figGlobalBase : figBase) + _countTaFig() + 1;
+      return estilo === "C" ? String(n) : secTop + "." + n;
+    }
+    function nextTabIdx(estilo) {
+      const n = (estilo === "C" ? tabGlobalBase : tabBase) + _countTaTab() + 1;
+      return estilo === "C" ? String(n) : secTop + "." + n;
+    }
+    function _figEst() {
+      const s = document.getElementById("fig-est");
+      return s ? s.value : "R";
+    }
+    function _figPos() {
+      const s = document.getElementById("fig-pos");
+      return s ? s.value : "I";
+    }
+    function _tabEst() {
+      const s = document.getElementById("tab-est");
+      return s ? s.value : "R";
+    }
+    function _tabPos() {
+      const s = document.getElementById("tab-pos");
+      return s ? s.value : "S";
+    }
+    function _atualizaExemplos() {
+      const fr = document.getElementById("fig-opt-R");
+      if (fr)
+        fr.textContent =
+          "Por seção (Ex: FIGURA " +
+          (secTop + "." + (figBase + _countTaFig() + 1)) +
+          ")";
+      const fc = document.getElementById("fig-opt-C");
+      if (fc)
+        fc.textContent =
+          "Sequencial (Ex: FIGURA " + (figGlobalBase + _countTaFig() + 1) + ")";
+      const tr = document.getElementById("tab-opt-R");
+      if (tr)
+        tr.textContent =
+          "Por seção (Ex: TABELA " +
+          (secTop + "." + (tabBase + _countTaTab() + 1)) +
+          ")";
+      const tc = document.getElementById("tab-opt-C");
+      if (tc)
+        tc.textContent =
+          "Sequencial (Ex: TABELA " + (tabGlobalBase + _countTaTab() + 1) + ")";
+    }
+    window.atualizaExemplosBloco = _atualizaExemplos;
+    function syncTitulo() {
+      /* título fixo da seção atual */
+    }
+
+    let lastCursor = { start: 0, end: 0 };
+    ta.addEventListener("blur", () => {
+      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
     });
-  });
+    ta.addEventListener("keyup", () => {
+      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
+    });
+    ta.addEventListener("mouseup", () => {
+      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
+    });
 
-  const figSel = document.getElementById('ins-fig-sel');
-  const figPrev = document.getElementById('ins-fig-preview');
-  const figImg = document.getElementById('ins-fig-img');
-  const figLeg = document.getElementById('ins-fig-leg');
-  const figBtn = document.getElementById('ins-fig-btn');
-  figSel.addEventListener('change', () => {
-    if (figSel.value) {
-      figImg.src = '/figuras/' + figSel.value;
-      figPrev.classList.remove('is-hidden');
-    } else {
-      figPrev.classList.add('is-hidden');
-      figImg.removeAttribute('src');
+    function insertText(text, opts) {
+      opts = opts || {};
+      const pos =
+        document.activeElement === ta
+          ? { start: ta.selectionStart, end: ta.selectionEnd }
+          : lastCursor;
+      let before = ta.value.slice(0, pos.start);
+      let after = ta.value.slice(pos.end);
+      if (opts.blockLine) {
+        if (before.length && !before.endsWith("\n")) before += "\n";
+        if (after.length && !after.startsWith("\n")) text = text + "\n";
+      }
+      ta.value = before + text + after;
+      const newPos = before.length + text.length;
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = newPos;
+      lastCursor = { start: newPos, end: newPos };
     }
-  });
-  figBtn.addEventListener('click', () => {
-    if (!figSel.value) { alert('Selecione uma figura ou faça upload primeiro.'); return; }
-    const leg = (figLeg.value || '').trim().replace(/\|/g, '/');
-    if (!leg) { alert('Informe a legenda da figura antes de inserir.'); figLeg.focus(); return; }
-    const est = _figEst(); const pos = _figPos();
-    const idx = nextFigIdx(est);
-    const marker = '[[FIGURA:' + idx + '|' + figSel.value + '|' + pos + '|' + leg + ']]';
-    insertText(marker, { blockLine: true });
-    figLeg.value = '';
-    _atualizaExemplos();
-  });
 
-  const tabRows = document.getElementById('ins-tab-rows');
-  const tabCols = document.getElementById('ins-tab-cols');
-  const tabLeg = document.getElementById('ins-tab-leg');
-  const tabBtn = document.getElementById('ins-tab-btn');
-  const editTabBtn = document.getElementById('edit-tab-btn');
-  tabBtn.addEventListener('click', () => {
-    const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
-    const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
-    const leg = (tabLeg.value || '').trim();
-    if (!leg) { alert('Informe a legenda da tabela antes de criar.'); tabLeg.focus(); return; }
-    const headers = Array.from({length: c}, (_, i) => 'Cabeçalho ' + (i + 1));
-    const rowsArr = Array.from({length: r}, () => Array.from({length: c}, () => ''));
-    const est = _tabEst(); const pos = _tabPos();
-    openTableEditor({ legenda: leg, headers, rows: rowsArr, mode: 'insert', idx: nextTabIdx(est), pos });
-  });
-  if (editTabBtn) editTabBtn.addEventListener('click', () => {
-    const found = findTableMarkerAtCursor();
-    if (!found) { alert('Posicione o cursor dentro de uma tabela existente para editar.'); return; }
-    openTableEditor({ legenda: found.legenda, headers: found.headers, rows: found.rows, mode: 'replace', range: found.range, idx: found.idx, pos: found.pos });
-  });
+    function insertAtCursor(prefix, perLine) {
+      const start = ta.selectionStart,
+        end = ta.selectionEnd;
+      const before = ta.value.slice(0, start),
+        sel = ta.value.slice(start, end),
+        after = ta.value.slice(end);
+      let inserted;
+      if (perLine && sel) {
+        inserted = sel
+          .split("\n")
+          .map((l) => (l ? prefix + l : l))
+          .join("\n");
+      } else {
+        inserted = prefix + sel;
+      }
+      ta.value = before + inserted + after;
+      ta.focus();
+      ta.selectionStart = start + prefix.length;
+      ta.selectionEnd = start + inserted.length;
+    }
+    document.querySelectorAll(".bloco-toolbar button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const act = btn.dataset.act;
+        if (act === "titulo") {
+          insertAtCursor("# ");
+          tipoIn.value = "texto";
+        } else if (act === "subtitulo") {
+          insertAtCursor("## ");
+          tipoIn.value = "texto";
+        } else if (act === "paragrafo") {
+          tipoIn.value = "texto";
+        } else if (act === "lista") {
+          tipoIn.value = "lista";
+          insertAtCursor("- ", true);
+        } else if (act === "bullet") {
+          insertAtCursor("- ", true);
+        }
+      });
+    });
 
-  form.addEventListener('submit', () => { syncTitulo(); });
-
-  const secNav = document.getElementById('sec-nav');
-  if (secNav) {
-    secNav.addEventListener('change', () => { if (secNav.value) window.location.href = secNav.value; });
-  }
-  function toggleForm(id, show){
-    const el = document.getElementById(id); if (!el) return;
-    el.classList.toggle('is-hidden', !show);
-  }
-  const btnRen = document.getElementById('btn-renomear-sec');
-  if (btnRen) btnRen.addEventListener('click', () => toggleForm('form-renomear-sec', document.getElementById('form-renomear-sec').classList.contains('is-hidden')));
-  const btnNova = document.getElementById('btn-nova-sub');
-  if (btnNova) btnNova.addEventListener('click', () => toggleForm('form-nova-sub', document.getElementById('form-nova-sub').classList.contains('is-hidden')));
-  document.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => toggleForm(b.dataset.cancel, false)));
-
-  const upBtn = document.getElementById('ins-fig-upload-btn');
-  const upFile = document.getElementById('ins-fig-upload-file');
-  if (upBtn && upFile) {
-    upBtn.addEventListener('click', () => upFile.click());
-    upFile.addEventListener('change', async () => {
-      const file = upFile.files && upFile.files[0]; if (!file) return;
-      const leg = (figLeg.value || '').trim();
-      if (!leg) { alert('Informe a legenda da figura antes de fazer upload.'); figLeg.focus(); upFile.value = ''; return; }
-      const fd = new FormData();
-      fd.append('arquivo', file);
-      if (leg) fd.append('legenda', leg);
-      upBtn.disabled = true; const oldTxt = upBtn.textContent; upBtn.textContent = 'Enviando…';
-      try {
-        const r = await fetch('/relatorios/' + relId + '/figuras', {
-          method: 'POST', body: fd, headers: { 'Accept': 'application/json' }, credentials: 'same-origin',
-        });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const data = await r.json();
-        const opt = document.createElement('option');
-        opt.value = data.id; opt.textContent = '#' + data.id + ' ' + (data.nome || 'figura');
-        figSel.appendChild(opt); figSel.value = String(data.id);
-        figSel.dispatchEvent(new Event('change'));
-        const legEsc = leg.replace(/\|/g, '/');
-        const est = _figEst(); const pos = _figPos();
-        const idx = nextFigIdx(est);
-        insertText('[[FIGURA:' + idx + '|' + data.id + '|' + pos + '|' + legEsc + ']]', { blockLine: true });
-        figLeg.value = '';
-        _atualizaExemplos();
-      } catch (e) {
-        alert('Falha no upload: ' + e.message);
-      } finally {
-        upBtn.disabled = false; upBtn.textContent = oldTxt; upFile.value = '';
+    const figSel = document.getElementById("ins-fig-sel");
+    const figPrev = document.getElementById("ins-fig-preview");
+    const figImg = document.getElementById("ins-fig-img");
+    const figLeg = document.getElementById("ins-fig-leg");
+    const figBtn = document.getElementById("ins-fig-btn");
+    figSel.addEventListener("change", () => {
+      if (figSel.value) {
+        figImg.src = "/figuras/" + figSel.value;
+        figPrev.classList.remove("is-hidden");
+      } else {
+        figPrev.classList.add("is-hidden");
+        figImg.removeAttribute("src");
       }
     });
-  }
-
-  const tabModal   = document.getElementById('tab-editor');
-  const tabModalLeg= document.getElementById('tab-editor-leg');
-  const tabModalTbl= document.getElementById('tab-editor-table');
-  const tabModalThead = tabModalTbl.querySelector('thead');
-  const tabModalTbody = tabModalTbl.querySelector('tbody');
-  const tabModalClose  = document.getElementById('tab-editor-close');
-  const tabModalCancel = document.getElementById('tab-editor-cancel');
-  const tabModalConfirm= document.getElementById('tab-editor-confirm');
-  let _tabState = null;
-
-  function _renderEditorTable() {
-    if (!_tabState) return;
-    const { headers, rows } = _tabState;
-    tabModalThead.innerHTML = '';
-    const trh = document.createElement('tr');
-    headers.forEach((h, ci) => {
-      const th = document.createElement('th');
-      th.contentEditable = 'true';
-      th.spellcheck = false;
-      th.textContent = h;
-      th.dataset.col = ci;
-      th.addEventListener('input', () => { _tabState.headers[ci] = th.textContent; });
-      th.addEventListener('keydown', _onCellKey);
-      trh.appendChild(th);
-    });
-    tabModalThead.appendChild(trh);
-    tabModalTbody.innerHTML = '';
-    rows.forEach((r, ri) => {
-      const tr = document.createElement('tr');
-      r.forEach((v, ci) => {
-        const td = document.createElement('td');
-        td.contentEditable = 'true';
-        td.spellcheck = false;
-        td.textContent = v;
-        td.dataset.row = ri; td.dataset.col = ci;
-        td.addEventListener('input', () => { _tabState.rows[ri][ci] = td.textContent; });
-        td.addEventListener('keydown', _onCellKey);
-        tr.appendChild(td);
-      });
-      tabModalTbody.appendChild(tr);
-    });
-  }
-  function _onCellKey(e) {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const cell = e.currentTarget;
-      const row = cell.parentElement;
-      const cells = Array.from(row.children);
-      const idx = cells.indexOf(cell);
-      const allRows = [tabModalThead.querySelector('tr'), ...Array.from(tabModalTbody.querySelectorAll('tr'))];
-      const rowIdx = allRows.indexOf(row);
-      let nextRowIdx = rowIdx, nextIdx = idx + (e.shiftKey ? -1 : 1);
-      if (nextIdx >= cells.length) { nextIdx = 0; nextRowIdx++; }
-      if (nextIdx < 0) { nextIdx = cells.length - 1; nextRowIdx--; }
-      const target = allRows[nextRowIdx]?.children[nextIdx];
-      if (target) { target.focus(); document.getSelection().selectAllChildren(target); }
-    }
-  }
-  function openTableEditor(opts) {
-    _tabState = {
-      mode: opts.mode || 'insert',
-      range: opts.range || null,
-      idx: opts.idx || nextTabIdx(_tabEst()),
-      pos: opts.pos || _tabPos(),
-      headers: opts.headers.slice(),
-      rows: opts.rows.map(r => r.slice()),
-    };
-    tabModalLeg.value = opts.legenda || '';
-    _renderEditorTable();
-    tabModal.classList.remove('is-hidden');
-    setTimeout(() => { tabModalThead.querySelector('th')?.focus(); }, 30);
-  }
-  function closeTableEditor() { tabModal.classList.add('is-hidden'); _tabState = null; }
-  tabModalClose .addEventListener('click', closeTableEditor);
-  tabModalCancel.addEventListener('click', closeTableEditor);
-  tabModal.addEventListener('click', (e) => { if (e.target === tabModal) closeTableEditor(); });
-
-  document.querySelectorAll('[data-tab-act]').forEach(b => b.addEventListener('click', () => {
-    if (!_tabState) return;
-    const act = b.dataset.tabAct;
-    const cols = _tabState.headers.length;
-    if (act === 'add-row') _tabState.rows.push(Array.from({length: cols}, () => ''));
-    else if (act === 'del-row') { if (_tabState.rows.length > 1) _tabState.rows.pop(); }
-    else if (act === 'add-col') {
-      _tabState.headers.push('Cabeçalho ' + (cols + 1));
-      _tabState.rows.forEach(r => r.push(''));
-    }
-    else if (act === 'del-col') {
-      if (cols > 1) { _tabState.headers.pop(); _tabState.rows.forEach(r => r.pop()); }
-    }
-    _renderEditorTable();
-  }));
-
-  function _serializeTabela(state, legenda) {
-    const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '/').replace(/\n/g, ' ').trim();
-    const head = state.headers.map(esc).join(' | ');
-    const sep  = state.headers.map(() => '---').join(' | ');
-    const body = state.rows.map(r => r.map(esc).join(' | ')).join('\n');
-    const leg = (legenda || '').replace(/\|/g, '/').trim();
-    const idx = state.idx || nextTabIdx(_tabEst());
-    const pos = state.pos || _tabPos();
-    return '[[TABELA:' + idx + '|' + pos + '|' + leg + ']]\n' + head + '\n' + sep + '\n' + body + '\n[[/TABELA]]';
-  }
-
-  tabModalConfirm.addEventListener('click', () => {
-    if (!_tabState) return;
-    const marker = _serializeTabela(_tabState, tabModalLeg.value);
-    if (_tabState.mode === 'replace' && _tabState.range) {
-      const before = ta.value.slice(0, _tabState.range.start);
-      const after = ta.value.slice(_tabState.range.end);
-      ta.value = before + marker + after;
-      const newPos = before.length + marker.length;
-      ta.focus(); ta.selectionStart = ta.selectionEnd = newPos;
-      lastCursor = { start: newPos, end: newPos };
-    } else {
-      insertText(marker, { blockLine: true });
-      tabLeg.value = '';
-    }
-    closeTableEditor();
-    updateStatus();
-  });
-
-  function findTableMarkerAtCursor() {
-    const val = ta.value || '';
-    const pos = ta.selectionStart || 0;
-    const reOpen  = /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
-    const reClose = /\[\[\/TABELA\]\]/g;
-    let m, lastOpen = null;
-    while ((m = reOpen.exec(val)) !== null) {
-      if (m.index <= pos) lastOpen = m; else break;
-    }
-    if (!lastOpen) return null;
-    reClose.lastIndex = lastOpen.index;
-    const mc = reClose.exec(val);
-    if (!mc) return null;
-    if (pos > mc.index + mc[0].length) return null;
-    const start = lastOpen.index;
-    const end = mc.index + mc[0].length;
-    const inner = val.slice(lastOpen.index + lastOpen[0].length, mc.index);
-    let posFlag = 'S', legenda = '';
-    if (lastOpen[2] === 'S' || lastOpen[2] === 'I') {
-      posFlag = lastOpen[2];
-      legenda = lastOpen[3] || '';
-    } else if (lastOpen[2] != null) {
-      legenda = lastOpen[2];
-    } else if (lastOpen[3] != null) {
-      legenda = lastOpen[3];
-    }
-    const linhas = inner.split('\n').map(l => l.trim()).filter(Boolean)
-      .filter(l => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))
-      .filter(l => !/^\+[-=+\s]+\+?$/.test(l));
-    const splitCells = (ln) => {
-      let s = ln; if (s.startsWith('|')) s = s.slice(1); if (s.endsWith('|')) s = s.slice(0, -1);
-      return s.split('|').map(c => c.trim());
-    };
-    if (!linhas.length) return null;
-    const headers = splitCells(linhas[0]);
-    const rows = linhas.slice(1).map(splitCells).map(r => {
-      while (r.length < headers.length) r.push('');
-      return r.slice(0, headers.length);
-    });
-    return { range: { start, end }, idx: lastOpen[1] || '', pos: posFlag, legenda, headers, rows: rows.length ? rows : [Array.from({length: headers.length}, () => '')] };
-  }
-
-  const bsTag = document.getElementById('bs-tag');
-  const bsInfo = document.getElementById('bs-info');
-  const CLASS_LABEL = {
-    titulo: 'Título', subtitulo: 'Subtítulo', paragrafo: 'Parágrafo',
-    lista: 'Item de lista', figura: 'Figura', tabela: 'Tabela', vazio: 'Linha vazia',
-  };
-  function classifyLine(line, ctx) {
-    if (ctx && ctx.insideTabela) return 'tabela';
-    const s = line || '';
-    const t = s.trim();
-    if (!t) return 'vazio';
-    if (/^#\s+/.test(t)) return 'titulo';
-    if (/^##\s+/.test(t)) return 'subtitulo';
-    if (/^-\s+/.test(t)) return 'lista';
-    if (/^\[\[FIGURA:/.test(t)) return 'figura';
-    if (/^\[\[TABELA(\||\]\])/.test(t) || /^\[\[\/TABELA\]\]/.test(t)) return 'tabela';
-    if (/^[+|]/.test(t) && /[+|]$/.test(t)) return 'tabela';
-    return 'paragrafo';
-  }
-  function updateStatus() {
-    if (!bsTag || !bsInfo) return;
-    const val = ta.value || '';
-    const pos = ta.selectionStart || 0;
-    const before = val.slice(0, pos);
-    const lastOpen = before.lastIndexOf('[[TABELA');
-    const lastClose = before.lastIndexOf('[[/TABELA]]');
-    const insideTabela = lastOpen > lastClose;
-    const lineStart = before.lastIndexOf('\n') + 1;
-    const lineEnd = val.indexOf('\n', pos);
-    const line = val.slice(lineStart, lineEnd === -1 ? val.length : lineEnd);
-    const lineNum = (before.match(/\n/g) || []).length + 1;
-    const colNum = pos - lineStart + 1;
-    const cls = classifyLine(line, { insideTabela });
-    bsTag.dataset.cls = cls;
-    bsTag.textContent = CLASS_LABEL[cls] || cls;
-    bsInfo.textContent = 'linha ' + lineNum + ', coluna ' + colNum;
-    if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(:|\||\]\])/.test(val);
-  }
-  ['keyup','mouseup','click','focus','input','select'].forEach(ev => ta.addEventListener(ev, updateStatus));
-  ta.addEventListener('input', _atualizaExemplos);
-  document.addEventListener('selectionchange', () => { if (document.activeElement === ta) updateStatus(); });
-  updateStatus();
-  _atualizaExemplos();
-})();
-
-function editarBloco(id, titulo, tipo, conteudo) {
-  document.getElementById('add-bloco-titulo').value = titulo || '';
-  document.getElementById('add-bloco-tipo').value = tipo || 'texto';
-  document.getElementById('add-bloco-conteudo').value = conteudo || '';
-  const frm = document.getElementById('form-add-bloco');
-  frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/' + id + '/editar';
-
-  const submitBtn = frm.querySelector('button[type="submit"]');
-  if (submitBtn) submitBtn.textContent = 'Salvar bloco editado';
-
-  let cancelBtn = document.getElementById('btn-cancel-edit');
-  if (!cancelBtn) {
-     cancelBtn = document.createElement('button');
-     cancelBtn.type = 'button';
-     cancelBtn.id = 'btn-cancel-edit';
-    cancelBtn.className = 'secondary btn-cancel';
-     cancelBtn.textContent = 'Cancelar edição';
-     cancelBtn.onclick = function() {
-        frm.action = '/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos';
-        submitBtn.textContent = 'Adicionar bloco';
-        document.getElementById('add-bloco-titulo').value = '{{ sec.numero }} – {{ sec.titulo }}';
-        document.getElementById('add-bloco-tipo').value = 'texto';
-        document.getElementById('add-bloco-conteudo').value = '';
-        if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
-        this.remove();
-     };
-     submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
-  }
-  document.getElementById('add-bloco-conteudo').scrollIntoView({behavior: 'smooth', block: 'center'});
-  document.getElementById('add-bloco-conteudo').focus();
-  if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
-}
-
-document.querySelectorAll('.edit-bloco-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    editarBloco(
-      Number(btn.dataset.blocoId),
-      parseJsonValue(btn.dataset.blocoTitulo, ''),
-      parseJsonValue(btn.dataset.blocoTipo, 'texto'),
-      parseJsonValue(btn.dataset.blocoConteudo, ''),
-    );
-  });
-});
-
-(function(){
-  const checks = Array.from(document.querySelectorAll('.bloco-select'));
-  const enabledChecks = checks.filter((check) => !check.disabled);
-  const selectAll = document.getElementById('bulk-select-all');
-  const count = document.getElementById('bulk-count');
-  const buttons = Array.from(document.querySelectorAll('[data-bulk-submit]'));
-  const forms = [document.getElementById('bulk-aprovar-form'), document.getElementById('bulk-excluir-form')].filter(Boolean);
-  if (!selectAll || !count) return;
-  if (!enabledChecks.length) {
-    selectAll.disabled = true;
-    count.textContent = '0 selecionados';
-    return;
-  }
-
-  function selectedIds() {
-    return enabledChecks.filter((check) => check.checked).map((check) => check.value);
-  }
-
-  function syncBulkState() {
-    const ids = selectedIds();
-    count.textContent = ids.length + (ids.length === 1 ? ' selecionado' : ' selecionados');
-    buttons.forEach((button) => { button.disabled = !ids.length; });
-    selectAll.checked = ids.length > 0 && ids.length === enabledChecks.length;
-    selectAll.indeterminate = ids.length > 0 && ids.length < enabledChecks.length;
-  }
-
-  function fillForm(form, ids) {
-    form.querySelectorAll('.bulk-hidden-id').forEach((input) => input.remove());
-    ids.forEach((id) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'bloco_ids';
-      input.value = id;
-      input.className = 'bulk-hidden-id';
-      form.appendChild(input);
-    });
-  }
-
-  selectAll.addEventListener('change', () => {
-    enabledChecks.forEach((check) => { check.checked = selectAll.checked; });
-    syncBulkState();
-  });
-  enabledChecks.forEach((check) => check.addEventListener('change', syncBulkState));
-  forms.forEach((form) => {
-    form.addEventListener('submit', async (ev) => {
-      const ids = selectedIds();
-      if (!ids.length) {
-        ev.preventDefault();
-        alert('Selecione ao menos um bloco.');
+    figBtn.addEventListener("click", () => {
+      if (!figSel.value) {
+        alert("Selecione uma figura ou faça upload primeiro.");
         return;
       }
-      const chaveLote = form.id === 'bulk-excluir-form' ? 'blocos_lote_excluir' : 'blocos_lote_aprovar';
-      ev.preventDefault();
-      const ok = window.SRAComplementos
-        ? await window.SRAComplementos.confirmarComChave(chaveLote)
-        : (form.id === 'bulk-excluir-form'
-            ? window.confirm('Deletar definitivamente ' + ids.length + ' bloco(s) selecionado(s)?')
-            : window.confirm('Bloquear ' + ids.length + ' bloco(s) selecionado(s) para revisão?'));
-      if (!ok) return;
-      fillForm(form, ids);
-      form.submit();
+      const leg = (figLeg.value || "").trim().replace(/\|/g, "/");
+      if (!leg) {
+        alert("Informe a legenda da figura antes de inserir.");
+        figLeg.focus();
+        return;
+      }
+      const est = _figEst();
+      const pos = _figPos();
+      const idx = nextFigIdx(est);
+      const marker =
+        "[[FIGURA:" + idx + "|" + figSel.value + "|" + pos + "|" + leg + "]]";
+      insertText(marker, { blockLine: true });
+      figLeg.value = "";
+      _atualizaExemplos();
+    });
+
+    const tabRows = document.getElementById("ins-tab-rows");
+    const tabCols = document.getElementById("ins-tab-cols");
+    const tabLeg = document.getElementById("ins-tab-leg");
+    const tabBtn = document.getElementById("ins-tab-btn");
+    const editTabBtn = document.getElementById("edit-tab-btn");
+    tabBtn.addEventListener("click", () => {
+      const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
+      const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
+      const leg = (tabLeg.value || "").trim();
+      if (!leg) {
+        alert("Informe a legenda da tabela antes de criar.");
+        tabLeg.focus();
+        return;
+      }
+      const headers = Array.from(
+        { length: c },
+        (_, i) => "Cabeçalho " + (i + 1),
+      );
+      const rowsArr = Array.from({ length: r }, () =>
+        Array.from({ length: c }, () => ""),
+      );
+      const est = _tabEst();
+      const pos = _tabPos();
+      openTableEditor({
+        legenda: leg,
+        headers,
+        rows: rowsArr,
+        mode: "insert",
+        idx: nextTabIdx(est),
+        pos,
+      });
+    });
+    if (editTabBtn)
+      editTabBtn.addEventListener("click", () => {
+        const found = findTableMarkerAtCursor();
+        if (!found) {
+          alert(
+            "Posicione o cursor dentro de uma tabela existente para editar.",
+          );
+          return;
+        }
+        openTableEditor({
+          legenda: found.legenda,
+          headers: found.headers,
+          rows: found.rows,
+          mode: "replace",
+          range: found.range,
+          idx: found.idx,
+          pos: found.pos,
+        });
+      });
+
+    form.addEventListener("submit", () => {
+      syncTitulo();
+    });
+
+    const secNav = document.getElementById("sec-nav");
+    if (secNav) {
+      secNav.addEventListener("change", () => {
+        if (secNav.value) window.location.href = secNav.value;
+      });
+    }
+    function toggleForm(id, show) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("is-hidden", !show);
+    }
+    const btnRen = document.getElementById("btn-renomear-sec");
+    if (btnRen)
+      btnRen.addEventListener("click", () =>
+        toggleForm(
+          "form-renomear-sec",
+          document
+            .getElementById("form-renomear-sec")
+            .classList.contains("is-hidden"),
+        ),
+      );
+    const btnNova = document.getElementById("btn-nova-sub");
+    if (btnNova)
+      btnNova.addEventListener("click", () =>
+        toggleForm(
+          "form-nova-sub",
+          document
+            .getElementById("form-nova-sub")
+            .classList.contains("is-hidden"),
+        ),
+      );
+    document
+      .querySelectorAll("[data-cancel]")
+      .forEach((b) =>
+        b.addEventListener("click", () => toggleForm(b.dataset.cancel, false)),
+      );
+
+    const upBtn = document.getElementById("ins-fig-upload-btn");
+    const upFile = document.getElementById("ins-fig-upload-file");
+    if (upBtn && upFile) {
+      upBtn.addEventListener("click", () => upFile.click());
+      upFile.addEventListener("change", async () => {
+        const file = upFile.files && upFile.files[0];
+        if (!file) return;
+        const leg = (figLeg.value || "").trim();
+        if (!leg) {
+          alert("Informe a legenda da figura antes de fazer upload.");
+          figLeg.focus();
+          upFile.value = "";
+          return;
+        }
+        const fd = new FormData();
+        fd.append("arquivo", file);
+        if (leg) fd.append("legenda", leg);
+        upBtn.disabled = true;
+        const oldTxt = upBtn.textContent;
+        upBtn.textContent = "Enviando…";
+        try {
+          const r = await fetch("/relatorios/" + relId + "/figuras", {
+            method: "POST",
+            body: fd,
+            headers: { Accept: "application/json" },
+            credentials: "same-origin",
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const opt = document.createElement("option");
+          opt.value = data.id;
+          opt.textContent = "#" + data.id + " " + (data.nome || "figura");
+          figSel.appendChild(opt);
+          figSel.value = String(data.id);
+          figSel.dispatchEvent(new Event("change"));
+          const legEsc = leg.replace(/\|/g, "/");
+          const est = _figEst();
+          const pos = _figPos();
+          const idx = nextFigIdx(est);
+          insertText(
+            "[[FIGURA:" + idx + "|" + data.id + "|" + pos + "|" + legEsc + "]]",
+            { blockLine: true },
+          );
+          figLeg.value = "";
+          _atualizaExemplos();
+        } catch (e) {
+          alert("Falha no upload: " + e.message);
+        } finally {
+          upBtn.disabled = false;
+          upBtn.textContent = oldTxt;
+          upFile.value = "";
+        }
+      });
+    }
+
+    const tabModal = document.getElementById("tab-editor");
+    const tabModalLeg = document.getElementById("tab-editor-leg");
+    const tabModalTbl = document.getElementById("tab-editor-table");
+    const tabModalThead = tabModalTbl.querySelector("thead");
+    const tabModalTbody = tabModalTbl.querySelector("tbody");
+    const tabModalClose = document.getElementById("tab-editor-close");
+    const tabModalCancel = document.getElementById("tab-editor-cancel");
+    const tabModalConfirm = document.getElementById("tab-editor-confirm");
+    let _tabState = null;
+
+    function _renderEditorTable() {
+      if (!_tabState) return;
+      const { headers, rows } = _tabState;
+      tabModalThead.innerHTML = "";
+      const trh = document.createElement("tr");
+      headers.forEach((h, ci) => {
+        const th = document.createElement("th");
+        th.contentEditable = "true";
+        th.spellcheck = false;
+        th.textContent = h;
+        th.dataset.col = ci;
+        th.addEventListener("input", () => {
+          _tabState.headers[ci] = th.textContent;
+        });
+        th.addEventListener("keydown", _onCellKey);
+        trh.appendChild(th);
+      });
+      tabModalThead.appendChild(trh);
+      tabModalTbody.innerHTML = "";
+      rows.forEach((r, ri) => {
+        const tr = document.createElement("tr");
+        r.forEach((v, ci) => {
+          const td = document.createElement("td");
+          td.contentEditable = "true";
+          td.spellcheck = false;
+          td.textContent = v;
+          td.dataset.row = ri;
+          td.dataset.col = ci;
+          td.addEventListener("input", () => {
+            _tabState.rows[ri][ci] = td.textContent;
+          });
+          td.addEventListener("keydown", _onCellKey);
+          tr.appendChild(td);
+        });
+        tabModalTbody.appendChild(tr);
+      });
+    }
+    function _onCellKey(e) {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const cell = e.currentTarget;
+        const row = cell.parentElement;
+        const cells = Array.from(row.children);
+        const idx = cells.indexOf(cell);
+        const allRows = [
+          tabModalThead.querySelector("tr"),
+          ...Array.from(tabModalTbody.querySelectorAll("tr")),
+        ];
+        const rowIdx = allRows.indexOf(row);
+        let nextRowIdx = rowIdx,
+          nextIdx = idx + (e.shiftKey ? -1 : 1);
+        if (nextIdx >= cells.length) {
+          nextIdx = 0;
+          nextRowIdx++;
+        }
+        if (nextIdx < 0) {
+          nextIdx = cells.length - 1;
+          nextRowIdx--;
+        }
+        const target = allRows[nextRowIdx]?.children[nextIdx];
+        if (target) {
+          target.focus();
+          document.getSelection().selectAllChildren(target);
+        }
+      }
+    }
+    function openTableEditor(opts) {
+      _tabState = {
+        mode: opts.mode || "insert",
+        range: opts.range || null,
+        idx: opts.idx || nextTabIdx(_tabEst()),
+        pos: opts.pos || _tabPos(),
+        headers: opts.headers.slice(),
+        rows: opts.rows.map((r) => r.slice()),
+      };
+      tabModalLeg.value = opts.legenda || "";
+      _renderEditorTable();
+      tabModal.classList.remove("is-hidden");
+      setTimeout(() => {
+        tabModalThead.querySelector("th")?.focus();
+      }, 30);
+    }
+    function closeTableEditor() {
+      tabModal.classList.add("is-hidden");
+      _tabState = null;
+    }
+    tabModalClose.addEventListener("click", closeTableEditor);
+    tabModalCancel.addEventListener("click", closeTableEditor);
+    tabModal.addEventListener("click", (e) => {
+      if (e.target === tabModal) closeTableEditor();
+    });
+
+    document.querySelectorAll("[data-tab-act]").forEach((b) =>
+      b.addEventListener("click", () => {
+        if (!_tabState) return;
+        const act = b.dataset.tabAct;
+        const cols = _tabState.headers.length;
+        if (act === "add-row")
+          _tabState.rows.push(Array.from({ length: cols }, () => ""));
+        else if (act === "del-row") {
+          if (_tabState.rows.length > 1) _tabState.rows.pop();
+        } else if (act === "add-col") {
+          _tabState.headers.push("Cabeçalho " + (cols + 1));
+          _tabState.rows.forEach((r) => r.push(""));
+        } else if (act === "del-col") {
+          if (cols > 1) {
+            _tabState.headers.pop();
+            _tabState.rows.forEach((r) => r.pop());
+          }
+        }
+        _renderEditorTable();
+      }),
+    );
+
+    function _serializeTabela(state, legenda) {
+      const esc = (s) =>
+        String(s == null ? "" : s)
+          .replace(/\|/g, "/")
+          .replace(/\n/g, " ")
+          .trim();
+      const head = state.headers.map(esc).join(" | ");
+      const sep = state.headers.map(() => "---").join(" | ");
+      const body = state.rows.map((r) => r.map(esc).join(" | ")).join("\n");
+      const leg = (legenda || "").replace(/\|/g, "/").trim();
+      const idx = state.idx || nextTabIdx(_tabEst());
+      const pos = state.pos || _tabPos();
+      return (
+        "[[TABELA:" +
+        idx +
+        "|" +
+        pos +
+        "|" +
+        leg +
+        "]]\n" +
+        head +
+        "\n" +
+        sep +
+        "\n" +
+        body +
+        "\n[[/TABELA]]"
+      );
+    }
+
+    tabModalConfirm.addEventListener("click", () => {
+      if (!_tabState) return;
+      const marker = _serializeTabela(_tabState, tabModalLeg.value);
+      if (_tabState.mode === "replace" && _tabState.range) {
+        const before = ta.value.slice(0, _tabState.range.start);
+        const after = ta.value.slice(_tabState.range.end);
+        ta.value = before + marker + after;
+        const newPos = before.length + marker.length;
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = newPos;
+        lastCursor = { start: newPos, end: newPos };
+      } else {
+        insertText(marker, { blockLine: true });
+        tabLeg.value = "";
+      }
+      closeTableEditor();
+      updateStatus();
+    });
+
+    function findTableMarkerAtCursor() {
+      const val = ta.value || "";
+      const pos = ta.selectionStart || 0;
+      const reOpen =
+        /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
+      const reClose = /\[\[\/TABELA\]\]/g;
+      let m,
+        lastOpen = null;
+      while ((m = reOpen.exec(val)) !== null) {
+        if (m.index <= pos) lastOpen = m;
+        else break;
+      }
+      if (!lastOpen) return null;
+      reClose.lastIndex = lastOpen.index;
+      const mc = reClose.exec(val);
+      if (!mc) return null;
+      if (pos > mc.index + mc[0].length) return null;
+      const start = lastOpen.index;
+      const end = mc.index + mc[0].length;
+      const inner = val.slice(lastOpen.index + lastOpen[0].length, mc.index);
+      let posFlag = "S",
+        legenda = "";
+      if (lastOpen[2] === "S" || lastOpen[2] === "I") {
+        posFlag = lastOpen[2];
+        legenda = lastOpen[3] || "";
+      } else if (lastOpen[2] != null) {
+        legenda = lastOpen[2];
+      } else if (lastOpen[3] != null) {
+        legenda = lastOpen[3];
+      }
+      const linhas = inner
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .filter((l) => !/^-{2,}(\s*\|\s*-{2,})*$/.test(l))
+        .filter((l) => !/^\+[-=+\s]+\+?$/.test(l));
+      const splitCells = (ln) => {
+        let s = ln;
+        if (s.startsWith("|")) s = s.slice(1);
+        if (s.endsWith("|")) s = s.slice(0, -1);
+        return s.split("|").map((c) => c.trim());
+      };
+      if (!linhas.length) return null;
+      const headers = splitCells(linhas[0]);
+      const rows = linhas
+        .slice(1)
+        .map(splitCells)
+        .map((r) => {
+          while (r.length < headers.length) r.push("");
+          return r.slice(0, headers.length);
+        });
+      return {
+        range: { start, end },
+        idx: lastOpen[1] || "",
+        pos: posFlag,
+        legenda,
+        headers,
+        rows: rows.length
+          ? rows
+          : [Array.from({ length: headers.length }, () => "")],
+      };
+    }
+
+    const bsTag = document.getElementById("bs-tag");
+    const bsInfo = document.getElementById("bs-info");
+    const CLASS_LABEL = {
+      titulo: "Título",
+      subtitulo: "Subtítulo",
+      paragrafo: "Parágrafo",
+      lista: "Item de lista",
+      figura: "Figura",
+      tabela: "Tabela",
+      vazio: "Linha vazia",
+    };
+    function classifyLine(line, ctx) {
+      if (ctx && ctx.insideTabela) return "tabela";
+      const s = line || "";
+      const t = s.trim();
+      if (!t) return "vazio";
+      if (/^#\s+/.test(t)) return "titulo";
+      if (/^##\s+/.test(t)) return "subtitulo";
+      if (/^-\s+/.test(t)) return "lista";
+      if (/^\[\[FIGURA:/.test(t)) return "figura";
+      if (/^\[\[TABELA(\||\]\])/.test(t) || /^\[\[\/TABELA\]\]/.test(t))
+        return "tabela";
+      if (/^[+|]/.test(t) && /[+|]$/.test(t)) return "tabela";
+      return "paragrafo";
+    }
+    function updateStatus() {
+      if (!bsTag || !bsInfo) return;
+      const val = ta.value || "";
+      const pos = ta.selectionStart || 0;
+      const before = val.slice(0, pos);
+      const lastOpen = before.lastIndexOf("[[TABELA");
+      const lastClose = before.lastIndexOf("[[/TABELA]]");
+      const insideTabela = lastOpen > lastClose;
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const lineEnd = val.indexOf("\n", pos);
+      const line = val.slice(lineStart, lineEnd === -1 ? val.length : lineEnd);
+      const lineNum = (before.match(/\n/g) || []).length + 1;
+      const colNum = pos - lineStart + 1;
+      const cls = classifyLine(line, { insideTabela });
+      bsTag.dataset.cls = cls;
+      bsTag.textContent = CLASS_LABEL[cls] || cls;
+      bsInfo.textContent = "linha " + lineNum + ", coluna " + colNum;
+      if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(:|\||\]\])/.test(val);
+    }
+    ["keyup", "mouseup", "click", "focus", "input", "select"].forEach((ev) =>
+      ta.addEventListener(ev, updateStatus),
+    );
+    ta.addEventListener("input", _atualizaExemplos);
+    document.addEventListener("selectionchange", () => {
+      if (document.activeElement === ta) updateStatus();
+    });
+    updateStatus();
+    _atualizaExemplos();
+  })();
+
+  function editarBloco(id, titulo, tipo, conteudo) {
+    document.getElementById("add-bloco-titulo").value = titulo || "";
+    document.getElementById("add-bloco-tipo").value = tipo || "texto";
+    document.getElementById("add-bloco-conteudo").value = conteudo || "";
+    const frm = document.getElementById("form-add-bloco");
+    frm.action =
+      "/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos/" + id + "/editar";
+
+    const submitBtn = frm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = "Salvar bloco editado";
+
+    let cancelBtn = document.getElementById("btn-cancel-edit");
+    if (!cancelBtn) {
+      cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.id = "btn-cancel-edit";
+      cancelBtn.className = "secondary btn-cancel";
+      cancelBtn.textContent = "Cancelar edição";
+      cancelBtn.onclick = function () {
+        frm.action = "/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/blocos";
+        submitBtn.textContent = "Adicionar bloco";
+        document.getElementById("add-bloco-titulo").value =
+          "{{ sec.numero }} – {{ sec.titulo }}";
+        document.getElementById("add-bloco-tipo").value = "texto";
+        document.getElementById("add-bloco-conteudo").value = "";
+        if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
+        this.remove();
+      };
+      submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+    }
+    document
+      .getElementById("add-bloco-conteudo")
+      .scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("add-bloco-conteudo").focus();
+    if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
+  }
+
+  document.querySelectorAll(".edit-bloco-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      editarBloco(
+        Number(btn.dataset.blocoId),
+        parseJsonValue(btn.dataset.blocoTitulo, ""),
+        parseJsonValue(btn.dataset.blocoTipo, "texto"),
+        parseJsonValue(btn.dataset.blocoConteudo, ""),
+      );
     });
   });
-  syncBulkState();
-})();
 
-// =====================================================================
-// Importação de conteúdo — Opção B (lista hierárquica com cards por tipo)
-// =====================================================================
-(function(){
-  const form = document.getElementById('form-importar-conteudo');
-  if (!form) return;
-  const fileIn = document.getElementById('import-arquivo');
-  const status = document.getElementById('import-status');
-  const review = document.getElementById('import-review');
-  const list = document.getElementById('import-list');
-  const summary = document.getElementById('import-summary');
-  const confirmBtn = document.getElementById('import-confirm');
-  const allOnBtn = document.getElementById('import-all-on');
-  const allOffBtn = document.getElementById('import-all-off');
-  const SECAO_FALLBACK_NUM = readSecaoEditData('secNumero', '');
-  const SECAO_FALLBACK_TIT = readSecaoEditData('secTitulo', '');
-
-  // Lista de números de seções já existentes no relatório — para reclassificar
-  // localmente "usar"/"criar" quando o usuário edita o número da seção no header.
-  let existingSectionNumbers = new Set();
-  try {
-    const raw = list.dataset.secoesExistentes || '[]';
-    JSON.parse(raw).forEach((n) => existingSectionNumbers.add(String(n).trim()));
-  } catch (e) { /* ignora */ }
-
-  let importBlocks = [];
-  const figBasePage = Number(readSecaoEditData('figBase', 0)) || 0;
-  const tabBasePage = Number(readSecaoEditData('tabBase', 0)) || 0;
-  const curSecStr = String(SECAO_FALLBACK_NUM || '').trim();
-
-  const TIPO_LABEL = { texto: 'TEXTO', lista: 'LISTA', figura: 'FIGURA', tabela: 'TABELA' };
-  const SUBTIPO_LABEL = {
-    titulo: 'Título',
-    subtitulo: 'Subtítulo',
-    paragrafo: 'Parágrafo',
-    lista: 'Lista',
-  };
-
-  function esc(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function confidenceClass(c) {
-    const n = Number(c || 0);
-    if (n >= 0.85) return 'good';
-    if (n >= 0.70) return 'mid';
-    return 'low';
-  }
-
-  function acaoSecao(numero) {
-    const n = String(numero || '').trim();
-    if (!n) return 'usar';
-    return existingSectionNumbers.has(n) ? 'usar' : 'criar';
-  }
-
-  function acaoLabel(acao) {
-    if (acao === 'criar') return 'CRIAR seção';
-    if (acao === 'renomear') return 'renomear seção';
-    return 'usar seção';
-  }
-
-  // Constrói os HTML para cada subtipo (chips de TEXTO/LISTA).
-  function renderSubtipos(subtipos) {
-    if (!Array.isArray(subtipos) || !subtipos.length) {
-      return '<div class="import-segs-empty">sem segmentos detectados</div>';
-    }
-    const items = subtipos.map((s) => {
-      const kind = s.kind || 'paragrafo';
-      const label = SUBTIPO_LABEL[kind] || kind;
-      const count = Number(s.count || 0);
-      const suffix = (kind === 'lista' && count > 1) ? ' (' + count + ' itens)'
-                    : (kind === 'paragrafo' && count > 1) ? ' (' + count + ')'
-                    : '';
-      return '<li class="seg-item" data-kind="' + esc(kind) + '">'
-           +   '<span class="seg-chip seg-chip-' + esc(kind) + '">' + esc(label + suffix) + '</span>'
-           +   '<span class="seg-preview">' + esc(s.preview || '') + '</span>'
-           + '</li>';
-    }).join('');
-    return '<ul class="import-segs">' + items + '</ul>';
-  }
-
-  // Mini-table preview (TABELA).
-  function renderTabelaPreview(prev) {
-    if (!prev || !Array.isArray(prev.headers) || !prev.headers.length) {
-      return '<div class="import-tab-empty">tabela vazia</div>';
-    }
-    const thead = '<thead><tr>' + prev.headers.map((h) => '<th>' + esc(h) + '</th>').join('') + '</tr></thead>';
-    const tbody = '<tbody>' + prev.rows.map((r) => '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody>';
-    const info = (prev.total_rows || prev.rows.length) + ' linha(s) × ' + (prev.total_cols || prev.headers.length) + ' coluna(s)'
-              + (prev.truncated_rows || prev.truncated_cols ? ' · prévia truncada' : '');
-    return '<table class="import-mini-tbl">' + thead + tbody + '</table>'
-         + '<small class="import-tab-info">' + esc(info) + '</small>';
-  }
-
-  function tipoSelect(i, tipoAtual) {
-    const opts = ['texto','lista','figura','tabela'].map((t) => {
-      return '<option value="' + t + '"' + (t === tipoAtual ? ' selected' : '') + '>' + (TIPO_LABEL[t][0] + TIPO_LABEL[t].slice(1).toLowerCase()) + '</option>';
-    }).join('');
-    return '<select class="import-tipo-sel" data-i="' + i + '" data-field="tipo" title="Mudar tipo do bloco">' + opts + '</select>';
-  }
-
-  function renderCardHeader(b, i) {
-    const tipo = (b.tipo || 'texto').toLowerCase();
-    const conf = Number(b.confianca || 0);
-    const confPct = Math.round(conf * 100);
-    const confCls = confidenceClass(conf);
-    const checked = b.selecionado !== false ? 'checked' : '';
-    return '<header class="import-card-hdr">'
-         +   '<input type="checkbox" class="import-card-check" data-i="' + i + '" data-field="selecionado" ' + checked + '>'
-         +   '<span class="import-tipo-badge" data-tipo="' + esc(tipo) + '">' + esc(TIPO_LABEL[tipo] || tipo.toUpperCase()) + '</span>'
-         +   '<span class="import-conf import-conf-' + confCls + '" title="' + esc(b.motivo || '') + '">' + confPct + '%</span>'
-         +   tipoSelect(i, tipo)
-         +   '<span class="import-card-motivo" title="' + esc(b.motivo || '') + '">' + esc(b.motivo || '') + '</span>'
-         + '</header>';
-  }
-
-  function renderTextoCard(b, i) {
-    return '<article class="import-card import-card-texto" data-i="' + i + '">'
-         +   renderCardHeader(b, i)
-         +   '<div class="import-card-body">'
-         +     renderSubtipos(b.subtipos)
-         +     '<details class="import-raw">'
-         +       '<summary>editar texto bruto</summary>'
-         +       '<div class="import-raw-tb" role="toolbar" aria-label="Ferramentas de listas (texto)">'
-         +         '<span class="import-raw-tb-hint">Listas e níveis (só o texto, não a estrutura de seções):</span>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="bullet" title="Itens com marcador">• Marcadores</button>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="ol1" title="Numeração 1. 2. 3.">1. 2. 3.</button>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="ola" title="a) b) c)">a) b) c)</button>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="oli" title="i. ii. iii. (romano)">i. ii. iii.</button>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="indent" title="Aumentar nível (2 espaços)">Nível +</button>'
-         +         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="outdent" title="Diminuir nível">Nível −</button>'
-         +       '</div>'
-         +       '<textarea class="import-raw-ta" data-i="' + i + '" data-field="conteudo" rows="6">' + esc(b.conteudo || '') + '</textarea>'
-         +     '</details>'
-         +   '</div>'
-         + '</article>';
-  }
-
-  function sugestaoIndiceFigTab(tipo, prefixo, ord) {
-    const t = (tipo || '').toLowerCase();
-    if (t === 'figura') return 'Figura ' + prefixo + '.' + ord;
-    if (t === 'tabela') return 'Tabela ' + prefixo + '.' + ord;
-    return '';
-  }
-
-  function prefixoHierarquiaSec(numeroAlvo) {
-    const n = String(numeroAlvo == null ? '' : numeroAlvo).trim();
-    return (n || curSecStr || '1').split('.')[0] || '1';
-  }
-
-  function renderFiguraCard(b, i, indiceSug) {
-    const hasImg = b.image_b64 && b.image_mime;
-    const idxRow = indiceSug
-      ? '<label class="mini-label" for="imp-fig-' + i + '-idx">Índice</label>'
-        + '<input id="imp-fig-' + i + '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" '
-        + ' value="' + esc(indiceSug) + '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
-      : '';
-    const thumb = hasImg
-      ? '<img src="data:' + esc(b.image_mime) + ';base64,' + esc(b.image_b64) + '" alt="prévia importada">'
-      : '<div class="import-fig-placeholder">Sem imagem<br><small>preencha após importar</small></div>';
-    return '<article class="import-card import-card-figura" data-i="' + i + '">'
-         +   renderCardHeader(b, i)
-         +   '<div class="import-card-body import-card-2col">'
-         +     '<div class="import-fig-thumb">' + thumb + '</div>'
-         +     '<div class="import-meta-fields">'
-         +       idxRow
-         +       '<label class="mini-label" for="imp-fig-' + i + '-leg">Legenda</label>'
-         +       '<input id="imp-fig-' + i + '-leg" type="text" data-i="' + i + '" data-field="legenda" value="' + esc(b.legenda || '') + '" placeholder="ex.: Vista aérea da obra">'
-         +       '<label class="mini-label" for="imp-fig-' + i + '-fonte">Fonte</label>'
-         +       '<input id="imp-fig-' + i + '-fonte" type="text" data-i="' + i + '" data-field="fonte" value="' + esc(b.fonte || '') + '" placeholder="ex.: Concremat 2025">'
-         +     '</div>'
-         +   '</div>'
-         + '</article>';
-  }
-
-  function renderTabelaCard(b, i, indiceSug) {
-    const idxRow = indiceSug
-      ? '<label class="mini-label" for="imp-tab-' + i + '-idx">Índice</label>'
-        + '<input id="imp-tab-' + i + '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" '
-        + ' value="' + esc(indiceSug) + '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
-      : '';
-    return '<article class="import-card import-card-tabela" data-i="' + i + '">'
-         +   renderCardHeader(b, i)
-         +   '<div class="import-card-body import-card-2col">'
-         +     '<div class="import-tab-prev">' + renderTabelaPreview(b.tabela_preview) + '</div>'
-         +     '<div class="import-meta-fields">'
-         +       idxRow
-         +       '<label class="mini-label" for="imp-tab-' + i + '-leg">Legenda</label>'
-         +       '<input id="imp-tab-' + i + '-leg" type="text" data-i="' + i + '" data-field="legenda" value="' + esc(b.legenda || '') + '" placeholder="ex.: Quantitativo de serviços">'
-         +       '<label class="mini-label" for="imp-tab-' + i + '-fonte">Fonte</label>'
-         +       '<input id="imp-tab-' + i + '-fonte" type="text" data-i="' + i + '" data-field="fonte" value="' + esc(b.fonte || '') + '" placeholder="ex.: Diário de obra">'
-         +       '<details class="import-raw">'
-         +         '<summary>editar dados brutos da tabela</summary>'
-         +         '<textarea class="import-raw-ta" data-i="' + i + '" data-field="conteudo" rows="6">' + esc(b.conteudo || '') + '</textarea>'
-         +       '</details>'
-         +     '</div>'
-         +   '</div>'
-         + '</article>';
-  }
-
-  function renderCard(b, i, indiceSug) {
-    const tipo = (b.tipo || 'texto').toLowerCase();
-    if (tipo === 'figura') return renderFiguraCard(b, i, indiceSug || '');
-    if (tipo === 'tabela') return renderTabelaCard(b, i, indiceSug || '');
-    return renderTextoCard(b, i);
-  }
-
-  function renderSecaoHeader(key, group) {
-    const numero = key.numero || SECAO_FALLBACK_NUM;
-    const titulo = key.titulo || SECAO_FALLBACK_TIT;
-    const acao = acaoSecao(numero);
-    const acaoLabelTxt = acaoLabel(acao);
-    const indices = group.map((g) => g.idx).join(',');
-    return '<header class="import-secao-hdr" data-acao="' + esc(acao) + '" data-key="' + esc(key.key) + '" data-indices="' + esc(indices) + '">'
-         +   '<button type="button" class="import-secao-toggle" aria-expanded="true" title="Recolher/expandir seção">▾</button>'
-         +   '<div class="import-secao-id">'
-         +     '<span class="import-secao-num-lbl">SEÇÃO</span>'
-         +     '<input type="text" class="import-secao-num" data-key="' + esc(key.key) + '" data-section-field="secao_numero" value="' + esc(numero) + '" aria-label="Número da seção">'
-         +     '<input type="text" class="import-secao-titulo" data-key="' + esc(key.key) + '" data-section-field="secao_titulo" value="' + esc(titulo) + '" aria-label="Título da seção">'
-         +   '</div>'
-         +   '<span class="import-secao-badge" data-acao="' + esc(acao) + '">' + esc(acaoLabelTxt) + '</span>'
-         +   '<span class="import-secao-count">' + group.length + ' bloco(s)</span>'
-         +   '<div class="import-secao-bulk">'
-         +     '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="on" data-key="' + esc(key.key) + '" title="Marcar todos desta seção">✓ todos</button>'
-         +     '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="off" data-key="' + esc(key.key) + '" title="Desmarcar todos desta seção">✗ nenhum</button>'
-         +   '</div>'
-         + '</header>';
-  }
-
-  // Agrupa por (numero||"") preservando a ordem de chegada.
-  function groupBySecao() {
-    const groups = new Map();
-    importBlocks.forEach((b, idx) => {
-      const numero = String(b.secao_numero || '').trim();
-      const key = numero || '__atual__';
-      if (!groups.has(key)) {
-        groups.set(key, {
-          key,
-          numero,
-          titulo: String(b.secao_titulo || '').trim(),
-          items: [],
-        });
-      }
-      groups.get(key).items.push({ idx, b });
-    });
-    return Array.from(groups.values());
-  }
-
-  function renderReview() {
-    if (!importBlocks.length) {
-      review.classList.add('is-hidden');
-      list.innerHTML = '';
-      summary.textContent = '';
+  (function () {
+    const checks = Array.from(document.querySelectorAll(".bloco-select"));
+    const enabledChecks = checks.filter((check) => !check.disabled);
+    const selectAll = document.getElementById("bulk-select-all");
+    const count = document.getElementById("bulk-count");
+    const buttons = Array.from(document.querySelectorAll("[data-bulk-submit]"));
+    const forms = [
+      document.getElementById("bulk-aprovar-form"),
+      document.getElementById("bulk-excluir-form"),
+    ].filter(Boolean);
+    if (!selectAll || !count) return;
+    if (!enabledChecks.length) {
+      selectAll.disabled = true;
+      count.textContent = "0 selecionados";
       return;
     }
-    review.classList.remove('is-hidden');
-    const groups = groupBySecao();
-    const html = groups.map((g) => {
-      const secN = (g.key === '__atual__' || !String(g.numero || '').trim())
-        ? curSecStr
-        : String(g.numero).trim();
-      const pfx = prefixoHierarquiaSec(secN);
-      const isAlvoAtual = g.key === '__atual__' || !g.numero || secN === curSecStr;
-      let runFig = isAlvoAtual ? figBasePage : 0;
-      let runTab = isAlvoAtual ? tabBasePage : 0;
-      const cards = g.items.map(({ idx, b }) => {
-        const t = (b.tipo || 'texto').toLowerCase();
-        if (t === 'figura') {
-          runFig += 1;
-          return renderCard(b, idx, sugestaoIndiceFigTab('figura', pfx, runFig));
-        }
-        if (t === 'tabela') {
-          runTab += 1;
-          return renderCard(b, idx, sugestaoIndiceFigTab('tabela', pfx, runTab));
-        }
-        return renderCard(b, idx, '');
-      }).join('');
-      const head = renderSecaoHeader({ key: g.key, numero: g.numero, titulo: g.titulo }, g.items);
-      return '<section class="import-secao" data-key="' + esc(g.key) + '">'
-           + head
-           + '<div class="import-secao-body">' + cards + '</div>'
-           + '</section>';
-    }).join('');
-    list.innerHTML = html;
-    updateSummary();
-  }
 
-  function updateSummary() {
-    const total = importBlocks.length;
-    const sel = importBlocks.filter((b) => b.selecionado !== false).length;
-    const baixos = importBlocks.filter((b) => Number(b.confianca || 0) < 0.7).length;
-    let txt = sel + ' de ' + total + ' selecionado(s)';
-    if (baixos) txt += ' · ' + baixos + ' com confiança baixa';
-    summary.textContent = txt;
-  }
-
-  // ---- Handlers (delegação no list) ----
-  list.addEventListener('input', (ev) => {
-    const el = ev.target;
-    if (el.dataset.field) {
-      const idx = Number(el.dataset.i);
-      if (!Number.isFinite(idx) || !importBlocks[idx]) return;
-      const v = el.type === 'checkbox' ? el.checked : el.value;
-      importBlocks[idx][el.dataset.field] = v;
-      if (el.dataset.field === 'selecionado') updateSummary();
-      return;
+    function selectedIds() {
+      return enabledChecks
+        .filter((check) => check.checked)
+        .map((check) => check.value);
     }
-    if (el.dataset.sectionField) {
-      // Edição do número/título da seção: propaga para todos os blocks do grupo.
-      const key = el.dataset.key;
-      const field = el.dataset.sectionField;
-      const value = el.value;
-      importBlocks.forEach((b) => {
-        const k = String(b.secao_numero || '').trim() || '__atual__';
-        if (k === key) b[field] = value;
+
+    function syncBulkState() {
+      const ids = selectedIds();
+      count.textContent =
+        ids.length + (ids.length === 1 ? " selecionado" : " selecionados");
+      buttons.forEach((button) => {
+        button.disabled = !ids.length;
       });
-      // Atualiza badge da ação se mudou o número.
-      if (field === 'secao_numero') {
-        const acao = acaoSecao(value);
-        const header = el.closest('.import-secao-hdr');
-        if (header) {
-          header.dataset.acao = acao;
-          const badge = header.querySelector('.import-secao-badge');
-          if (badge) { badge.dataset.acao = acao; badge.textContent = acaoLabel(acao); }
-          // Atualiza acao_secao em cada bloco do grupo (consumido pelo backend).
-          importBlocks.forEach((b) => {
-            const k = String(b.secao_numero || '').trim() || '__atual__';
-            if (k === value || (key === '__atual__' && !b.secao_numero)) b.acao_secao = acao;
+      selectAll.checked = ids.length > 0 && ids.length === enabledChecks.length;
+      selectAll.indeterminate =
+        ids.length > 0 && ids.length < enabledChecks.length;
+    }
+
+    function fillForm(form, ids) {
+      form
+        .querySelectorAll(".bulk-hidden-id")
+        .forEach((input) => input.remove());
+      ids.forEach((id) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "bloco_ids";
+        input.value = id;
+        input.className = "bulk-hidden-id";
+        form.appendChild(input);
+      });
+    }
+
+    selectAll.addEventListener("change", () => {
+      enabledChecks.forEach((check) => {
+        check.checked = selectAll.checked;
+      });
+      syncBulkState();
+    });
+    enabledChecks.forEach((check) =>
+      check.addEventListener("change", syncBulkState),
+    );
+    forms.forEach((form) => {
+      form.addEventListener("submit", async (ev) => {
+        const ids = selectedIds();
+        if (!ids.length) {
+          ev.preventDefault();
+          alert("Selecione ao menos um bloco.");
+          return;
+        }
+        const chaveLote =
+          form.id === "bulk-excluir-form"
+            ? "blocos_lote_excluir"
+            : "blocos_lote_aprovar";
+        ev.preventDefault();
+        const ok = window.SRAComplementos
+          ? await window.SRAComplementos.confirmarComChave(chaveLote)
+          : form.id === "bulk-excluir-form"
+            ? window.confirm(
+                "Deletar definitivamente " +
+                  ids.length +
+                  " bloco(s) selecionado(s)?",
+              )
+            : window.confirm(
+                "Bloquear " +
+                  ids.length +
+                  " bloco(s) selecionado(s) para revisão?",
+              );
+        if (!ok) return;
+        fillForm(form, ids);
+        form.submit();
+      });
+    });
+    syncBulkState();
+  })();
+
+  // =====================================================================
+  // Importação de conteúdo — Opção B (lista hierárquica com cards por tipo)
+  // =====================================================================
+  (function () {
+    const form = document.getElementById("form-importar-conteudo");
+    if (!form) return;
+    const fileIn = document.getElementById("import-arquivo");
+    const status = document.getElementById("import-status");
+    const review = document.getElementById("import-review");
+    const list = document.getElementById("import-list");
+    const summary = document.getElementById("import-summary");
+    const confirmBtn = document.getElementById("import-confirm");
+    const allOnBtn = document.getElementById("import-all-on");
+    const allOffBtn = document.getElementById("import-all-off");
+    const SECAO_FALLBACK_NUM = readSecaoEditData("secNumero", "");
+    const SECAO_FALLBACK_TIT = readSecaoEditData("secTitulo", "");
+
+    // Lista de números de seções já existentes no relatório — para reclassificar
+    // localmente "usar"/"criar" quando o usuário edita o número da seção no header.
+    let existingSectionNumbers = new Set();
+    try {
+      const raw = list.dataset.secoesExistentes || "[]";
+      JSON.parse(raw).forEach((n) =>
+        existingSectionNumbers.add(String(n).trim()),
+      );
+    } catch (e) {
+      /* ignora */
+    }
+
+    let importBlocks = [];
+    /** Evita múltiplos submits concorrentes (duplo clique / Enter) na análise. */
+    let importAnaliseEmCurso = false;
+    const figBasePage = Number(readSecaoEditData("figBase", 0)) || 0;
+    const tabBasePage = Number(readSecaoEditData("tabBase", 0)) || 0;
+    const curSecStr = String(SECAO_FALLBACK_NUM || "").trim();
+
+    const TIPO_LABEL = {
+      texto: "TEXTO",
+      lista: "LISTA",
+      figura: "FIGURA",
+      tabela: "TABELA",
+    };
+    const SUBTIPO_LABEL = {
+      titulo: "Título",
+      subtitulo: "Subtítulo",
+      paragrafo: "Parágrafo",
+      lista: "Lista",
+    };
+
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function confidenceClass(c) {
+      const n = Number(c || 0);
+      if (n >= 0.85) return "good";
+      if (n >= 0.7) return "mid";
+      return "low";
+    }
+
+    function acaoSecao(numero) {
+      const n = String(numero || "").trim();
+      if (!n) return "usar";
+      return existingSectionNumbers.has(n) ? "usar" : "criar";
+    }
+
+    function acaoLabel(acao) {
+      if (acao === "criar") return "CRIAR seção";
+      if (acao === "renomear") return "renomear seção";
+      return "usar seção";
+    }
+
+    // Constrói os HTML para cada subtipo (chips de TEXTO/LISTA).
+    function renderSubtipos(subtipos) {
+      if (!Array.isArray(subtipos) || !subtipos.length) {
+        return '<div class="import-segs-empty">sem segmentos detectados</div>';
+      }
+      const items = subtipos
+        .map((s) => {
+          const kind = s.kind || "paragrafo";
+          const label = SUBTIPO_LABEL[kind] || kind;
+          const count = Number(s.count || 0);
+          const suffix =
+            kind === "lista" && count > 1
+              ? " (" + count + " itens)"
+              : kind === "paragrafo" && count > 1
+                ? " (" + count + ")"
+                : "";
+          return (
+            '<li class="seg-item" data-kind="' +
+            esc(kind) +
+            '">' +
+            '<span class="seg-chip seg-chip-' +
+            esc(kind) +
+            '">' +
+            esc(label + suffix) +
+            "</span>" +
+            '<span class="seg-preview">' +
+            esc(s.preview || "") +
+            "</span>" +
+            "</li>"
+          );
+        })
+        .join("");
+      return '<ul class="import-segs">' + items + "</ul>";
+    }
+
+    // Mini-table preview (TABELA).
+    function renderTabelaPreview(prev) {
+      if (!prev || !Array.isArray(prev.headers) || !prev.headers.length) {
+        return '<div class="import-tab-empty">tabela vazia</div>';
+      }
+      const thead =
+        "<thead><tr>" +
+        prev.headers.map((h) => "<th>" + esc(h) + "</th>").join("") +
+        "</tr></thead>";
+      const tbody =
+        "<tbody>" +
+        prev.rows
+          .map(
+            (r) =>
+              "<tr>" +
+              r.map((c) => "<td>" + esc(c) + "</td>").join("") +
+              "</tr>",
+          )
+          .join("") +
+        "</tbody>";
+      const info =
+        (prev.total_rows || prev.rows.length) +
+        " linha(s) × " +
+        (prev.total_cols || prev.headers.length) +
+        " coluna(s)" +
+        (prev.truncated_rows || prev.truncated_cols
+          ? " · prévia truncada"
+          : "");
+      return (
+        '<table class="import-mini-tbl">' +
+        thead +
+        tbody +
+        "</table>" +
+        '<small class="import-tab-info">' +
+        esc(info) +
+        "</small>"
+      );
+    }
+
+    function tipoSelect(i, tipoAtual) {
+      const opts = ["texto", "lista", "figura", "tabela"]
+        .map((t) => {
+          return (
+            '<option value="' +
+            t +
+            '"' +
+            (t === tipoAtual ? " selected" : "") +
+            ">" +
+            (TIPO_LABEL[t][0] + TIPO_LABEL[t].slice(1).toLowerCase()) +
+            "</option>"
+          );
+        })
+        .join("");
+      return (
+        '<select class="import-tipo-sel" data-i="' +
+        i +
+        '" data-field="tipo" title="Mudar tipo do bloco">' +
+        opts +
+        "</select>"
+      );
+    }
+
+    function renderCardHeader(b, i) {
+      const tipo = (b.tipo || "texto").toLowerCase();
+      const conf = Number(b.confianca || 0);
+      const confPct = Math.round(conf * 100);
+      const confCls = confidenceClass(conf);
+      const checked = b.selecionado !== false ? "checked" : "";
+      return (
+        '<header class="import-card-hdr">' +
+        '<input type="checkbox" class="import-card-check" data-i="' +
+        i +
+        '" data-field="selecionado" ' +
+        checked +
+        ">" +
+        '<span class="import-tipo-badge" data-tipo="' +
+        esc(tipo) +
+        '">' +
+        esc(TIPO_LABEL[tipo] || tipo.toUpperCase()) +
+        "</span>" +
+        '<span class="import-conf import-conf-' +
+        confCls +
+        '" title="' +
+        esc(b.motivo || "") +
+        '">' +
+        confPct +
+        "%</span>" +
+        tipoSelect(i, tipo) +
+        '<span class="import-card-motivo" title="' +
+        esc(b.motivo || "") +
+        '">' +
+        esc(b.motivo || "") +
+        "</span>" +
+        "</header>"
+      );
+    }
+
+    function renderTextoCard(b, i) {
+      return (
+        '<article class="import-card import-card-texto" data-i="' +
+        i +
+        '">' +
+        renderCardHeader(b, i) +
+        '<div class="import-card-body">' +
+        renderSubtipos(b.subtipos) +
+        '<details class="import-raw">' +
+        "<summary>editar texto bruto</summary>" +
+        '<div class="import-raw-tb" role="toolbar" aria-label="Ferramentas de listas (texto)">' +
+        '<span class="import-raw-tb-hint">Listas e níveis (só o texto, não a estrutura de seções):</span>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="bullet" title="Itens com marcador">• Marcadores</button>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="ol1" title="Numeração 1. 2. 3.">1. 2. 3.</button>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="ola" title="a) b) c)">a) b) c)</button>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="oli" title="i. ii. iii. (romano)">i. ii. iii.</button>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="indent" title="Aumentar nível (2 espaços)">Nível +</button>' +
+        '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="outdent" title="Diminuir nível">Nível −</button>' +
+        "</div>" +
+        '<textarea class="import-raw-ta" data-i="' +
+        i +
+        '" data-field="conteudo" rows="6">' +
+        esc(b.conteudo || "") +
+        "</textarea>" +
+        "</details>" +
+        "</div>" +
+        "</article>"
+      );
+    }
+
+    function sugestaoIndiceFigTab(tipo, prefixo, ord) {
+      const t = (tipo || "").toLowerCase();
+      if (t === "figura") return "Figura " + prefixo + "." + ord;
+      if (t === "tabela") return "Tabela " + prefixo + "." + ord;
+      return "";
+    }
+
+    function prefixoHierarquiaSec(numeroAlvo) {
+      const n = String(numeroAlvo == null ? "" : numeroAlvo).trim();
+      return (n || curSecStr || "1").split(".")[0] || "1";
+    }
+
+    function renderFiguraCard(b, i, indiceSug) {
+      const hasImg = b.image_b64 && b.image_mime;
+      const idxRow = indiceSug
+        ? '<label class="mini-label" for="imp-fig-' +
+          i +
+          '-idx">Índice</label>' +
+          '<input id="imp-fig-' +
+          i +
+          '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" ' +
+          ' value="' +
+          esc(indiceSug) +
+          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
+        : "";
+      const thumb = hasImg
+        ? '<img src="data:' +
+          esc(b.image_mime) +
+          ";base64," +
+          esc(b.image_b64) +
+          '" alt="prévia importada">'
+        : '<div class="import-fig-placeholder">Sem imagem<br><small>preencha após importar</small></div>';
+      return (
+        '<article class="import-card import-card-figura" data-i="' +
+        i +
+        '">' +
+        renderCardHeader(b, i) +
+        '<div class="import-card-body import-card-2col">' +
+        '<div class="import-fig-thumb">' +
+        thumb +
+        "</div>" +
+        '<div class="import-meta-fields">' +
+        idxRow +
+        '<label class="mini-label" for="imp-fig-' +
+        i +
+        '-leg">Legenda</label>' +
+        '<input id="imp-fig-' +
+        i +
+        '-leg" type="text" data-i="' +
+        i +
+        '" data-field="legenda" value="' +
+        esc(b.legenda || "") +
+        '" placeholder="ex.: Vista aérea da obra">' +
+        '<label class="mini-label" for="imp-fig-' +
+        i +
+        '-fonte">Fonte</label>' +
+        '<input id="imp-fig-' +
+        i +
+        '-fonte" type="text" data-i="' +
+        i +
+        '" data-field="fonte" value="' +
+        esc(b.fonte || "") +
+        '" placeholder="ex.: Concremat 2025">' +
+        "</div>" +
+        "</div>" +
+        "</article>"
+      );
+    }
+
+    function renderTabelaCard(b, i, indiceSug) {
+      const idxRow = indiceSug
+        ? '<label class="mini-label" for="imp-tab-' +
+          i +
+          '-idx">Índice</label>' +
+          '<input id="imp-tab-' +
+          i +
+          '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" ' +
+          ' value="' +
+          esc(indiceSug) +
+          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
+        : "";
+      return (
+        '<article class="import-card import-card-tabela" data-i="' +
+        i +
+        '">' +
+        renderCardHeader(b, i) +
+        '<div class="import-card-body import-card-2col">' +
+        '<div class="import-tab-prev">' +
+        renderTabelaPreview(b.tabela_preview) +
+        "</div>" +
+        '<div class="import-meta-fields">' +
+        idxRow +
+        '<label class="mini-label" for="imp-tab-' +
+        i +
+        '-leg">Legenda</label>' +
+        '<input id="imp-tab-' +
+        i +
+        '-leg" type="text" data-i="' +
+        i +
+        '" data-field="legenda" value="' +
+        esc(b.legenda || "") +
+        '" placeholder="ex.: Quantitativo de serviços">' +
+        '<label class="mini-label" for="imp-tab-' +
+        i +
+        '-fonte">Fonte</label>' +
+        '<input id="imp-tab-' +
+        i +
+        '-fonte" type="text" data-i="' +
+        i +
+        '" data-field="fonte" value="' +
+        esc(b.fonte || "") +
+        '" placeholder="ex.: Diário de obra">' +
+        '<details class="import-raw">' +
+        "<summary>editar dados brutos da tabela</summary>" +
+        '<textarea class="import-raw-ta" data-i="' +
+        i +
+        '" data-field="conteudo" rows="6">' +
+        esc(b.conteudo || "") +
+        "</textarea>" +
+        "</details>" +
+        "</div>" +
+        "</div>" +
+        "</article>"
+      );
+    }
+
+    function renderCard(b, i, indiceSug) {
+      const tipo = (b.tipo || "texto").toLowerCase();
+      if (tipo === "figura") return renderFiguraCard(b, i, indiceSug || "");
+      if (tipo === "tabela") return renderTabelaCard(b, i, indiceSug || "");
+      return renderTextoCard(b, i);
+    }
+
+    function renderSecaoHeader(key, group) {
+      const numero = key.numero || SECAO_FALLBACK_NUM;
+      const titulo = key.titulo || SECAO_FALLBACK_TIT;
+      const acao = acaoSecao(numero);
+      const acaoLabelTxt = acaoLabel(acao);
+      const indices = group.map((g) => g.idx).join(",");
+      return (
+        '<header class="import-secao-hdr" data-acao="' +
+        esc(acao) +
+        '" data-key="' +
+        esc(key.key) +
+        '" data-indices="' +
+        esc(indices) +
+        '">' +
+        '<button type="button" class="import-secao-toggle" aria-expanded="true" title="Recolher/expandir seção">▾</button>' +
+        '<div class="import-secao-id">' +
+        '<span class="import-secao-num-lbl">SEÇÃO</span>' +
+        '<input type="text" class="import-secao-num" data-key="' +
+        esc(key.key) +
+        '" data-section-field="secao_numero" value="' +
+        esc(numero) +
+        '" aria-label="Número da seção">' +
+        '<input type="text" class="import-secao-titulo" data-key="' +
+        esc(key.key) +
+        '" data-section-field="secao_titulo" value="' +
+        esc(titulo) +
+        '" aria-label="Título da seção">' +
+        "</div>" +
+        '<span class="import-secao-badge" data-acao="' +
+        esc(acao) +
+        '">' +
+        esc(acaoLabelTxt) +
+        "</span>" +
+        '<span class="import-secao-count">' +
+        group.length +
+        " bloco(s)</span>" +
+        '<div class="import-secao-bulk">' +
+        '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="on" data-key="' +
+        esc(key.key) +
+        '" title="Marcar todos desta seção">✓ todos</button>' +
+        '<button type="button" class="secondary-mini import-secao-bulk-btn" data-bulk="off" data-key="' +
+        esc(key.key) +
+        '" title="Desmarcar todos desta seção">✗ nenhum</button>' +
+        "</div>" +
+        "</header>"
+      );
+    }
+
+    // Agrupa por (numero||"") preservando a ordem de chegada.
+    function groupBySecao() {
+      const groups = new Map();
+      importBlocks.forEach((b, idx) => {
+        const numero = String(b.secao_numero || "").trim();
+        const key = numero || "__atual__";
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            numero,
+            titulo: String(b.secao_titulo || "").trim(),
+            items: [],
           });
         }
-      }
-    }
-  });
-
-  list.addEventListener('change', (ev) => {
-    const el = ev.target;
-    if (el.dataset.field === 'tipo') {
-      const idx = Number(el.dataset.i);
-      if (!Number.isFinite(idx) || !importBlocks[idx]) return;
-      importBlocks[idx].tipo = el.value;
-      // Re-renderiza só o card afetado (mais simples: re-renderiza tudo).
-      // Re-render completo é OK: poucos blocos, sem custo perceptível.
-      renderReview();
-      return;
-    }
-    if (el.dataset.field === 'selecionado') {
-      const idx = Number(el.dataset.i);
-      if (Number.isFinite(idx) && importBlocks[idx]) {
-        importBlocks[idx].selecionado = el.checked;
-        updateSummary();
-      }
-    }
-  });
-
-  list.addEventListener('click', (ev) => {
-    const txTool = ev.target.closest('.import-tx-tool');
-    if (txTool && list.contains(txTool) && window.sraImportTextoTool) {
-      const raw = txTool.closest('.import-raw');
-      const ta = raw && raw.querySelector('.import-raw-ta');
-      if (ta) {
-        window.sraImportTextoTool(ta, txTool.getAttribute('data-import-tx-tool'));
-        ta.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      ev.preventDefault();
-      return;
-    }
-    const toggle = ev.target.closest('.import-secao-toggle');
-    if (toggle) {
-      const sec = toggle.closest('.import-secao');
-      if (!sec) return;
-      const body = sec.querySelector('.import-secao-body');
-      const open = !sec.classList.contains('is-collapsed');
-      sec.classList.toggle('is-collapsed', open);
-      toggle.setAttribute('aria-expanded', String(!open));
-      toggle.textContent = open ? '▸' : '▾';
-      if (body) body.style.display = open ? 'none' : '';
-      return;
-    }
-    const bulkBtn = ev.target.closest('.import-secao-bulk-btn');
-    if (bulkBtn) {
-      const key = bulkBtn.dataset.key;
-      const value = bulkBtn.dataset.bulk === 'on';
-      importBlocks.forEach((b) => {
-        const k = String(b.secao_numero || '').trim() || '__atual__';
-        if (k === key) b.selecionado = value;
+        groups.get(key).items.push({ idx, b });
       });
-      // Atualiza checkboxes do grupo sem re-renderizar.
-      const sec = bulkBtn.closest('.import-secao');
-      if (sec) {
-        sec.querySelectorAll('.import-card-check').forEach((c) => { c.checked = value; });
+      return Array.from(groups.values());
+    }
+
+    function renderReview() {
+      if (!importBlocks.length) {
+        review.classList.add("is-hidden");
+        list.innerHTML = "";
+        summary.textContent = "";
+        return;
       }
+      review.classList.remove("is-hidden");
+      const groups = groupBySecao();
+      const html = groups
+        .map((g) => {
+          const secN =
+            g.key === "__atual__" || !String(g.numero || "").trim()
+              ? curSecStr
+              : String(g.numero).trim();
+          const pfx = prefixoHierarquiaSec(secN);
+          const isAlvoAtual =
+            g.key === "__atual__" || !g.numero || secN === curSecStr;
+          let runFig = isAlvoAtual ? figBasePage : 0;
+          let runTab = isAlvoAtual ? tabBasePage : 0;
+          const cards = g.items
+            .map(({ idx, b }) => {
+              const t = (b.tipo || "texto").toLowerCase();
+              if (t === "figura") {
+                runFig += 1;
+                return renderCard(
+                  b,
+                  idx,
+                  sugestaoIndiceFigTab("figura", pfx, runFig),
+                );
+              }
+              if (t === "tabela") {
+                runTab += 1;
+                return renderCard(
+                  b,
+                  idx,
+                  sugestaoIndiceFigTab("tabela", pfx, runTab),
+                );
+              }
+              return renderCard(b, idx, "");
+            })
+            .join("");
+          const head = renderSecaoHeader(
+            { key: g.key, numero: g.numero, titulo: g.titulo },
+            g.items,
+          );
+          return (
+            '<section class="import-secao" data-key="' +
+            esc(g.key) +
+            '">' +
+            head +
+            '<div class="import-secao-body">' +
+            cards +
+            "</div>" +
+            "</section>"
+          );
+        })
+        .join("");
+      list.innerHTML = html;
       updateSummary();
     }
-  });
 
-  if (allOnBtn) allOnBtn.addEventListener('click', () => {
-    importBlocks.forEach((b) => { b.selecionado = true; });
-    list.querySelectorAll('.import-card-check').forEach((c) => { c.checked = true; });
-    updateSummary();
-  });
-  if (allOffBtn) allOffBtn.addEventListener('click', () => {
-    importBlocks.forEach((b) => { b.selecionado = false; });
-    list.querySelectorAll('.import-card-check').forEach((c) => { c.checked = false; });
-    updateSummary();
-  });
-
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    const file = fileIn.files && fileIn.files[0];
-    if (!file) return;
-    if (window.SRAComplementos) {
-      const go = await window.SRAComplementos.confirmarComChave('importacao_assistida_analise');
-      if (!go) return;
+    function updateSummary() {
+      const total = importBlocks.length;
+      const sel = importBlocks.filter((b) => b.selecionado !== false).length;
+      const baixos = importBlocks.filter(
+        (b) => Number(b.confianca || 0) < 0.7,
+      ).length;
+      let txt = sel + " de " + total + " selecionado(s)";
+      if (baixos) txt += " · " + baixos + " com confiança baixa";
+      summary.textContent = txt;
     }
-    const fd = new FormData();
-    fd.append('arquivo', file);
-    status.textContent = 'Analisando...';
-    try {
-      const resp = await fetch('/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/analisar', {
-        method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json' },
+
+    // ---- Handlers (delegação no list) ----
+    list.addEventListener("input", (ev) => {
+      const el = ev.target;
+      if (el.dataset.field) {
+        const idx = Number(el.dataset.i);
+        if (!Number.isFinite(idx) || !importBlocks[idx]) return;
+        const v = el.type === "checkbox" ? el.checked : el.value;
+        importBlocks[idx][el.dataset.field] = v;
+        if (el.dataset.field === "selecionado") updateSummary();
+        return;
+      }
+      if (el.dataset.sectionField) {
+        // Edição do número/título da seção: propaga para todos os blocks do grupo.
+        const key = el.dataset.key;
+        const field = el.dataset.sectionField;
+        const value = el.value;
+        importBlocks.forEach((b) => {
+          const k = String(b.secao_numero || "").trim() || "__atual__";
+          if (k === key) b[field] = value;
+        });
+        // Atualiza badge da ação se mudou o número.
+        if (field === "secao_numero") {
+          const acao = acaoSecao(value);
+          const header = el.closest(".import-secao-hdr");
+          if (header) {
+            header.dataset.acao = acao;
+            const badge = header.querySelector(".import-secao-badge");
+            if (badge) {
+              badge.dataset.acao = acao;
+              badge.textContent = acaoLabel(acao);
+            }
+            // Atualiza acao_secao em cada bloco do grupo (consumido pelo backend).
+            importBlocks.forEach((b) => {
+              const k = String(b.secao_numero || "").trim() || "__atual__";
+              if (k === value || (key === "__atual__" && !b.secao_numero))
+                b.acao_secao = acao;
+            });
+          }
+        }
+      }
+    });
+
+    list.addEventListener("change", (ev) => {
+      const el = ev.target;
+      if (el.dataset.field === "tipo") {
+        const idx = Number(el.dataset.i);
+        if (!Number.isFinite(idx) || !importBlocks[idx]) return;
+        importBlocks[idx].tipo = el.value;
+        // Re-renderiza só o card afetado (mais simples: re-renderiza tudo).
+        // Re-render completo é OK: poucos blocos, sem custo perceptível.
+        renderReview();
+        return;
+      }
+      if (el.dataset.field === "selecionado") {
+        const idx = Number(el.dataset.i);
+        if (Number.isFinite(idx) && importBlocks[idx]) {
+          importBlocks[idx].selecionado = el.checked;
+          updateSummary();
+        }
+      }
+    });
+
+    list.addEventListener("click", (ev) => {
+      const txTool = ev.target.closest(".import-tx-tool");
+      if (txTool && list.contains(txTool) && window.sraImportTextoTool) {
+        const raw = txTool.closest(".import-raw");
+        const ta = raw && raw.querySelector(".import-raw-ta");
+        if (ta) {
+          window.sraImportTextoTool(
+            ta,
+            txTool.getAttribute("data-import-tx-tool"),
+          );
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        ev.preventDefault();
+        return;
+      }
+      const toggle = ev.target.closest(".import-secao-toggle");
+      if (toggle) {
+        const sec = toggle.closest(".import-secao");
+        if (!sec) return;
+        const body = sec.querySelector(".import-secao-body");
+        const open = !sec.classList.contains("is-collapsed");
+        sec.classList.toggle("is-collapsed", open);
+        toggle.setAttribute("aria-expanded", String(!open));
+        toggle.textContent = open ? "▸" : "▾";
+        if (body) body.style.display = open ? "none" : "";
+        return;
+      }
+      const bulkBtn = ev.target.closest(".import-secao-bulk-btn");
+      if (bulkBtn) {
+        const key = bulkBtn.dataset.key;
+        const value = bulkBtn.dataset.bulk === "on";
+        importBlocks.forEach((b) => {
+          const k = String(b.secao_numero || "").trim() || "__atual__";
+          if (k === key) b.selecionado = value;
+        });
+        // Atualiza checkboxes do grupo sem re-renderizar.
+        const sec = bulkBtn.closest(".import-secao");
+        if (sec) {
+          sec.querySelectorAll(".import-card-check").forEach((c) => {
+            c.checked = value;
+          });
+        }
+        updateSummary();
+      }
+    });
+
+    if (allOnBtn)
+      allOnBtn.addEventListener("click", () => {
+        importBlocks.forEach((b) => {
+          b.selecionado = true;
+        });
+        list.querySelectorAll(".import-card-check").forEach((c) => {
+          c.checked = true;
+        });
+        updateSummary();
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Falha ao analisar arquivo.');
-      importBlocks = (data.blocks || []).map((b) => ({ ...b, selecionado: true }));
-      renderReview();
-      const baixos = importBlocks.filter((b) => Number(b.confianca || 0) < 0.7).length;
-      status.textContent = importBlocks.length + ' bloco(s) detectado(s)' + (baixos ? ', ' + baixos + ' para revisar com atenção.' : '.');
-    } catch (err) {
-      status.textContent = err.message;
-      importBlocks = [];
-      renderReview();
-    }
-  });
-
-  confirmBtn.addEventListener('click', async () => {
-    const selected = importBlocks.filter((b) => b.selecionado !== false);
-    if (!selected.length) { alert('Selecione ao menos um bloco para importar.'); return; }
-    if (window.SRAComplementos) {
-      const go = await window.SRAComplementos.confirmarComChave('importacao_assistida_confirmar');
-      if (!go) return;
-    }
-    status.textContent = 'Importando...';
-    try {
-      const resp = await fetch('/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/confirmar', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ blocks: selected }),
+    if (allOffBtn)
+      allOffBtn.addEventListener("click", () => {
+        importBlocks.forEach((b) => {
+          b.selecionado = false;
+        });
+        list.querySelectorAll(".import-card-check").forEach((c) => {
+          c.checked = false;
+        });
+        updateSummary();
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Falha ao importar blocos.');
-      status.textContent = data.created + ' bloco(s) importado(s)' + (data.section_changes ? ' e ' + data.section_changes + ' ajuste(s) de seção.' : '.');
-      window.location.reload();
-    } catch (err) {
-      status.textContent = err.message;
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (importAnaliseEmCurso) return;
+      const file = fileIn.files && fileIn.files[0];
+      if (!file) return;
+      const submitAnalisar = form.querySelector("button[type=\"submit\"]");
+      importAnaliseEmCurso = true;
+      if (submitAnalisar) submitAnalisar.disabled = true;
+      try {
+        if (window.SRAComplementos) {
+          const go = await window.SRAComplementos.confirmarComChave(
+            "importacao_assistida_analise",
+          );
+          if (!go) return;
+        }
+        const fd = new FormData();
+        fd.append("arquivo", file);
+        status.textContent = "Analisando...";
+        try {
+          const resp = await fetch(
+            "/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/analisar",
+            {
+              method: "POST",
+              body: fd,
+              credentials: "same-origin",
+              headers: { Accept: "application/json" },
+            },
+          );
+          const data = await resp.json();
+          if (!resp.ok)
+            throw new Error(data.detail || "Falha ao analisar arquivo.");
+          importBlocks = (data.blocks || []).map((b) => ({
+            ...b,
+            selecionado: true,
+          }));
+          renderReview();
+          const baixos = importBlocks.filter(
+            (b) => Number(b.confianca || 0) < 0.7,
+          ).length;
+          status.textContent =
+            importBlocks.length +
+            " bloco(s) detectado(s)" +
+            (baixos ? ", " + baixos + " para revisar com atenção." : ".");
+        } catch (err) {
+          status.textContent = err.message;
+          importBlocks = [];
+          renderReview();
+        }
+      } finally {
+        importAnaliseEmCurso = false;
+        if (submitAnalisar) submitAnalisar.disabled = false;
+      }
+    });
+
+    confirmBtn.addEventListener("click", async () => {
+      const selected = importBlocks.filter((b) => b.selecionado !== false);
+      if (!selected.length) {
+        alert("Selecione ao menos um bloco para importar.");
+        return;
+      }
+      if (window.SRAComplementos) {
+        const go = await window.SRAComplementos.confirmarComChave(
+          "importacao_assistida_confirmar",
+        );
+        if (!go) return;
+      }
+      status.textContent = "Importando...";
+      try {
+        const resp = await fetch(
+          "/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/confirmar",
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ blocks: selected }),
+          },
+        );
+        const data = await resp.json();
+        if (!resp.ok)
+          throw new Error(data.detail || "Falha ao importar blocos.");
+        status.textContent =
+          data.created +
+          " bloco(s) importado(s)" +
+          (data.section_changes
+            ? " e " + data.section_changes + " ajuste(s) de seção."
+            : ".");
+        window.location.reload();
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    });
+  })();
+</script>
+{% include "complementos/painel_logs_servidor.html" %}
+<style>
+  /* Tabela de Blocos */
+  .blocos-table-wrap {
+    overflow-x: auto;
+  }
+  .blocos-table {
+    min-width: 880px;
+    font-size: 11.5px;
+    margin: 10px 0 16px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #7f92a6;
+    border-radius: 0;
+  }
+  .blocos-table th,
+  .blocos-table td {
+    text-align: center;
+    vertical-align: middle;
+    border: 0;
+    border-right: 1px solid #9babbc;
+    border-bottom: 1px solid #9babbc;
+  }
+  .blocos-table th {
+    white-space: nowrap;
+    border-color: #7890a5;
+  }
+  .blocos-table th:last-child,
+  .blocos-table td:last-child {
+    border-right: 0;
+  }
+  .blocos-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .select-col {
+    width: 34px;
+    min-width: 34px;
+  }
+  .select-col input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  .select-col input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+  }
+  .bloco-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 0 8px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .bulk-count {
+    min-width: 92px;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .bulk-action-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  .bulk-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .td-actions {
+    text-align: center;
+    white-space: nowrap;
+  }
+  .inline-form {
+    margin: 0;
+    display: inline-flex;
+  }
+  .td-actions .inline-form,
+  .td-actions .bloco-action {
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  .bloco-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid #9babbc;
+    border-radius: 3px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .bloco-action:hover {
+    background: #fff;
+    border-color: var(--border);
+    color: var(--navy);
+  }
+  .bloqueado-row {
+    background: #fafafa;
+  }
+  .locked-lbl {
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .import-form {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .import-form > div {
+    flex: 1 1 320px;
+  }
+  .import-status {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .import-help {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .import-help code {
+    color: var(--navy);
+    font-weight: 600;
+  }
+
+  /* ===== Importação — Opção B (lista hierárquica) ===== */
+  .import-review.is-hidden {
+    display: none;
+  }
+  .import-review-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 6px 0 10px;
+    padding: 8px 12px;
+    background: #f5f8fc;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+  }
+  .import-review-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .import-review-title strong {
+    color: var(--navy);
+    font-size: 13px;
+  }
+  .import-summary {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .import-review-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .import-review-actions .primary-mini,
+  .import-review-actions .secondary-mini {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .import-review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Cabeçalho de seção (barra navy) */
+  .import-secao {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .import-secao-hdr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--navy);
+    color: #fff;
+    flex-wrap: wrap;
+  }
+  .import-secao-toggle {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .import-secao-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .import-secao-id {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .import-secao-num-lbl {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.75);
+    flex: 0 0 auto;
+  }
+  .import-secao-num {
+    width: 4.5rem;
+    min-width: 4.5rem;
+    max-width: 5.5rem;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-radius: 3px;
+    font-family: inherit;
+  }
+  .import-secao-num:focus {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+    background: #fff;
+    color: var(--navy);
+  }
+  .import-secao-titulo {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 7px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-radius: 3px;
+    font-family: inherit;
+  }
+  .import-secao-titulo::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .import-secao-titulo:focus {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+    background: #fff;
+    color: var(--navy);
+  }
+  .import-secao-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+  .import-secao-badge[data-acao="usar"] {
+    background: #1f7a3a;
+    color: #fff;
+  }
+  .import-secao-badge[data-acao="criar"] {
+    background: #d98000;
+    color: #fff;
+  }
+  .import-secao-badge[data-acao="renomear"] {
+    background: #0e7da5;
+    color: #fff;
+  }
+  .import-secao-count {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+  }
+  .import-secao-bulk {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .import-secao-bulk-btn {
+    padding: 3px 9px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  .import-secao-bulk-btn:hover {
+    background: #fff;
+    color: var(--navy);
+    border-color: #fff;
+  }
+
+  .import-secao-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fbfcfe;
+  }
+  .import-secao.is-collapsed .import-secao-toggle {
+    transform: rotate(-90deg);
+  }
+
+  /* Cards de bloco */
+  .import-card {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .import-card-hdr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f0f4fa;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .import-card-check {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+  }
+  .import-tipo-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--navy);
+    color: #fff;
+  }
+  .import-tipo-badge[data-tipo="figura"] {
+    background: #0e7da5;
+  }
+  .import-tipo-badge[data-tipo="tabela"] {
+    background: #5a3aa0;
+  }
+  .import-tipo-badge[data-tipo="lista"] {
+    background: #1f7a3a;
+  }
+  .import-conf {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #e8eef5;
+    color: var(--navy);
+    cursor: help;
+  }
+  .import-conf-good {
+    background: #dff3e4;
+    color: #1f7a3a;
+  }
+  .import-conf-mid {
+    background: #fff3d6;
+    color: #8a5b00;
+  }
+  .import-conf-low {
+    background: #ffe1de;
+    color: #a32219;
+  }
+  .import-tipo-sel {
+    padding: 3px 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .import-card-motivo {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+    min-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .import-card-body {
+    padding: 10px 12px;
+  }
+  .import-card-2col {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 720px) {
+    .import-card-2col {
+      grid-template-columns: 1fr;
     }
-  });
-})();
-  </script>
-  {% include "complementos/painel_logs_servidor.html" %}
-  <style>
-/* Tabela de Blocos */
-.blocos-table-wrap { overflow-x:auto; }
-.blocos-table { min-width:880px; font-size:11.5px; margin:10px 0 16px; border-collapse:separate; border-spacing:0; border:1px solid #7f92a6; border-radius:0; }
-.blocos-table th, .blocos-table td { text-align:center; vertical-align:middle; border:0; border-right:1px solid #9babbc; border-bottom:1px solid #9babbc; }
-.blocos-table th { white-space:nowrap; border-color:#7890a5; }
-.blocos-table th:last-child, .blocos-table td:last-child { border-right:0; }
-.blocos-table tbody tr:last-child td { border-bottom:0; }
-.select-col { width:34px; min-width:34px; }
-.select-col input[type="checkbox"] { width:14px; height:14px; margin:0; vertical-align:middle; cursor:pointer; }
-.select-col input[type="checkbox"]:disabled { cursor:not-allowed; }
-.bloco-bulk-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 8px; padding:7px 9px; border:1px solid var(--border); background:#f8fafc; }
-.bulk-count { min-width:92px; font-size:11.5px; color:var(--muted); font-weight:600; }
-.bulk-action-btn { padding:5px 12px; font-size:12px; }
-.bulk-action-btn:disabled { opacity:.45; cursor:not-allowed; }
-.td-actions { text-align:center; white-space:nowrap; }
-.inline-form { margin:0; display:inline-flex; }
-.td-actions .inline-form, .td-actions .bloco-action { vertical-align:middle; margin:0 2px; }
-.bloco-action { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; border:1px solid #9babbc; border-radius:3px; background:#fff; color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; line-height:1; }
-.bloco-action:hover { background:#fff; border-color:var(--border); color:var(--navy); }
-.bloqueado-row { background:#fafafa; }
-.locked-lbl { font-size:10.5px; color:var(--muted); }
-.import-form { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px; }
-.import-form > div { flex:1 1 320px; }
-.import-status { font-size:12px; color:var(--muted); }
-.import-help { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
-.import-help code { color:var(--navy); font-weight:600; }
+  }
 
-/* ===== Importação — Opção B (lista hierárquica) ===== */
-.import-review.is-hidden { display:none; }
-.import-review-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:6px 0 10px; padding:8px 12px; background:#f5f8fc; border:1px solid var(--border); border-radius:5px; }
-.import-review-title { display:flex; align-items:baseline; gap:12px; }
-.import-review-title strong { color:var(--navy); font-size:13px; }
-.import-summary { font-size:11.5px; color:var(--muted); font-weight:600; }
-.import-review-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-.import-review-actions .primary-mini, .import-review-actions .secondary-mini { padding:5px 12px; font-size:12px; }
+  /* Segmentos do TEXTO (chips + preview) */
+  .import-segs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .import-segs-empty {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .seg-item {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 3px 0;
+    border-bottom: 1px dotted #e3e9f0;
+  }
+  .seg-item:last-child {
+    border-bottom: 0;
+  }
+  .seg-chip {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  .seg-chip-paragrafo {
+    background: #e3eef7;
+    color: #274a73;
+  }
+  .seg-chip-subtitulo {
+    background: #ecdef7;
+    color: #5a3aa0;
+  }
+  .seg-chip-titulo {
+    background: var(--navy);
+    color: #fff;
+  }
+  .seg-chip-lista {
+    background: #f7e3c5;
+    color: #8a5b00;
+  }
+  .seg-preview {
+    font-size: 11.5px;
+    color: var(--text);
+    line-height: 1.45;
+    word-break: break-word;
+  }
 
-.import-review-list { display:flex; flex-direction:column; gap:10px; }
+  .import-raw {
+    margin-top: 8px;
+  }
+  .import-raw > summary {
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--blue);
+    font-weight: 600;
+    padding: 3px 0;
+  }
+  .import-raw > summary:hover {
+    color: var(--navy);
+  }
+  .import-raw[open] > summary {
+    margin-bottom: 6px;
+  }
+  .import-raw-tb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin: 4px 0 8px;
+  }
+  .import-raw-tb-hint {
+    font-size: 10.5px;
+    color: var(--muted);
+    font-weight: 600;
+    width: 100%;
+    margin: 0;
+  }
+  .import-raw .import-tx-tool {
+    font-size: 10.5px;
+    padding: 3px 7px;
+  }
+  .import-raw-ta {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    resize: vertical;
+  }
 
-/* Cabeçalho de seção (barra navy) */
-.import-secao { border:1px solid var(--border); border-radius:5px; overflow:hidden; background:#fff; }
-.import-secao-hdr { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--navy); color:#fff; flex-wrap:wrap; }
-.import-secao-toggle { background:transparent; border:1px solid rgba(255,255,255,0.35); color:#fff; width:24px; height:24px; border-radius:3px; cursor:pointer; font-size:12px; padding:0; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
-.import-secao-toggle:hover { background:rgba(255,255,255,0.12); }
-.import-secao-id { display:flex; align-items:center; gap:6px; flex:1 1 0; min-width:0; }
-.import-secao-num-lbl { font-size:10.5px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,0.75); flex:0 0 auto; }
-.import-secao-num { width:4.5rem; min-width:4.5rem; max-width:5.5rem; flex:0 0 auto; box-sizing:border-box; padding:4px 6px; font-size:12px; font-weight:600; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.12); color:#fff; border-radius:3px; font-family:inherit; }
-.import-secao-num:focus { outline:2px solid #fff; outline-offset:-2px; background:#fff; color:var(--navy); }
-.import-secao-titulo { flex:1 1 0; min-width:0; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.12); color:#fff; border-radius:3px; font-family:inherit; }
-.import-secao-titulo::placeholder { color:rgba(255,255,255,0.6); }
-.import-secao-titulo:focus { outline:2px solid #fff; outline-offset:-2px; background:#fff; color:var(--navy); }
-.import-secao-badge { font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:3px; letter-spacing:.04em; text-transform:uppercase; background:rgba(255,255,255,0.18); color:#fff; }
-.import-secao-badge[data-acao="usar"] { background:#1f7a3a; color:#fff; }
-.import-secao-badge[data-acao="criar"] { background:#d98000; color:#fff; }
-.import-secao-badge[data-acao="renomear"] { background:#0e7da5; color:#fff; }
-.import-secao-count { font-size:11px; color:rgba(255,255,255,0.85); font-weight:600; }
-.import-secao-bulk { display:flex; gap:4px; margin-left:auto; }
-.import-secao-bulk-btn { padding:3px 9px; font-size:11px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.4); }
-.import-secao-bulk-btn:hover { background:#fff; color:var(--navy); border-color:#fff; }
+  /* Figura: thumbnail */
+  .import-fig-thumb {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px;
+    background: #fafbfd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+  }
+  .import-fig-thumb img {
+    max-width: 100%;
+    max-height: 140px;
+    object-fit: contain;
+    display: block;
+  }
+  .import-fig-placeholder {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    padding: 18px 8px;
+  }
 
-.import-secao-body { display:flex; flex-direction:column; gap:8px; padding:10px 12px; background:#fbfcfe; }
-.import-secao.is-collapsed .import-secao-toggle { transform:rotate(-90deg); }
+  /* Tabela: mini-preview */
+  .import-tab-prev {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px;
+    background: #fafbfd;
+    overflow: auto;
+    max-height: 180px;
+  }
+  .import-mini-tbl {
+    border-collapse: collapse;
+    font-size: 11px;
+    width: auto;
+    min-width: 100%;
+  }
+  .import-mini-tbl th,
+  .import-mini-tbl td {
+    border: 1px solid #d8e0e8;
+    padding: 3px 7px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .import-mini-tbl th {
+    background: #eaf3ff;
+    color: var(--navy);
+    font-weight: 600;
+  }
+  .import-tab-info {
+    display: block;
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 4px;
+    padding-left: 2px;
+  }
+  .import-tab-empty {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-style: italic;
+    padding: 18px 8px;
+    text-align: center;
+  }
 
-/* Cards de bloco */
-.import-card { border:1px solid var(--border); border-radius:4px; background:#fff; }
-.import-card-hdr { display:flex; align-items:center; gap:8px; padding:6px 10px; background:#f0f4fa; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-.import-card-check { width:14px; height:14px; margin:0; cursor:pointer; }
-.import-tipo-badge { font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:3px; background:var(--navy); color:#fff; }
-.import-tipo-badge[data-tipo="figura"] { background:#0e7da5; }
-.import-tipo-badge[data-tipo="tabela"] { background:#5a3aa0; }
-.import-tipo-badge[data-tipo="lista"] { background:#1f7a3a; }
-.import-conf { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#e8eef5; color:var(--navy); cursor:help; }
-.import-conf-good { background:#dff3e4; color:#1f7a3a; }
-.import-conf-mid  { background:#fff3d6; color:#8a5b00; }
-.import-conf-low  { background:#ffe1de; color:#a32219; }
-.import-tipo-sel { padding:3px 6px; font-size:11px; border:1px solid var(--border); border-radius:3px; background:#fff; color:var(--text); font-family:inherit; }
-.import-card-motivo { font-size:11px; color:var(--muted); flex:1; min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* Campos de meta (legenda/fonte) à direita do thumb/mini-tbl */
+  .import-meta-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .import-meta-fields .mini-label {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin: 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .import-meta-fields input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: inherit;
+  }
+  .import-indice-readonly {
+    background: #eef3f9;
+    color: var(--navy);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: default;
+  }
+  /* ===== Fim Importação ===== */
 
-.import-card-body { padding:10px 12px; }
-.import-card-2col { display:grid; grid-template-columns: 160px 1fr; gap:14px; align-items:start; }
-@media (max-width: 720px) { .import-card-2col { grid-template-columns: 1fr; } }
+  /* ---- Escala e largura da página (escopo: editor de seção) ---- */
+  .page-secao-edit #content {
+    max-width: none;
+    width: 80%;
+    margin: 0 auto;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  @media (max-width: 1100px) {
+    .page-secao-edit #content {
+      width: 94%;
+    }
+  }
+  .hero {
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+  .hero h1 {
+    font-size: 18px;
+  }
+  .hero .subtitle {
+    font-size: 12px;
+  }
+  .hero p {
+    font-size: 12.5px;
+  }
 
-/* Segmentos do TEXTO (chips + preview) */
-.import-segs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
-.import-segs-empty { font-size:11.5px; color:var(--muted); font-style:italic; }
-.seg-item { display:grid; grid-template-columns: 110px 1fr; gap:10px; align-items:start; padding:3px 0; border-bottom:1px dotted #e3e9f0; }
-.seg-item:last-child { border-bottom:0; }
-.seg-chip { font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:3px; text-align:center; letter-spacing:.04em; }
-.seg-chip-paragrafo { background:#e3eef7; color:#274a73; }
-.seg-chip-subtitulo { background:#ecdef7; color:#5a3aa0; }
-.seg-chip-titulo    { background:var(--navy); color:#fff; }
-.seg-chip-lista     { background:#f7e3c5; color:#8a5b00; }
-.seg-preview { font-size:11.5px; color:var(--text); line-height:1.45; word-break:break-word; }
+  .bloco-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .bloco-toolbar button {
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
 
-.import-raw { margin-top:8px; }
-.import-raw > summary { cursor:pointer; font-size:11px; color:var(--blue); font-weight:600; padding:3px 0; }
-.import-raw > summary:hover { color:var(--navy); }
-.import-raw[open] > summary { margin-bottom:6px; }
-.import-raw-tb { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:4px 0 8px; }
-.import-raw-tb-hint { font-size:10.5px; color:var(--muted); font-weight:600; width:100%; margin:0; }
-.import-raw .import-tx-tool { font-size:10.5px; padding:3px 7px; }
-.import-raw-ta { width:100%; box-sizing:border-box; padding:6px 8px; font-size:11.5px; border:1px solid var(--border); border-radius:3px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize:vertical; }
+  .add-bloco-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-rows: auto 1fr;
+    gap: 8px 14px;
+    align-items: stretch;
+  }
+  @media (max-width: 900px) {
+    .add-bloco-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
+    }
+    .add-bloco-side {
+      grid-column: 1 !important;
+      grid-row: auto !important;
+    }
+  }
+  .add-bloco-conteudo-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .add-bloco-conteudo-body {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .add-bloco-conteudo-body textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 520px;
+    box-sizing: border-box;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+    white-space: pre;
+    overflow: auto;
+  }
+  .bloco-status-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    background: #eef2f7;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    color: #3a4a5e;
+  }
+  .bloco-status-bar .bs-lbl {
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .bloco-status-bar .bs-tag {
+    padding: 1px 9px;
+    border-radius: 10px;
+    background: var(--blue);
+    color: #fff;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .bloco-status-bar .bs-tag[data-cls="titulo"] {
+    background: var(--navy);
+  }
+  .bloco-status-bar .bs-tag[data-cls="subtitulo"] {
+    background: #2a6db0;
+  }
+  .bloco-status-bar .bs-tag[data-cls="paragrafo"] {
+    background: #5a6b80;
+  }
+  .bloco-status-bar .bs-tag[data-cls="lista"] {
+    background: var(--green-dk);
+  }
+  .bloco-status-bar .bs-tag[data-cls="figura"] {
+    background: var(--blue);
+  }
+  .bloco-status-bar .bs-tag[data-cls="tabela"] {
+    background: var(--deep);
+  }
+  .bloco-status-bar .bs-tag[data-cls="vazio"] {
+    background: #9aa5b3;
+  }
+  .bloco-status-bar .bs-sep {
+    color: #9aa5b3;
+  }
+  .bloco-status-bar .bs-info {
+    font-variant-numeric: tabular-nums;
+    color: #566;
+  }
 
-/* Figura: thumbnail */
-.import-fig-thumb { border:1px solid var(--border); border-radius:3px; padding:4px; background:#fafbfd; display:flex; align-items:center; justify-content:center; min-height:120px; }
-.import-fig-thumb img { max-width:100%; max-height:140px; object-fit:contain; display:block; }
-.import-fig-placeholder { font-size:11px; color:var(--muted); text-align:center; padding:18px 8px; }
+  /* Editor visual de tabela (modal) — paleta navy/blue do site */
+  .tab-editor-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 59, 90, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+  }
+  .tab-editor-overlay.is-hidden {
+    display: none;
+  }
+  .tab-editor-box {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    width: min(900px, 92vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .tab-editor-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--navy);
+    color: #fff;
+  }
+  .tab-editor-hdr strong {
+    font-size: 13px;
+    color: #fff;
+    letter-spacing: 0.2px;
+  }
+  .tab-editor-close {
+    background: transparent;
+    border: 0;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #fff;
+    padding: 0 4px;
+  }
+  .tab-editor-close:hover {
+    color: var(--green);
+  }
+  .tab-editor-body {
+    padding: 12px 16px;
+    overflow: auto;
+    background: #fff;
+  }
+  .tab-editor-body .mini-label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .tab-editor-body input[type="text"] {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12.5px;
+    margin-bottom: 10px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .tab-editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .tab-editor-toolbar button {
+    font-size: 12px;
+    padding: 5px 12px;
+    border: 1px solid var(--navy);
+    background: #fff;
+    color: var(--navy);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .tab-editor-toolbar button:hover {
+    background: var(--navy);
+    color: #fff;
+  }
+  .tab-editor-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+    font-weight: normal;
+  }
+  .tab-editor-scroll {
+    overflow: auto;
+    max-height: 55vh;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .tab-editor-table {
+    border-collapse: collapse;
+    width: 100%;
+    background: #fff;
+    font-size: 12.5px;
+  }
+  .tab-editor-table th,
+  .tab-editor-table td {
+    border: 1px solid var(--border);
+    padding: 7px 10px;
+    min-width: 90px;
+    vertical-align: top;
+  }
+  .tab-editor-table th {
+    background: #eaf3ff;
+    color: var(--navy);
+    font-weight: 600;
+    text-align: left;
+  }
+  .tab-editor-table td:focus,
+  .tab-editor-table th:focus {
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
+    background: #f0f7ff;
+  }
+  .tab-editor-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .tab-editor-foot button {
+    font-size: 12px;
+    padding: 7px 16px;
+  }
 
-/* Tabela: mini-preview */
-.import-tab-prev { border:1px solid var(--border); border-radius:3px; padding:4px; background:#fafbfd; overflow:auto; max-height:180px; }
-.import-mini-tbl { border-collapse:collapse; font-size:11px; width:auto; min-width:100%; }
-.import-mini-tbl th, .import-mini-tbl td { border:1px solid #d8e0e8; padding:3px 7px; text-align:left; vertical-align:top; }
-.import-mini-tbl th { background:#eaf3ff; color:var(--navy); font-weight:600; }
-.import-tab-info { display:block; font-size:10.5px; color:var(--muted); margin-top:4px; padding-left:2px; }
-.import-tab-empty { font-size:11.5px; color:var(--muted); font-style:italic; padding:18px 8px; text-align:center; }
+  /* Aside equalizado: dois cards preenchem a coluna lateral sem espaço morto */
+  .add-bloco-side {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    min-height: 520px;
+  }
+  .mini-card {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: #fff;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .mini-card-figura .mini-card-hdr {
+    background: #eaf3ff;
+    color: var(--navy);
+  }
+  .mini-card-tabela .mini-card-hdr {
+    background: #eaf3ff;
+    color: var(--navy);
+  }
+  .mini-card-hdr {
+    padding: 7px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mini-card-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+  .mini-card-body select,
+  .mini-card-body input[type="text"],
+  .mini-card-body input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .mini-card-body textarea.mini-leg {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+    flex: 1;
+    min-height: 48px;
+  }
+  .mini-label {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin: 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mini-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mini-fmt-sel {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mini-fmt-sel select {
+    font-size: 10.5px;
+    padding: 3px 6px;
+  }
+  .mini-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .mini-actions > button,
+  .mini-actions > .secondary-mini,
+  .mini-actions > .primary-mini {
+    width: 100%;
+  }
+  .primary-mini {
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    background: var(--blue);
+    color: #fff;
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .primary-mini:hover {
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+  .primary-mini:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--blue);
+  }
+  .secondary-mini {
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    color: var(--navy);
+    border: 1px solid var(--navy);
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .secondary-mini:hover {
+    background: var(--navy);
+    color: #fff;
+  }
+  .secondary-mini:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: #fff;
+    color: var(--muted);
+    border-color: var(--border);
+  }
+  .mini-fig-preview {
+    border: 1px dashed #c8d0d9;
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+    text-align: center;
+  }
+  .mini-fig-preview img {
+    max-width: 100%;
+    max-height: 90px;
+    object-fit: contain;
+  }
+  .mini-fig-preview.is-hidden {
+    display: none;
+  }
+  #ins-fig-upload-file.is-hidden {
+    display: none;
+  }
 
-/* Campos de meta (legenda/fonte) à direita do thumb/mini-tbl */
-.import-meta-fields { display:flex; flex-direction:column; gap:4px; }
-.import-meta-fields .mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-.import-meta-fields input[type="text"] { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:3px; font-family:inherit; }
-.import-indice-readonly { background:#eef3f9; color:var(--navy); font-weight:600; font-size:12px; cursor:default; }
-/* ===== Fim Importação ===== */
-
-/* ---- Escala e largura da página (escopo: editor de seção) ---- */
-.page-secao-edit #content { max-width: none; width: 80%; margin: 0 auto; padding-left: 0; padding-right: 0; }
-@media (max-width: 1100px) { .page-secao-edit #content { width: 94%; } }
-.hero { padding:16px 20px; margin-bottom:14px; }
-.hero h1 { font-size:18px; }
-.hero .subtitle { font-size:12px; }
-.hero p { font-size:12.5px; }
-
-.bloco-toolbar { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
-.bloco-toolbar button { padding:5px 10px; font-size:12px; cursor:pointer; }
-
-.add-bloco-grid { display:grid; grid-template-columns: minmax(0, 1fr) 280px; grid-template-rows: auto 1fr; gap:8px 14px; align-items:stretch; }
-@media (max-width: 900px) { .add-bloco-grid { grid-template-columns: 1fr; grid-template-rows: auto auto auto; } .add-bloco-side { grid-column: 1 !important; grid-row: auto !important; } }
-.add-bloco-conteudo-head { grid-column: 1; grid-row: 1; }
-.add-bloco-conteudo-body { grid-column: 1; grid-row: 2; display:flex; flex-direction:column; min-width:0; }
-.add-bloco-conteudo-body textarea { width:100%; flex:1; min-height:520px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; line-height:1.5; tab-size:2; white-space:pre; overflow:auto; }
-.bloco-status-bar { display:flex; gap:8px; align-items:center; padding:5px 12px; font-size:11.5px; background:#eef2f7; border:1px solid var(--border); border-top:none; border-radius:0 0 4px 4px; color:#3a4a5e; }
-.bloco-status-bar .bs-lbl { font-weight:600; color:var(--navy); }
-.bloco-status-bar .bs-tag { padding:1px 9px; border-radius:10px; background:var(--blue); color:#fff; font-weight:600; font-size:11px; letter-spacing:.02em; }
-.bloco-status-bar .bs-tag[data-cls="titulo"]    { background:var(--navy); }
-.bloco-status-bar .bs-tag[data-cls="subtitulo"] { background:#2a6db0; }
-.bloco-status-bar .bs-tag[data-cls="paragrafo"] { background:#5a6b80; }
-.bloco-status-bar .bs-tag[data-cls="lista"]     { background:var(--green-dk); }
-.bloco-status-bar .bs-tag[data-cls="figura"]    { background:var(--blue); }
-.bloco-status-bar .bs-tag[data-cls="tabela"]    { background:var(--deep); }
-.bloco-status-bar .bs-tag[data-cls="vazio"]     { background:#9aa5b3; }
-.bloco-status-bar .bs-sep { color:#9aa5b3; }
-.bloco-status-bar .bs-info { font-variant-numeric: tabular-nums; color:#566; }
-
-/* Editor visual de tabela (modal) — paleta navy/blue do site */
-.tab-editor-overlay { position:fixed; inset:0; background:rgba(0,59,90,0.45); display:flex; align-items:center; justify-content:center; z-index:9000; }
-.tab-editor-overlay.is-hidden { display:none; }
-.tab-editor-box { background:#fff; border-radius:6px; box-shadow:0 12px 40px rgba(0,0,0,0.25); width:min(900px, 92vw); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--border); }
-.tab-editor-hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--navy); color:#fff; }
-.tab-editor-hdr strong { font-size:13px; color:#fff; letter-spacing:.2px; }
-.tab-editor-close { background:transparent; border:0; font-size:1.4rem; line-height:1; cursor:pointer; color:#fff; padding:0 4px; }
-.tab-editor-close:hover { color:var(--green); }
-.tab-editor-body { padding:12px 16px; overflow:auto; background:#fff; }
-.tab-editor-body .mini-label { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
-.tab-editor-body input[type="text"] { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:4px; font-size:12.5px; margin-bottom:10px; background:#fff; color:var(--text); font-family:inherit; }
-.tab-editor-toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; padding:6px 8px; background:#f8fafc; border:1px solid var(--border); border-radius:4px; }
-.tab-editor-toolbar button { font-size:12px; padding:5px 12px; border:1px solid var(--navy); background:#fff; color:var(--navy); border-radius:4px; cursor:pointer; font-weight:600; }
-.tab-editor-toolbar button:hover { background:var(--navy); color:#fff; }
-.tab-editor-hint { font-size:11px; color:var(--muted); margin-left:auto; font-weight:normal; }
-.tab-editor-scroll { overflow:auto; max-height:55vh; border:1px solid var(--border); border-radius:4px; }
-.tab-editor-table { border-collapse:collapse; width:100%; background:#fff; font-size:12.5px; }
-.tab-editor-table th, .tab-editor-table td { border:1px solid var(--border); padding:7px 10px; min-width:90px; vertical-align:top; }
-.tab-editor-table th { background:#eaf3ff; color:var(--navy); font-weight:600; text-align:left; }
-.tab-editor-table td:focus, .tab-editor-table th:focus { outline:2px solid var(--blue); outline-offset:-2px; background:#f0f7ff; }
-.tab-editor-foot { display:flex; justify-content:flex-end; gap:8px; padding:10px 16px; border-top:1px solid var(--border); background:#f8fafc; }
-.tab-editor-foot button { font-size:12px; padding:7px 16px; }
-
-/* Aside equalizado: dois cards preenchem a coluna lateral sem espaço morto */
-.add-bloco-side { grid-column: 2; grid-row: 2; display:grid; grid-template-rows: 1fr 1fr; gap:10px; min-height:520px; }
-.mini-card { border:1px solid var(--border); border-radius:5px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
-.mini-card-figura .mini-card-hdr { background:#eaf3ff; color:var(--navy); }
-.mini-card-tabela .mini-card-hdr { background:#eaf3ff; color:var(--navy); }
-.mini-card-hdr { padding:7px 12px; font-weight:600; font-size:12px; border-bottom:1px solid var(--border); }
-.mini-card-body { padding:10px 12px; display:flex; flex-direction:column; gap:8px; flex:1; }
-.mini-card-body select, .mini-card-body input[type=text], .mini-card-body input[type=number] { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; }
-.mini-card-body textarea.mini-leg { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px; font-family:inherit; resize:vertical; flex:1; min-height:48px; }
-.mini-label { font-size:10.5px; color:var(--muted); margin:0; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-.mini-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.mini-fmt-sel { display:flex; flex-direction:column; gap:3px; }
-.mini-fmt-sel select { font-size:10.5px; padding:3px 6px; }
-.mini-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:auto; }
-.mini-actions > button, .mini-actions > .secondary-mini, .mini-actions > .primary-mini { width:100%; }
-.primary-mini { padding:6px 10px; font-size:12px; cursor:pointer; background:var(--blue); color:#fff; border:1px solid var(--blue); border-radius:4px; font-weight:600; font-family:inherit; }
-.primary-mini:hover { background:var(--navy); border-color:var(--navy); }
-.primary-mini:disabled { opacity:.45; cursor:not-allowed; background:var(--blue); }
-.secondary-mini { padding:6px 10px; font-size:12px; cursor:pointer; background:#fff; color:var(--navy); border:1px solid var(--navy); border-radius:4px; font-weight:600; font-family:inherit; }
-.secondary-mini:hover { background:var(--navy); color:#fff; }
-.secondary-mini:disabled { opacity:.45; cursor:not-allowed; background:#fff; color:var(--muted); border-color:var(--border); }
-.mini-fig-preview { border:1px dashed #c8d0d9; border-radius:4px; padding:4px; background:#fff; text-align:center; }
-.mini-fig-preview img { max-width:100%; max-height:90px; object-fit:contain; }
-.mini-fig-preview.is-hidden { display:none; }
-#ins-fig-upload-file.is-hidden { display:none; }
-
-.sec-control { background:#f5f8fc; border:1px solid var(--border); border-radius:5px; padding:10px 12px; margin-bottom:12px; }
-.sec-control-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.sec-control-row label { font-weight:600; font-size:12px; color:var(--navy); }
-.sec-control-row select { flex:1 1 320px; min-width:240px; }
-.sec-control-row button, .sec-control-inline button { padding:6px 12px; font-size:12px; cursor:pointer; }
-.sec-control-inline { margin:0; display:inline; }
-.sec-sub-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); }
-.sec-sub-form.is-hidden { display:none; }
-.sec-sub-form label { font-size:12px; color:var(--navy); font-weight:600; }
-.sec-sub-form input[type=text] { flex:1 1 200px; }
-.bloco-edit-btn { font-size:11px; font-weight:600; color:var(--blue); background:#eaf3ff; padding:2px 8px; border-radius:4px; margin-left:8px; transition:0.2s; }
-.bloco:hover .bloco-edit-btn { background:var(--navy); color:#fff; }
-  </style>
+  .sec-control {
+    background: #f5f8fc;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .sec-control-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .sec-control-row label {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--navy);
+  }
+  .sec-control-row select {
+    flex: 1 1 320px;
+    min-width: 240px;
+  }
+  .sec-control-row button,
+  .sec-control-inline button {
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .sec-control-inline {
+    margin: 0;
+    display: inline;
+  }
+  .sec-sub-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+  }
+  .sec-sub-form.is-hidden {
+    display: none;
+  }
+  .sec-sub-form label {
+    font-size: 12px;
+    color: var(--navy);
+    font-weight: 600;
+  }
+  .sec-sub-form input[type="text"] {
+    flex: 1 1 200px;
+  }
+  .bloco-edit-btn {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--blue);
+    background: #eaf3ff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    transition: 0.2s;
+  }
+  .bloco:hover .bloco-edit-btn {
+    background: var(--navy);
+    color: #fff;
+  }
+</style>
 {% endblock %}
