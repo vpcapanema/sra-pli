@@ -252,7 +252,7 @@ def sincronizar_indices_importacao(
     snapshot atual de ``importBlocks``; o endpoint devolve a mesma lista com
     ``secao_numero`` ajustado de forma estável, preservando o deslocamento relativo.
     """
-    _check(request, db, rel_id, sec_id)
+    user, sec = _check(request, db, rel_id, sec_id)
 
     blocks = payload.get("blocks") if isinstance(payload, dict) else None
     base_numero = str(payload.get("primeiro_numero") or "").strip() if isinstance(payload, dict) else ""
@@ -299,7 +299,7 @@ def sincronizar_indices_importacao(
         nb["secao_numero"] = mapping.get(old_raw, base_numero)
         out_blocks.append(nb)
 
-    return {"blocks": out_blocks}
+    return JSONResponse({"blocks": out_blocks, "secao_numero_atual": sec.numero})
 
 
 def _resolver_secao_importada(
