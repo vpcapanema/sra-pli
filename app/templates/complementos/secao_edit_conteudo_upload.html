@@ -152,6 +152,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </button>
               <button
                 type="button"
+                id="import-sync-indices"
+                class="secondary-mini"
+                title="Reaplicar numeração a partir do primeiro índice digitado"
+              >
+                Sincronizar índices
+              </button>
+              <button
+                type="button"
                 id="import-all-off"
                 class="secondary-mini"
                 title="Deselecionar todos os blocos"
@@ -2366,6 +2374,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     const confirmBtn = document.getElementById("import-confirm");
     const allOnBtn = document.getElementById("import-all-on");
     const allOffBtn = document.getElementById("import-all-off");
+    const syncIdxBtn = document.getElementById("import-sync-indices");
+    const syncIdxLabel = syncIdxBtn ? syncIdxBtn.textContent : "";
     const SECAO_FALLBACK_NUM = readSecaoEditData("secNumero", "");
     const SECAO_FALLBACK_TIT = readSecaoEditData("secTitulo", "");
 
@@ -3120,6 +3130,68 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           c.checked = false;
         });
         updateSummary();
+      });
+
+    async function sincronizarIndices() {
+      if (!syncIdxBtn) return;
+      const primeiro = list.querySelector(".import-secao-num");
+      if (!primeiro) {
+        alert("Nenhum índice de seção disponível para sincronizar.");
+        return;
+      }
+      const base = String(primeiro.value || "").trim();
+      if (!base) {
+        alert("Informe o primeiro índice de seção antes de sincronizar.");
+        primeiro.focus();
+        return;
+      }
+      syncImportReviewDomToBlocks();
+      syncIdxBtn.disabled = true;
+      syncIdxBtn.textContent = "Sincronizando...";
+      status.textContent = "Sincronizando índices...";
+      status.dataset.kind = "info";
+      try {
+        const resp = await fetch(
+          "/relatorios/{{ rel.id }}/secoes/{{ sec.id }}/importar/sincronizar-indices",
+          {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              primeiro_numero: base,
+              blocks: importBlocks,
+            }),
+          },
+        );
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || "Falha ao sincronizar índices.");
+        }
+        if (!data.blocks || !Array.isArray(data.blocks)) {
+          throw new Error("Resposta inválida do servidor.");
+        }
+        importBlocks = data.blocks;
+        renderReview();
+        updateSummary();
+        status.textContent = "Índices sincronizados.";
+        status.dataset.kind = "success";
+      } catch (err) {
+        status.textContent = "Falha ao sincronizar índices.";
+        status.dataset.kind = "error";
+        alert(
+          "Erro ao sincronizar índices: " +
+            (err && err.message ? err.message : String(err)),
+        );
+      } finally {
+        syncIdxBtn.disabled = false;
+        syncIdxBtn.textContent = syncIdxLabel || "Sincronizar índices";
+      }
+    }
+
+    if (syncIdxBtn)
+      syncIdxBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        sincronizarIndices();
       });
 
     form.addEventListener("submit", async (ev) => {

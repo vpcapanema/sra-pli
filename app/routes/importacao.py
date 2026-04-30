@@ -11,7 +11,7 @@ from docx import Document
 from docx.oxml.ns import qn
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -203,6 +203,82 @@ def _usuario_pode_estruturar(user: User, sec_atual: Secao, numero: str) -> bool:
     numero = (numero or "").strip()
     atual = (sec_atual.numero or "").strip()
     return bool(numero == atual or numero.startswith(atual + "."))
+
+
+def _split_numero_parts(numero: str) -> list[int]:
+    parts: list[int] = []
+    for p in (numero or "").split("."):
+        if p == "":
+            continue
+        try:
+            parts.append(int(p))
+        except ValueError:
+            return []
+    return parts
+
+
+@router.post("/sincronizar-indices")
+def sincronizar_indices_importacao(
+    rel_id: int,
+    sec_id: int,
+    payload: dict = Body(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Reaplica a numeração da pré-visualização a partir do primeiro índice informado.
+
+    Uso: o frontend envia o valor digitado no primeiro campo ``import-secao-num-*`` e o
+    snapshot atual de ``importBlocks``; o endpoint devolve a mesma lista com
+    ``secao_numero`` ajustado de forma estável, preservando o deslocamento relativo.
+    """
+    _check(request, db, rel_id, sec_id)
+
+    blocks = payload.get("blocks") if isinstance(payload, dict) else None
+    base_numero = str(payload.get("primeiro_numero") or "").strip() if isinstance(payload, dict) else ""
+    if not blocks or not isinstance(blocks, list):
+        raise HTTPException(status_code=400, detail="Payload inválido: 'blocks' obrigatório.")
+    if not base_numero:
+        raise HTTPException(status_code=400, detail="Informe o primeiro número de seção.")
+
+    base_parts = _split_numero_parts(base_numero)
+    if not base_parts:
+        raise HTTPException(status_code=400, detail="Número de seção inválido.")
+
+    primeiro_block = blocks[0] if blocks else {}
+    origem_numero = str(primeiro_block.get("secao_numero") or "").strip()
+    origem_parts = _split_numero_parts(origem_numero) or base_parts
+
+    base_len = min(len(base_parts), len(origem_parts)) or len(base_parts)
+    origem_anchor = origem_parts[base_len - 1] if len(origem_parts) >= base_len else base_parts[base_len - 1]
+
+    mapping: dict[str, str] = {}
+    for blk in blocks:
+        old_raw = str(blk.get("secao_numero") or "").strip()
+        old_parts = _split_numero_parts(old_raw)
+        if not old_parts:
+            mapping[old_raw] = base_numero
+            continue
+        if len(old_parts) < base_len:
+            mapping[old_raw] = base_numero
+            continue
+        delta = old_parts[base_len - 1] - origem_anchor
+        new_parts = list(base_parts)
+        # Garante comprimento mínimo para posicionar o delta.
+        while len(new_parts) < base_len:
+            new_parts.append(1)
+        new_parts[base_len - 1] = base_parts[base_len - 1] + delta
+        if len(old_parts) > base_len:
+            new_parts.extend(old_parts[base_len:])
+        mapping[old_raw] = ".".join(str(p) for p in new_parts)
+
+    out_blocks: list[dict] = []
+    for blk in blocks:
+        nb = dict(blk)
+        old_raw = str(blk.get("secao_numero") or "").strip()
+        nb["secao_numero"] = mapping.get(old_raw, base_numero)
+        out_blocks.append(nb)
+
+    return {"blocks": out_blocks}
 
 
 def _resolver_secao_importada(
