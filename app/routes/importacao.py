@@ -133,6 +133,27 @@ def _target_section(secoes: list[Secao], fallback: Secao, numero: str | None) ->
     return SecaoDestino(None, numero, f"Seção {numero}", 0.72, f"marcador [SECAO:{numero}] criará seção no relatório", "criar")
 
 
+def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> list[dict]:
+    """Se o usuário está em uma seção específica, usa-a como fallback de numeração.
+
+    Aplica apenas quando o bloco não trouxe ``secao_numero``; não força override
+    em blocos já numerados pelo parser.
+    """
+    numero_atual = (sec_atual.numero or "").strip()
+    if not numero_atual:
+        return blocks
+    out: list[dict] = []
+    for b in blocks:
+        num = str(b.get("secao_numero") or "").strip()
+        if num:
+            out.append(b)
+        else:
+            nb = dict(b)
+            nb["secao_numero"] = numero_atual
+            out.append(nb)
+    return out
+
+
 def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool = False) -> SecaoDestino | None:
     body = re.sub(r"^#{1,6}\s*", "", text.strip())
     if not body:
@@ -1008,15 +1029,21 @@ async def analisar_importacao(
     nome = (arquivo.filename or "").lower()
     if nome.endswith(".docx"):
         blocks = _parse_docx(raw, db, rel_id, sec_id)
-        return JSONResponse({"blocks": blocks, "total": len(blocks)})
-    if nome.endswith(".txt"):
+    elif nome.endswith(".txt"):
         try:
             texto = raw.decode("utf-8-sig")
         except UnicodeDecodeError:
             texto = raw.decode("latin-1")
         blocks = _parse_import_text(texto, db, rel_id, sec_id)
-        return JSONResponse({"blocks": blocks, "total": len(blocks)})
-    raise HTTPException(400, detail="Envie um arquivo .txt ou .docx.")
+    else:
+        raise HTTPException(400, detail="Envie um arquivo .txt ou .docx.")
+
+    # Sugere a numeração da seção atual para blocos sem número explícito.
+    sec_atual = db.get(Secao, sec_id)
+    if sec_atual:
+        blocks = _preencher_secao_vazia_com_atual(sec_atual, blocks)
+
+    return JSONResponse({"blocks": blocks, "total": len(blocks)})
 
 
 def _limpar_blocos_secao_importacao(txdb: Session, sec_ids: set[int]) -> None:

@@ -3194,6 +3194,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         sincronizarIndices();
       });
 
+    function aplicarSugestaoSecaoAtual() {
+      if (!curSecStr) return;
+      importBlocks = importBlocks.map((b) => {
+        const n = String(b.secao_numero || "").trim();
+        if (!n) return { ...b, secao_numero: curSecStr };
+        return b;
+      });
+    }
+
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       if (importAnaliseEmCurso) return;
@@ -3229,6 +3238,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             ...b,
             selecionado: true,
           }));
+          aplicarSugestaoSecaoAtual();
           renderReview();
           const baixos = importBlocks.filter(
             (b) => Number(b.confianca || 0) < 0.7,
