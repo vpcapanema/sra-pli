@@ -5,10 +5,15 @@ Uso (PowerShell):
   .\\.venv\\Scripts\\python.exe -m app.cron.enviar_lembretes --tipo lembrete
   .\\.venv\\Scripts\\python.exe -m app.cron.enviar_lembretes --tipo ultima_chamada
 
-Schedule sugerida (Render Cron, UTC):
-- ``0 12 5 * *``  → 09:00 BRT, dia 5  (lembrete)
-- ``0 12 8 * *``  → 09:00 BRT, dia 8  (lembrete)
-- ``0 12 10 * *`` → 09:00 BRT, dia 10 (ultima_chamada)
+Schedule sugerida (Render Cron, UTC) — alinhar com **dias configurados** na tabela
+``parametros_ciclo_notificacao`` ou na página «Registro do servidor».
+Exemplo quando lembretes = 5 e 8; última chamada = 10; hora 09:00 BRT (12:00 UTC):
+
+- ``0 12 5 * *`` → lembrete
+- ``0 12 8 * *`` → lembrete
+- ``0 12 10 * *`` → última chamada
+
+Em manutenção usar ``--ignorar-calendario`` ou a query HTTP correspondente.
 """
 from __future__ import annotations
 
@@ -32,12 +37,22 @@ def main(argv: list[str] | None = None) -> int:
         "--relatorio-id", type=int, default=None,
         help="Restringe a um relatório específico (uso manual).",
     )
+    parser.add_argument(
+        "--ignorar-calendario",
+        action="store_true",
+        help="Ignora a verificação dos dias configurados (uso manual / urgência).",
+    )
     args = parser.parse_args(argv)
-    log.info("[lembretes] start now_brt=%s tipo=%s rel=%s",
-             agora_brt(), args.tipo, args.relatorio_id)
+    log.info(
+        "[lembretes] start now_brt=%s tipo=%s rel=%s ignorar_cal=%s",
+        agora_brt(), args.tipo, args.relatorio_id, args.ignorar_calendario,
+    )
     with SessionLocal() as db:
         resumo = enviar_lembretes(
-            db, tipo=args.tipo, relatorio_id=args.relatorio_id,
+            db,
+            tipo=args.tipo,
+            relatorio_id=args.relatorio_id,
+            ignorar_calendario=args.ignorar_calendario,
         )
     log.info(
         "[lembretes] done tipo=%s rel_proc=%d env=%d fal=%d pul_int=%d",

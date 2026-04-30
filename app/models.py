@@ -201,3 +201,23 @@ class NotificacaoEnvio(Base):
     __table_args__ = (
         Index("ix_notif_entrega_data", "entrega_id", "enviada_em"),
     )
+
+
+class ParametrosCicloNotificacao(Base):
+    """Única linha ``id=1``: parâmetros do ciclo mensal editáveis na UI (coord/admin)."""
+
+    __tablename__ = "parametros_ciclo_notificacao"
+
+    id = Column(Integer, primary_key=True)
+    ciclo_dia_mes_anterior = Column(Integer, nullable=False, default=11)
+    ciclo_dia_mes_atual = Column(Integer, nullable=False, default=11)
+    prazo_autor_dia = Column(Integer, nullable=False, default=8)
+    prazo_coordenacao_dia = Column(Integer, nullable=False, default=10)
+    dias_lembrete_csv = Column(String(128), nullable=False, default="5,8")
+    dia_ultima_chamada = Column(Integer, nullable=False, default=10)
+    dia_abertura_novo_ciclo = Column(Integer, nullable=False, default=1)
+    hora_abertura_brt_hhmm = Column(String(5), nullable=False, default="03:00")
+    hora_lembretes_brt_hhmm = Column(String(5), nullable=False, default="09:00")
+    hora_retry_brt_hhmm = Column(String(5), nullable=False, default="12:00")
+    observacoes_internas = Column(Text, nullable=True)
+    atualizado_em = Column(DateTime, nullable=True)

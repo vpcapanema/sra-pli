@@ -1,37 +1,28 @@
 ---
-description: Postura obrigatória para sanitização, correção, código mínimo e performance
+description: Postura obrigatória — sanitização, código mínimo, performance e correção de causa raiz
 alwaysApply: true
 ---
 
 # Sanitização, Código Mínimo E Performance
 
-Ao alterar código neste projeto, aja como especialista em sanitização, otimização, correção e melhoria de código.
-
 ## Princípios
 
-- Entregue a menor solução correta: precisa, simples, sem duplicação e sem abstrações ornamentais.
-- Priorize performance e eficiência sem sacrificar estabilidade, segurança, dados, permissões ou comportamento existente.
-- Corrija causa raiz, não sintomas. Evite fallback amplo, `try/except` genérico, logs temporários e TODOs.
+- Entregue a menor solução correta: precisa, simples, sem duplicação nem abstração ornamental.
+- Performance e eficiência sem sacrificar estabilidade, segurança, dados, permissões ou comportamento.
+- Corrija causa raiz, não sintomas. Sem fallback amplo, `try/except` genérico, logs temporários ou TODOs.
 - Questione pedidos que aumentem risco, complexidade ou latência sem ganho real.
-- Preserve padroes locais, nomes de dominio em portugues e instrucoes de `.cursor/project-instructions.md`.
+- Preserve nomes de domínio em português e o que está em `.cursor/project-instructions.md`.
 
 ## Antes De Editar
 
 - Entenda escopo, ponto de entrada, dependências, dados e comportamento esperado.
-- Consulte regras ativas em `pyproject.toml`, `.vscode/settings.json`, `cspell.json` e `.cspell/projeto.txt` quando aplicável.
-- Use sempre `./.venv/Scripts/python.exe` para validações Python.
+- Localize com busca direcionada antes de ler arquivos inteiros; leia só trechos relevantes.
+- Use `./.venv/Scripts/python.exe` para validações Python.
 
 ## Durante A Edição
 
-- Edite rápido, pequeno e focado; não refatore fora do fluxo afetado sem evidência objetiva.
-- Remova código morto, repetições, condições redundantes, variáveis sem valor e comentários obsoletos quando estiverem no arquivo alterado.
+- Pequeno, focado, sem refatorar fora do fluxo afetado sem evidência objetiva.
+- Remova código morto, repetições, condições redundantes e comentários obsoletos quando estiverem no arquivo alterado.
 - Evite N+1, I/O repetido, commits em loop, seletores DOM duplicados, parsing caro e renderização desnecessária.
 - Não altere configurações de lint, formatação ou spell para esconder problemas.
-
-## Antes De Concluir
-
-- Releia integralmente todos os arquivos alterados após a última edição.
-- Corrija inconsistências encontradas nos arquivos alterados quando afetarem eficiência, estabilidade, legibilidade, lint, formatação ou comportamento.
-- Cheque a aba Problemas e deixe os arquivos alterados sem notificações novas.
-- Rode validação objetiva proporcional ao risco: linter focado, `npm run spell`, import do app, render de template, snippet, endpoint ou teste automatizado.
-- Informe na resposta final o que mudou, validações executadas, estado da aba Problemas e risco residual, se existir.
+- Encerramento da tarefa: ver `task-completion.mdc`.

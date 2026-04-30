@@ -217,7 +217,12 @@ def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
         synchronize_session=False,
     )
     db.commit()
-    r2 = enviar_lembretes(db, tipo="lembrete", relatorio_id=novo_rel_id)
+    r2 = enviar_lembretes(
+        db,
+        tipo="lembrete",
+        relatorio_id=novo_rel_id,
+        ignorar_calendario=True,
+    )
     print(f"  env={r2.emails_enviados} pul_intervalo={r2.pulados_intervalo}")
     assert r2.emails_enviados == 2
     e1 = db.query(EntregaRelatorio).filter_by(
@@ -225,7 +230,12 @@ def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
     ).one()
     assert e1.status == "aguardando_envio"
     print(f"  u1 status apos 2 notif: {e1.status} ok")
-    r2b = enviar_lembretes(db, tipo="lembrete", relatorio_id=novo_rel_id)
+    r2b = enviar_lembretes(
+        db,
+        tipo="lembrete",
+        relatorio_id=novo_rel_id,
+        ignorar_calendario=True,
+    )
     assert r2b.pulados_intervalo == 2 and r2b.emails_enviados == 0
     print(f"  janela 22h: pulados={r2b.pulados_intervalo} ok")
 
@@ -262,7 +272,10 @@ def _fase_ultima_chamada(db, novo_rel_id: int) -> None:
     )
     db.commit()
     r3 = enviar_lembretes(
-        db, tipo="ultima_chamada", relatorio_id=novo_rel_id
+        db,
+        tipo="ultima_chamada",
+        relatorio_id=novo_rel_id,
+        ignorar_calendario=True,
     )
     print(
         f"\n=== ultima_chamada com u1=enviado: env={r3.emails_enviados} "

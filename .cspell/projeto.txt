@@ -45,6 +45,7 @@ bloqueado
 bloqueados
 cabecalho
 cabecalhos
+calendario
 caso
 cirurgicas
 cirurgico
@@ -135,6 +136,7 @@ excluida
 excluidas
 excluido
 excluidos
+exibicao
 exclusao
 exclusoes
 existente
@@ -162,6 +164,7 @@ genericidade
 geracao
 gerador
 gestao
+governanca
 grandes
 gravacao
 hierarquica
@@ -223,8 +226,8 @@ lista
 listas
 mantemos
 manter
-medicao
 mdlint
+medicao
 Medicao
 medicoes
 mes
@@ -240,6 +243,7 @@ multiplos
 mutacao
 mutacoes
 mutam
+mutar
 mutavel
 nao
 necessarias
@@ -347,6 +351,7 @@ repositorio
 repositorios
 representacao
 representacoes
+restricao
 resolucao
 responsavel
 reusam
@@ -427,6 +432,7 @@ visivel
 visualizacao
 
 # === Variaveis e identificadores comuns no codigo ===
+botao
 checkpw
 disambigua
 hashpw
@@ -649,6 +655,7 @@ expoe
 ferias
 Ferias
 indentação
+instituicao
 isnot
 joao
 Joao
@@ -666,8 +673,10 @@ opt-out
 optin
 optout
 orquestracao
+ortografico
 padronizacao
 Padronizacao
+rapido
 senao
 sendgrid
 SendGrid

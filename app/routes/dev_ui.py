@@ -172,6 +172,7 @@ def _contexto_preview_email_db(
         limite = min(2, len(todas_list))
         minhas = todas_list[:limite]
     return _montar_contexto_email(  # pylint: disable=protected-access
+        db,
         rel,
         user,
         minhas,
@@ -335,7 +336,7 @@ def dev_modais_previews(request: Request, db: Session = Depends(get_db)):
         return response_login(request)
     return templates.TemplateResponse(
         request,
-        "dev_modais.html",
+        "complementos/dev_modais.html",
         {
             "request": request,
             "user": user,

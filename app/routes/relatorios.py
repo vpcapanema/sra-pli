@@ -10,6 +10,7 @@ from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
 from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status, campos_json_bloco_transversal
 from ..bootstrap import criar_secoes_padrao
+from ..modo_edicao_blocos import definir_modo_edicao_coordenador
 from ..numeracao import consolidar_referencias, renumerar_relatorio
 from .. import ref_resolve
 from ..sumario_extractor import (
@@ -144,6 +145,35 @@ def excluir_todos_blocos_confirmados(  # pylint: disable=too-many-locals
     for sid in sec_ids:
         _hook_recompute_entrega(db, rel_id, sid)
     return JSONResponse({"ok": True, "removidos": len(blocos)})
+
+
+@router.post("/{rel_id}/modo-edicao-blocos")
+def post_modo_edicao_blocos(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    ativo: str = Form("0"),
+):
+    """Coordenador alterna modo em que pode editar/excluir/mover blocos já bloqueados."""
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+    if u.role != "coordenador":
+        raise HTTPException(403, detail="Somente o coordenador pode ativar o modo edição.")
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        raise HTTPException(404)
+    ok_ed, motivo_ed = _pode_editar_status(u, rel)
+    if not ok_ed:
+        raise HTTPException(403, detail=motivo_ed)
+    ligado = str(ativo).strip().lower() in ("1", "on", "true", "sim", "yes")
+    if ligado:
+        definir_modo_edicao_coordenador(request, rel_id)
+    else:
+        definir_modo_edicao_coordenador(request, None)
+    alvo = (request.headers.get("referer") or "").strip() or f"/relatorios/{rel_id}"
+    return RedirectResponse(url=alvo, status_code=303)
 
 
 @router.post("")

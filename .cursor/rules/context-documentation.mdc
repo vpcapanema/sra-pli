@@ -1,6 +1,6 @@
 ---
-description: Manter o contexto canonico da aplicacao atualizado para novos agentes
-alwaysApply: true
+description: Atualizar .cursor/project-instructions.md quando criar/remover funcionalidade visivel, alterar modelo de dominio, permissoes, contratos de dados, rotas, templates principais, importacao, PDF, deploy ou tasks do Cursor
+alwaysApply: false
 ---
 
 # Documentacao De Contexto Para Agentes

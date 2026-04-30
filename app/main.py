@@ -8,10 +8,11 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .db import get_db
+from .db import SessionLocal, get_db
 from .bootstrap import init_db
 from .routes import auth as auth_routes
 from .routes import pages as page_routes
@@ -25,6 +26,8 @@ from .routes import modelos_word as modelos_word_routes
 from .routes import notificacoes as notif_routes
 from .routes import pdf as pdf_routes
 from .routes import dev_ui
+from .routes import governanca_relatorio as governanca_relatorio_routes
+from .routes import mapa_aplicacao as mapa_aplicacao_routes
 from .routes.pages import response_home
 from .access_control import SraAutorRouteGuardMiddleware
 
@@ -62,17 +65,58 @@ async def sra_http_audit_log(request: Request, call_next):
     return response
 
 
-# Ordem add_middleware (insert no início): SessionMiddleware → SraAutorRouteGuardMiddleware → rotas.
-app.add_middleware(SraAutorRouteGuardMiddleware)
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, same_site="lax", https_only=False)
-
-
 @app.middleware("http")
 async def sra_dev_preview_nav_context(request: Request, call_next):
     """Expõe se rotas /dev de pré-visualização estão ativas (menu lateral)."""
     request.state.sra_modais_preview_allowed = dev_ui.modais_preview_allowed()
     return await call_next(request)
 
+
+@app.middleware("http")
+async def sra_hub_sidebar_context(request: Request, call_next):
+    """IDs do relatório mais recente + primeira secção (ordem) para a sidebar.
+
+    Evita links ``/painel-upload#…`` que perdem o fragmento após redirecionamento
+    3xx e permite âncoras corretas em páginas sem ``rel`` no contexto do template.
+    """
+    request.state.sra_hub_rel_id = None
+    request.state.sra_hub_primeira_secao_id = None
+    path = request.url.path
+    if (
+        request.method == "GET"
+        and request.session.get("user_id")
+        and not path.startswith("/static")
+    ):
+        db = SessionLocal()
+        try:
+            row = db.execute(
+                text(
+                    """
+                    SELECT r.id, (
+                        SELECT s.id FROM secoes s
+                        WHERE s.relatorio_id = r.id
+                        ORDER BY s.ordem, s.id
+                        LIMIT 1
+                    )
+                    FROM relatorios r
+                    ORDER BY r.created_at DESC
+                    LIMIT 1
+                    """
+                )
+            ).first()
+            if row and row[0] is not None:
+                request.state.sra_hub_rel_id = int(row[0])
+                if row[1] is not None:
+                    request.state.sra_hub_primeira_secao_id = int(row[1])
+        finally:
+            db.close()
+    return await call_next(request)
+
+
+# Depois de todos os @app.middleware("http"): insert(0) empurra para o início de user_middleware;
+# assim SessionMiddleware e SraAutor ficam mais externos que os BaseHTTPMiddleware acima.
+app.add_middleware(SraAutorRouteGuardMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, same_site="lax", https_only=False)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
@@ -96,7 +140,9 @@ def favicon_ico():
 
 
 app.include_router(auth_routes.router)
+app.include_router(governanca_relatorio_routes.router)
 app.include_router(page_routes.router)
+app.include_router(mapa_aplicacao_routes.router)
 app.include_router(rel_routes.router)
 app.include_router(
     relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"]

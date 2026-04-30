@@ -56,7 +56,7 @@ def pagina_modelos_word_importacao(request: Request, db: Session = Depends(get_d
     todas = MODELOS_DIR / "SRA_todas_secoes.dotx"
     return templates.TemplateResponse(
         request,
-        "modelos_word_importacao.html",
+        "complementos/modelos_word_importacao.html",
         {
             "user": user,
             "secoes_catalogo": linhas,

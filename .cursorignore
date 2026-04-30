@@ -1,0 +1,69 @@
+# .cursorignore
+# Bloqueia indexacao E leitura pelo agente. Use somente para coisas que o
+# agente NUNCA precisa abrir (binarios, derivados, dependencias). Para coisas
+# que podem ser uteis sob demanda (artifacts, arquivos de teste), use
+# .cursorindexingignore.
+
+# Dependencias e ambientes
+node_modules/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Cache Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bancos e dados locais
+*.sqlite
+*.sqlite3
+*.db
+instance/
+uploads/
+_extracted_text/
+
+# Logs (artifacts/ NAO vai aqui: o agente precisa ler agent-diagnostics.txt
+# no encerramento de tarefa conforme .cursor/rules/task-completion.mdc;
+# ja esta excluido do indice via .cursorindexingignore)
+*.log
+
+# Cache do Playwright MCP (sessoes anteriores; agente nao precisa reler)
+.playwright-mcp/
+
+# Capturas de tela soltas na raiz (lixo de sessoes anteriores)
+gov_*.png
+preview_*.pdf
+mapa_da_aplicacao.html
+
+# Binarios pesados que o agente nao consegue ler como texto util
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.pdf
+*.docx
+*.xlsx
+*.zip
+*.7z
+*.tar
+*.gz
+
+# Lockfiles (ja gerados; o agente nao deve reescrever)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Configuracao local nao versionada
+.env
+.env.local
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

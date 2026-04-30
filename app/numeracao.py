@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 
 from sqlalchemy import case, text, update
 from sqlalchemy.orm import Session
@@ -58,6 +59,24 @@ def chave_numero(numero: str) -> tuple:
         else:
             partes.append((1, parte.lower()))
     return tuple(partes)
+
+
+def secao_ids_na_subarvore(secoes: Iterable[Secao], anc_numero: str) -> set[int]:
+    """IDs das seções cujo número é ``anc_numero`` ou é descendente na hierarquia PLI.
+
+    Descendência: prefixo ``anc_numero + '.'`` (ex.: âncora ``4.3`` inclui ``4.3.1``,
+    ``4.3.10``; não inclui ``4.31`` nem ``4``).
+    """
+    base = (anc_numero or "").strip()
+    if not base:
+        return set()
+    pref = base + "."
+    out: set[int] = set()
+    for sec in secoes:
+        n = (sec.numero or "").strip()
+        if n == base or n.startswith(pref):
+            out.add(sec.id)
+    return out
 
 
 def _construir_arvore(secoes: list[Secao]) -> dict[str, list[Secao]]:

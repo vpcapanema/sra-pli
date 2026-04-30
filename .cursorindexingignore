@@ -1,0 +1,32 @@
+# .cursorindexingignore
+# Apenas remove arquivos do indice (sem bloquear leitura pelo agente).
+# Util para conteudo que o agente raramente precisa abrir, mas pode acessar
+# explicitamente quando relevante (diagnostico, casos de teste, dicionarios).
+
+# Diagnosticos e artefatos de execucao (mantidos legiveis sob demanda)
+artifacts/
+
+# Documentos de teste (DOCX, PDF) usados em validacao manual
+arquivos teste/
+
+# Dicionarios e listas de palavras
+.cspell/projeto.txt
+
+# Logs de sessoes do Playwright MCP (texto, mas grande e descartavel)
+.playwright-mcp/*.yml
+.playwright-mcp/*.log
+
+# Snapshots gerados em scripts adhoc
+scripts/_*.py
+
+# Capturas de tela e relatorios soltos na raiz
+gov_*.png
+preview_*.pdf
+mapa_da_aplicacao.html
+
+# Workspace VS Code (raramente lido)
+*.code-workspace
+
+# CHANGELOG e historicos longos (se existirem)
+CHANGELOG.md
+HISTORY.md

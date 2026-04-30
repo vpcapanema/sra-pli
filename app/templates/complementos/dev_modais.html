@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Prévia confirmações{% endblock %}
+{% block header %}Prévia de confirmações{% endblock %}
+{% block content %}
+  <div class="hero">
+    <h1>Prévia — confirmação nativa</h1>
+    <p class="subtitle">
+      Os formulários com <code>data-sra-confirm</code> usam <code>window.confirm</code>
+      (<code>sra_process_ui.js</code> / <code>SRAComplementos</code>), sem modal HTML nem
+      endpoint no servidor.
+    </p>
+    <p class="subtitle">
+      <strong>E-mails do ciclo (consolidados):</strong>
+      <a href="/dev/preview-emails-notificacao">Ver as três mensagens na mesma página</a>
+      (abertura, lembrete e última chamada — mesmo HTML do envio / <code>email_notificacao.html</code>).
+    </p>
+    <p class="subtitle">
+      Ou uma de cada vez:
+      <a href="/dev/preview-email-notificacao?tipo=abertura">abertura</a> ·
+      <a href="/dev/preview-email-notificacao?tipo=lembrete">lembrete</a> ·
+      <a href="/dev/preview-email-notificacao?tipo=ultima_chamada">última chamada</a>
+      — opcional: <code>?relatorio_id=N</code> (dados reais do relatório).
+    </p>
+    <div class="sra-dev-preview-row">
+      <button type="button" id="sra-dev-preview-confirm">Simular análise assistida (confirm)</button>
+    </div>
+    <p class="subtitle" id="sra-dev-preview-result" aria-live="polite"></p>
+  </div>
+  <script>
+(function () {
+  var btn = document.getElementById("sra-dev-preview-confirm");
+  var out = document.getElementById("sra-dev-preview-result");
+  if (btn && window.SRAComplementos) {
+    btn.addEventListener("click", function () {
+      window.SRAComplementos.confirmarComChave("importacao_assistida_analise").then(function (sim) {
+        if (out) {
+          out.textContent = sim ? "Utilizador confirmou (OK)." : "Utilizador cancelou.";
+        }
+      });
+    });
+  }
+})();
+  </script>
+{% endblock %}

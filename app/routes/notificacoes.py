@@ -14,6 +14,7 @@ from starlette.responses import RedirectResponse, Response
 from ..db import get_db
 from ..models import EntregaRelatorio, Relatorio, Secao, User
 from ..notificacoes.modelos import DOTX_MEDIA_TYPE, caminho_para, filename_para
+from ..notificacoes.ciclo_params import obter_parametros_ciclo
 from ..notificacoes.service import (
     alterar_status_entrega,
     notificar_autores_abertura,
@@ -137,11 +138,12 @@ def response_entregas_painel(
         if primeira_sec
         else "/painel-upload"
     )
-    prazos_ent = prazos_mensagem_relatorio(rel)
+    par_gr = obter_parametros_ciclo(db)
+    prazos_ent = prazos_mensagem_relatorio(rel, parametros=par_gr)
 
     return templates.TemplateResponse(
         request,
-        "entregas_painel.html",
+        "complementos/entregas_painel.html",
         {
             "user": user,
             "rel": rel,

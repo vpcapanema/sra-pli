@@ -2,23 +2,30 @@
 
 Pontos de entrada principais:
 
-- :func:`abrir_periodo` — dia 1, 03:00 BRT. Cria o relatório do mês clonando
-  **seções e conteúdos** do relatório-base (último ``finalizado``, fallback:
-  mais recente). Responsáveis das seções ficam ``NULL``. Em seguida envia
-  Mensagem 1 a **todos** os utilizadores com ``role=autor`` e coluna Relatório
-  (``notificacoes_ativas``) ativa — não exige secção atribuída; a lista de
-  secções no e-mail pode estar vazia até o coordenador atribuir.
+- :func:`abrir_periodo` — esperado no **dia** configurado (BRT) em
+  ``parametros_ciclo_notificacao`` — cria o relatório do mês clonando **seções e
+  conteúdos** do relatório-base (último ``finalizado``, fallback: mais recente).
+  Responsáveis das seções ficam ``NULL``. Em seguida envia Mensagem 1 a **todos**
+  os utilizadores com ``role=autor`` e coluna Relatório (``notificacoes_ativas``)
+  ativa — não exige secção atribuída; a lista de secções no e-mail pode estar
+  vazia até o coordenador atribuir.
 - :func:`notificar_autores_abertura` — reenvia Mensagem 1 aos endereços do
   utilizador (``email`` e ``email2``) que ainda não tiveram ``abertura`` com
   sucesso (critério de destinatários: autor + ``notificacoes_ativas``).
-- :func:`enviar_lembretes` — dias 5, 8, 10 (lembrete / última chamada).
+- :func:`enviar_lembretes` — respeita **dias** configurados por tipo
+  (`lembrete` vs ``ultima_chamada``).
 - :func:`retry_falhas` — retenta falhas recentes de envio.
 - :func:`recompute_status_enviado` — hook quando blocos são confirmados.
 
 Idempotência: relatório por ``mes_referencia``; abertura/lembrete por entrega e
 por endereço (principal e secundário). A evolução de ``EntregaRelatorio.status``
 continua baseada só em envios com sucesso para o **e-mail principal**.
+
+Datas de período/prazos e calendário de disparos ficam persistidos (:mod:`.ciclo_params`).
 """
+# Domínio extenso: aberturas, clones, refs, retries e ganchos PDF num único lugar.
+# pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 import logging
@@ -47,6 +54,12 @@ from .email_context_arvore import (
     link_dotx_secao,
     link_upload_secao,
 )
+from .ciclo_params import (
+    ParametrosCicloDTO,
+    dia_util_no_mes,
+    obter_parametros_ciclo,
+    periodo_referente_para_data,
+)
 from .email_sender import ResultadoEnvio, enviar_notificacao, modo_atual
 
 log = logging.getLogger(__name__)
@@ -58,13 +71,20 @@ _INTERVALO_MIN_ENTRE_ENVIOS = timedelta(hours=22)
 _MAX_RETRIES_POR_SLOT = 3
 _RETRY_JANELA = timedelta(days=7)
 
-MESES_PT = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-]
-# Próximo número de medição quando não há nenhum relatório no banco.
-# Mesmo valor de NUMERO_BASE em ``app/routes/pages.py``.
 NUMERO_MEDICAO_BASE = 14
+
+
+# Helper exportado: calendário/notificações usam data em Brasília.
+def agora_brt() -> datetime:
+    """Retorna ``datetime.now()`` no fuso ``America/Sao_Paulo`` (Brasília).
+
+    Persistência continua em UTC ingênuo como o resto do projeto.
+    """
+    try:
+        from zoneinfo import ZoneInfo  # noqa: PLC0415
+        return datetime.now(ZoneInfo("America/Sao_Paulo"))
+    except Exception:  # noqa: BLE001
+        return datetime.now(timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -119,24 +139,11 @@ class ResumoNotificarAutores:
 # ---------------------------------------------------------------------------
 # Helpers de período / estrutura
 # ---------------------------------------------------------------------------
-def _periodo_atual(hoje: date | None = None) -> dict:
-    """Cálculo do código, período e número de medição do relatório do mês.
-
-    Mantém a mesma convenção de ``app/routes/pages.py::_sugestao_proximo_relatorio``:
-    período = dia 11 do mês anterior → dia 11 do mês atual; ``mes_referencia``
-    é o mês do *fim* do período.
-    """
-    hoje = hoje or date.today()
-    if hoje.month == 1:
-        ini = date(hoje.year - 1, 12, 11)
-    else:
-        ini = date(hoje.year, hoje.month - 1, 11)
-    fim = date(hoje.year, hoje.month, 11)
-    return {
-        "periodo_inicio": ini,
-        "periodo_fim": fim,
-        "mes_referencia": f"{MESES_PT[fim.month - 1]}/{fim.year}",
-    }
+def _dia_referencia_abertura(data_referencia: date | None) -> date:
+    """Dia civil do ciclo: explícito (testes) ou hoje em Brasília."""
+    if data_referencia is not None:
+        return data_referencia
+    return agora_brt().date()
 
 
 def _proximo_numero_medicao(db: Session) -> int:
@@ -413,15 +420,22 @@ def _link_painel_upload() -> str:
     return f"{settings.APP_BASE_URL.rstrip('/')}/painel-upload"
 
 
-def prazos_mensagem_relatorio(rel: Relatorio) -> dict[str, str]:
-    """Prazos fixos: autores dia 8; coordenação dia 10 (mês/ano de ``periodo_fim``)."""
+def prazos_mensagem_relatorio(
+    rel: Relatorio,
+    *,
+    parametros: ParametrosCicloDTO | None = None,
+) -> dict[str, str]:
+    """Prazos no texto do email: dias no mês/ano de ``periodo_fim``."""
+    parametros = parametros or ParametrosCicloDTO.padrao()
     if not rel.periodo_fim:
         dash = "—"
         return {"prazo_envio": dash, "prazo_limite_conteudo_autor": dash}
     fim = rel.periodo_fim
     ano, mes = fim.year, fim.month
-    lim_autor = date(ano, mes, 8)
-    lim_coord = date(ano, mes, 10)
+    dia_autor = dia_util_no_mes(ano, mes, parametros.prazo_autor_dia)
+    dia_coord = dia_util_no_mes(ano, mes, parametros.prazo_coordenacao_dia)
+    lim_autor = date(ano, mes, dia_autor)
+    lim_coord = date(ano, mes, dia_coord)
     return {
         "prazo_envio": lim_coord.strftime("%d/%m/%Y") + " 23:59",
         "prazo_limite_conteudo_autor": lim_autor.strftime("%d/%m/%Y") + " 23:59",
@@ -429,6 +443,7 @@ def prazos_mensagem_relatorio(rel: Relatorio) -> dict[str, str]:
 
 
 def _montar_contexto_email(
+    db: Session,
     rel: Relatorio,
     user: User,
     secoes_do_user: list[Secao],
@@ -444,7 +459,8 @@ def _montar_contexto_email(
         }
         for s in secoes_do_user
     ]
-    prazos = prazos_mensagem_relatorio(rel)
+    par_ciclo = obter_parametros_ciclo(db)
+    prazos = prazos_mensagem_relatorio(rel, parametros=par_ciclo)
     todas_list = sorted(todas_secoes.values(), key=lambda x: x.ordem)
     arvore = arvore_secoes_com_links(rel.id, todas_list)
     arvore_modelos_txt = format_arvore_secoes_email_plaintext(arvore, apenas_dotx=True)
@@ -538,7 +554,7 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     """
     entrega = _entrega_para(db, env.rel.id, env.user.id)
     contexto = _montar_contexto_email(
-        env.rel, env.user, env.secoes_user, env.todas_map
+        db, env.rel, env.user, env.secoes_user, env.todas_map,
     )
     destinos_completos = destinatarios_ciclo.emails_destino_notificacao(env.user)
     if enviar_para == "todos":
@@ -674,7 +690,7 @@ def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutor
 # ---------------------------------------------------------------------------
 # 1) abrir_periodo
 # ---------------------------------------------------------------------------
-def abrir_periodo(
+def abrir_periodo(  # pylint: disable=too-many-locals
     db: Session,
     *,
     force: bool = False,
@@ -689,7 +705,9 @@ def abrir_periodo(
     reabrir um mês passado por engano e para o E2E de teste.
     """
     resumo = ResumoAbertura()
-    periodo = _periodo_atual(data_referencia)
+    parametros = obter_parametros_ciclo(db)
+    dia_ref = _dia_referencia_abertura(data_referencia)
+    periodo = periodo_referente_para_data(dia_ref, parametros)
 
     existente = _ja_existe_relatorio_no_mes(db, periodo["mes_referencia"])
     if existente and not force:
@@ -699,6 +717,14 @@ def abrir_periodo(
         resumo.avisos.append(
             f"Já existe relatório para {periodo['mes_referencia']} "
             f"(id={existente.id}). Use force=True para reabrir."
+        )
+        return resumo
+
+    if not force and dia_ref.day != parametros.dia_abertura_novo_ciclo:
+        resumo.avisos.append(
+            f"Abertura automática configurada para o dia {parametros.dia_abertura_novo_ciclo}; "
+            f"data de referência BRT = {dia_ref.isoformat()} (dia {dia_ref.day}). "
+            "Use POST com force=true no cron para abrir fora do dia."
         )
         return resumo
 
@@ -748,11 +774,12 @@ def abrir_periodo(
 # ---------------------------------------------------------------------------
 # 2) enviar_lembretes
 # ---------------------------------------------------------------------------
-def enviar_lembretes(
+def enviar_lembretes(  # pylint: disable=too-many-locals
     db: Session,
     *,
     tipo: str = "lembrete",
     relatorio_id: int | None = None,
+    ignorar_calendario: bool = False,
 ) -> ResumoLembretes:
     """Manda Mensagem 2 para entregas pendentes em relatórios em aberto.
 
@@ -761,11 +788,35 @@ def enviar_lembretes(
     ``tipo`` ∈ {'lembrete', 'ultima_chamada'}.
     ``relatorio_id`` restringe a um relatório específico (útil para reenviar
     em batch ou para o E2E não tocar relatórios reais).
+
+    Por defeito o envio **só corre** no dia civil de Brasília acordado na
+    configuração persistida (lembretes: lista de dias; última chamada: um dia).
+    ``ignorar_calendario=True`` contorna (testes e POST com query explícito).
     """
     resumo = ResumoLembretes(tipo=tipo)
     if tipo not in ("lembrete", "ultima_chamada"):
         resumo.avisos.append(f"tipo inválido: {tipo}")
         return resumo
+
+    parametros_cal = obter_parametros_ciclo(db)
+    hoje_brt = agora_brt().date()
+    if not ignorar_calendario:
+        if tipo == "lembrete" and hoje_brt.day not in parametros_cal.dias_lembrete:
+            resumo.avisos.append(
+                f"Hoje é dia {hoje_brt.day} BRT; só serão enviados lembretes "
+                f"nos dias configurados ({parametros_cal.dias_lembrete}). "
+                "Pode usar POST /admin/cron/lembretes?ignorar_calendario=true em urgentes."
+            )
+            return resumo
+        if (
+            tipo == "ultima_chamada"
+            and hoje_brt.day != parametros_cal.dia_ultima_chamada
+        ):
+            resumo.avisos.append(
+                "Hoje BRT não coincide com o dia da última chamada "
+                f"({parametros_cal.dia_ultima_chamada}) na configuração do ciclo."
+            )
+            return resumo
 
     q = db.query(Relatorio).filter(
         Relatorio.status.in_(("aberto", "em_revisao"))
@@ -982,18 +1033,3 @@ def reenviar_manual(db: Session, entrega: EntregaRelatorio) -> bool:
     resultado = _processar_destinatario(db, env, "manual", enviar_para="todos")
     db.commit()
     return resultado.sucesso
-
-
-# Helper exportado: garante que a hora atual passa por nossa janela de timezone
-# (futuro Track 5 vai querer log com timezone visível).
-def agora_brt() -> datetime:
-    """Retorna ``datetime.now()`` no fuso ``America/Sao_Paulo`` (Brasília).
-
-    Usado apenas para *display* em logs; persistência continua em UTC ingênuo
-    como o resto do projeto (``DateTime`` sem ``timezone=True``).
-    """
-    try:
-        from zoneinfo import ZoneInfo  # noqa: PLC0415
-        return datetime.now(ZoneInfo("America/Sao_Paulo"))
-    except Exception:  # noqa: BLE001
-        return datetime.now(timezone.utc)

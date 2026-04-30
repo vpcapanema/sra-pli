@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     SENDGRID_FROM_NAME: str = "SRA · PLI-SP"
     # URL base usada nos links dos emails. Em produção: domínio do Render.
     APP_BASE_URL: str = "http://127.0.0.1:8001"
+    # Limite para analise de TXT/DOCX na importacao assistida (antes da confirmacao).
+    IMPORTACAO_ANALISAR_MAX_BYTES: int = 20 * 1024 * 1024
     # Kill switch global. False = nada é enviado nem registrado em
     # NotificacaoEnvio (útil para janelas de manutenção).
     NOTIFICAR_HABILITADO: bool = True

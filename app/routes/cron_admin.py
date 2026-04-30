@@ -68,11 +68,17 @@ def http_notificar_autores_abertura(
 def http_lembretes(
     tipo: str = Query("lembrete"),
     relatorio_id: int | None = Query(None),
+    ignorar_calendario: bool = Query(False),
     db: Session = Depends(get_db),
     _t: None = Depends(_check_token),
 ):
     return asdict(
-        enviar_lembretes(db, tipo=tipo, relatorio_id=relatorio_id)
+        enviar_lembretes(
+            db,
+            tipo=tipo,
+            relatorio_id=relatorio_id,
+            ignorar_calendario=ignorar_calendario,
+        )
     )
 
 

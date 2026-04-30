@@ -25,3 +25,19 @@ package-lock.json
 
 # Relatorio de lint gerado para o agente (scripts/dump_agent_diagnostics.py)
 artifacts/agent-diagnostics.txt
+
+# Cache do Playwright MCP (sessoes do agente; nao versionar)
+.playwright-mcp/
+
+# Capturas e relatorios soltos na raiz (lixo de sessoes anteriores do agente)
+gov_*.png
+preview_*.pdf
+mapa_da_aplicacao.html
+
+# Snapshots adhoc gerados por scripts utilitarios
+artifacts/_*.txt
+artifacts/_*.html
+artifacts/_*.py
+artifacts/_*.png
+artifacts/route-audit-summary.txt
+artifacts/route-inventory.md

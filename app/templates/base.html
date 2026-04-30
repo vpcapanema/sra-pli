@@ -36,12 +36,29 @@
           {% set _on_rel = (_path == '/dashboard' or (_path.startswith('/relatorios') and not _path.endswith('/upload-conteudo'))) and not _relatorio_sumario %}
           {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') or _relatorio_sumario %}
           {% set _on_usu = _path.startswith('/usuarios') %}
+          {% set _on_crt = _path.startswith('/governanca-relatorio') %}
           {% set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %}
           {% set _open_rel = 'open' if _on_rel else '' %}
           {% set _cls_upload = 'ni-grp ni-grp-active' if _on_upload else 'ni-grp' %}
           {% set _open_upload = 'open' if _on_upload else '' %}
           {% set _cls_usu = 'ni-grp ni-grp-active' if _on_usu else 'ni-grp' %}
           {% set _open_usu = 'open' if _on_usu else '' %}
+          {% set _cls_crt = 'ni-grp ni-grp-active' if _on_crt else 'ni-grp' %}
+          {% set _open_crt = 'open' if _on_crt else '' %}
+          {% set _hub_rid = rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
+          {% set _hub_sid = none %}
+          {% if sec is defined and sec %}
+            {% set _hub_sid = sec.id %}
+          {% elif rel is defined and rel %}
+            {% set _sorted_hub_sec = (rel.secoes | sort(attribute='ordem')) if rel.secoes else [] %}
+            {% set _hub_sid = (_sorted_hub_sec[0].id if _sorted_hub_sec else none) %}
+          {% else %}
+            {% set _hub_sid = request.state.sra_hub_primeira_secao_id %}
+          {% endif %}
+          {% set _url_sumario_hub = ("/relatorios/" ~ _hub_rid) if _hub_rid else "/painel-upload" %}
+          {% set _url_upload_ancoras = (
+            "/relatorios/" ~ _hub_rid ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo"
+          ) if (_hub_rid and _hub_sid) else "/painel-upload" %}
           {% if user.role in ['admin','coordenador'] %}
             <details class="{{ _cls_rel }}" {{ _open_rel }}>
               <summary class="ni ni-toggle">
@@ -61,13 +78,13 @@
               <span class="ni-caret" aria-hidden="true">▾</span>
             </summary>
             <div class="ni-sub">
-              <a class="ni-sub-link" href="/painel-upload">Página inicial</a>
+              <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Página inicial</a>
               <a class="ni-sub-link" href="/modelos-word-importacao">Modelos Word (.dotx)</a>
-              <a class="ni-sub-link" href="/painel-upload#ss-coord">Coordenação da seção</a>
-              <a class="ni-sub-link" href="/painel-upload#importar-conteudo">Importar conteúdo</a>
-              <a class="ni-sub-link" href="/painel-upload#ss-blocos">Blocos extraídos</a>
-              <a class="ni-sub-link" href="/painel-upload#ss-editar">Editar bloco existente</a>
-              <a class="ni-sub-link" href="/painel-upload#ss-preview">Pré-visualização</a>
+              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-coord">Coordenação da seção</a>
+              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#importar-conteudo">Importar conteúdo</a>
+              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-blocos">Blocos extraídos</a>
+              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-editar">Editar bloco existente</a>
+              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-preview">Pré-visualização</a>
             </div>
           </details>
           {% if user.role in ['admin','coordenador'] %}
@@ -80,7 +97,15 @@
                 <a class="ni-sub-link" href="/usuarios">Página inicial</a>
                 <a class="ni-sub-link" href="/usuarios#ss-novo-usuario">Novo usuário</a>
                 <a class="ni-sub-link" href="/usuarios#ss-equipe">Equipe cadastrada</a>
-                <a class="ni-sub-link" href="/usuarios/registro-atividade">Registro do servidor</a>
+              </div>
+            </details>
+            <details class="{{ _cls_crt }}" {{ _open_crt }}>
+              <summary class="ni ni-toggle">
+                <span class="num">04</span><span class="nlbl">Coordenação de Relatório Técnico</span>
+                <span class="ni-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ni-sub">
+                <a class="ni-sub-link" href="/governanca-relatorio">Governança do relatório</a>
               </div>
             </details>
           {% endif %}

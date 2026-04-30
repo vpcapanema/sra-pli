@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block body_class %}page-modelos-word{% endblock %}
+{% block title %}Modelos Word (.dotx) · importação{% endblock %}
+{% block header %}Modelos para importação assistida{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Modelos Word (<code>.dotx</code>) — importação assistida</h1>
+    <div class="subtitle">Preenchimento alinhado ao que o sistema reconhece ao importar</div>
+    <p>
+      <a href="/painel-upload">← painel de upload</a>
+      ·
+      {% if user.role in ["admin", "coordenador"] %}
+        <a href="/dashboard">Relatórios</a>
+      {% else %}
+        <a href="/painel-upload">Página inicial</a>
+      {% endif %}
+    </p>
+  </section>
+  <section class="ss active-tab" id="tutorial-modelos">
+    <div class="ss-hdr">
+      <span class="sn">1</span><span class="st">Como usar estes modelos</span>
+    </div>
+    <div class="sb2 mw-tutorial">
+      <p class="mw-intro">
+        São <strong>modelos de Word</strong> (<code>.dotx</code>) com o sumário do SRA já montado. Você
+        escreve só a sua parte; o sistema usa o mesmo formato na hora de <strong>importar</strong> o
+        ficheiro, o que costuma reduzir retrabalho em relação a um documento “solto”.
+      </p>
+      <ul class="mw-tutorial-list">
+        <li>
+          <span class="mw-topic-title">Ver o relatório inteiro de uma vez</span>
+          O ficheiro <strong><code>SRA_todas_secoes.dotx</code></strong> lista os títulos de todas as
+          seções padrão, como um mapa. Útil para coordenação ou para entender o todo.
+          <span class="mw-example"><strong>Exemplo:</strong> precisa conferir se o capítulo 4 encaixa com o 5?
+            Abra este modelo e navegue pelos títulos antes de baixar só a sua subseção.</span>
+        </li>
+        <li>
+          <span class="mw-topic-title">Trabalhar só na sua seção</span>
+          Cada <strong><code>secao_… .dotx</code></strong> corresponde a <strong>um número</strong> do sumário
+          (por exemplo 4.4.7). No e-mail do SRA, o botão <em>Baixar modelo .dotx</em> já manda o ficheiro
+          certo para a seção daquele relatório. Esta página serve para baixar qualquer modelo quando estiver
+          logado.
+          <span class="mw-example"><strong>Exemplo:</strong> a sua responsabilidade é a seção 8.1? Procure na
+            tabela abaixo a linha <strong>8.1</strong> e use o link <em>Baixar</em> dessa linha.</span>
+        </li>
+        <li>
+          <span class="mw-topic-title">O que aparece dentro do Word</span>
+          Se a sua seção for “filha” de outras (como 4.4.7, que está dentro de 4 e de 4.4), o modelo traz os
+          títulos superiores só para contexto. Os <strong>exemplos</strong> de texto, lista, figura e tabela
+          ficam <strong>só no nível que você vai preencher</strong>, não nos títulos “pai”.
+          <span class="mw-example"><strong>Exemplo:</strong> no modelo da 4.4.7 pode ler “4”, “4.4” e “4.4.7”
+            como títulos; os quadrinhos de exemplo para preencher aparecem depois do “4.4.7”.</span>
+        </li>
+        <li>
+          <span class="mw-topic-title">Não “quebre” o formato que o sistema espera</span>
+          Há um texto em itálico no modelo: mantenha o <strong>estilo</strong> das legendas e das
+          <strong>listas</strong> (marcadores ou números reais do Word). Pode trocar o texto à vontade e
+          duplicar blocos <em>dentro</em> da sua seção.
+          <span class="mw-example"><strong>Exemplo:</strong> em vez de apagar a linha da legenda da figura,
+            edite o texto para “Figura 4.2: pavimento da rodovia X” e deixe o parágrafo como legenda.</span>
+        </li>
+        <li>
+          <span class="mw-topic-title">Depois de preencher: enviar no SRA</span>
+          Guarde o documento (normalmente vira <code>.docx</code>), entre no relatório, abra
+          <strong>Upload de conteúdo</strong> da seção correspondente e use a opção de
+          <strong>importar</strong> o ficheiro, como já faz hoje.
+          <span class="mw-example"><strong>Exemplo:</strong> terminou o texto da 5 no Word → no SRA, relatório
+            → seção 5 → upload → importar o ficheiro salvo.</span>
+        </li>
+        <li>
+          <span class="mw-topic-title">Dicas rápidas que ajudam na importação</span>
+          Use <strong>lista com marcador ou número</strong> do Word (não só hífen no teclado), tabela feita
+          com o comando Tabela do Word, figura com imagem no parágrafo e frase de legenda no estilo
+          “Figura …”. Títulos devem usar os estilos de título do Word.
+          <span class="mw-example"><strong>Exemplo:</strong> três itens de enumeração → use o botão de lista
+            numerada do Word em cada linha, em vez de digitar “1.”, “2.”, “3.” manualmente só com espaço.</span>
+        </li>
+      </ul>
+      <p class="muted mw-foot">
+        Os ficheiros ficam na pasta <code>modelos_upload_doc_canonicos/</code> do projeto. Se algum download
+        aparecer indisponível neste servidor, na raiz do repositório execute
+        <code>.\.venv\Scripts\python.exe scripts/build_canonical_upload_dotx.py</code>.
+      </p>
+    </div>
+  </section>
+  <section class="ss active-tab" id="download-sumario-completo">
+    <div class="ss-hdr">
+      <span class="sn">2</span><span class="st">Sumário completo (todas as seções)</span>
+    </div>
+    <div class="sb2">
+      <p>
+        {% if todas_secoes_disponivel %}
+          <a href="/modelos-word-importacao/baixar/SRA_todas_secoes.dotx">Baixar <code>SRA_todas_secoes.dotx</code></a>
+        {% else %}
+          <span class="muted">Ficheiro <code>SRA_todas_secoes.dotx</code> ainda não gerado neste ambiente.</span>
+        {% endif %}
+      </p>
+    </div>
+  </section>
+  <section class="ss active-tab" id="download-por-secao">
+    <div class="ss-hdr">
+      <span class="sn">3</span><span class="st">Um modelo por seção padrão</span>
+    </div>
+    <div class="sb2">
+      <table class="mw-catalog">
+        <thead>
+          <tr>
+            <th scope="col">Seção</th>
+            <th scope="col">Título</th>
+            <th scope="col">Ficheiro</th>
+            <th scope="col">Download</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in secoes_catalogo %}
+            <tr
+              class="mw-cat-row mw-cat-depth-{{ row.nivel }}"
+              style="--mw-depth: {{ row.nivel }};"
+            >
+              <td class="mw-tree-num"><strong>{{ row.numero }}</strong></td>
+              <td class="mw-tree-tit">{{ row.titulo }}</td>
+              <td><code>{{ row.arquivo }}</code></td>
+              <td>
+                {% if row.disponivel %}
+                  <a href="/modelos-word-importacao/baixar/{{ row.arquivo }}">Baixar</a>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

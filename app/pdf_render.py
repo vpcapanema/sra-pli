@@ -92,6 +92,32 @@ def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
 
 
+def _sanitize_pdf_html_fragment(fragment: str) -> str:
+    """Remove formatação inline típica de Word/HTML colado para o PDF seguir só o CSS oficial.
+
+    Atributos ``style``, ``class`` e ``align`` sobrepõem ``.bloco p`` (justificado,
+    margens uniformes) no WeasyPrint; sem isto, trechos ficam desalinhados e com
+    margens inconsistentes após «aprovar» blocos (o conteúdo já estava gravado assim).
+    """
+    if not (fragment or "").strip():
+        return fragment or ""
+    s = fragment
+    for _ in range(8):
+        antes = s
+        s = re.sub(r'\sstyle\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
+        s = re.sub(r"\sstyle\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
+        if s == antes:
+            break
+    s = re.sub(r'\sclass\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\sclass\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
+    s = re.sub(r'\salign\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\salign\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
+    for attr in ("face", "color", "size", "bgcolor"):
+        s = re.sub(rf'\s{attr}\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
+        s = re.sub(rf"\s{attr}\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
+    return s
+
+
 def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
     """Renderiza apenas o miolo: legenda e corpo tabular, sem a envoltura .tabela (wrapper)."""
     linhas_brutas = [ln for ln in (corpo or "").splitlines() if ln.strip()]
@@ -349,7 +375,7 @@ def _render_bloco_item(
         from .list_lines import list_text_to_html
 
         bruto = ref_resolve.resolver_referencias(bloco.conteudo or "", ctx.mapas)
-        item["lista_html"] = list_text_to_html(bruto) or ""
+        item["lista_html"] = _sanitize_pdf_html_fragment(list_text_to_html(bruto) or "")
     else:
         html_render, contadores["fig"], contadores["tab"] = _render_texto_html(
             ctx,
@@ -358,7 +384,7 @@ def _render_bloco_item(
             contadores["tab"],
             sec_numero,
         )
-        item["html"] = html_render
+        item["html"] = _sanitize_pdf_html_fragment(html_render)
     return item
 
 

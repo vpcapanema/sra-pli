@@ -17,6 +17,7 @@ _AUTOR_PATH_RES: tuple[re.Pattern[str], ...] = tuple(
         r"^/$",
         r"^/painel-upload$",
         r"^/relatorios/\d+$",
+        r"^/relatorios/\d+/entregas$",
         r"^/modelos-word-importacao$",
         r"^/modelos-word-importacao/baixar/.+$",
         r"^/relatorios/\d+/secoes/\d+/upload-conteudo$",

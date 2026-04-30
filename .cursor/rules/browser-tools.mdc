@@ -1,6 +1,6 @@
 ---
-description: Padrao de uso de MCP de navegador, Playwright e Puppeteer para validacao de UI
-alwaysApply: true
+description: Padrao de uso de MCP de navegador, Playwright e Puppeteer para validacao de UI, fluxos web, formularios, preview/exportacao de PDF, importacao pela tela e regressao visual
+alwaysApply: false
 ---
 
 # Ferramentas De Navegador

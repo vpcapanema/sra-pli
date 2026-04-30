@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.templating import Jinja2Templates
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import Response
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -29,7 +29,6 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 _registrar_globais_jinja(templates.env)
 _log = logging.getLogger(__name__)
-
 _ROLES_LOGIN = frozenset({"admin", "coordenador", "autor"})
 _PWD_RESET_MAX_SEC = 3600
 _SRA_PWD_RESET_UID = "sra_pwd_reset_uid"
@@ -43,6 +42,10 @@ def _normalizar_email_secundario_obrigatorio(raw: str) -> tuple[str | None, str 
     if "@" not in s or len(s) < 5:
         return None, "E-mail secundário inválido."
     return s, None
+
+
+def normalizar_email_secundario_obrigatorio(raw: str) -> tuple[str | None, str | None]:
+    return _normalizar_email_secundario_obrigatorio(raw)
 
 
 def _clear_pwd_reset_session(request: Request) -> None:
@@ -113,7 +116,7 @@ def logout(request: Request):
 def recuperar_senha_page(request: Request):
     return templates.TemplateResponse(
         request,
-        "recuperar_senha.html",
+        "complementos/recuperar_senha.html",
         {"error": None},
     )
 
@@ -129,7 +132,7 @@ def recuperar_senha_submit(
     if perfil not in _ROLES_LOGIN:
         return templates.TemplateResponse(
             request,
-            "recuperar_senha.html",
+            "complementos/recuperar_senha.html",
             {"error": "Selecione um perfil válido."},
             status_code=400,
         )
@@ -142,7 +145,7 @@ def recuperar_senha_submit(
     if not user:
         return templates.TemplateResponse(
             request,
-            "recuperar_senha.html",
+            "complementos/recuperar_senha.html",
             {
                 "error": "Não encontramos conta com este e-mail e perfil. "
                 "Confirme os dados ou contacte um administrador.",
@@ -160,7 +163,7 @@ def recuperar_senha_definir_page(request: Request):
     if not _pwd_reset_session_ok(request):
         return templates.TemplateResponse(
             request,
-            "recuperar_senha.html",
+            "complementos/recuperar_senha.html",
             {
                 "error": "Sessão de recuperação expirada ou inválida. "
                 "Comece novamente por e-mail e perfil.",
@@ -169,7 +172,7 @@ def recuperar_senha_definir_page(request: Request):
         )
     return templates.TemplateResponse(
         request,
-        "recuperar_senha_definir.html",
+        "complementos/recuperar_senha_definir.html",
         {"error": None},
     )
 
@@ -184,7 +187,7 @@ def recuperar_senha_definir_submit(
     if not _pwd_reset_session_ok(request):
         return templates.TemplateResponse(
             request,
-            "recuperar_senha.html",
+            "complementos/recuperar_senha.html",
             {
                 "error": "Sessão de recuperação expirada ou inválida. "
                 "Comece novamente por e-mail e perfil.",
@@ -195,14 +198,14 @@ def recuperar_senha_definir_submit(
     if len(pw) < 6:
         return templates.TemplateResponse(
             request,
-            "recuperar_senha_definir.html",
+            "complementos/recuperar_senha_definir.html",
             {"error": "A senha deve ter ao menos 6 caracteres."},
             status_code=400,
         )
     if pw != (password2 or "").strip():
         return templates.TemplateResponse(
             request,
-            "recuperar_senha_definir.html",
+            "complementos/recuperar_senha_definir.html",
             {"error": "As senhas não coincidem."},
             status_code=400,
         )
@@ -212,7 +215,7 @@ def recuperar_senha_definir_submit(
         _clear_pwd_reset_session(request)
         return templates.TemplateResponse(
             request,
-            "recuperar_senha.html",
+            "complementos/recuperar_senha.html",
             {"error": "Conta não encontrada. Solicite recuperação outra vez."},
             status_code=400,
         )
@@ -228,21 +231,6 @@ def recuperar_senha_definir_submit(
 @router.get("/usuarios")
 def usuarios_page(request: Request, db: Session = Depends(get_db)):
     return response_usuarios(request, db)
-
-
-@router.get("/usuarios/registro-atividade")
-def usuarios_registro_atividade(request: Request, db: Session = Depends(get_db)):
-    """Página dedicada ao painel de registro em tempo real (SSE + logging)."""
-    user = current_user(request, db)
-    if not user:
-        return response_login(request)
-    if user.role not in ("admin", "coordenador"):
-        return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse(
-        request,
-        "registro_servidor.html",
-        {"user": user},
-    )
 
 
 @router.post("/usuarios")
@@ -277,7 +265,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments
         usuarios = db.query(User).order_by(User.nome).all()
         return templates.TemplateResponse(
             request,
-            "usuarios.html",
+            "complementos/usuarios.html",
             {"user": user, "usuarios": usuarios, "error": err_email2},
             status_code=400,
         )
@@ -293,7 +281,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments
         usuarios = db.query(User).order_by(User.nome).all()
         return templates.TemplateResponse(
             request,
-            "usuarios.html",
+            "complementos/usuarios.html",
             {"user": user, "usuarios": usuarios, "error": str(e)},
             status_code=400,
         )
@@ -307,7 +295,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments
         usuarios = db.query(User).order_by(User.nome).all()
         return templates.TemplateResponse(
             request,
-            "usuarios.html",
+            "complementos/usuarios.html",
             {"user": user, "usuarios": usuarios, "error": "Perfil inválido."},
             status_code=400,
         )
@@ -321,7 +309,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments
         usuarios = db.query(User).order_by(User.nome).all()
         return templates.TemplateResponse(
             request,
-            "usuarios.html",
+            "complementos/usuarios.html",
             {"user": user, "usuarios": usuarios, "error": "Já existe utilizador com este e-mail e perfil."},
             status_code=400,
         )
@@ -381,7 +369,7 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
         )
         return templates.TemplateResponse(
             request,
-            "usuario_edit.html",
+            "complementos/usuario_edit.html",
             {"user": viewer, "alvo": alvo, "error": msg, "ok": None},
             status_code=400,
         )

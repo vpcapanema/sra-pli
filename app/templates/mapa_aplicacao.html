@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Mapa da aplicação{% endblock %}
+{% block header %}Mapa da aplicação{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Mapa da aplicação</h1>
+    <p class="subtitle">
+      Páginas em <code>app/templates/complementos</code>. Os cartões usam o relatório mais recente
+      e a primeira secção (mesmo critério da barra lateral) quando existirem; caso contrário mantêm
+      o exemplo <code>/relatorios/1/…</code> do catálogo.
+    </p>
+    <p class="muted">
+      Referências em rotas são detetadas automaticamente em <code>app/**/*.py</code>.
+    </p>
+  </section>
+  <div class="grid-mapa">
+    {% for p in paginas %}
+      <a class="card card-mapa" href="{{ p.href }}">
+        <h2 class="card-mapa-titulo">{{ p.nome }}</h2>
+        <p class="card-mapa-arquivo">
+          <code>{{ p.arquivo }}</code>
+        </p>
+        <dl class="card-mapa-dl">
+          <dt>Em uso</dt>
+          <dd>
+            {% if p.em_uso %}
+              <span class="tag tag-ok">Sim</span>
+            {% else %}
+              <span class="tag tag-warn">Não referenciado</span>
+            {% endif %}
+          </dd>
+          <dt>Nível de restrição</dt>
+          <dd>{{ p.restricao }}</dd>
+          <dt>Rotas</dt>
+          <dd class="card-mapa-rotas">{{ p.rotas }}</dd>
+          <dt>Link do cartão</dt>
+          <dd><code>{{ p.href }}</code></dd>
+        </dl>
+      </a>
+    {% endfor %}
+  </div>
+  {% if not paginas %}
+    <p class="muted">Nenhum <code>*.html</code> em <code>complementos</code>.</p>
+  {% endif %}
+{% endblock %}

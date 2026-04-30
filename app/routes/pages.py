@@ -6,12 +6,15 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
-from sqlalchemy.orm import Session, load_only, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from sqlalchemy.sql.functions import coalesce
 from starlette.responses import RedirectResponse, Response
 from ..db import get_db
 from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..auth import current_user, pode_editar_perfil_usuario
+from ..modo_edicao_blocos import modo_edicao_coordenador_rel
+from ..numeracao import chave_numero, secao_ids_na_subarvore
+from ..notificacoes.ciclo_params import obter_parametros_ciclo, periodo_referente_para_data
 from ..sumario_extractor import listar_pdfs_disponiveis
 from ..jinja_filters import registrar as _registrar_filtros_jinja
 from ..jinja_filters import registrar_globais as _registrar_globais_jinja
@@ -43,12 +46,8 @@ def _sugestao_proximo_relatorio(
     relatorios: list[Relatorio] | None = None,
 ) -> dict:
     hoje = date.today()
-    # Período: dia 11 do mês anterior → dia 11 do mês atual.
-    if hoje.month == 1:
-        ini = date(hoje.year - 1, 12, 11)
-    else:
-        ini = date(hoje.year, hoje.month - 1, 11)
-    fim = date(hoje.year, hoje.month, 11)
+    par = obter_parametros_ciclo(db)
+    per = periodo_referente_para_data(hoje, par)
 
     # Próximo número de medição (evita segundo SELECT quando já temos a lista).
     if relatorios is not None:
@@ -60,9 +59,9 @@ def _sugestao_proximo_relatorio(
     return {
         "codigo": f"D20-{proximo}",
         "titulo": f"Relatório Mensal D20-{proximo}",
-        "mes_referencia": f"{MESES_PT[fim.month - 1]}/{fim.year}",
-        "periodo_inicio": ini.isoformat(),
-        "periodo_fim": fim.isoformat(),
+        "mes_referencia": per["mes_referencia"],
+        "periodo_inicio": per["periodo_inicio"].isoformat(),
+        "periodo_fim": per["periodo_fim"].isoformat(),
         "numero_medicao": proximo,
     }
 
@@ -75,7 +74,7 @@ def response_login(
 ) -> Response:
     return templates.TemplateResponse(
         request,
-        "login.html",
+        "complementos/login.html",
         {"error": error, "notice": notice},
         status_code=status_code,
     )
@@ -114,7 +113,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
     pdfs_disponiveis = listar_pdfs_disponiveis()
     return templates.TemplateResponse(
         request,
-        "dashboard.html",
+        "complementos/dashboard.html",
         {
             "user": user,
             "relatorios": relatorios,
@@ -125,32 +124,19 @@ def response_dashboard(request: Request, db: Session) -> Response:
 
 
 def response_painel_upload(request: Request, db: Session) -> Response:
-    """Perfil autor: `/relatorios/{id}` do relatório mais recente.
+    """Redireciona ao sumário ``/relatorios/{id}`` do relatório mais recente.
 
-    Admin/coord: redireciona para ``…/upload-conteudo`` (relatório mais recente,
-    primeira secção por ``ordem``).
+    Entrada comum do grupo **Gerenciamento de seção e upload** na sidebar
+    (e links legados ``/painel-upload``): a página inicial desse fluxo é o
+    sumário do relatório, não a edição da primeira secção.
     """
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    rel = (
-        db.query(Relatorio)
-        .options(selectinload(Relatorio.secoes))
-        .order_by(Relatorio.created_at.desc())
-        .first()
-    )
+    rel = db.query(Relatorio).order_by(Relatorio.created_at.desc()).first()
     if not rel:
         return RedirectResponse(url="/dashboard", status_code=303)
-    if user.role == "autor":
-        return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
-    secoes = sorted(rel.secoes, key=lambda s: (s.ordem, s.id))
-    if not secoes:
-        return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
-    alvo = secoes[0]
-    return RedirectResponse(
-        url=f"/relatorios/{rel.id}/secoes/{alvo.id}/upload-conteudo",
-        status_code=303,
-    )
+    return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
 
 
 def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Response:
@@ -169,11 +155,11 @@ def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Res
     if not rel:
         return response_dashboard(request, db)
     return templates.TemplateResponse(
-        request, "relatorio_detail.html", {"user": user, "rel": rel}
+        request, "complementos/relatorio_detail.html", {"user": user, "rel": rel}
     )
 
 
-def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
+def _media_counts(db: Session, rel_id: int, sec_ids_escopo: set[int]) -> dict:
     """Conta figuras/tabelas (próprias e inline em texto) numa única query agregada.
 
     Evita trazer todo o `Bloco.conteudo` para a aplicação. Funciona em Postgres
@@ -194,8 +180,9 @@ def _media_counts(db: Session, rel_id: int, sec_id: int) -> dict:
         + tab_in_text_b
         + tab_in_text_c
     )
-    fig_in_sec = case((Bloco.secao_id == sec_id, fig_per_block), else_=0)
-    tab_in_sec = case((Bloco.secao_id == sec_id, tab_per_block), else_=0)
+    ids_escopo_sql = sec_ids_escopo if sec_ids_escopo else {-1}
+    fig_in_sec = case((Bloco.secao_id.in_(ids_escopo_sql), fig_per_block), else_=0)
+    tab_in_sec = case((Bloco.secao_id.in_(ids_escopo_sql), tab_per_block), else_=0)
 
     row = (
         db.query(
@@ -249,7 +236,6 @@ def _response_secao_page(
         db.query(Secao)
         .options(
             selectinload(Secao.responsavel).load_only(User.id, User.nome),
-            selectinload(Secao.blocos).selectinload(Bloco.autor).load_only(User.id, User.nome),
         )
         .filter(Secao.id == sec_id, Secao.relatorio_id == rel_id)
         .one_or_none()
@@ -266,7 +252,26 @@ def _response_secao_page(
         .all()
     )
     autores = db.query(User).options(load_only(User.id, User.nome)).order_by(User.nome).all()
-    media_counts = _media_counts(db, rel.id, sec.id)
+    sec_ids_escopo = secao_ids_na_subarvore(rel.secoes, sec.numero or "")
+    media_counts = _media_counts(db, rel.id, sec_ids_escopo)
+    escopo_sql = sec_ids_escopo if sec_ids_escopo else {-1}
+    blocos_escopo = (
+        db.query(Bloco)
+        .options(joinedload(Bloco.autor), joinedload(Bloco.secao))
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(Secao.relatorio_id == rel.id, Secao.id.in_(escopo_sql))
+        .all()
+    )
+    blocos_escopo.sort(
+        key=lambda b: (
+            chave_numero(b.secao.numero if b.secao else ""),
+            b.ordem or 0,
+            b.id,
+        )
+    )
+    pdf_preview_url = f"/relatorios/{rel.id}/pdf?" + "&".join(
+        f"secao_ids={sid}" for sid in sorted(sec_ids_escopo)
+    )
     return templates.TemplateResponse(
         request,
         template_name,
@@ -277,6 +282,11 @@ def _response_secao_page(
             "figuras": figs,
             "autores": autores,
             "media_counts": media_counts,
+            "modo_edicao_blocos": modo_edicao_coordenador_rel(request, user, rel.id),
+            "mostrar_botao_modo_edicao": user.role == "coordenador",
+            "blocos_escopo": blocos_escopo,
+            "sec_ids_subarvore": sec_ids_escopo,
+            "pdf_preview_url": pdf_preview_url,
         },
     )
 
@@ -284,7 +294,7 @@ def _response_secao_page(
 def response_conteudo_upload(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
     """Página única de gestão da secção: coordenação, importação assistida, blocos e editor."""
     return _response_secao_page(
-        request, db, rel_id, sec_id, "secao_edit_conteudo_upload.html"
+        request, db, rel_id, sec_id, "complementos/secao_edit_conteudo_upload.html"
     )
 
 
@@ -296,7 +306,9 @@ def response_usuarios(
         return response_login(request)
     usuarios = db.query(User).order_by(User.nome).all()
     return templates.TemplateResponse(
-        request, "usuarios.html", {"user": user, "usuarios": usuarios, "error": error}
+        request,
+        "complementos/usuarios.html",
+        {"user": user, "usuarios": usuarios, "error": error},
     )
 
 
@@ -330,7 +342,7 @@ def response_usuario_edit(
     ok_effective = ok if ok is not None else request.query_params.get("ok")
     return templates.TemplateResponse(
         request,
-        "usuario_edit.html",
+        "complementos/usuario_edit.html",
         {"user": viewer, "alvo": alvo, "error": error, "ok": ok_effective},
     )
 

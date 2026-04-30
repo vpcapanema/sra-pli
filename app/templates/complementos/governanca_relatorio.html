@@ -1,0 +1,691 @@
+{% extends "base.html" %}
+{% block title %}Governança do relatório{% endblock %}
+{% block header %}Governança do relatório{% endblock %}
+
+{% macro fmt_dt(val) -%}
+  {%- if val -%}{{ val.strftime("%d/%m/%Y %H:%M") }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{% macro fmt_dt_input(val) -%}
+  {%- if val -%}{{ val.strftime("%Y-%m-%dT%H:%M") }}{%- endif -%}
+{%- endmacro %}
+
+{% macro tag_modo_envio(modo) -%}
+  {%- if modo == "real" -%}
+    <span class="tag tag-err" title="Envia e-mails de produção via SendGrid">{{ modo }}</span>
+  {%- elif modo == "sandbox" -%}
+    <span class="tag tag-warn" title="SendGrid em sandbox: nada chega ao destinatário">{{ modo }}</span>
+  {%- else -%}
+    <span class="tag tag-neutral" title="NOTIFICAR_HABILITADO=false: envio desligado">{{ modo }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Governança do relatório</h1>
+    <div class="subtitle">Painel técnico de coordenação · ciclo, entregas, notificações e utilizadores</div>
+    <p>
+      Visualizar e ajustar dados operacionais sem precisar de acesso direto ao banco. Restrito a coordenação e administração.
+    </p>
+    <div class="chips">
+      <span class="chip">{{ entregas | length }} entregas</span>
+      <span class="chip">{{ notificacoes | length }} notificações</span>
+      <span class="chip">{{ usuarios_gov | length }} utilizadores</span>
+      <span class="chip">modo de envio: {{ modo_envio }}</span>
+    </div>
+  </section>
+
+  {% if erro %}<div class="alert">{{ erro }}</div>{% endif %}
+  {% if ok == "ciclo" %}<div class="alert alert-ok">Parâmetros do ciclo atualizados.</div>{% endif %}
+  {% if ok == "entrega" %}<div class="alert alert-ok">Entrega atualizada.</div>{% endif %}
+  {% if ok == "notif" %}<div class="alert alert-ok">Notificação atualizada.</div>{% endif %}
+  {% if ok == "usuario" %}<div class="alert alert-ok">Utilizador atualizado.</div>{% endif %}
+  {% if ok == "toggle" %}<div class="alert alert-ok">Recebimento de notificações alternado.</div>{% endif %}
+
+  {% set c = ciclo_row %}
+  <section class="ss active-tab" id="ss-geracao">
+    <div class="ss-hdr">
+      <span class="sn">01</span>
+      <span class="st">Geração de Relatório e notificação de usuários</span>
+      <span class="sbadge">modo de envio: {{ modo_envio }}</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Configurações do ciclo mensal, lista de autores que recebem notificação e console para disparar manualmente os jobs reais (abertura, lembretes, retries).
+      </p>
+
+      <details class="bloco" open id="ss-parametros-ciclo">
+        <summary>
+          <strong>1. Parâmetros do ciclo</strong>
+          <span class="meta-inline">tabela <code>parametros_ciclo_notificacao</code> · id 1</span>
+        </summary>
+        <div class="det-body">
+          <p class="sdesc">
+            Datas e horários do ciclo mensal de notificação. Esses valores governam <em>quando</em> o sistema cria o próximo relatório e dispara cada lembrete.
+          </p>
+          <form method="post" action="/governanca-relatorio/parametros-ciclo" class="grid-form">
+        <div>
+          <label for="g-ciclo-prev">Início do período (dia)</label>
+          <input id="g-ciclo-prev"
+                 name="ciclo_dia_prev"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Dia do mês anterior em que o período de coleta começa"
+                 value="{{ c.ciclo_dia_mes_anterior if c else 11 }}">
+        </div>
+        <div>
+          <label for="g-ciclo-atual">Fim do período (dia)</label>
+          <input id="g-ciclo-atual"
+                 name="ciclo_dia_atual"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Dia do mês corrente em que o período de coleta encerra"
+                 value="{{ c.ciclo_dia_mes_atual if c else 11 }}">
+        </div>
+        <div>
+          <label for="g-prazo-autor">Prazo do autor (dia)</label>
+          <input id="g-prazo-autor"
+                 name="prazo_autor"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Limite para o autor enviar o conteúdo"
+                 value="{{ c.prazo_autor_dia if c else 8 }}">
+        </div>
+        <div>
+          <label for="g-prazo-coord">Prazo da coordenação (dia)</label>
+          <input id="g-prazo-coord"
+                 name="prazo_coord"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Limite para a coordenação validar"
+                 value="{{ c.prazo_coordenacao_dia if c else 10 }}">
+        </div>
+        <div>
+          <label for="g-dias-lembrete">Dias de lembrete (CSV)</label>
+          <input id="g-dias-lembrete"
+                 name="dias_lembrete_csv"
+                 required
+                 placeholder="5,8"
+                 title="Lista CSV com os dias de envio de lembrete"
+                 value="{{ c.dias_lembrete_csv if c else '5,8' }}">
+        </div>
+        <div>
+          <label for="g-dia-ultima">Última chamada (dia)</label>
+          <input id="g-dia-ultima"
+                 name="dia_ultima"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Reforço final para autores em atraso"
+                 value="{{ c.dia_ultima_chamada if c else 10 }}">
+        </div>
+        <div>
+          <label for="g-dia-abertura">Abertura novo ciclo (dia)</label>
+          <input id="g-dia-abertura"
+                 name="dia_abertura"
+                 type="number"
+                 min="1"
+                 max="31"
+                 required
+                 title="Dia em que o ciclo seguinte é aberto automaticamente"
+                 value="{{ c.dia_abertura_novo_ciclo if c else 1 }}">
+        </div>
+        <div>
+          <label for="g-hora-aber">Hora abertura BRT</label>
+          <input id="g-hora-aber"
+                 name="hora_aber"
+                 required
+                 pattern="\d{2}:\d{2}"
+                 placeholder="03:00"
+                 title="Formato HH:MM (24h, fuso BRT)"
+                 value="{{ c.hora_abertura_brt_hhmm if c else '03:00' }}">
+        </div>
+        <div>
+          <label for="g-hora-lem">Hora dos lembretes BRT</label>
+          <input id="g-hora-lem"
+                 name="hora_lem"
+                 required
+                 pattern="\d{2}:\d{2}"
+                 placeholder="09:00"
+                 title="Disparo diário dos lembretes (HH:MM, BRT)"
+                 value="{{ c.hora_lembretes_brt_hhmm if c else '09:00' }}">
+        </div>
+        <div>
+          <label for="g-hora-ret">Hora de retry BRT</label>
+          <input id="g-hora-ret"
+                 name="hora_ret"
+                 required
+                 pattern="\d{2}:\d{2}"
+                 placeholder="12:00"
+                 title="Reenvio em caso de falha (HH:MM, BRT)"
+                 value="{{ c.hora_retry_brt_hhmm if c else '12:00' }}">
+        </div>
+        <div class="full">
+          <label for="g-obs">Observações internas</label>
+          <textarea id="g-obs"
+                    name="observacoes"
+                    rows="2"
+                    maxlength="2048">{{ c.observacoes_internas if c and c.observacoes_internas else '' }}</textarea>
+        </div>
+            <div class="full actions-row">
+              <button type="submit">Guardar alterações</button>
+              <span class="muted-dash">Atualizado em {{ fmt_dt(c.atualizado_em) if c else '—' }}</span>
+            </div>
+          </form>
+        </div>
+      </details>
+
+      <details class="bloco" open id="ss-usuarios-notificados">
+        <summary>
+          <strong>2. Usuários notificados</strong>
+          <span class="meta-inline">
+            {{ autores_lista | selectattr('notificacoes_ativas') | list | length }}/{{ autores_lista | length }} autores ativos
+          </span>
+        </summary>
+        <div class="det-body">
+          <p class="sdesc">
+            Lista de autores cadastrados. A coluna <strong>Relatório</strong> responde à pergunta <em>“Esse usuário deve entregar relatório técnico mensal?”</em>. Quando ligada, o usuário entra na lista de destinatários do ciclo (abertura, lembretes, última chamada, retry); quando desligada, é ignorado.
+          </p>
+          {% if autores_lista %}
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th title="Recebe notificações do ciclo de relatório?">Relatório</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for uu in autores_lista %}
+                  <tr>
+                    <td>
+                      <strong>{{ uu.nome }}</strong>
+                    </td>
+                    <td title="{{ uu.email }}">{{ uu.email }}</td>
+                    <td>
+                      <span class="tag accent">{{ uu.role }}</span>
+                    </td>
+                    <td>
+                      <form method="post"
+                            action="/governanca-relatorio/usuario/{{ uu.id }}/toggle-relatorio"
+                            class="form-toggle-notif">
+                        <button type="submit"
+                                class="btn-toggle-notif {{ 'on' if uu.notificacoes_ativas else 'off' }}"
+                                title="{{ 'Recebe notificações — clique para desligar' if uu.notificacoes_ativas else 'Não recebe notificações — clique para ligar' }}">
+                          {{ 'Sim' if uu.notificacoes_ativas else 'Não' }}
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="empty-section">Nenhum usuário com perfil <code>autor</code> cadastrado.</p>
+          {% endif %}
+        </div>
+      </details>
+
+      <details class="bloco" open id="ss-testar-sistema">
+        <summary>
+          <strong>3. Testar sistema</strong>
+          <span class="meta-inline">modo de envio: {{ tag_modo_envio(modo_envio) }}</span>
+        </summary>
+        <div class="det-body">
+          <p class="sdesc">
+            Console para disparar manualmente os jobs reais do ciclo. <strong>Atenção:</strong> em modo <code>real</code> os e-mails são enviados de fato pelo SendGrid; em <code>sandbox</code> a chamada vai à API mas não chega ao destinatário; em <code>desligado</code> o sistema apenas registra a tentativa.
+          </p>
+
+          {% if resultado_teste %}
+            <div class="alert alert-ok">
+              <strong>{{ resultado_teste.rotulo }}</strong>
+              · executado em {{ resultado_teste.executado_em }}
+              · modo de envio:
+              {{ tag_modo_envio(resultado_teste.modo_envio) }}
+              <ul class="mt-8">
+                {% for k, v in resultado_teste.dados.items() %}
+                  {% if k == "avisos" %}
+                    {% if v %}
+                      <li>
+                        <strong>avisos:</strong>
+                        <ul>
+                          {% for av in v %}<li>{{ av }}</li>{% endfor %}
+                        </ul>
+                      </li>
+                    {% endif %}
+                  {% else %}
+                    <li>
+                      <strong>{{ k }}:</strong> {{ v if v is not none else '—' }}
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <div class="coord-actions-grid">
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <h3 class="coord-panel-title">Abrir período do mês</h3>
+                <span class="coord-panel-badge"><span class="tag tag-warn">cria relatório</span></span>
+              </div>
+              <p class="coord-panel-desc">
+                Cria o relatório do mês corrente clonando estrutura do último <code>finalizado</code> (ou mais recente) e dispara <strong>Mensagem 1 (abertura)</strong> para cada autor com <em>Relatório = Sim</em>. Idempotente sem <code>force</code>; com <code>force</code> reabre mesmo se já existir.
+              </p>
+              <form method="post"
+                    action="/governanca-relatorio/testar/abrir-periodo"
+                    class="coord-form coord-form--stack"
+                    onsubmit="return confirm('Confirma abrir período do mês?\n\nNo modo de envio real isto cria relatório novo e dispara e-mails de produção via SendGrid para todos os autores com Relatório = Sim.');">
+                <input type="hidden" name="force" value="1">
+                <button type="submit" class="coord-btn-block">Executar (force=true)</button>
+              </form>
+            </div>
+
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <h3 class="coord-panel-title">Reenviar abertura</h3>
+                <span class="coord-panel-badge"><span class="tag tag-ok">e-mail</span></span>
+              </div>
+              <p class="coord-panel-desc">
+                Reenvia <strong>Mensagem 1</strong> aos autores que ainda não receberam <em>abertura</em> com sucesso, num relatório existente. Idempotente por endereço (principal e secundário).
+              </p>
+              <form method="post"
+                    action="/governanca-relatorio/testar/notificar-autores"
+                    class="coord-form coord-form--stack">
+                <div class="coord-field-row">
+                  <div class="coord-field">
+                    <label for="t-na-rel">Relatório alvo</label>
+                    <select id="t-na-rel" name="relatorio_id" required>
+                      {% if relatorios_abertos %}
+                        {% for r in relatorios_abertos %}
+                          <option value="{{ r.id }}">{{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}</option>
+                        {% endfor %}
+                      {% else %}
+                        <option value="" disabled>nenhum relatório em aberto</option>
+                      {% endif %}
+                    </select>
+                  </div>
+                </div>
+                <button type="submit"
+                        class="coord-btn-block"
+                        {% if not relatorios_abertos %}disabled{% endif %}>Executar</button>
+              </form>
+            </div>
+
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <h3 class="coord-panel-title">Lembretes / última chamada</h3>
+                <span class="coord-panel-badge"><span class="tag tag-ok">e-mail</span></span>
+              </div>
+              <p class="coord-panel-desc">
+                Dispara <strong>Mensagem 2</strong> (lembrete ou última chamada) para entregas pendentes. Por padrão ignora o calendário do ciclo (executa fora do dia configurado); restrinja a um relatório se quiser.
+              </p>
+              <form method="post"
+                    action="/governanca-relatorio/testar/lembretes"
+                    class="coord-form coord-form--stack">
+                <div class="coord-field-row">
+                  <div class="coord-field">
+                    <label for="t-lem-tipo">Tipo</label>
+                    <select id="t-lem-tipo" name="tipo">
+                      <option value="lembrete">lembrete</option>
+                      <option value="ultima_chamada">última chamada</option>
+                    </select>
+                  </div>
+                  <div class="coord-field">
+                    <label for="t-lem-rel">Relatório (opcional)</label>
+                    <select id="t-lem-rel" name="relatorio_id">
+                      <option value="">— todos em aberto —</option>
+                      {% for r in relatorios_abertos %}
+                        <option value="{{ r.id }}">{{ r.codigo }} · {{ r.mes_referencia }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <input type="hidden" name="ignorar_calendario" value="1">
+                <button type="submit" class="coord-btn-block">Executar (ignorar calendário)</button>
+              </form>
+            </div>
+
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <h3 class="coord-panel-title">Retry · falhas recentes</h3>
+                <span class="coord-panel-badge"><span class="tag tag-warn">retry</span></span>
+              </div>
+              <p class="coord-panel-desc">
+                Retenta envios que falharam nos últimos <strong>7 dias</strong>, até <strong>3 tentativas</strong> por par (entrega, tipo). Cria nova linha em <code>notificacao_envio</code> a cada tentativa para audit trail.
+              </p>
+              <form method="post"
+                    action="/governanca-relatorio/testar/retry"
+                    class="coord-form coord-form--stack">
+                <button type="submit" class="coord-btn-block">Executar</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="ss active-tab" id="ss-entregas">
+    <div class="ss-hdr">
+      <span class="sn">02</span>
+      <span class="st">Entregas</span>
+      <span class="sbadge">últimas {{ limite_entregas }}</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Tabela <code>entrega_relatorio</code>. Cada linha representa o envio mensal de um autor para uma seção. Use <strong>⋮</strong> para ajustar status, datas e validador.
+      </p>
+      {% if entregas %}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Relatório</th>
+              <th>Autor</th>
+              <th>Status</th>
+              <th>Envio</th>
+              <th>Validação</th>
+              <th>Validador</th>
+              <th>Atualizado em</th>
+              <th class="acoes-col">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entregas %}
+              <tr>
+                <td>{{ e.id }}</td>
+                <td>
+                  <strong>{{ e.relatorio.codigo if e.relatorio else '—' }}</strong>
+                </td>
+                <td>{{ e.user.nome if e.user else '—' }}</td>
+                <td>
+                  <span class="tag tag-status-{{ e.status }}">{{ e.status | replace('_', ' ') }}</span>
+                </td>
+                <td>{{ fmt_dt(e.data_envio) }}</td>
+                <td>{{ fmt_dt(e.data_validacao) }}</td>
+                <td>
+                  {% if e.validado_por %}
+                    {{ e.validado_por.nome }}
+                  {% else %}
+                    <span class="muted-dash">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ fmt_dt(e.atualizado_em) }}</td>
+                <td class="acoes-cell">
+                  <details class="acao-menu">
+                    <summary class="acao-menu-trig" title="Editar entrega">⋮</summary>
+                    <div class="acao-menu-pop acao-menu-pop-form">
+                      <p class="acao-form-title">Editar entrega #{{ e.id }}</p>
+                      <form method="post" action="/governanca-relatorio/entrega/{{ e.id }}">
+                        <div class="acao-form-grid">
+                          <div>
+                            <label for="ent-{{ e.id }}-status">Status</label>
+                            <select id="ent-{{ e.id }}-status" name="status">
+                              {% for st in entrega_status_ops %}
+                                <option value="{{ st }}"
+                                        {% if e.status == st %}selected{% endif %}>{{ st | replace('_', ' ') }}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div>
+                            <label for="ent-{{ e.id }}-validador">Validador</label>
+                            <select id="ent-{{ e.id }}-validador" name="validado_por_id">
+                              <option value="">— nenhum —</option>
+                              {% for u in usuarios_gov %}
+                                <option value="{{ u.id }}"
+                                        {% if e.validado_por_id == u.id %}selected{% endif %}>{{ u.nome }}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div>
+                            <label for="ent-{{ e.id }}-envio">Data de envio</label>
+                            <input id="ent-{{ e.id }}-envio"
+                                   type="datetime-local"
+                                   name="data_envio"
+                                   value="{{ fmt_dt_input(e.data_envio) }}">
+                          </div>
+                          <div>
+                            <label for="ent-{{ e.id }}-valid">Data de validação</label>
+                            <input id="ent-{{ e.id }}-valid"
+                                   type="datetime-local"
+                                   name="data_validacao"
+                                   value="{{ fmt_dt_input(e.data_validacao) }}">
+                          </div>
+                          <p class="acao-form-ro">
+                            <strong>Relatório</strong> {{ e.relatorio.codigo if e.relatorio else '—' }} (#{{ e.relatorio_id }}) ·
+                            <strong>Autor</strong> {{ e.user.nome if e.user else '—' }} (#{{ e.user_id }})
+                          </p>
+                        </div>
+                        <div class="acao-form-actions">
+                          <button type="submit" class="acao-btn">Aplicar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </details>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="empty-section">Sem entregas registradas.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="ss active-tab" id="ss-notif">
+    <div class="ss-hdr">
+      <span class="sn">03</span>
+      <span class="st">Notificações de envio</span>
+      <span class="sbadge">últimas {{ limite_notifs }}</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Tabela <code>notificacao_envio</code>. Histórico de e-mails disparados pelo SendGrid (notificação inicial, lembretes, última chamada, abertura de ciclo).
+      </p>
+      {% if notificacoes %}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Entrega</th>
+              <th>Tipo</th>
+              <th>Enviada em</th>
+              <th>Resultado</th>
+              <th>Destinatário</th>
+              <th>SendGrid id</th>
+              <th class="acoes-col">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in notificacoes %}
+              {% set ent = n.entrega %}
+              {% set rel = ent.relatorio if ent else None %}
+              {% set autor = ent.user if ent else None %}
+              <tr>
+                <td>{{ n.id }}</td>
+                <td>
+                  <strong>{{ rel.codigo if rel else '#' ~ n.entrega_id }}</strong>
+                  {% if autor %} · {{ autor.nome }}{% endif %}
+                </td>
+                <td>{{ n.tipo }}</td>
+                <td>{{ fmt_dt(n.enviada_em) }}</td>
+                <td>
+                  {% if n.sucesso %}
+                    <span class="tag tag-ok">Sucesso</span>
+                  {% else %}
+                    <span class="tag tag-err" title="{{ n.erro or 'Falha no envio' }}">Falhou</span>
+                  {% endif %}
+                </td>
+                <td title="{{ n.destinatario_email }}">{{ n.destinatario_email }}</td>
+                <td title="{{ n.sendgrid_message_id or '' }}">
+                  {{ n.sendgrid_message_id or '—' }}
+                </td>
+                <td class="acoes-cell">
+                  <details class="acao-menu">
+                    <summary class="acao-menu-trig" title="Editar notificação">⋮</summary>
+                    <div class="acao-menu-pop acao-menu-pop-form">
+                      <p class="acao-form-title">Editar notificação #{{ n.id }}</p>
+                      <form method="post" action="/governanca-relatorio/notificacao/{{ n.id }}">
+                        <div class="acao-form-grid">
+                          <div>
+                            <label for="not-{{ n.id }}-sucesso">Resultado</label>
+                            <select id="not-{{ n.id }}-sucesso" name="sucesso">
+                              <option value="1" {% if n.sucesso %}selected{% endif %}>Sucesso</option>
+                              <option value="0" {% if not n.sucesso %}selected{% endif %}>Falhou</option>
+                            </select>
+                          </div>
+                          <div class="full">
+                            <label for="not-{{ n.id }}-erro">Mensagem de erro</label>
+                            <textarea id="not-{{ n.id }}-erro"
+                                      name="erro_txt"
+                                      rows="3"
+                                      placeholder="Descrição da falha (vazio = sem erro)">{{ n.erro or '' }}</textarea>
+                          </div>
+                          <p class="acao-form-ro">
+                            <strong>Tipo</strong> {{ n.tipo }} ·
+                            <strong>Destinatário</strong> {{ n.destinatario_email }}
+                          </p>
+                        </div>
+                        <div class="acao-form-actions">
+                          <button type="submit" class="acao-btn">Aplicar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </details>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="empty-section">Sem notificações registradas.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="ss active-tab" id="ss-usuarios">
+    <div class="ss-hdr">
+      <span class="sn">04</span>
+      <span class="st">Utilizadores</span>
+      <span class="sbadge">{{ usuarios_gov | length }} cadastrados</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Tabela <code>users</code>. Por segurança, <code>password_hash</code> não é exibido nem editável aqui. Para troca de senha use <a href="/usuarios">Equipe e permissões</a>.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Nome</th>
+            <th>E-mail principal</th>
+            <th>E-mail secundário</th>
+            <th>Perfil</th>
+            <th>Notificações</th>
+            <th>Criado em</th>
+            <th class="acoes-col">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for uu in usuarios_gov %}
+            <tr>
+              <td>{{ uu.id }}</td>
+              <td>
+                <strong>{{ uu.nome }}</strong>
+              </td>
+              <td title="{{ uu.email }}">{{ uu.email }}</td>
+              <td title="{{ uu.email2 }}">{{ uu.email2 }}</td>
+              <td>
+                <span class="tag accent">{{ uu.role }}</span>
+              </td>
+              <td>
+                {% if uu.notificacoes_ativas %}
+                  <span class="tag tag-ok">Ativas</span>
+                {% else %}
+                  <span class="tag tag-neutral">Pausadas</span>
+                {% endif %}
+              </td>
+              <td>{{ fmt_dt(uu.created_at) }}</td>
+              <td class="acoes-cell">
+                <details class="acao-menu">
+                  <summary class="acao-menu-trig" title="Editar utilizador">⋮</summary>
+                  <div class="acao-menu-pop acao-menu-pop-form">
+                    <p class="acao-form-title">Editar utilizador #{{ uu.id }}</p>
+                    <form method="post" action="/governanca-relatorio/usuario/{{ uu.id }}">
+                      <div class="acao-form-grid">
+                        <div class="full">
+                          <label for="usr-{{ uu.id }}-nome">Nome</label>
+                          <input id="usr-{{ uu.id }}-nome"
+                                 type="text"
+                                 name="nome"
+                                 value="{{ uu.nome }}"
+                                 required>
+                        </div>
+                        <div>
+                          <label for="usr-{{ uu.id }}-email">E-mail principal</label>
+                          <input id="usr-{{ uu.id }}-email"
+                                 type="email"
+                                 name="email"
+                                 value="{{ uu.email }}"
+                                 required>
+                        </div>
+                        <div>
+                          <label for="usr-{{ uu.id }}-email2">E-mail secundário</label>
+                          <input id="usr-{{ uu.id }}-email2"
+                                 type="email"
+                                 name="email2"
+                                 value="{{ uu.email2 }}"
+                                 required>
+                        </div>
+                        <div>
+                          <label for="usr-{{ uu.id }}-role">Perfil</label>
+                          {% if user.role == "admin" %}
+                            <select id="usr-{{ uu.id }}-role" name="role">
+                              <option value="admin" {% if uu.role == "admin" %}selected{% endif %}>admin</option>
+                              <option value="coordenador"
+                                      {% if uu.role == "coordenador" %}selected{% endif %}>coordenador</option>
+                              <option value="autor" {% if uu.role == "autor" %}selected{% endif %}>autor</option>
+                            </select>
+                          {% else %}
+                            <input type="hidden" name="role" value="{{ uu.role }}">
+                            <input id="usr-{{ uu.id }}-role"
+                                   type="text"
+                                   value="{{ uu.role }}"
+                                   readonly
+                                   title="Apenas admin altera perfil">
+                          {% endif %}
+                        </div>
+                        <div>
+                          <label for="usr-{{ uu.id }}-notif">Notificações</label>
+                          <select id="usr-{{ uu.id }}-notif" name="notificacoes_ativas">
+                            <option value="1" {% if uu.notificacoes_ativas %}selected{% endif %}>Ativas</option>
+                            <option value="0" {% if not uu.notificacoes_ativas %}selected{% endif %}>Pausadas</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="acao-form-actions">
+                        <button type="submit" class="acao-btn">Aplicar</button>
+                      </div>
+                    </form>
+                  </div>
+                </details>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

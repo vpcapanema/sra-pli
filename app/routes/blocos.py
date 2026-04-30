@@ -3,13 +3,14 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from starlette.responses import Response, JSONResponse
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db, tx_session
 from ..models import Bloco, Relatorio, Secao, User
+from ..numeracao import chave_numero, consolidar_referencias, secao_ids_na_subarvore
 from ..notificacoes.service import recompute_status_enviado
-from ..numeracao import consolidar_referencias
 from .. import ref_resolve
+from ..modo_edicao_blocos import modo_edicao_coordenador_rel, pode_mutar_apesar_de_bloqueado
 from .pages import response_conteudo_upload, user_or_login_page
 
 router = APIRouter(prefix="/relatorios/{rel_id}/secoes/{sec_id}/blocos", tags=["blocos"])
@@ -22,6 +23,42 @@ def _hook_recompute_entrega(db: Session, rel_id: int, sec_id: int) -> None:
     if not sec or not sec.responsavel_id:
         return
     recompute_status_enviado(db, sec.responsavel_id, rel_id)
+
+
+def _escopo_sec_ids(db: Session, rel_id: int, anc: Secao) -> set[int]:
+    secoes = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
+    return secao_ids_na_subarvore(secoes, anc.numero or "")
+
+
+def _require_bloco_na_subarvore(db: Session, rel_id: int, anc: Secao, bloco_id: int) -> Bloco:
+    b = db.get(Bloco, bloco_id)
+    if not b:
+        raise HTTPException(404, detail="Bloco não encontrado.")
+    escopo = _escopo_sec_ids(db, rel_id, anc)
+    if b.secao_id not in escopo:
+        raise HTTPException(404, detail="Bloco não encontrado neste âmbito.")
+    return b
+
+
+def _blocos_selecionados_escopo(
+    db: Session, rel_id: int, anc_sec: Secao, bloco_ids: list[int]
+) -> list[Bloco]:
+    ids = list(dict.fromkeys(bloco_ids))
+    if not ids:
+        raise HTTPException(400, detail="Selecione ao menos um bloco.")
+    escopo = _escopo_sec_ids(db, rel_id, anc_sec)
+    blocos = db.query(Bloco).filter(Bloco.id.in_(ids)).all()
+    if len(blocos) != len(ids):
+        raise HTTPException(404, detail="Um ou mais blocos selecionados não foram encontrados.")
+    for b in blocos:
+        if b.secao_id not in escopo:
+            raise HTTPException(400, detail="Um ou mais blocos não pertencem ao âmbito desta página.")
+    return blocos
+
+
+def _hooks_recompute_entrega_varias_secoes(db: Session, rel_id: int, sec_ids: list[int]) -> None:
+    for sid in dict.fromkeys(sec_ids):
+        _hook_recompute_entrega(db, rel_id, sid)
 
 
 def _pode_editar_status(user: User, rel: Relatorio) -> tuple[bool, str]:
@@ -107,7 +144,7 @@ def campos_json_bloco_transversal(b: Bloco) -> dict:
 
 @router.get(".json")
 def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session = Depends(get_db)):
-    """Retorna os blocos de uma secao em JSON, para edicao em buffer no cliente.
+    """Retorna os blocos da subárvore da secção alvo (âncora + descendentes PLI).
 
     Inclui ``pode_editar_secao`` (combinando role x status do relatorio) e
     ``pode_editar`` por bloco (false se ``bloqueado`` ou se a secao nao for
@@ -123,7 +160,21 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
         raise HTTPException(404)
     pode_status, motivo_status = _pode_editar_status(user, rel)
     mapas_ref = ref_resolve.calcular_mapas_referencia(rel.secoes)
-    blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).order_by(Bloco.ordem).all()
+    escopo = secao_ids_na_subarvore(rel.secoes, sec.numero or "")
+    escopo_sql = escopo if escopo else {-1}
+    blocos_raw = (
+        db.query(Bloco)
+        .options(joinedload(Bloco.autor), joinedload(Bloco.secao))
+        .filter(Bloco.secao_id.in_(escopo_sql))
+        .all()
+    )
+    blocos_raw.sort(
+        key=lambda b: (
+            chave_numero(b.secao.numero if b.secao else ""),
+            b.ordem or 0,
+            b.id,
+        )
+    )
     payload = {
         "secao": {
             "id": sec.id,
@@ -135,15 +186,21 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
         "relatorio": {"status": rel.status},
         "pode_editar_secao": pode_status,
         "motivo_bloqueio": motivo_status,
+        "modo_edicao_coordenador_ativo": modo_edicao_coordenador_rel(request, user, rel_id),
         "ref_mapas": ref_resolve.mapas_para_json(mapas_ref),
         "blocos": [
             {
                 **campos_json_bloco_transversal(b),
-                "secao_id": sec_id,
+                "secao_id": b.secao_id,
+                "secao_numero": (b.secao.numero if b.secao else "") or "",
                 "bloqueado": bool(b.bloqueado),
-                "pode_editar": pode_status and not bool(b.bloqueado),
+                "pode_editar": pode_status
+                and (
+                    not bool(b.bloqueado)
+                    or pode_mutar_apesar_de_bloqueado(request, user, rel_id)
+                ),
             }
-            for b in blocos
+            for b in blocos_raw
         ],
     }
     return JSONResponse(payload)
@@ -197,16 +254,6 @@ def criar_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argum
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
-def _blocos_selecionados(db: Session, sec_id: int, bloco_ids: list[int]) -> list[Bloco]:
-    ids = list(dict.fromkeys(bloco_ids))
-    if not ids:
-        raise HTTPException(400, detail="Selecione ao menos um bloco.")
-    blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id, Bloco.id.in_(ids)).all()
-    if len(blocos) != len(ids):
-        raise HTTPException(404, detail="Um ou mais blocos selecionados não foram encontrados.")
-    return blocos
-
-
 @router.post("/aprovar-lote")
 def aprovar_blocos_lote(
     rel_id: int,
@@ -218,7 +265,8 @@ def aprovar_blocos_lote(
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    blocos = _blocos_selecionados(db, sec_id, bloco_ids)
+    _, anc_sec = chk
+    blocos = _blocos_selecionados_escopo(db, rel_id, anc_sec, bloco_ids)
     ids = [bloco.id for bloco in blocos]
     agora = datetime.utcnow()
     with tx_session() as txdb:
@@ -226,7 +274,7 @@ def aprovar_blocos_lote(
             {Bloco.bloqueado: True, Bloco.updated_at: agora},
             synchronize_session=False,
         )
-    _hook_recompute_entrega(db, rel_id, sec_id)
+    _hooks_recompute_entrega_varias_secoes(db, rel_id, [b.secao_id for b in blocos])
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
@@ -241,8 +289,13 @@ def excluir_blocos_lote(
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    blocos = _blocos_selecionados(db, sec_id, bloco_ids)
-    if any(getattr(bloco, "bloqueado", False) for bloco in blocos):
+    user, anc_sec = chk
+    blocos = _blocos_selecionados_escopo(db, rel_id, anc_sec, bloco_ids)
+    if any(
+        getattr(bloco, "bloqueado", False)
+        and not pode_mutar_apesar_de_bloqueado(request, user, rel_id)
+        for bloco in blocos
+    ):
         raise HTTPException(403, detail="Blocos bloqueados não podem ser excluídos.")
     ids = [bloco.id for bloco in blocos]
     afeta_numeracao = any(_impacta_numeracao(b.tipo, b.conteudo) for b in blocos)
@@ -269,10 +322,11 @@ def editar_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argu
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    b = db.get(Bloco, bloco_id)
-    if not b or b.secao_id != sec_id:
-        raise HTTPException(404)
-    if getattr(b, "bloqueado", False):
+    user, anc_sec = chk
+    b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
+        request, user, rel_id
+    ):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser editado.")
 
     b.titulo = titulo.strip() or None
@@ -291,10 +345,11 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    b = db.get(Bloco, bloco_id)
-    if not b or b.secao_id != sec_id:
-        raise HTTPException(404)
-    if getattr(b, "bloqueado", False):
+    user, anc_sec = chk
+    b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
+        request, user, rel_id
+    ):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser excluído.")
     afeta_numeracao = _impacta_numeracao(b.tipo, b.conteudo)
     with tx_session() as txdb:
@@ -311,14 +366,13 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    b = db.get(Bloco, bloco_id)
-    if not b or b.secao_id != sec_id:
-        raise HTTPException(404)
+    _, anc_sec = chk
+    b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
     b.bloqueado = True
 
     b.updated_at = datetime.utcnow()
     db.commit()
-    _hook_recompute_entrega(db, rel_id, sec_id)
+    _hook_recompute_entrega(db, rel_id, b.secao_id)
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
@@ -334,13 +388,15 @@ def mover_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argum
     chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
     if isinstance(chk, Response):
         return chk
-    b = db.get(Bloco, bloco_id)
-    if not b or b.secao_id != sec_id:
-        raise HTTPException(404)
-    if getattr(b, "bloqueado", False):
+    user, anc_sec = chk
+    b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
+        request, user, rel_id
+    ):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser movido.")
 
-    blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).order_by(Bloco.ordem).all()
+    sid_real = b.secao_id
+    blocos = db.query(Bloco).filter(Bloco.secao_id == sid_real).order_by(Bloco.ordem).all()
     idx = next((i for i, bx in enumerate(blocos) if bx.id == bloco_id), -1)
     if idx < 0:
         raise HTTPException(404)

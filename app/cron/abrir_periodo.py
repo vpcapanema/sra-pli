@@ -6,7 +6,9 @@ Uso (PowerShell):
   .\\.venv\\Scripts\\python.exe -m app.cron.abrir_periodo
   .\\.venv\\Scripts\\python.exe -m app.cron.abrir_periodo --force
 
-Configurar no Render Cron com schedule ``0 6 1 * *`` (06:00 UTC = 03:00 BRT).
+Por defeito só cria relatório novo no **dia BRT** configurado na base
+(`parametros_ciclo_notificacao`). Alinhar o Cron à hora em «Registro do servidor»
+(ex.: dia 1 às 03:00 BRT ≈ ``0 6 1 * *`` UTC em vigência oficial).
 """
 from __future__ import annotations
 

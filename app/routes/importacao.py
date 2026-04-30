@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from ..auth import current_user
+from ..config import settings
 from ..db import get_db, tx_session
 from ..list_lines import block_is_homogeneous_list, line_is_list_item, list_line_body
 from ..models import Bloco, Figura, Secao, User
@@ -921,8 +922,13 @@ async def analisar_importacao(
 ):
     _check(request, db, rel_id, sec_id)
     raw = await arquivo.read()
-    if len(raw) > 5_000_000:
-        raise HTTPException(400, detail="Arquivo muito grande para importação assistida.")
+    max_bytes = settings.IMPORTACAO_ANALISAR_MAX_BYTES
+    if len(raw) > max_bytes:
+        limite_mb = max(max_bytes // (1024 * 1024), 1)
+        detail = (
+            f"Arquivo muito grande para importação assistida (máx. {limite_mb} MB)."
+        )
+        raise HTTPException(400, detail=detail)
     nome = (arquivo.filename or "").lower()
     if nome.endswith(".docx"):
         blocks = _parse_docx(raw, db, rel_id, sec_id)

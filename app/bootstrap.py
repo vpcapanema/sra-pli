@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .db import engine, SessionLocal, Base
-from .models import User, SECOES_PADRAO
+from .models import ParametrosCicloNotificacao, User, SECOES_PADRAO
 from .auth import hash_password
 from .config import settings
 from . import models  # noqa: F401  garante registro dos modelos
@@ -89,6 +89,14 @@ def init_db() -> None:
             conn.execute(text("ALTER TABLE users ALTER COLUMN email2 SET NOT NULL;"))
     with SessionLocal() as db:
         ensure_admin(db)
+        ensure_parametros_ciclo_notificacao(db)
+
+
+def ensure_parametros_ciclo_notificacao(db: Session) -> None:
+    """Garante a linha singleton de parâmetros do ciclo mensal (id=1)."""
+    if db.get(ParametrosCicloNotificacao, 1) is None:
+        db.add(ParametrosCicloNotificacao(id=1))
+        db.commit()
 
 
 def ensure_admin(db: Session) -> None:

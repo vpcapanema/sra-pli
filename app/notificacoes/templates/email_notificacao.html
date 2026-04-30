@@ -6,27 +6,70 @@
     <title>SRA · {{ relatorio_codigo }}</title>
   </head>
   <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;">
-    {% macro render_modelos_collapsible(nodes) %}
+    <!-- djlint:off -->
+    {%- macro render_subarvore(filhos, depth) -%}
+      {% if filhos %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0;">
+          {% for f in filhos %}
+            <tr>
+              {% if depth == 1 %}
+                <td style="padding:6px 0 6px 16px;border-left:3px solid #cfdbe7;font-size:12.5px;line-height:1.5;color:#1a1a2e;text-align:left;">
+              {% elif depth == 2 %}
+                <td style="padding:6px 0 6px 32px;border-left:3px solid #dbe4ed;font-size:12.5px;line-height:1.5;color:#1a1a2e;text-align:left;">
+              {% else %}
+                <td style="padding:6px 0 6px 48px;border-left:3px solid #eef1f5;font-size:12.5px;line-height:1.5;color:#1a1a2e;text-align:left;">
+              {% endif %}
+                <span style="display:inline-block;min-width:46px;font-family:Consolas,'Courier New',monospace;font-size:11.5px;font-weight:700;color:#116593;background:#eaf2f8;padding:1px 6px;border-radius:3px;">{{ f.numero }}</span>
+                <span style="font-weight:600;color:#1c3d59;">&nbsp;{{ f.titulo }}</span>
+                &nbsp;—&nbsp;
+                <a href="{{ f.link_dotx }}" style="color:#2a9450;text-decoration:underline;font-weight:600;white-space:nowrap;">Baixar modelo .dotx</a>
+              </td>
+            </tr>
+            {% if f.filhos %}
+              <tr>
+                {% if depth == 1 %}
+                  <td style="padding:0 0 0 16px;border-left:3px solid #cfdbe7;">
+                {% elif depth == 2 %}
+                  <td style="padding:0 0 0 32px;border-left:3px solid #dbe4ed;">
+                {% else %}
+                  <td style="padding:0 0 0 48px;border-left:3px solid #eef1f5;">
+                {% endif %}
+                  {{ render_subarvore(f.filhos, depth + 1) }}
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </table>
+      {% endif %}
+    {%- endmacro -%}
+
+    {%- macro render_modelos_collapsible(nodes) -%}
       {% if nodes %}
         {% for n in nodes %}
-          <details style="margin:6px 0;border:1px solid #dbe4ed;border-radius:4px;background:#fafbfc;">
-            <summary style="padding:8px 10px;cursor:pointer;font-size:13px;line-height:1.45;text-align:left;">
-              <span style="font-weight:700;color:#116593;">{{ n.numero }}</span>
-              <span style="font-weight:600;"> {{ n.titulo }}</span>
-              <span style="white-space:nowrap;">
-                —
-                <a href="{{ n.link_dotx }}" style="color:#2a9450;text-decoration:underline;">Baixar modelo .dotx</a>
-              </span>
+          {% if n.filhos %}
+            <details style="margin:6px 0;border:1px solid #cfdbe7;border-radius:5px;background:#ffffff;">
+          {% else %}
+            <details style="margin:6px 0;border:1px solid #cfdbe7;border-radius:5px;background:#ffffff;box-shadow:none;">
+          {% endif %}
+            <summary style="padding:10px 12px;cursor:pointer;font-size:13.5px;line-height:1.5;text-align:left;background:#eaf2f8;border-radius:4px;list-style:none;">
+              <span style="display:inline-block;min-width:36px;font-family:Consolas,'Courier New',monospace;font-size:12px;font-weight:700;color:#ffffff;background:#116593;padding:2px 8px;border-radius:3px;text-align:center;">{{ n.numero }}</span>
+              <span style="font-weight:700;color:#1c3d59;">&nbsp;{{ n.titulo }}</span>
+              &nbsp;—&nbsp;
+              <a href="{{ n.link_dotx }}" style="color:#2a9450;text-decoration:underline;font-weight:600;white-space:nowrap;">Baixar modelo .dotx</a>
+              {% if n.filhos %}
+                <span style="color:#7a8694;font-size:11px;font-weight:500;font-style:italic;">&nbsp;&nbsp;({{ n.filhos | length }} {{ 'subseções' if n.filhos | length > 1 else 'subseção' }} — clique para expandir)</span>
+              {% endif %}
             </summary>
             {% if n.filhos %}
-              <div style="padding:4px 10px 10px 14px;margin:0;border-top:1px solid #eef1f5;">
-                {{ render_modelos_collapsible(n.filhos) }}
+              <div style="padding:8px 12px 12px;margin:0;background:#fafbfc;border-top:1px solid #eef1f5;">
+                {{ render_subarvore(n.filhos, 1) }}
               </div>
             {% endif %}
           </details>
         {% endfor %}
       {% endif %}
-    {% endmacro %}
+    {%- endmacro -%}
+    <!-- djlint:on -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1f5;padding:24px 0;">
       <tr>
         <td align="center">

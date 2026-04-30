@@ -1,34 +1,34 @@
 ---
-description: Checklist de encerramento — diagnostico agregado, lints, releitura integral
+description: Checklist de encerramento — diagnóstico agregado, lints, releitura integral
 alwaysApply: true
 ---
 
-# Encerramento Obrigatorio Da Tarefa (Agentes)
+# Encerramento Obrigatorio Da Tarefa
 
-## Limite real (transparencia)
+O agente **não** vê a aba **Problemas** do IDE. Para alinhar humano e agente em "zero problemas", siga este checklist antes de declarar a tarefa concluída.
 
-O agente **nao enxerga** a sua aba **Problemas** nem o estado exato do seu IDE. O que o agente ve e: saida de terminal (incluindo o relatorio de `scripts/dump_agent_diagnostics.py`), **diagnosticos que o Cursor expoe a ferramenta de leitura de lints do agente** nos caminhos pedidos — isso **pode divergir** do que voce ve (filtros, ficheiros nao gravados, extensoes, cache). Sem alinhar essas frentes, humano e agente falam de "zero problemas" com significados diferentes.
+## 1. Relatório agregado (obrigatório)
 
-## Antes de considerar a tarefa concluida
+```powershell
+.\.venv\Scripts\python.exe scripts\dump_agent_diagnostics.py --paths …
+```
 
-1. **Relatorio agregado (obrigatorio)** — Na raiz do repositorio, executar:
+- `--paths` deve listar **todos** os `.py`/`.html` alterados (caminhos relativos). Se omitir um `.html`, `djlint` não corre sobre ele. Em dúvida, rode **sem** `--paths` (varre `app/` e `app/templates`; mais lento).
+- Leia `artifacts/agent-diagnostics.txt` e corrija o que flake8, pylint, djlint, cspell e markdownlint apontarem.
+- Repita até **código de saída 0**. Não use `--no-pylint`/`--no-djlint`/`--no-spell`/`--no-markdownlint` salvo ordem explícita ou indisponibilidade da ferramenta documentada na resposta.
 
-   ```powershell
-   .\.venv\Scripts\python.exe scripts\dump_agent_diagnostics.py --paths …
-   ```
+O script substitui no encerramento os comandos isolados de `flake8`/`pylint`/`djlint`/`npm run spell` e inclui `npm run mdlint` em `.cursor/**/*.mdc`.
 
-   - Coloque em `--paths` **todos** os ficheiros `.py` e `.html` que **alterou nesta tarefa** (caminhos relativos ao repo). Se omitir um `.html` alterado, o `djlint` **nao** corre sobre ele — liste todos os tocados ou, em duvida, execute **sem** `--paths` (varredura em `app/` e `app/templates`; mais lenta).
-   - **Leia** `artifacts/agent-diagnostics.txt` apos cada execucao e **corrija** o que flake8, pylint, djlint e cspell apontarem.
-   - **Repita** ate o comando terminar com **codigo de saida 0**. **Nao** use
-     `--no-pylint`, `--no-djlint`, `--no-spell` nem `--no-markdownlint` no
-     encerramento salvo ordem explicita do utilizador ou evidencia documentada na
-     resposta final de que uma ferramenta **nao esta disponivel** no ambiente.
-2. **Diagnostico do IDE (obrigatorio)** — Invocar a **ferramenta de leitura de lints do agente** nos caminhos alterados. Corrigir o que aparecer e que o passo 1 nao cubra (ex.: Pylance).
-3. **Aba Problemas (lado humano)** — Objetivo: **zerar** avisos nos ficheiros tocados. Se, apos os passos acima, **voce** ainda vir problemas, **nao** declare a tarefa limpa: peca ao usuario a lista (arquivo + mensagem) ou corrija ate alinhar.
-4. **Releitura integral** — **Leia na integra** cada ficheiro que modificou apos a ultima edicao.
+## 2. Diagnóstico do IDE (obrigatório)
 
-O passo 1 **substitui** no encerramento a obrigatoriedade de correr `flake8`/`pylint`/`djlint`/`npm run spell` **separadamente** para cada ficheiro (o script ja os orquestra). Durante o trabalho, comandos por ficheiro em `linting.mdc` continuam uteis para feedback imediato.
+Invocar a ferramenta de leitura de lints do agente nos caminhos alterados. Corrigir o que aparecer e o passo 1 não cobrir (ex.: Pylance).
 
-O relatorio do script **inclui** `npm run mdlint` (markdownlint em `.cursor/**/*.mdc`), alinhado a extensao markdownlint do editor quando este usa `.markdownlint.json` na raiz.
+## 3. Aba Problemas (lado humano)
 
-**Escopo desta regra:** com `alwaysApply: true`, aplica-se a **todos os agentes de IA neste workspace**. Para o mesmo habito em **outros repositorios**, replique estes itens em **Cursor Settings** — regras de usuario para IA (configuracao global do Cursor).
+Objetivo: zerar avisos nos ficheiros tocados. Se o usuário ainda vir problemas após os passos acima, peça a lista (arquivo + mensagem) ou corrija até alinhar — não declare a tarefa limpa.
+
+## 4. Releitura integral
+
+Leia na íntegra cada ficheiro que modificou após a última edição.
+
+**Escopo:** com `alwaysApply: true`, vale para todos os agentes neste workspace. Para o mesmo hábito em outros repositórios, replique nas regras de usuário do Cursor.

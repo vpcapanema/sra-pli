@@ -31,6 +31,8 @@ Exemplos (PowerShell)::
 """
 from __future__ import annotations
 
+# pylint: disable=duplicate-code
+
 import argparse
 import sys
 from datetime import date
@@ -230,7 +232,7 @@ def main() -> int:  # pylint: disable=too-many-locals,too-many-return-statements
             .order_by(Secao.ordem)
             .all()
         )
-        ctx = _montar_contexto_email(rel, user, minhas, todas_map)
+        ctx = _montar_contexto_email(db, rel, user, minhas, todas_map)
         assunto = preview_assunto_notificacao("abertura", ctx)
         html, texto = preview_corpo_notificacao("abertura", ctx)
         print(f"Assunto (preview): {assunto}")
