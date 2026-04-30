@@ -24,6 +24,15 @@ def _get_relatorio_completo(db: Session, rel_id: int) -> Relatorio | None:
 
 
 def _section_filter(rel: Relatorio, escopo: str, secao_ids: list[int]) -> set[int] | None:
+    if escopo == "importadas":
+        imported = {
+            sec.id
+            for sec in rel.secoes
+            if any((bloco.origem or "") == "upload" for bloco in sec.blocos)
+        }
+        if not imported:
+            raise HTTPException(400, detail="Nenhuma seção importada encontrada.")
+        return imported
     if escopo != "selecionadas":
         return None
     ids_relatorio = {sec.id for sec in rel.secoes}
@@ -101,7 +110,7 @@ def exportar_relatorio(
     if not rel:
         raise HTTPException(404)
     section_ids = _section_filter(rel, query.escopo, query.secao_ids)
-    suffix = "-secoes" if section_ids else ""
+    suffix = "-importadas" if query.escopo == "importadas" else ("-secoes" if section_ids else "")
     if query.formato == "pdf":
         pdf = render_pdf(db, rel, section_ids)
         fname = f"{rel.codigo}-{rel.versao}{suffix}.pdf"

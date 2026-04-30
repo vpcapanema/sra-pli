@@ -95,6 +95,7 @@ Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra
 - `lista`: linhas iniciadas por `-`.
 - `figura`: referência opcional a `Figura`, com legenda e fonte.
 - `tabela`: tabular em texto, separado por `|`, com legenda e fonte.
+- `origem`: `manual` por padrão; importação assistida grava `upload`, usado pelo escopo de exportação "Somente seções importadas".
 
 `Figura`: nome, MIME, binário, legenda, fonte. Pode vir de upload manual ou DOCX.
 
@@ -215,7 +216,7 @@ E2E manual: `scripts/_e2e_notificacoes.py` (usuários `@notif-test.local`, exerc
 
 `app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`.
 
-`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` (opcional `secao_ids` na query para limitar escopo em iframes), `GET /relatorios/{id}/preview` (HTML), `GET /relatorios/{id}/exportar` (`pdf`/`docx`, inteiro ou seleção).
+`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` (opcional `secao_ids` na query para limitar escopo em iframes), `GET /relatorios/{id}/preview` (HTML), `GET /relatorios/{id}/exportar` (`pdf`/`docx`, escopo `inteiro`, `selecionadas` ou `importadas`).
 
 Cuidados:
 

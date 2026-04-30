@@ -217,7 +217,17 @@
 
     nodes.forEach((node, index) => {
       const button = node.querySelector('.export-tree-toggle');
+      const checkbox = node.querySelector('input[type="checkbox"][name="secao_ids"]');
       const hasChildren = index + 1 < nodes.length && level(nodes[index + 1]) > level(node);
+      if (checkbox) {
+        checkbox.addEventListener('change', () => {
+          const currentLevel = level(node);
+          for (let i = index + 1; i < nodes.length && level(nodes[i]) > currentLevel; i += 1) {
+            const child = nodes[i].querySelector('input[type="checkbox"][name="secao_ids"]');
+            if (child) child.checked = checkbox.checked;
+          }
+        });
+      }
       if (!button || !hasChildren) {
         node.classList.add('is-leaf');
         if (button) {

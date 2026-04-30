@@ -67,6 +67,12 @@ def init_db() -> None:
             conn.execute(
                 text("ALTER TABLE blocos ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false;")
             )
+            conn.execute(
+                text(
+                    "ALTER TABLE blocos "
+                    "ADD COLUMN IF NOT EXISTS origem VARCHAR(32) NOT NULL DEFAULT 'manual';"
+                )
+            )
             # Notificações mensais: opt-out dos autores. Default true para os
             # registros existentes não pararem de receber por engano. Postgres
             # >= 11 evita rewrite da tabela quando default é constante.

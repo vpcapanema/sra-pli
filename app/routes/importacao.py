@@ -1167,6 +1167,7 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
                     fonte=(item.get("fonte") or "").strip() or None,
                     figura_id=figura_id,
                     autor_id=user.id,
+                    origem="upload",
                 )
             )
             if sec.status == "pendente":

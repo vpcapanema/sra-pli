@@ -102,6 +102,7 @@ class Bloco(Base):
     fonte = Column(String(255), nullable=True)
     figura_id = Column(Integer, ForeignKey("figuras.id"), nullable=True)
     autor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    origem = Column(String(32), nullable=False, default="manual")
     bloqueado = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

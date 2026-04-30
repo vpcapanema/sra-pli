@@ -916,6 +916,13 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               name="escopo"
               value="selecionadas"
             />
+            <input
+              id="export-scope-importadas-u"
+              class="export-scope export-scope-imported"
+              type="radio"
+              name="escopo"
+              value="importadas"
+            />
             <div
               class="export-tabs"
               role="tablist"
@@ -933,9 +940,18 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               >
                 <span>Seções selecionadas</span>
               </label>
+              <label
+                class="export-tab export-tab-imported"
+                for="export-scope-importadas-u"
+              >
+                <span>Somente seções importadas</span>
+              </label>
             </div>
             <div class="export-panels">
               <div class="export-panel export-panel-all" role="tabpanel"></div>
+              <div class="export-panel export-panel-imported" role="tabpanel">
+                Exporta apenas seções com blocos criados pelo upload/importação assistida.
+              </div>
               <div class="export-panel export-panel-selected" role="tabpanel">
                 <div class="export-sections" aria-label="Seções para exportar">
                   {% for s in rel.secoes %} {% set nivel = s.numero.count('.') +

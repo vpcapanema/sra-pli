@@ -266,14 +266,17 @@ button.danger{background:var(--danger);color:#fff}
 .export-tab:last-child{border-right:0}
 .export-tab span{display:block;padding:8px 12px;white-space:nowrap;background:#fff}
 .export-tab:hover span{background:#f0f5fa}
-.export-scope-all:checked~.export-tabs .export-tab-all span,.export-scope-selected:checked~.export-tabs .export-tab-selected span{background:var(--navy);color:#fff}
+.export-scope-all:checked~.export-tabs .export-tab-all span,.export-scope-selected:checked~.export-tabs .export-tab-selected span,.export-scope-imported:checked~.export-tabs .export-tab-imported span{background:var(--navy);color:#fff}
 .export-panel-all{display:block;min-height:0}
-.export-panel-selected{display:none}
+.export-panel-selected,.export-panel-imported{display:none}
 .export-scope-selected:checked~.export-panels .export-panel-all{display:none}
 .export-scope-selected:checked~.export-panels .export-panel-selected{display:block}
+.export-scope-imported:checked~.export-panels .export-panel-all{display:none}
+.export-scope-imported:checked~.export-panels .export-panel-imported{display:block}
 .export-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:0}
 .export-actions button{padding:6px 12px;font-size:11.5px}
 .export-sections{display:flex;flex-direction:column;gap:3px;max-height:280px;overflow:auto;padding:8px;border:1px solid #dbe4ed;background:#fff;border-radius:4px}
+.export-panel-imported{padding:8px 10px;border:1px solid #dbe4ed;border-radius:4px;background:#fff;color:var(--muted);font-size:11.5px;line-height:1.4}
 .export-section-node{display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:4px;min-width:0;margin:0;padding:0}
 .export-tree-lvl-2{padding-left:18px}
 .export-tree-lvl-3{padding-left:36px}
