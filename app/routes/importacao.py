@@ -134,22 +134,40 @@ def _target_section(secoes: list[Secao], fallback: Secao, numero: str | None) ->
 
 
 def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> list[dict]:
-    """Se o usuário está em uma seção específica, usa-a como fallback de numeração.
+    """Usa a seção aberta no upload como fallback de numeração.
 
-    Aplica apenas quando o bloco não trouxe ``secao_numero``; não força override
-    em blocos já numerados pelo parser.
+    Se o parser detectou algum índice compatível com a seção atual, preserva os
+    índices explícitos e preenche só vazios. Se nenhum índice detectado pertence
+    à seção atual/subárvore, assume que o arquivo usa numeração local/incorreta e
+    sugere a seção aberta para todos os blocos extraídos.
     """
     numero_atual = (sec_atual.numero or "").strip()
     if not numero_atual:
         return blocks
+    titulo_atual = sec_atual.titulo or f"Seção {numero_atual}"
+    numeros_detectados = {
+        str(b.get("secao_numero") or "").strip()
+        for b in blocks
+        if str(b.get("secao_numero") or "").strip()
+    }
+    tem_alinhado = any(
+        n == numero_atual or n.startswith(numero_atual + ".")
+        for n in numeros_detectados
+    )
+    forcar_secao_atual = bool(numeros_detectados) and not tem_alinhado
     out: list[dict] = []
     for b in blocks:
         num = str(b.get("secao_numero") or "").strip()
-        if num:
+        if num and not forcar_secao_atual:
             out.append(b)
         else:
             nb = dict(b)
             nb["secao_numero"] = numero_atual
+            nb["secao_id"] = sec_atual.id
+            nb["secao_titulo"] = titulo_atual
+            nb["acao_secao"] = "usar"
+            nb["motivo"] = "seção atual do upload aplicada como referência"
+            nb["confianca"] = max(float(nb.get("confianca") or 0), 0.9)
             out.append(nb)
     return out
 
