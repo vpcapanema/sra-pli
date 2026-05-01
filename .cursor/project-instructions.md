@@ -54,7 +54,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/templates/`: telas Jinja; `app/templates/pdf/relatorio.html` é o template do PDF final.
 - `app/static/`: CSS e assets.
 
-Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra-app` no elemento raiz (`padding-left: var(--sw)` em `app/static/css/app.css` reserva a largura da sidebar fixa). Classes por página usam o bloco Jinja `body_class` (substitui o antigo `body_attrs`).
+Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra-app` no elemento raiz (`padding-left: var(--sw)` em `app/static/css/app.css` reserva a largura da sidebar fixa). Classes por página usam o bloco Jinja `body_class` (substitui o antigo `body_attrs`). A sidebar lista apenas páginas completas, agrupadas por semelhança em menus suspensos; não adicione links para âncoras internas (`#...`) nem árvore de seções no menu lateral.
 
 `app/routes/dev_ui.py`: `GET /dev/modais` (preview local de `window.confirm` via `SRAComplementos`); `GET /dev/preview-emails-notificacao` (página com as 3 mensagens — abertura/lembrete/última chamada); `GET /dev/preview-email-notificacao` (uma mensagem só, iframe `data:text/html;base64,...`); `?raw=1` devolve só o HTML; query opcional `tipo=...`, `relatorio_id=N`. Requer login; ativo com `APP_ENV=development` ou `SRA_MODAL_PREVIEW=1`; `SRA_MODAL_PREVIEW=0` força desligado.
 

@@ -151,7 +151,7 @@ def _setup(db) -> tuple[User, User, User, Relatorio]:
     return u1, u2, u3, rel_base
 
 
-def _fase_abertura(db, u1: User, u2: User, u3: User) -> int:
+def _fase_abertura(db, u1: User, u2: User, u3: User) -> tuple[int, int]:
     print("\n=== abrir_periodo + notificar_autores_abertura ===")
     n_autor_notif = (
         db.query(User)
@@ -203,10 +203,10 @@ def _fase_abertura(db, u1: User, u2: User, u3: User) -> int:
     r1b = abrir_periodo(db, data_referencia=DATA_TESTE)
     assert r1b.pulada_idempotencia
     print(f"  idempotencia ok: pulada={r1b.pulada_idempotencia}")
-    return novo_id
+    return novo_id, n_autor_notif
 
 
-def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
+def _fase_lembrete(db, novo_rel_id: int, u1: User, n_autor_notif: int) -> None:
     print("\n=== enviar_lembretes ===")
     db.query(NotificacaoEnvio).filter(
         NotificacaoEnvio.entrega.has(
@@ -224,7 +224,7 @@ def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
         ignorar_calendario=True,
     )
     print(f"  env={r2.emails_enviados} pul_intervalo={r2.pulados_intervalo}")
-    assert r2.emails_enviados == 2
+    assert r2.emails_enviados == n_autor_notif
     e1 = db.query(EntregaRelatorio).filter_by(
         relatorio_id=novo_rel_id, user_id=u1.id,
     ).one()
@@ -236,7 +236,7 @@ def _fase_lembrete(db, novo_rel_id: int, u1: User) -> None:
         relatorio_id=novo_rel_id,
         ignorar_calendario=True,
     )
-    assert r2b.pulados_intervalo == 2 and r2b.emails_enviados == 0
+    assert r2b.pulados_intervalo == n_autor_notif and r2b.emails_enviados == 0
     print(f"  janela 22h: pulados={r2b.pulados_intervalo} ok")
 
 
@@ -261,7 +261,7 @@ def _fase_recompute(db, novo_rel_id: int, u1: User) -> EntregaRelatorio:
     return e1
 
 
-def _fase_ultima_chamada(db, novo_rel_id: int) -> None:
+def _fase_ultima_chamada(db, novo_rel_id: int, n_autor_notif: int) -> None:
     db.query(NotificacaoEnvio).filter(
         NotificacaoEnvio.entrega.has(
             EntregaRelatorio.relatorio_id == novo_rel_id
@@ -279,9 +279,9 @@ def _fase_ultima_chamada(db, novo_rel_id: int) -> None:
     )
     print(
         f"\n=== ultima_chamada com u1=enviado: env={r3.emails_enviados} "
-        f"(deve ser 1)"
+        f"(deve ser {n_autor_notif - 1})"
     )
-    assert r3.emails_enviados == 1
+    assert r3.emails_enviados == n_autor_notif - 1
 
 
 def _fase_acoes_coord(db, novo_rel_id: int, u2: User, e1: EntregaRelatorio) -> None:
@@ -323,10 +323,10 @@ def main() -> int:
     db = SessionLocal()
     try:
         u1, u2, u3, _base = _setup(db)
-        novo_rel_id = _fase_abertura(db, u1, u2, u3)
-        _fase_lembrete(db, novo_rel_id, u1)
+        novo_rel_id, n_autor_notif = _fase_abertura(db, u1, u2, u3)
+        _fase_lembrete(db, novo_rel_id, u1, n_autor_notif)
         e1 = _fase_recompute(db, novo_rel_id, u1)
-        _fase_ultima_chamada(db, novo_rel_id)
+        _fase_ultima_chamada(db, novo_rel_id, n_autor_notif)
         _fase_acoes_coord(db, novo_rel_id, u2, e1)
     finally:
         print("\n=== cleanup ===")

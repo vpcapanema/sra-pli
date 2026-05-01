@@ -28,15 +28,16 @@
             Concremat–Transplan
           </p>
         </div>
-        <nav>
+        <nav aria-label="Navegação principal">
           <span class="sb-sep">Navegação</span>
           {% set _path = request.url.path %}
           {% set _parts_hub = _path.strip('/').split('/') %}
           {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
-          {% set _on_rel = (_path == '/dashboard' or (_path.startswith('/relatorios') and not _path.endswith('/upload-conteudo'))) and not _relatorio_sumario %}
-          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') or _relatorio_sumario %}
+          {% set _on_rel = _path == '/dashboard' or _relatorio_sumario or _path.endswith('/entregas') %}
+          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') %}
           {% set _on_usu = _path.startswith('/usuarios') %}
           {% set _on_crt = _path.startswith('/governanca-relatorio') %}
+          {% set _on_suporte = _path.startswith('/mapa-aplicacao') or _path.startswith('/dev/') %}
           {% set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %}
           {% set _open_rel = 'open' if _on_rel else '' %}
           {% set _cls_upload = 'ni-grp ni-grp-active' if _on_upload else 'ni-grp' %}
@@ -45,6 +46,8 @@
           {% set _open_usu = 'open' if _on_usu else '' %}
           {% set _cls_crt = 'ni-grp ni-grp-active' if _on_crt else 'ni-grp' %}
           {% set _open_crt = 'open' if _on_crt else '' %}
+          {% set _cls_suporte = 'ni-grp ni-grp-active' if _on_suporte else 'ni-grp' %}
+          {% set _open_suporte = 'open' if _on_suporte else '' %}
           {% set _hub_rid = rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
           {% set _hub_sid = none %}
           {% if sec is defined and sec %}
@@ -56,9 +59,10 @@
             {% set _hub_sid = request.state.sra_hub_primeira_secao_id %}
           {% endif %}
           {% set _url_sumario_hub = ("/relatorios/" ~ _hub_rid) if _hub_rid else "/painel-upload" %}
-          {% set _url_upload_ancoras = (
+          {% set _url_upload_hub = (
             "/relatorios/" ~ _hub_rid ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo"
           ) if (_hub_rid and _hub_sid) else "/painel-upload" %}
+          {% set _url_entregas_hub = ("/relatorios/" ~ _hub_rid ~ "/entregas") if _hub_rid else "/painel-upload" %}
           {% if user.role in ['admin','coordenador'] %}
             <details class="{{ _cls_rel }}" {{ _open_rel }}>
               <summary class="ni ni-toggle">
@@ -66,103 +70,57 @@
                 <span class="ni-caret" aria-hidden="true">▾</span>
               </summary>
               <div class="ni-sub">
-                <a class="ni-sub-link" href="/dashboard">Página inicial</a>
-                <a class="ni-sub-link" href="/dashboard#ss-novo">Novo relatório</a>
-                <a class="ni-sub-link" href="/dashboard#ss-cadastrados">Relatórios cadastrados</a>
+                <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
+                <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário do relatório</a>
+                <a class="ni-sub-link" href="{{ _url_entregas_hub }}">Entregas do relatório</a>
               </div>
             </details>
           {% endif %}
           <details class="{{ _cls_upload }}" {{ _open_upload }}>
             <summary class="ni ni-toggle">
-              <span class="num">02</span><span class="nlbl">Gerenciamento de seção e upload</span>
+              <span class="num">02</span><span class="nlbl">Conteúdo e importação</span>
               <span class="ni-caret" aria-hidden="true">▾</span>
             </summary>
             <div class="ni-sub">
-              <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Página inicial</a>
+              <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário do relatório</a>
+              <a class="ni-sub-link" href="{{ _url_upload_hub }}">Editor de conteúdo</a>
               <a class="ni-sub-link" href="/modelos-word-importacao">Modelos Word (.dotx)</a>
-              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-coord">Coordenação da seção</a>
-              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#importar-conteudo">Importar conteúdo</a>
-              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-blocos">Blocos extraídos</a>
-              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-editar">Editar bloco existente</a>
-              <a class="ni-sub-link" href="{{ _url_upload_ancoras }}#ss-preview">Pré-visualização</a>
             </div>
           </details>
           {% if user.role in ['admin','coordenador'] %}
             <details class="{{ _cls_usu }}" {{ _open_usu }}>
               <summary class="ni ni-toggle">
-                <span class="num">03</span><span class="nlbl">Usuários</span>
+                <span class="num">03</span><span class="nlbl">Pessoas e permissões</span>
                 <span class="ni-caret" aria-hidden="true">▾</span>
               </summary>
               <div class="ni-sub">
-                <a class="ni-sub-link" href="/usuarios">Página inicial</a>
-                <a class="ni-sub-link" href="/usuarios#ss-novo-usuario">Novo usuário</a>
-                <a class="ni-sub-link" href="/usuarios#ss-equipe">Equipe cadastrada</a>
+                <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
               </div>
             </details>
             <details class="{{ _cls_crt }}" {{ _open_crt }}>
               <summary class="ni ni-toggle">
-                <span class="num">04</span><span class="nlbl">Coordenação de Relatório Técnico</span>
+                <span class="num">04</span><span class="nlbl">Governança</span>
                 <span class="ni-caret" aria-hidden="true">▾</span>
               </summary>
               <div class="ni-sub">
                 <a class="ni-sub-link" href="/governanca-relatorio">Governança do relatório</a>
               </div>
             </details>
-          {% endif %}
-        </nav>
-        {% if rel is defined and rel %}
-          {% macro render_no_secao(no, rel) %}
-            {% set s = no.sec %}
-            {% set _classe_ativa = 'ni-grp-active' if no.ativa else '' %}
-            {% set _resp = s.responsavel.nome if s.responsavel else '' %}
-            {% set _tooltip = s.numero ~ ' – ' ~ s.titulo ~ (' · ' ~ _resp if _resp else '') %}
-            {% set _cls_no = 'ni-grp ' ~ _classe_ativa %}
-            {% set _open_no = 'open' if no.aberta else '' %}
-            {% set _depth = no.nivel - 1 %}
-            {% if no.filhos %}
-              <details class="{{ _cls_no }}" {{ _open_no }} data-ni-depth="{{ _depth }}">
-                <summary class="ni ni-toggle" title="{{ _tooltip }}">
-                  <span class="nlbl-num">{{ s.numero }}</span>
-                  <span class="nlbl">{{ s.titulo }}</span>
-                  {% if _resp %}<span class="ni-resp">· {{ _resp }}</span>{% endif %}
-                  <span class="ni-caret" aria-hidden="true">▾</span>
-                </summary>
-                <div class="ni-sub">
-                  <a class="ni-sub-link ni-sub-link-self {{ _classe_ativa }}" href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" title="Abrir esta seção" data-ni-depth="{{ no.nivel }}">
-                    <span class="ni-self-arrow" aria-hidden="true">↳</span>
-                    <span class="nlbl">Conteúdo desta seção</span>
-                  </a>
-                  {% for filho in no.filhos %}{{ render_no_secao(filho, rel) }}{% endfor %}
-                </div>
-              </details>
-            {% else %}
-              <a class="ni-sub-link {{ _classe_ativa }}" href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo" title="{{ _tooltip }}" data-ni-depth="{{ _depth }}">
-                <span class="nlbl-num">{{ s.numero }}</span>
-                <span class="nlbl">{{ s.titulo }}</span>
-                {% if _resp %}<span class="ni-resp">· {{ _resp }}</span>{% endif %}
-              </a>
-            {% endif %}
-          {% endmacro %}
-          {% set _arvore = rel.secoes | secoes_arvore((sec.numero if sec is defined and sec else None), false) %}
-          <nav class="sb-painel" aria-label="Painel de seções do relatório">
-            <span class="sb-sep">Painel de seções</span>
-            <details class="ni-grp sb-painel-relatorio">
-              <summary class="ni ni-toggle sb-painel-relatorio-sum" title="{{ rel.codigo }} · {{ rel.mes_referencia }}">
-                <span class="sb-painel-relatorio-head">
-                  <span class="sb-painel-cod">{{ rel.codigo }}</span>
-                  <span class="sb-painel-mes">{{ rel.mes_referencia }}</span>
-                </span>
+            <details class="{{ _cls_suporte }}" {{ _open_suporte }}>
+              <summary class="ni ni-toggle">
+                <span class="num">05</span><span class="nlbl">Suporte e diagnóstico</span>
                 <span class="ni-caret" aria-hidden="true">▾</span>
               </summary>
-              <div class="ni-sub sb-painel-arvore" aria-label="Árvore de seções">
-                {% for no in _arvore %}{{ render_no_secao(no, rel) }}{% endfor %}
-                {% if not _arvore %}
-                  <p class="sb-painel-vazio">Sem seções cadastradas.</p>
+              <div class="ni-sub">
+                <a class="ni-sub-link" href="/mapa-aplicacao">Mapa da aplicação</a>
+                {% if request.state.sra_modais_preview_allowed %}
+                  <a class="ni-sub-link" href="/dev/modais">Prévia de modais</a>
+                  <a class="ni-sub-link" href="/dev/preview-emails-notificacao">Prévia de e-mails</a>
                 {% endif %}
               </div>
             </details>
-          </nav>
-        {% endif %}
+          {% endif %}
+        </nav>
         <div id="sb-foot">
           {{ user.nome }}
           <br>

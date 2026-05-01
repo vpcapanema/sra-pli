@@ -23,8 +23,8 @@ body.sb-resizing #main,body.sb-resizing #sb{transition:none}
 #sb-hdr{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
 #sb-hdr h1{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--green)}
 #sb-hdr p{font-size:10.5px;color:rgba(255,255,255,.5);margin-top:4px;line-height:1.5}
-/* Menu principal (sem .sb-painel). Nunca aplicar flex:1 a nav.sb-painel por #sb nav — empurra a árvore para fora do fold. */
-#sb > nav:not(.sb-painel){padding:10px 0;flex:0 0 auto}
+/* Menu principal: links só para páginas; seções internas ficam dentro de cada tela. */
+#sb > nav{padding:10px 0;flex:0 0 auto}
 .ni{display:flex;align-items:center;gap:10px;padding:9px 18px;font-size:11.5px;color:rgba(255,255,255,.7);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:all .15s}
 .ni:hover,.ni.active{background:rgba(62,194,110,.1);color:#fff;border-left-color:var(--green);text-decoration:none}
 .ni .num{font-size:10px;background:rgba(255,255,255,.1);border-radius:3px;padding:2px 7px;min-width:22px;text-align:center;font-weight:600}
@@ -357,46 +357,6 @@ details.bloco .det-body{padding:14px 16px}
 .ni-sub{display:flex;flex-direction:column;background:rgba(0,0,0,.18)}
 .ni-sub-link{display:block;padding:6px 14px 6px 50px;font-size:10.5px;color:rgba(255,255,255,.65);text-decoration:none;border-left:2px solid transparent;transition:all .15s}
 .ni-sub-link:hover{background:rgba(62,194,110,.08);color:#fff;text-decoration:none;border-left-color:rgba(62,194,110,.45)}
-#sb nav.sb-painel{
-  flex:0 1 auto;
-  min-height:0;
-  overflow:visible;
-  display:flex;
-  flex-direction:column;
-  padding:0 0 8px;
-  border-top:1px solid rgba(255,255,255,.08);
-  margin-top:8px;
-}
-.sb-painel .sb-painel-arvore{
-  flex:0 1 auto;
-  min-height:0;
-  overflow:visible;
-  max-height:none;
-}
-.sb-painel-cod{font-weight:600;color:var(--green);letter-spacing:.04em;font-size:10.5px}
-.sb-painel-mes{font-style:italic;font-size:10px;color:rgba(255,255,255,.55)}
-.sb-painel-arvore{display:flex;flex-direction:column}
-.sb-painel-relatorio-sum{align-items:center}
-.sb-painel-relatorio-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;min-width:0;line-height:1.25}
-/* details + flex: recolher conteúdo; inclui o primeiro nível (árvore) dentro do relatório. */
-.sb-painel details.ni-grp:not([open]) > .ni-sub{display:none}
-.sb-painel-vazio{font-size:10.5px;color:rgba(255,255,255,.4);font-style:italic;padding:6px 18px;margin:0}
-.sb-painel .ni-grp>summary.ni-toggle{overflow:hidden}
-.sb-painel a.ni-sub-link{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;padding:6px 14px 6px 18px}
-.sb-painel [data-ni-depth="0"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="0"]{padding-left:18px}
-.sb-painel [data-ni-depth="1"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="1"]{padding-left:32px}
-.sb-painel [data-ni-depth="2"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="2"]{padding-left:46px}
-.sb-painel [data-ni-depth="3"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="3"]{padding-left:60px}
-.sb-painel [data-ni-depth="4"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="4"]{padding-left:74px}
-.sb-painel [data-ni-depth="5"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="5"]{padding-left:88px}
-.sb-painel [data-ni-depth="6"]>summary.ni-toggle,.sb-painel a.ni-sub-link[data-ni-depth="6"]{padding-left:102px}
-.sb-painel a.ni-sub-link.ni-grp-active{background:rgba(62,194,110,.1);color:#fff;border-left-color:var(--green)}
-.sb-painel .nlbl-num{font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;flex:0 0 auto;font-size:10px}
-.sb-painel .nlbl{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sb-painel .ni-resp{flex:0 1 auto;min-width:0;font-size:9.5px;color:rgba(255,255,255,.4);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sb-painel .ni-self-arrow{flex:0 0 auto;color:rgba(255,255,255,.35);font-size:11px}
-.sb-painel a.ni-sub-link-self{font-style:italic;color:rgba(255,255,255,.55)}
-.sb-painel a.ni-sub-link-self:hover{font-style:italic}
 .ss:target{scroll-margin-top:80px}
 .ss:target>.ss-hdr{animation:ss-target-pulse 1.4s ease-out 1;box-shadow:inset 0 0 0 2px var(--green)}
 @keyframes ss-target-pulse{
