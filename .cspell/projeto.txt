@@ -136,9 +136,9 @@ excluida
 excluidas
 excluido
 excluidos
-exibicao
 exclusao
 exclusoes
+exibicao
 existente
 existentes
 expirada
@@ -351,9 +351,9 @@ repositorio
 repositorios
 representacao
 representacoes
-restricao
 resolucao
 responsavel
+restricao
 reusam
 reuse
 reusem
@@ -668,6 +668,7 @@ Marco
 NFKD
 ninguem
 notif
+observacao
 opt-in
 opt-out
 optin
@@ -681,6 +682,7 @@ senao
 sendgrid
 SendGrid
 SENDGRID
+situacao
 slug
 slugify
 SMTP

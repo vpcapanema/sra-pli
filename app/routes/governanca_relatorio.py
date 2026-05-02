@@ -271,6 +271,216 @@ def _cron_status_real() -> list[dict[str, Any]]:
     return out
 
 
+def _cron_next(cron_status: list[dict[str, Any]], labels: set[str]) -> datetime | None:
+    datas = [
+        row["next_execution"]
+        for row in cron_status
+        if row.get("label") in labels and row.get("next_execution") is not None
+    ]
+    return min(datas) if datas else None
+
+
+def _autor_status_notificacao(
+    autor: User,
+    entrega: EntregaRelatorio | None,
+    tipo: str,
+) -> dict[str, Any]:
+    if not autor.notificacoes_ativas:
+        return {
+            "nome": autor.nome,
+            "email": autor.email,
+            "email2": autor.email2,
+            "estado": "Pausado",
+            "tag": "tag-neutral",
+            "quando": None,
+            "motivo": "Este autor está fora do ciclo de notificações.",
+            "enviado": False,
+            "contabilizar": False,
+        }
+    eventos = [n for n in (entrega.notificacoes if entrega else []) if n.tipo == tipo]
+    sucessos = [n for n in eventos if n.sucesso]
+    falhas = [n for n in eventos if not n.sucesso]
+    if sucessos:
+        ultimo = max(sucessos, key=lambda n: n.enviada_em)
+        return {
+            "nome": autor.nome,
+            "email": autor.email,
+            "email2": autor.email2,
+            "estado": "Enviado",
+            "tag": "tag-ok",
+            "quando": ultimo.enviada_em,
+            "motivo": "Envio confirmado pelo sistema.",
+            "enviado": True,
+            "contabilizar": True,
+        }
+    if falhas:
+        ultimo = max(falhas, key=lambda n: n.enviada_em)
+        return {
+            "nome": autor.nome,
+            "email": autor.email,
+            "email2": autor.email2,
+            "estado": "Falhou",
+            "tag": "tag-err",
+            "quando": ultimo.enviada_em,
+            "motivo": ultimo.erro or "O serviço de e-mail não confirmou o envio.",
+            "enviado": False,
+            "contabilizar": True,
+        }
+    return {
+        "nome": autor.nome,
+        "email": autor.email,
+        "email2": autor.email2,
+        "estado": "Ainda não enviado",
+        "tag": "tag-warn",
+        "quando": None,
+        "motivo": "Aguardando a rotina de envio ou execução manual.",
+        "enviado": False,
+        "contabilizar": True,
+    }
+
+
+def _linha_notificacao_ciclo(
+    relatorio: Relatorio | None,
+    autores: list[User],
+    entregas_por_user: dict[int, EntregaRelatorio],
+    spec: dict[str, Any],
+) -> dict[str, Any]:
+    detalhes = [
+        _autor_status_notificacao(autor, entregas_por_user.get(autor.id), spec["tipo"])
+        for autor in autores
+    ]
+    total = sum(1 for item in detalhes if item["contabilizar"])
+    enviados = sum(1 for item in detalhes if item["contabilizar"] and item["enviado"])
+    falhas = [item for item in detalhes if item["estado"] == "Falhou"]
+    quando = max(
+        (item["quando"] for item in detalhes if item["quando"] is not None),
+        default=None,
+    )
+    if relatorio is None:
+        estado = "Sem relatório"
+        tag = "tag-neutral"
+        mensagem = "Crie ou abra um relatório antes de enviar notificações."
+    elif total == 0:
+        estado = "Sem autores ativos"
+        tag = "tag-neutral"
+        mensagem = "Nenhum autor está marcado para receber notificações."
+    elif enviados == total:
+        estado = "Enviado"
+        tag = "tag-ok"
+        mensagem = "Todos os autores ativos receberam esta comunicação."
+    elif falhas:
+        estado = "Atenção"
+        tag = "tag-err"
+        mensagem = "Há envio com falha. Abra a lista de autores para ver o motivo."
+    elif enviados:
+        estado = "Parcial"
+        tag = "tag-warn"
+        mensagem = f"{total - enviados} autor(es) ainda não têm envio confirmado."
+    else:
+        estado = "Aguardando envio"
+        tag = "tag-warn"
+        mensagem = "Nenhum envio confirmado para esta etapa até agora."
+    return {
+        "tipo": "notificacao",
+        "titulo": spec["titulo"],
+        "estado": estado,
+        "tag": tag,
+        "quando": quando,
+        "autores_texto": f"{enviados}/{total} autores",
+        "modal_id": spec["modal_id"],
+        "detalhes": detalhes,
+        "proxima_execucao": spec["proxima_execucao"],
+        "mensagem": mensagem,
+    }
+
+
+def _linha_relatorio_ciclo(
+    relatorio: Relatorio | None,
+    proxima_execucao: datetime | None,
+) -> dict[str, Any]:
+    if relatorio is None:
+        return {
+            "tipo": "relatorio",
+            "titulo": "Relatório do mês",
+            "estado": "Ainda não gerado",
+            "tag": "tag-warn",
+            "quando": None,
+            "autores_texto": "—",
+            "modal_id": "",
+            "detalhes": [],
+            "proxima_execucao": proxima_execucao,
+            "mensagem": "O próximo relatório será criado pela rotina de abertura ou pela execução manual.",
+        }
+    aberto = relatorio.status in ("aberto", "em_revisao")
+    return {
+        "tipo": "relatorio",
+        "titulo": "Relatório do mês",
+        "estado": "Aberto" if aberto else relatorio.status.replace("_", " "),
+        "tag": "tag-ok" if aberto else "tag-neutral",
+        "quando": relatorio.created_at,
+        "autores_texto": "—",
+        "modal_id": "",
+        "detalhes": [],
+        "proxima_execucao": proxima_execucao,
+        "mensagem": (
+            f"{relatorio.codigo} está disponível para preenchimento."
+            if aberto
+            else f"{relatorio.codigo} não está aberto para novos envios."
+        ),
+    }
+
+
+def _ciclo_execucao_rows(
+    cron_status: list[dict[str, Any]],
+    relatorio: Relatorio | None,
+    autores: list[User],
+    entregas: list[EntregaRelatorio],
+) -> list[dict[str, Any]]:
+    entregas_por_user = {ent.user_id: ent for ent in entregas}
+    return [
+        _linha_relatorio_ciclo(
+            relatorio,
+            _cron_next(cron_status, {"Abrir período"}),
+        ),
+        _linha_notificacao_ciclo(
+            relatorio=relatorio,
+            autores=autores,
+            entregas_por_user=entregas_por_user,
+            spec={
+                "titulo": "Aviso de abertura",
+                "tipo": "abertura",
+                "proxima_execucao": _cron_next(cron_status, {"Abrir período"}),
+                "modal_id": "gov-modal-abertura",
+            },
+        ),
+        _linha_notificacao_ciclo(
+            relatorio=relatorio,
+            autores=autores,
+            entregas_por_user=entregas_por_user,
+            spec={
+                "titulo": "Lembretes aos autores",
+                "tipo": "lembrete",
+                "proxima_execucao": _cron_next(
+                    cron_status,
+                    {"Lembrete dia 5", "Lembrete dia 8"},
+                ),
+                "modal_id": "gov-modal-lembrete",
+            },
+        ),
+        _linha_notificacao_ciclo(
+            relatorio=relatorio,
+            autores=autores,
+            entregas_por_user=entregas_por_user,
+            spec={
+                "titulo": "Última chamada",
+                "tipo": "ultima_chamada",
+                "proxima_execucao": _cron_next(cron_status, {"Última chamada"}),
+                "modal_id": "gov-modal-ultima-chamada",
+            },
+        ),
+    ]
+
+
 def _redirect_gov(ok: str, relatorio_id: str | int | None = None) -> RedirectResponse:
     rid = str(relatorio_id or "").strip()
     suffix = f"?ok={ok}"
@@ -322,6 +532,16 @@ def _governanca_template_context(request: Request, db: Session, user: User) -> d
     relatorio_id = _relatorio_filtro_id(request, db)
     listas = _governanca_carregar_listas(db, relatorio_id=relatorio_id)
     resultado_teste = request.session.pop(_GOV_TESTE_SESS_KEY, None)
+    cron_status = _cron_status_real()
+    relatorio_filtro = next((r for r in listas[5] if r.id == relatorio_id), None)
+    entregas_ciclo = (
+        db.query(EntregaRelatorio)
+        .options(joinedload(EntregaRelatorio.notificacoes))
+        .filter(EntregaRelatorio.relatorio_id == relatorio_id)
+        .all()
+        if relatorio_id is not None
+        else []
+    )
 
     return {
         "user": user,
@@ -333,7 +553,12 @@ def _governanca_template_context(request: Request, db: Session, user: User) -> d
         "relatorios_filtro": listas[5],
         "relatorio_filtro_id": relatorio_id,
         "relatorios_abertos": listas[6],
-        "cron_status": _cron_status_real(),
+        "ciclo_execucao_rows": _ciclo_execucao_rows(
+            cron_status,
+            relatorio_filtro,
+            listas[4],
+            entregas_ciclo,
+        ),
         "entrega_status_ops": ENTREGA_STATUS_VALIDOS,
         "modo_envio": modo_atual(),
         "resultado_teste": resultado_teste,

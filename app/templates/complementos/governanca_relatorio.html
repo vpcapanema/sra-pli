@@ -189,69 +189,104 @@
 
       <details class="bloco" open id="ss-status-cron">
         <summary>
-          <strong>2. Status de execução dos jobs</strong>
-          <span class="meta-inline">cron-job.org · execução HTTP</span>
+          <strong>2. Acompanhamento do ciclo</strong>
+          <span class="meta-inline">relatório, avisos e próximos envios</span>
         </summary>
         <div class="det-body">
           <p class="sdesc">
-            Leitura rápida: <strong>Job</strong> é a rotina agendada; <strong>Estado</strong> mostra se ela está ativa no cron externo; <strong>Última execução</strong> é quando rodou pela última vez; <strong>Resultado</strong> é a resposta HTTP da aplicação; <strong>Próxima execução</strong> é o próximo disparo previsto; <strong>Duração</strong> mede quanto tempo a chamada levou.
+            Mostra, em linguagem operacional, se o relatório do ciclo já foi aberto e como está o envio das mensagens aos autores. Clique na quantidade de autores para ver quem recebeu, quem ainda falta e o motivo quando houve falha.
           </p>
-          <table>
+          <table class="gov-ciclo-table">
             <thead>
               <tr>
-                <th>Job</th>
-                <th>Estado</th>
-                <th>Última execução</th>
-                <th>Resultado</th>
-                <th>Próxima execução</th>
-                <th>Duração</th>
+                <th>Etapa</th>
+                <th>Situação</th>
+                <th>Quando aconteceu</th>
+                <th>Autores</th>
+                <th>Próxima vez</th>
+                <th>Observação</th>
               </tr>
             </thead>
             <tbody>
-              {% for row in cron_status %}
+              {% for row in ciclo_execucao_rows %}
                 <tr>
                   <td>
-                    <strong>{{ row.label }}</strong>
-                    <br>
-                    <span class="muted-dash">#{{ row.job_id }}</span>
+                    <strong>{{ row.titulo }}</strong>
                   </td>
                   <td>
-                    {% if row.available %}
-                      {% if row.enabled %}
-                        <span class="tag tag-ok">ativo</span>
-                      {% else %}
-                        <span class="tag tag-warn">pausado</span>
-                      {% endif %}
-                    {% else %}
-                      <span class="tag tag-neutral" title="{{ row.error or 'indisponível' }}">sem consulta</span>
-                    {% endif %}
+                    <span class="tag {{ row.tag }}">{{ row.estado }}</span>
                   </td>
-                  <td>{{ fmt_dt(row.last_execution) if row.available else '—' }}</td>
+                  <td>{{ fmt_dt(row.quando) }}</td>
                   <td>
-                    {% if row.available and row.last_http_status %}
-                      {% if row.last_http_status == 200 %}
-                        <span class="tag tag-ok">HTTP {{ row.last_http_status }}</span>
-                      {% else %}
-                        <span class="tag tag-err">HTTP {{ row.last_http_status }}</span>
-                      {% endif %}
-                    {% elif row.available %}
-                      <span class="tag tag-neutral">sem histórico</span>
+                    {% if row.modal_id %}
+                      <button type="button"
+                              class="gov-link-button"
+                              data-open-gov-modal="{{ row.modal_id }}">
+                        {{ row.autores_texto }}
+                      </button>
                     {% else %}
-                      <span class="muted-dash">—</span>
+                      <span class="muted-dash">{{ row.autores_texto }}</span>
                     {% endif %}
                   </td>
-                  <td>{{ fmt_dt(row.next_execution) if row.available else '—' }}</td>
-                  <td>
-                    {% if row.available and row.last_duration_ms is not none %}
-                      {{ row.last_duration_ms }} ms
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
+                  <td>{{ fmt_dt(row.proxima_execucao) }}</td>
+                  <td>{{ row.mensagem }}</td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
+
+          {% for row in ciclo_execucao_rows %}
+            {% if row.modal_id %}
+              <div class="gov-modal is-hidden"
+                   id="{{ row.modal_id }}"
+                   role="dialog"
+                   aria-modal="true"
+                   aria-labelledby="{{ row.modal_id }}-title">
+                <div class="gov-modal-box">
+                  <div class="gov-modal-hdr">
+                    <strong id="{{ row.modal_id }}-title">{{ row.titulo }} · autores</strong>
+                    <button type="button"
+                            class="gov-modal-close"
+                            data-close-gov-modal="{{ row.modal_id }}"
+                            aria-label="Fechar">×</button>
+                  </div>
+                  <div class="gov-modal-body">
+                    <p class="sdesc">
+                      Lista de autores cadastrados para o ciclo. Autores pausados aparecem para auditoria, mas não entram na contagem de envio.
+                    </p>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Autor</th>
+                          <th>E-mails cadastrados</th>
+                          <th>Situação</th>
+                          <th>Quando</th>
+                          <th>Explicação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for autor in row.detalhes %}
+                          <tr>
+                            <td><strong>{{ autor.nome }}</strong></td>
+                            <td>
+                              {{ autor.email }}
+                              {% if autor.email2 and autor.email2 != autor.email %}
+                                <br>
+                                <span class="muted-dash">{{ autor.email2 }}</span>
+                              {% endif %}
+                            </td>
+                            <td><span class="tag {{ autor.tag }}">{{ autor.estado }}</span></td>
+                            <td>{{ fmt_dt(autor.quando) }}</td>
+                            <td>{{ autor.motivo }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
         </div>
       </details>
 
@@ -793,4 +828,33 @@
       </table>
     </div>
   </section>
+
+  <script>
+    (() => {
+      const closeModal = (modal) => {
+        if (modal) modal.classList.add("is-hidden");
+      };
+      document.querySelectorAll("[data-open-gov-modal]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const modal = document.getElementById(btn.dataset.openGovModal);
+          if (modal) modal.classList.remove("is-hidden");
+        });
+      });
+      document.querySelectorAll("[data-close-gov-modal]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          closeModal(document.getElementById(btn.dataset.closeGovModal));
+        });
+      });
+      document.querySelectorAll(".gov-modal").forEach((modal) => {
+        modal.addEventListener("click", (ev) => {
+          if (ev.target === modal) closeModal(modal);
+        });
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") {
+          document.querySelectorAll(".gov-modal:not(.is-hidden)").forEach(closeModal);
+        }
+      });
+    })();
+  </script>
 {% endblock %}
