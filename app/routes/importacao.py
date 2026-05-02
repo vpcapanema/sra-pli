@@ -18,7 +18,12 @@ from sqlalchemy.orm import Session
 from ..auth import current_user
 from ..config import settings
 from ..db import get_db, tx_session
-from ..list_lines import block_is_homogeneous_list, line_is_list_item, list_line_body
+from ..list_lines import (
+    block_is_homogeneous_list,
+    line_is_list_item,
+    list_line_body,
+    split_markdown_pipe_row_cells,
+)
 from ..models import Bloco, Figura, Secao, User
 from ..numeracao import consolidar_referencias
 
@@ -449,15 +454,6 @@ def _is_table_separator(line: str) -> bool:
     return bool(_TABLE_SEP_RE.fullmatch(s) or _ASCII_SEP_RE.fullmatch(s))
 
 
-def _split_table_cells(line: str) -> list[str]:
-    s = (line or "").strip()
-    if s.startswith("|"):
-        s = s[1:]
-    if s.endswith("|"):
-        s = s[:-1]
-    return [c.strip() for c in s.split("|")]
-
-
 def _tabela_preview(conteudo: str) -> dict:
     """Constrói um preview compacto da tabela para o frontend renderizar como
     mini-table (Opção B). Limita a ``_PREVIEW_MAX_ROWS`` x ``_PREVIEW_MAX_COLS``
@@ -466,7 +462,7 @@ def _tabela_preview(conteudo: str) -> dict:
     lines = [ln for ln in raw_lines if not _is_table_separator(ln)]
     if not lines:
         return {"headers": [], "rows": [], "total_rows": 0, "total_cols": 0, "truncated_rows": False, "truncated_cols": False}
-    cells = [_split_table_cells(ln) for ln in lines]
+    cells = [split_markdown_pipe_row_cells(ln) for ln in lines]
     cols_total = max((len(r) for r in cells), default=0)
     headers_full = (cells[0] + [""] * cols_total)[:cols_total]
     rows_full = [(r + [""] * cols_total)[:cols_total] for r in cells[1:]]

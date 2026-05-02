@@ -5,25 +5,17 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from fastapi.responses import Response, HTMLResponse
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Relatorio, Secao
+from ..models import Relatorio, User
 from ..auth import current_user
 from ..docx_render import render_docx
 from ..pdf_render import render_pdf, render_html
-from .pages import response_dashboard, response_login
+from ..ref_resolve import carregar_relatorio_com_secoes_e_blocos
+from .pages import response_dashboard, response_login, user_coord_ou_admin_ou_login
 
 router = APIRouter()
-
-
-def _get_relatorio_completo(db: Session, rel_id: int) -> Relatorio | None:
-    return (
-        db.query(Relatorio)
-        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
-        .filter(Relatorio.id == rel_id)
-        .one_or_none()
-    )
 
 
 def _section_filter(rel: Relatorio, escopo: str, secao_ids: list[int]) -> set[int] | None:
@@ -74,7 +66,7 @@ def gerar_pdf(
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    rel = _get_relatorio_completo(db, rel_id)
+    rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         raise HTTPException(404)
     section_filter = _section_filter(rel, "selecionadas", secao_ids) if secao_ids else None
@@ -92,7 +84,7 @@ def preview_html(rel_id: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    rel = _get_relatorio_completo(db, rel_id)
+    rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         return response_dashboard(request, db)
     html = render_html(db, rel)
@@ -109,7 +101,7 @@ def exportar_relatorio(
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    rel = _get_relatorio_completo(db, rel_id)
+    rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         raise HTTPException(404)
     section_ids = _section_filter(rel, query.escopo, query.secao_ids)
@@ -143,12 +135,11 @@ def exportar_para_assinatura(
     no escopo inteiro do relatório, mais um README pequeno indicando versão e
     data de geração. Restrito a admin/coordenador (dado o uso final).
     """
-    user = current_user(request, db)
-    if not user:
-        return response_login(request)
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
-    rel = _get_relatorio_completo(db, rel_id)
+    authz = user_coord_ou_admin_ou_login(request, db)
+    if not isinstance(authz, User):
+        return authz
+
+    rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         raise HTTPException(404)
 

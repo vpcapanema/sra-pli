@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from .models import Relatorio, Figura
 from . import ref_resolve
+from .list_lines import split_markdown_pipe_row_cells
 
 
 @dataclass(frozen=True)
@@ -135,19 +136,11 @@ def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "
             return True
         return False
 
-    def _split_cells(ln: str) -> list[str]:
-        s = ln.strip()
-        if s.startswith("|"):
-            s = s[1:]
-        if s.endswith("|"):
-            s = s[:-1]
-        return [c.strip() for c in s.split("|")]
-
     linhas = [ln for ln in linhas_brutas if not _is_separator(ln)]
     if not linhas:
         return ""
-    cab = _split_cells(linhas[0])
-    corpo_linhas = [_split_cells(ln) for ln in linhas[1:]]
+    cab = split_markdown_pipe_row_cells(linhas[0])
+    corpo_linhas = [split_markdown_pipe_row_cells(ln) for ln in linhas[1:]]
     if legenda:
         cap_html = f'<div class="cap">Tabela {numero} — {_esc(legenda)}</div>'
     else:

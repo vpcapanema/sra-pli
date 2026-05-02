@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from ..auth import current_user
 from ..db import get_db
 from ..mapa_aplicacao_catalog import PaginaComplementoMeta, meta_por_arquivo
-from .pages import response_login, templates
+from ..models import User
+from .pages import templates, user_coord_ou_admin_ou_login
 
 router = APIRouter()
 
@@ -60,11 +60,10 @@ def _meta_padrao(nome_ficheiro: str) -> PaginaComplementoMeta:
 @router.get("/mapa-aplicacao")
 def mapa_aplicacao_pagina(request: Request, db: Session = Depends(get_db)):
     """Página interna com cartões para cada ficheiro em ``templates/complementos``."""
-    user = current_user(request, db)
-    if not user:
-        return response_login(request)
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
+    authz = user_coord_ou_admin_ou_login(request, db)
+    if not isinstance(authz, User):
+        return authz
+    user = authz
 
     metas = meta_por_arquivo()
     paginas: list[dict[str, str | bool]] = []

@@ -11,8 +11,8 @@ from ..models import Relatorio, Secao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
 from .pages import response_dashboard, response_relatorio_detail
 from .relatorios import (
-    _exigir_relatorio_editavel,
-    _u_or_login,
+    _admin_coord_ou_login,
+    _admin_coord_relatorio_mutavel,
 )
 
 router = APIRouter()
@@ -20,12 +20,9 @@ router = APIRouter()
 
 @router.post("/{rel_id}/excluir")
 def excluir_relatorio(rel_id: int, request: Request, db: Session = Depends(get_db)):
-    u, p = _u_or_login(request, db)
+    u, p = _admin_coord_ou_login(request, db)
     if p is not None:
         return p
-    user = u
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
     # Não usar ``with db.begin()`` aqui: ``_u_or_login`` já disparou SELECT na
     # sessão ``db`` e o SQLAlchemy recusa um segundo ``begin()`` na mesma Session.
     # DELETE em sessão dedicada (transação explícita); CASCADE no Postgres.
@@ -45,12 +42,9 @@ def excluir_subsecao(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    u, p = _u_or_login(request, db)
-    if p is not None:
-        return p
-    if u.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
-    _exigir_relatorio_editavel(db, rel_id)
+    redir = _admin_coord_relatorio_mutavel(request, db, rel_id)
+    if redir is not None:
+        return redir
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)

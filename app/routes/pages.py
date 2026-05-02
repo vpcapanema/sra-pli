@@ -2,7 +2,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
@@ -78,6 +78,19 @@ def response_login(
         {"error": error, "notice": notice},
         status_code=status_code,
     )
+
+
+def user_coord_ou_admin_ou_login(request: Request, db: Session) -> User | Response:
+    """Sessão obrigatória; apenas coordenador ou admin (403 caso contrário)."""
+    user = current_user(request, db)
+    if not user:
+        return response_login(request)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(
+            403,
+            detail="Acesso restrito a coordenador/admin.",
+        )
+    return user
 
 
 def response_client_goto(path: str) -> HTMLResponse:

@@ -247,3 +247,13 @@ def mixed_texto_paragrafos_e_listas_to_html(texto: str) -> str:
         i += 1
     flush_para()
     return "".join(out)
+
+
+def split_markdown_pipe_row_cells(line: str) -> list[str]:
+    """Células de uma linha de grelha Markdown (pipes exteriores opcionais)."""
+    s = (line or "").strip()
+    if s.startswith("|"):
+        s = s[1:]
+    if s.endswith("|"):
+        s = s[:-1]
+    return [c.strip() for c in s.split("|")]

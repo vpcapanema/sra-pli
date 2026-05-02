@@ -1,5 +1,6 @@
 # pyright: reportPrivateUsage=false
 import re
+from dataclasses import dataclass
 from datetime import date
 from io import BytesIO
 from string import ascii_lowercase, ascii_uppercase
@@ -15,13 +16,41 @@ from docx.shared import Cm, Pt, RGBColor
 from sqlalchemy.orm import Session
 
 from .list_lines import _ListItem, line_is_list_item, parse_list_for_docx
-from .models import Figura, Relatorio
-from .pdf_render import MODELO_DOCX, PDF_COVER_IMAGE, _RE_FIGURA, _RE_TABELA, _figura_ids_no_texto, _produto_codigo_capa
+from .models import Figura, Relatorio, Secao
+from .pdf_render import (
+    MODELO_DOCX,
+    PDF_COVER_IMAGE,
+    _RE_FIGURA,
+    _RE_TABELA,
+    _figura_ids_no_texto,
+    _parse_tabela_marker,
+    _produto_codigo_capa,
+)
 
 
 TEXT_COLOR = RGBColor(0x14, 0x14, 0x14)
 HEADING_COLOR = RGBColor(0x10, 0x22, 0x46)
 MUTED_COLOR = RGBColor(0x7A, 0x86, 0x94)
+
+
+@dataclass(frozen=True)
+class _DocxTabelaOpts:
+    legenda: str | None = None
+    fonte: str | None = None
+    posicao: str = "S"
+
+
+@dataclass(frozen=True)
+class _DocxFiguraOpts:
+    legenda: str | None = None
+    fonte: str | None = None
+    posicao: str = "I"
+
+
+@dataclass
+class _MarcadoresContadores:
+    fig: int
+    tab: int
 
 
 def _figura_ids_relatorio(rel: Relatorio, section_ids: set[int] | None) -> set[int]:
@@ -387,11 +416,13 @@ def _cell_text(cell, label: str, value: str, *, uppercase_label: bool = True) ->
     value_run.font.color.rgb = TEXT_COLOR
 
 
-def _add_ficha_tecnica(document: Document, rel: Relatorio) -> None:
+def _ficha_tecnica_cabecalho(document: Document, rel: Relatorio) -> None:
     heading = document.add_paragraph("Relatório Mensal " + (rel.codigo or ""))
     heading.paragraph_format.space_after = Pt(8.5)
     _set_runs_font(heading, size_pt=15, bold=True, color=TEXT_COLOR)
 
+
+def _ficha_tecnica_tabela_identificacao(document: Document, rel: Relatorio) -> None:
     rows = [
         ("Código do documento", rel.codigo or ""),
         ("Título", "RELATÓRIO MENSAL"),
@@ -408,9 +439,8 @@ def _add_ficha_tecnica(document: Document, rel: Relatorio) -> None:
         _set_cell_border(cell, size="11")
         _cell_text(cell, label, value)
 
-    spacer = document.add_paragraph()
-    spacer.paragraph_format.space_after = Pt(82)
 
+def _ficha_tecnica_tabela_versoes(document: Document, rel: Relatorio) -> None:
     versions = document.add_table(rows=4, cols=3)
     versions.alignment = WD_TABLE_ALIGNMENT.CENTER
     headers = ["Versão", "Data", "Conteúdo das modificações"]
@@ -430,6 +460,14 @@ def _add_ficha_tecnica(document: Document, rel: Relatorio) -> None:
             for paragraph in cell.paragraphs:
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 _set_runs_font(paragraph, size_pt=10.5)
+
+
+def _add_ficha_tecnica(document: Document, rel: Relatorio) -> None:
+    _ficha_tecnica_cabecalho(document, rel)
+    _ficha_tecnica_tabela_identificacao(document, rel)
+    spacer = document.add_paragraph()
+    spacer.paragraph_format.space_after = Pt(82)
+    _ficha_tecnica_tabela_versoes(document, rel)
     document.add_section(WD_SECTION.NEW_PAGE)
     section = document.sections[-1]
     _configure_page(section)
@@ -515,35 +553,58 @@ def _add_texto(document: Document, texto: str) -> None:
         i += 1
 
 
-def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: str | None, numero: str, posicao: str = "S") -> None:
+def _write_table_grid(document: Document, cells: list[list[str]]) -> None:
+    cols = max(len(row) for row in cells)
+    table = document.add_table(rows=len(cells), cols=cols)
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for row_idx, row in enumerate(cells):
+        for col_idx in range(cols):
+            cell = table.cell(row_idx, col_idx)
+            cell.text = row[col_idx] if col_idx < len(row) else ""
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                paragraph_format = paragraph.paragraph_format
+                paragraph_format.space_before = Pt(0)
+                paragraph_format.space_after = Pt(0)
+                paragraph_format.line_spacing = 1.15
+                _set_runs_font(paragraph, size_pt=8.8 if row_idx == 0 else 9.5, bold=row_idx == 0)
+
+
+def _add_table(
+    document: Document,
+    conteudo: str,
+    numero: str,
+    opts: _DocxTabelaOpts | None = None,
+) -> None:
+    caption = opts or _DocxTabelaOpts()
+    legenda = caption.legenda
+    fonte = caption.fonte
+    posicao = caption.posicao
     if legenda and posicao != "I":
         _format_caption(document.add_paragraph(f"Tabela {numero}: {legenda}"))
     linhas = [ln for ln in (conteudo or "").splitlines() if ln.strip()]
     linhas = [ln for ln in linhas if not re.fullmatch(r"-+(\s*\|\s*-+)*", ln.strip())]
     if linhas:
         cells = [[cell.strip() for cell in ln.strip().strip("|").split("|")] for ln in linhas]
-        cols = max(len(row) for row in cells)
-        table = document.add_table(rows=len(cells), cols=cols)
-        table.style = "Table Grid"
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-        for row_idx, row in enumerate(cells):
-            for col_idx in range(cols):
-                cell = table.cell(row_idx, col_idx)
-                cell.text = row[col_idx] if col_idx < len(row) else ""
-                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
-                for paragraph in cell.paragraphs:
-                    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    paragraph.paragraph_format.space_before = Pt(0)
-                    paragraph.paragraph_format.space_after = Pt(0)
-                    paragraph.paragraph_format.line_spacing = 1.15
-                    _set_runs_font(paragraph, size_pt=8.8 if row_idx == 0 else 9.5, bold=row_idx == 0)
+        _write_table_grid(document, cells)
     if legenda and posicao == "I":
         _format_caption(document.add_paragraph(f"Tabela {numero}: {legenda}"))
     if fonte:
         _format_caption_fonte(document.add_paragraph(f"Fonte: {fonte}"))
 
 
-def _add_figura(document: Document, figura: Figura | None, legenda: str | None, fonte: str | None, numero: str, posicao: str = "I") -> None:
+def _add_figura(
+    document: Document,
+    figura: Figura | None,
+    numero: str,
+    opts: _DocxFiguraOpts | None = None,
+) -> None:
+    caption = opts or _DocxFiguraOpts()
+    legenda = caption.legenda
+    fonte = caption.fonte
+    posicao = caption.posicao
     if legenda and posicao != "I":
         paragraph = document.add_paragraph(f"Figura {numero}: {legenda}")
         _format_caption(paragraph)
@@ -566,70 +627,174 @@ def _add_figura(document: Document, figura: Figura | None, legenda: str | None, 
         _format_caption_fonte(paragraph)
 
 
+def _parse_figura_marker(match: re.Match[str]) -> tuple[str, int, str, str]:
+    g1 = (match.group(1) or "").strip()
+    g2 = match.group(2)
+    g3 = match.group(3)
+    g4 = match.group(4)
+    idx_raw = ""
+    figura_id = 0
+    legenda = ""
+    posicao = "I"
+    if g4 is not None and g3 in ("S", "I"):
+        idx_raw = g1
+        figura_id = int(g2 or "0") if (g2 or "").isdigit() else 0
+        posicao = g3
+        legenda = (g4 or "").strip()
+    elif g3 is not None and (g2 or "").isdigit():
+        idx_raw = g1
+        figura_id = int(g2 or "0")
+        legenda = (g3 or "").strip()
+    elif g2 is not None:
+        figura_id = int(g1 or "0") if g1.isdigit() else 0
+        legenda = (g2 or "").strip()
+    else:
+        figura_id = int(g1 or "0") if g1.isdigit() else 0
+    return idx_raw, figura_id, legenda, posicao
+
+
+def _parts_texto_e_tabelas(
+    conteudo: str,
+    sec_numero: str,
+    tab_counter: int,
+) -> tuple[list[tuple[str, str | tuple[str, str, str, str, str]]], int]:
+    parts: list[tuple[str, str | tuple[str, str, str, str, str]]] = []
+    last = 0
+    text = conteudo or ""
+    for match in _RE_TABELA.finditer(text):
+        parts.append(("texto", text[last:match.start()]))
+        idx_raw, posicao, legenda, corpo_tab = _parse_tabela_marker(match)
+        tab_counter += 1
+        numero = idx_raw or _figura_label(sec_numero, tab_counter)
+        parts.append(
+            (
+                "tabela",
+                (corpo_tab, legenda, "", numero, posicao),
+            )
+        )
+        last = match.end()
+    parts.append(("texto", text[last:]))
+    return parts, tab_counter
+
+
+def _emit_figuras_em_trecho_texto(
+    document: Document,
+    chunk: str,
+    figuras_by_id: dict[int, Figura],
+    sec_numero: str,
+    contadores: _MarcadoresContadores,
+) -> None:
+    sub_last = 0
+    for match in _RE_FIGURA.finditer(chunk):
+        _add_texto(document, chunk[sub_last:match.start()])
+        idx_raw, figura_id, legenda, posicao = _parse_figura_marker(match)
+        contadores.fig += 1
+        numero = idx_raw or _figura_label(sec_numero, contadores.fig)
+        _add_figura(
+            document,
+            figuras_by_id.get(figura_id),
+            numero,
+            _DocxFiguraOpts(legenda=legenda, fonte="", posicao=posicao),
+        )
+        sub_last = match.end()
+    _add_texto(document, chunk[sub_last:])
+
+
 def _add_texto_com_marcadores(
     document: Document,
     conteudo: str,
     figuras_by_id: dict[int, Figura],
-    fig_counter: int,
-    tab_counter: int,
     sec_numero: str,
-) -> tuple[int, int]:
-    parts: list[tuple[str, str]] = []
-    last = 0
-    for match in _RE_TABELA.finditer(conteudo or ""):
-        parts.append(("texto", conteudo[last:match.start()]))
-        idx_raw = (match.group(1) or "").strip()
-        g2 = match.group(2)
-        g3 = match.group(3)
-        if g2 in ("S", "I"):
-            posicao = g2
-            legenda = (g3 or "").strip()
-        else:
-            posicao = "I"
-            legenda = (g2 or g3 or "").strip()
-        tab_counter += 1
-        numero = idx_raw or _figura_label(sec_numero, tab_counter)
-        parts.append(("tabela", (match.group(4) or "", legenda, "", numero, posicao)))
-        last = match.end()
-    parts.append(("texto", conteudo[last:]))
-
+    contadores: _MarcadoresContadores,
+) -> None:
+    parts, contadores.tab = _parts_texto_e_tabelas(conteudo, sec_numero, contadores.tab)
     for kind, value in parts:
         if kind == "tabela":
-            corpo, legenda, fonte, numero, posicao = value
-            _add_table(document, corpo, legenda, fonte, numero, posicao)
+            corpo, legenda, fonte, numero, posicao = value  # type: ignore[misc]
+            _add_table(
+                document,
+                corpo,
+                numero,
+                _DocxTabelaOpts(legenda=legenda, fonte=fonte, posicao=posicao),
+            )
             continue
-        chunk = value
-        sub_last = 0
-        for match in _RE_FIGURA.finditer(chunk):
-            _add_texto(document, chunk[sub_last:match.start()])
-            g1 = (match.group(1) or "").strip()
-            g2 = match.group(2)
-            g3 = match.group(3)
-            g4 = match.group(4)
-            idx_raw = ""
-            figura_id = 0
-            legenda = ""
-            posicao = "I"
-            if g4 is not None and g3 in ("S", "I"):
-                idx_raw = g1
-                figura_id = int(g2 or "0") if (g2 or "").isdigit() else 0
-                posicao = g3
-                legenda = (g4 or "").strip()
-            elif g3 is not None and (g2 or "").isdigit():
-                idx_raw = g1
-                figura_id = int(g2 or "0")
-                legenda = (g3 or "").strip()
-            elif g2 is not None:
-                figura_id = int(g1 or "0") if g1.isdigit() else 0
-                legenda = (g2 or "").strip()
-            else:
-                figura_id = int(g1 or "0") if g1.isdigit() else 0
+        _emit_figuras_em_trecho_texto(document, str(value), figuras_by_id, sec_numero, contadores)
+
+
+def _render_blocos_da_secao(
+    document: Document,
+    sec: Secao,
+    figuras_by_id: dict[int, Figura],
+    fig_counter: int,
+    tab_counter: int,
+) -> tuple[int, int]:
+    for bloco in sec.blocos:
+        if bloco.titulo:
+            # PDF renderiza ``bloco.titulo`` como h2 12pt bold (regra
+            # ``.bloco h2`` em ``app/templates/pdf/relatorio.html``).
+            # Antes mapeávamos para H4 (10pt italic), o que apertava
+            # visualmente. H2 = level 2 alinha o DOCX ao PDF.
+            _format_heading(document.add_heading(bloco.titulo, level=2), 2)
+        if bloco.tipo == "figura":
             fig_counter += 1
-            numero = idx_raw or _figura_label(sec_numero, fig_counter)
-            _add_figura(document, figuras_by_id.get(figura_id), legenda, "", numero, posicao)
-            sub_last = match.end()
-        _add_texto(document, chunk[sub_last:])
+            _add_figura(
+                document,
+                figuras_by_id.get(bloco.figura_id or 0),
+                _figura_label(sec.numero, fig_counter),
+                _DocxFiguraOpts(legenda=bloco.legenda, fonte=bloco.fonte),
+            )
+        elif bloco.tipo == "tabela":
+            tab_counter += 1
+            _add_table(
+                document,
+                bloco.conteudo or "",
+                _figura_label(sec.numero, tab_counter),
+                _DocxTabelaOpts(legenda=bloco.legenda, fonte=bloco.fonte),
+            )
+        elif bloco.tipo == "lista":
+            _add_lista_bloco_docx(document, bloco.conteudo or "")
+        else:
+            mc = _MarcadoresContadores(fig=fig_counter, tab=tab_counter)
+            _add_texto_com_marcadores(
+                document,
+                bloco.conteudo or "",
+                figuras_by_id,
+                sec.numero,
+                mc,
+            )
+            fig_counter = mc.fig
+            tab_counter = mc.tab
     return fig_counter, tab_counter
+
+
+def _render_secoes_corpo_docx(
+    document: Document,
+    rel: Relatorio,
+    section_ids: set[int] | None,
+    figuras_by_id: dict[int, Figura],
+) -> None:
+    fig_by_top: dict[str, int] = {}
+    tab_by_top: dict[str, int] = {}
+    body_started = False
+    for sec in rel.secoes:
+        if section_ids is not None and sec.id not in section_ids:
+            continue
+        top = (sec.numero or "").split(".")[0]
+        fig_counter = fig_by_top.get(top, 0)
+        tab_counter = tab_by_top.get(top, 0)
+        heading_level = min(sec.numero.count(".") + 1, 6)
+        if body_started and heading_level == 1:
+            document.add_page_break()
+        body_started = True
+        _add_numbered_heading(document, sec.numero, sec.titulo, heading_level)
+        if not sec.blocos:
+            _format_empty_section(document.add_paragraph("— sem conteúdo nesta seção —"))
+            continue
+        fig_counter, tab_counter = _render_blocos_da_secao(
+            document, sec, figuras_by_id, fig_counter, tab_counter,
+        )
+        fig_by_top[top] = fig_counter
+        tab_by_top[top] = tab_counter
 
 
 def render_docx(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> bytes:
@@ -652,44 +817,7 @@ def render_docx(db: Session, rel: Relatorio, section_ids: set[int] | None = None
         figura.id: figura for figura in db.query(Figura).filter(Figura.id.in_(figura_ids)).all()
     } if figura_ids else {}
 
-    fig_by_top: dict[str, int] = {}
-    tab_by_top: dict[str, int] = {}
-    body_started = False
-    for sec in rel.secoes:
-        if section_ids is not None and sec.id not in section_ids:
-            continue
-        top = (sec.numero or "").split(".")[0]
-        fig_counter = fig_by_top.get(top, 0)
-        tab_counter = tab_by_top.get(top, 0)
-        heading_level = min(sec.numero.count(".") + 1, 6)
-        if body_started and heading_level == 1:
-            document.add_page_break()
-        body_started = True
-        _add_numbered_heading(document, sec.numero, sec.titulo, heading_level)
-        if not sec.blocos:
-            _format_empty_section(document.add_paragraph("— sem conteúdo nesta seção —"))
-            continue
-        for bloco in sec.blocos:
-            if bloco.titulo:
-                # PDF renderiza ``bloco.titulo`` como h2 12pt bold (regra
-                # ``.bloco h2`` em ``app/templates/pdf/relatorio.html``).
-                # Antes mapeávamos para H4 (10pt italic), o que apertava
-                # visualmente. H2 = level 2 alinha o DOCX ao PDF.
-                _format_heading(document.add_heading(bloco.titulo, level=2), 2)
-            if bloco.tipo == "figura":
-                fig_counter += 1
-                _add_figura(document, figuras_by_id.get(bloco.figura_id or 0), bloco.legenda, bloco.fonte, _figura_label(sec.numero, fig_counter))
-            elif bloco.tipo == "tabela":
-                tab_counter += 1
-                _add_table(document, bloco.conteudo or "", bloco.legenda, bloco.fonte, _figura_label(sec.numero, tab_counter))
-            elif bloco.tipo == "lista":
-                _add_lista_bloco_docx(document, bloco.conteudo or "")
-            else:
-                fig_counter, tab_counter = _add_texto_com_marcadores(
-                    document, bloco.conteudo or "", figuras_by_id, fig_counter, tab_counter, sec.numero
-                )
-        fig_by_top[top] = fig_counter
-        tab_by_top[top] = tab_counter
+    _render_secoes_corpo_docx(document, rel, section_ids, figuras_by_id)
 
     _add_assinaturas(document, rel)
 

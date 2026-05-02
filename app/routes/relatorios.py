@@ -61,6 +61,33 @@ def _u_or_login(request: Request, db: Session) -> tuple[User, None] | tuple[None
     return u, None
 
 
+def _admin_coord_ou_login(
+    request: Request,
+    db: Session,
+) -> tuple[User, None] | tuple[None, Response]:
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return None, p
+    assert u is not None
+    if u.role not in ("admin", "coordenador"):
+        raise HTTPException(403)
+    return u, None
+
+
+def _admin_coord_relatorio_mutavel(
+    request: Request,
+    db: Session,
+    rel_id: int,
+) -> Response | None:
+    """Admin/coordenador e relatório editável, ou redirect login."""
+    u, p = _admin_coord_ou_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+    _exigir_relatorio_editavel(db, rel_id)
+    return None
+
+
 @router.get("/{rel_id}/blocos-confirmados.json")
 def listar_blocos_confirmados_json(  # pylint: disable=too-many-locals
     rel_id: int, request: Request, db: Session = Depends(get_db)
@@ -190,12 +217,10 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
     pdf_upload: "UploadFile | None" = File(None),
     db: Session = Depends(get_db),
 ):
-    u, p = _u_or_login(request, db)
+    u, p = _admin_coord_ou_login(request, db)
     if p is not None:
         return p
-    user = u
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
+    assert u is not None
     if db.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
         raise HTTPException(400, detail="Código já existe")
 
@@ -545,12 +570,9 @@ def criar_subsecao(
     contrato D20 e a nova secao toma o proximo slot livre quando o indice
     pedido ja esta ocupado.
     """
-    u, p = _u_or_login(request, db)
-    if p is not None:
-        return p
-    if u.role not in ("admin", "coordenador"):
-        raise HTTPException(403)
-    _exigir_relatorio_editavel(db, rel_id)
+    redir = _admin_coord_relatorio_mutavel(request, db, rel_id)
+    if redir is not None:
+        return redir
     numero = numero.strip()
     titulo = titulo.strip()
     if not numero or not titulo:
