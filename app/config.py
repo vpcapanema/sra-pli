@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Token compartilhado dos endpoints de cron (X-Cron-Token). Em prod use
     # uma string longa aleatória; em dev qualquer valor não-vazio basta.
     CRON_TOKEN: str = ""
+    # Integração opcional com cron-job.org para exibir status real na governança.
+    CRONJOB_ORG_API_KEY: str = ""
+    CRONJOB_ORG_JOB_ABRIR_PERIODO: int = 7547405
+    CRONJOB_ORG_JOB_LEMBRETE_D5: int = 7547406
+    CRONJOB_ORG_JOB_LEMBRETE_D8: int = 7547407
+    CRONJOB_ORG_JOB_ULTIMA_CHAMADA: int = 7547408
+    CRONJOB_ORG_JOB_RETRY_FALHAS: int = 7547409
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

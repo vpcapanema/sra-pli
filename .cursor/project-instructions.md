@@ -171,7 +171,7 @@ Não restringe o importador, oferece ficheiro alinhado ao que a análise reconhe
 
 ### Ciclo De Notificações Mensais
 
-Persistência editável (coord/admin): tabela singleton `parametros_ciclo_notificacao` (`app/models.ParametrosCicloNotificacao`); carga/definição em `app/notificacoes/ciclo_params.py`. UI `GET /governanca-relatorio` (`app/routes/governanca_relatorio.py`, template `complementos/governanca_relatorio.html`): edição das tabelas `parametros_ciclo_notificacao`, `entrega_relatorio`, `notificacao_envio` e `users` (coordenador só vê autores e próprio perfil). Chave SendGrid e kill-switch ficam em ambiente. Sidebar: «Coordenação de Relatório Técnico» > «Governança do relatório».
+Persistência editável (coord/admin): tabela singleton `parametros_ciclo_notificacao` (`app/models.ParametrosCicloNotificacao`); carga/definição em `app/notificacoes/ciclo_params.py`. UI `GET /governanca-relatorio` (`app/routes/governanca_relatorio.py`, template `complementos/governanca_relatorio.html`): edição das tabelas `parametros_ciclo_notificacao`, `entrega_relatorio`, `notificacao_envio` e `users` (coordenador só vê autores e próprio perfil), status real opcional dos jobs do cron-job.org e filtro server-side por relatório em entregas/notificações (padrão: relatório mais recente). Chave SendGrid, kill-switch e chave opcional `CRONJOB_ORG_API_KEY` ficam em ambiente. Sidebar: «Governança» > «Governança do relatório».
 
 Pontos de entrada (idempotentes) em `app/notificacoes/service.py`:
 
@@ -206,7 +206,7 @@ Cron (Track 5):
 - Teste prático: `scripts/teste_http_cron_notificacao.py` (`--http`/`--in-process`; `--no-force` imita produção; `--cadeia-atribuir` atribui seção e notifica). E2E completo: `scripts/_e2e_notificacoes.py`.
 - Schedules externos espelham dias/horários guardados (`/governanca-relatorio` e `app/cron/*.py`).
 
-Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `CRON_TOKEN`.
+Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `CRON_TOKEN`; opcionais para status do cron externo: `CRONJOB_ORG_API_KEY` (`sync: false` no Render, valor só no ambiente) e `CRONJOB_ORG_JOB_*`.
 
 Fonte única do nome `.dotx` em `app/notificacoes/modelos.py` (`slug_titulo`, `filename_para`, `caminho_para`); `scripts/build_canonical_upload_dotx.py` importa daqui.
 

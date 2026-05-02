@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any
+import urllib.error
+import urllib.request
 from urllib.parse import quote, unquote_plus
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -11,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.responses import RedirectResponse
 
 from ..auth import current_user, formatar_nome_pessoa
+from ..config import settings
 from ..db import get_db
 from ..models import (
     ENTREGA_STATUS_VALIDOS,
@@ -36,6 +41,7 @@ router = APIRouter(tags=["governanca"])
 _GOV_LIMIT_ENTREGAS = 250
 _GOV_LIMIT_NOTIFS = 300
 _GOV_TESTE_SESS_KEY = "gov_teste_resultado"
+_CRONJOB_API_ENDPOINT = "https://api.cron-job.org"
 
 
 def _coord_admin_or_login(
@@ -125,8 +131,27 @@ def _gov_email_ja_usado(
     return duplicado is not None
 
 
+def _ultimo_relatorio_id(db: Session) -> int | None:
+    row = db.query(Relatorio.id).order_by(Relatorio.created_at.desc()).first()
+    return int(row[0]) if row else None
+
+
+def _relatorio_filtro_id(request: Request, db: Session) -> int | None:
+    raw = (request.query_params.get("relatorio_id") or "").strip()
+    if raw:
+        try:
+            rel_id = int(raw)
+        except ValueError:
+            rel_id = None
+        else:
+            if db.get(Relatorio, rel_id) is not None:
+                return rel_id
+    return _ultimo_relatorio_id(db)
+
+
 def _governanca_carregar_listas(
     db: Session,
+    relatorio_id: int | None,
 ) -> tuple[
     ParametrosCicloNotificacao | None,
     list[EntregaRelatorio],
@@ -134,9 +159,10 @@ def _governanca_carregar_listas(
     list[User],
     list[User],
     list[Relatorio],
+    list[Relatorio],
 ]:
     c_row = db.get(ParametrosCicloNotificacao, 1)
-    entregas = (
+    entregas_q = (
         db.query(EntregaRelatorio)
         .options(
             joinedload(EntregaRelatorio.relatorio),
@@ -144,29 +170,113 @@ def _governanca_carregar_listas(
             joinedload(EntregaRelatorio.validado_por),
             joinedload(EntregaRelatorio.atualizado_por),
         )
-        .order_by(EntregaRelatorio.id.desc())
-        .limit(_GOV_LIMIT_ENTREGAS)
-        .all()
     )
-    notifs = (
+    if relatorio_id is not None:
+        entregas_q = entregas_q.filter(EntregaRelatorio.relatorio_id == relatorio_id)
+    entregas = entregas_q.order_by(EntregaRelatorio.id.desc()).limit(_GOV_LIMIT_ENTREGAS).all()
+
+    notifs_q = (
         db.query(NotificacaoEnvio)
         .options(
             joinedload(NotificacaoEnvio.entrega).joinedload(EntregaRelatorio.relatorio),
             joinedload(NotificacaoEnvio.entrega).joinedload(EntregaRelatorio.user),
         )
-        .order_by(NotificacaoEnvio.id.desc())
-        .limit(_GOV_LIMIT_NOTIFS)
-        .all()
     )
+    if relatorio_id is not None:
+        notifs_q = notifs_q.join(EntregaRelatorio).filter(
+            EntregaRelatorio.relatorio_id == relatorio_id
+        )
+    notifs = notifs_q.order_by(NotificacaoEnvio.id.desc()).limit(_GOV_LIMIT_NOTIFS).all()
     usuarios = db.query(User).order_by(User.nome).all()
     autores = [u for u in usuarios if u.role == "autor"]
+    relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     relatorios_abertos = (
         db.query(Relatorio)
         .filter(Relatorio.status.in_(("aberto", "em_revisao")))
         .order_by(Relatorio.created_at.desc())
         .all()
     )
-    return c_row, entregas, notifs, usuarios, autores, relatorios_abertos
+    return c_row, entregas, notifs, usuarios, autores, relatorios, relatorios_abertos
+
+
+def _dt_utc_from_unix(ts: int | None) -> datetime | None:
+    if not ts:
+        return None
+    return datetime.fromtimestamp(ts, timezone.utc)
+
+
+def _cronjob_api_get(path: str) -> dict[str, Any]:
+    req = urllib.request.Request(
+        _CRONJOB_API_ENDPOINT + path,
+        headers={
+            "Authorization": f"Bearer {settings.CRONJOB_ORG_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _cronjob_status_item(job_id: int, label: str) -> dict[str, Any]:
+    details = _cronjob_api_get(f"/jobs/{job_id}")["jobDetails"]
+    history = _cronjob_api_get(f"/jobs/{job_id}/history")
+    last = (history.get("history") or [None])[0]
+    return {
+        "job_id": job_id,
+        "label": label,
+        "available": True,
+        "enabled": bool(details.get("enabled")),
+        "url": details.get("url") or "",
+        "next_execution": _dt_utc_from_unix(details.get("nextExecution")),
+        "last_execution": _dt_utc_from_unix(last.get("date") if last else None),
+        "last_http_status": last.get("httpStatus") if last else None,
+        "last_status": last.get("status") if last else None,
+        "last_status_text": (last.get("statusText") if last else None) or "",
+        "last_duration_ms": last.get("duration") if last else None,
+    }
+
+
+def _cron_status_real() -> list[dict[str, Any]]:
+    specs = [
+        (settings.CRONJOB_ORG_JOB_ABRIR_PERIODO, "Abrir período"),
+        (settings.CRONJOB_ORG_JOB_LEMBRETE_D5, "Lembrete dia 5"),
+        (settings.CRONJOB_ORG_JOB_LEMBRETE_D8, "Lembrete dia 8"),
+        (settings.CRONJOB_ORG_JOB_ULTIMA_CHAMADA, "Última chamada"),
+        (settings.CRONJOB_ORG_JOB_RETRY_FALHAS, "Retry falhas"),
+    ]
+    if not settings.CRONJOB_ORG_API_KEY:
+        return [
+            {
+                "job_id": job_id,
+                "label": label,
+                "available": False,
+                "error": "CRONJOB_ORG_API_KEY não configurada.",
+            }
+            for job_id, label in specs
+        ]
+    out: list[dict[str, Any]] = []
+    for job_id, label in specs:
+        try:
+            out.append(_cronjob_status_item(job_id, label))
+        except (KeyError, TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+            out.append(
+                {
+                    "job_id": job_id,
+                    "label": label,
+                    "available": False,
+                    "error": str(exc),
+                }
+            )
+    return out
+
+
+def _redirect_gov(ok: str, relatorio_id: str | int | None = None) -> RedirectResponse:
+    rid = str(relatorio_id or "").strip()
+    suffix = f"?ok={ok}"
+    if rid:
+        suffix += f"&relatorio_id={quote(rid)}"
+    return RedirectResponse(url=f"/governanca-relatorio{suffix}", status_code=303)
 
 
 def _gov_usuario_erro_ou_none(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
@@ -207,6 +317,33 @@ def _gov_usuario_erro_ou_none(  # pylint: disable=too-many-arguments,too-many-lo
     return None
 
 
+def _governanca_template_context(request: Request, db: Session, user: User) -> dict[str, Any]:
+    erro_raw = request.query_params.get("erro")
+    relatorio_id = _relatorio_filtro_id(request, db)
+    listas = _governanca_carregar_listas(db, relatorio_id=relatorio_id)
+    resultado_teste = request.session.pop(_GOV_TESTE_SESS_KEY, None)
+
+    return {
+        "user": user,
+        "ciclo_row": listas[0],
+        "entregas": listas[1],
+        "notificacoes": listas[2],
+        "usuarios_gov": listas[3],
+        "autores_lista": listas[4],
+        "relatorios_filtro": listas[5],
+        "relatorio_filtro_id": relatorio_id,
+        "relatorios_abertos": listas[6],
+        "cron_status": _cron_status_real(),
+        "entrega_status_ops": ENTREGA_STATUS_VALIDOS,
+        "modo_envio": modo_atual(),
+        "resultado_teste": resultado_teste,
+        "ok": request.query_params.get("ok"),
+        "erro": unquote_plus(erro_raw) if erro_raw else None,
+        "limite_entregas": _GOV_LIMIT_ENTREGAS,
+        "limite_notifs": _GOV_LIMIT_NOTIFS,
+    }
+
+
 @router.get("/governanca-relatorio")
 def governanca_relatorio_page(request: Request, db: Session = Depends(get_db)):
     pre = _coord_admin_or_login(request, db)
@@ -214,40 +351,10 @@ def governanca_relatorio_page(request: Request, db: Session = Depends(get_db)):
         return pre[1]
     user = pre[0]
     assert user is not None
-
-    erro_raw = request.query_params.get("erro")
-    erro = unquote_plus(erro_raw) if erro_raw else None
-    ok = request.query_params.get("ok")
-
-    (
-        c_row,
-        entregas,
-        notifs,
-        usuarios,
-        autores,
-        relatorios_abertos,
-    ) = _governanca_carregar_listas(db)
-    resultado_teste = request.session.pop(_GOV_TESTE_SESS_KEY, None)
-
     return templates.TemplateResponse(
         request,
         "complementos/governanca_relatorio.html",
-        {
-            "user": user,
-            "ciclo_row": c_row,
-            "entregas": entregas,
-            "notificacoes": notifs,
-            "usuarios_gov": usuarios,
-            "autores_lista": autores,
-            "relatorios_abertos": relatorios_abertos,
-            "entrega_status_ops": ENTREGA_STATUS_VALIDOS,
-            "modo_envio": modo_atual(),
-            "resultado_teste": resultado_teste,
-            "ok": ok,
-            "erro": erro,
-            "limite_entregas": _GOV_LIMIT_ENTREGAS,
-            "limite_notifs": _GOV_LIMIT_NOTIFS,
-        },
+        _governanca_template_context(request, db, user),
     )
 
 
@@ -287,7 +394,7 @@ def governanca_salvar_parametros_ciclo(  # pylint: disable=duplicate-code,too-ma
     if err_txt:
         q = f"?erro={quote(err_txt)}"
         return RedirectResponse(url=f"/governanca-relatorio{q}", status_code=303)
-    return RedirectResponse(url="/governanca-relatorio?ok=ciclo", status_code=303)
+    return _redirect_gov("ciclo")
 
 
 @router.post("/governanca-relatorio/entrega/{entrega_id}")
@@ -299,6 +406,7 @@ def governanca_entrega_salvar(  # pylint: disable=too-many-arguments,too-many-po
     data_envio: str = Form(""),
     data_validacao: str = Form(""),
     validado_por_id: str = Form(""),
+    relatorio_filtro_id: str = Form(""),
 ):
     pre = _coord_admin_or_login(request, db)
     if pre[1] is not None:
@@ -316,7 +424,7 @@ def governanca_entrega_salvar(  # pylint: disable=too-many-arguments,too-many-po
     )
     if err_slug:
         return RedirectResponse(
-            url=f"/governanca-relatorio?erro={err_slug}",
+            url=f"/governanca-relatorio?erro={err_slug}&relatorio_id={quote(relatorio_filtro_id)}",
             status_code=303,
         )
     ent.atualizado_em = datetime.utcnow()
@@ -324,7 +432,7 @@ def governanca_entrega_salvar(  # pylint: disable=too-many-arguments,too-many-po
     if viewer:
         ent.atualizado_por_id = viewer.id
     db.commit()
-    return RedirectResponse(url="/governanca-relatorio?ok=entrega", status_code=303)
+    return _redirect_gov("entrega", relatorio_filtro_id)
 
 
 @router.post("/governanca-relatorio/notificacao/{notif_id}")
@@ -344,7 +452,7 @@ def governanca_notificacao_salvar(
     row.sucesso = sucesso in ("1", "on", "true", "sim")
     row.erro = (erro_txt or "").strip() or None
     db.commit()
-    return RedirectResponse(url="/governanca-relatorio?ok=notif", status_code=303)
+    return _redirect_gov("notif", request.query_params.get("relatorio_id"))
 
 
 @router.post("/governanca-relatorio/usuario/{user_id}")

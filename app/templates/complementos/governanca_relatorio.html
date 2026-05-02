@@ -32,6 +32,9 @@
       <span class="chip">{{ notificacoes | length }} notificações</span>
       <span class="chip">{{ usuarios_gov | length }} utilizadores</span>
       <span class="chip">modo de envio: {{ modo_envio }}</span>
+      {% if relatorio_filtro_id %}
+        <span class="chip">filtro: relatório #{{ relatorio_filtro_id }}</span>
+      {% endif %}
     </div>
   </section>
 
@@ -373,6 +376,74 @@
           </div>
         </div>
       </details>
+
+      <details class="bloco" open id="ss-status-cron">
+        <summary>
+          <strong>4. Status real do cron</strong>
+          <span class="meta-inline">cron-job.org · execução HTTP</span>
+        </summary>
+        <div class="det-body">
+          <p class="sdesc">
+            Consulta real dos jobs externos. Quando a chave <code>CRONJOB_ORG_API_KEY</code> não está configurada no ambiente, a página mostra os jobs esperados sem histórico.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Estado</th>
+                <th>Última execução</th>
+                <th>Resultado</th>
+                <th>Próxima execução</th>
+                <th>Duração</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in cron_status %}
+                <tr>
+                  <td>
+                    <strong>{{ row.label }}</strong>
+                    <br>
+                    <span class="muted-dash">#{{ row.job_id }}</span>
+                  </td>
+                  <td>
+                    {% if row.available %}
+                      {% if row.enabled %}
+                        <span class="tag tag-ok">ativo</span>
+                      {% else %}
+                        <span class="tag tag-warn">pausado</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="tag tag-neutral" title="{{ row.error or 'indisponível' }}">sem consulta</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ fmt_dt(row.last_execution) if row.available else '—' }}</td>
+                  <td>
+                    {% if row.available and row.last_http_status %}
+                      {% if row.last_http_status == 200 %}
+                        <span class="tag tag-ok">HTTP {{ row.last_http_status }}</span>
+                      {% else %}
+                        <span class="tag tag-err">HTTP {{ row.last_http_status }}</span>
+                      {% endif %}
+                    {% elif row.available %}
+                      <span class="tag tag-neutral">sem histórico</span>
+                    {% else %}
+                      <span class="muted-dash">—</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ fmt_dt(row.next_execution) if row.available else '—' }}</td>
+                  <td>
+                    {% if row.available and row.last_duration_ms is not none %}
+                      {{ row.last_duration_ms }} ms
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -386,6 +457,16 @@
       <p class="sdesc">
         Tabela <code>entrega_relatorio</code>. Cada linha representa o envio mensal de um autor para uma seção. Use <strong>⋮</strong> para ajustar status, datas e validador.
       </p>
+      <form method="get" action="/governanca-relatorio" class="gov-filter-form">
+        <label for="gov-filter-entregas">Filtrar por relatório</label>
+        <select id="gov-filter-entregas" name="relatorio_id">
+          {% for r in relatorios_filtro %}
+            <option value="{{ r.id }}"
+                    {% if relatorio_filtro_id == r.id %}selected{% endif %}>{{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="secondary">Aplicar filtro</button>
+      </form>
       {% if entregas %}
         <table>
           <thead>
@@ -428,6 +509,7 @@
                     <div class="acao-menu-pop acao-menu-pop-form">
                       <p class="acao-form-title">Editar entrega #{{ e.id }}</p>
                       <form method="post" action="/governanca-relatorio/entrega/{{ e.id }}">
+                        <input type="hidden" name="relatorio_filtro_id" value="{{ relatorio_filtro_id or '' }}">
                         <div class="acao-form-grid">
                           <div>
                             <label for="ent-{{ e.id }}-status">Status</label>
@@ -494,6 +576,16 @@
       <p class="sdesc">
         Tabela <code>notificacao_envio</code>. Histórico de e-mails disparados pelo SendGrid (notificação inicial, lembretes, última chamada, abertura de ciclo).
       </p>
+      <form method="get" action="/governanca-relatorio" class="gov-filter-form">
+        <label for="gov-filter-notifs">Filtrar por relatório</label>
+        <select id="gov-filter-notifs" name="relatorio_id">
+          {% for r in relatorios_filtro %}
+            <option value="{{ r.id }}"
+                    {% if relatorio_filtro_id == r.id %}selected{% endif %}>{{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="secondary">Aplicar filtro</button>
+      </form>
       {% if notificacoes %}
         <table>
           <thead>
@@ -537,7 +629,8 @@
                     <summary class="acao-menu-trig" title="Editar notificação">⋮</summary>
                     <div class="acao-menu-pop acao-menu-pop-form">
                       <p class="acao-form-title">Editar notificação #{{ n.id }}</p>
-                      <form method="post" action="/governanca-relatorio/notificacao/{{ n.id }}">
+                      <form method="post"
+                            action="/governanca-relatorio/notificacao/{{ n.id }}?relatorio_id={{ relatorio_filtro_id or '' }}">
                         <div class="acao-form-grid">
                           <div>
                             <label for="not-{{ n.id }}-sucesso">Resultado</label>

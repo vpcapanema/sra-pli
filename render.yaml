@@ -36,6 +36,9 @@ services:
       # Token compartilhado dos endpoints /admin/cron/* (string longa aleatoria).
       - key: CRON_TOKEN
         sync: false
+      # Chave da API do cron-job.org usada apenas para exibir status dos jobs.
+      - key: CRONJOB_ORG_API_KEY
+        sync: false
 
 # ---------------------------------------------------------------------------
 # Servicos de cron (descomentar se quiser jobs nativos Render; no free eram pagos).
