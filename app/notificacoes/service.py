@@ -99,6 +99,7 @@ class ResumoAbertura:  # pylint: disable=too-many-instance-attributes
     """
     relatorio_id: int | None = None
     relatorio_codigo: str = ""
+    base_relatorio_id: int | None = None
     criou_relatorio: bool = False
     entregas_criadas: int = 0
     emails_enviados: int = 0
@@ -160,8 +161,10 @@ def _ja_existe_relatorio_no_mes(db: Session, mes_referencia: str) -> Relatorio |
     )
 
 
-def _relatorio_base(db: Session) -> Relatorio | None:
+def _relatorio_base(db: Session, base_relatorio_id: int | None = None) -> Relatorio | None:
     """Último ``finalizado`` (preferido) ou mais recente em qualquer status."""
+    if base_relatorio_id is not None:
+        return db.get(Relatorio, base_relatorio_id)
     rel = (
         db.query(Relatorio)
         .filter(Relatorio.status == "finalizado")
@@ -695,6 +698,7 @@ def abrir_periodo(  # pylint: disable=too-many-locals
     *,
     force: bool = False,
     data_referencia: date | None = None,
+    base_relatorio_id: int | None = None,
 ) -> ResumoAbertura:
     """Cria o relatório do mês, suas entregas e dispara Mensagem 1.
 
@@ -703,6 +707,9 @@ def abrir_periodo(  # pylint: disable=too-many-locals
 
     ``data_referencia`` permite simular a data corrente — útil para o coord
     reabrir um mês passado por engano e para o E2E de teste.
+
+    ``base_relatorio_id`` permite à governança escolher explicitamente o
+    relatório-modelo da clonagem manual. Sem valor, mantém a escolha automática.
     """
     resumo = ResumoAbertura()
     parametros = obter_parametros_ciclo(db)
@@ -728,13 +735,19 @@ def abrir_periodo(  # pylint: disable=too-many-locals
         )
         return resumo
 
-    base = _relatorio_base(db)
+    base = _relatorio_base(db, base_relatorio_id)
     if base is None:
-        resumo.avisos.append(
-            "Nenhum relatório anterior encontrado. A criação automática "
-            "exige pelo menos um Relatorio existente como base de seções."
-        )
+        if base_relatorio_id is None:
+            resumo.avisos.append(
+                "Nenhum relatório anterior encontrado. A criação automática "
+                "exige pelo menos um Relatorio existente como base de seções."
+            )
+        else:
+            resumo.avisos.append(
+                f"Relatório base id={base_relatorio_id} não encontrado."
+            )
         return resumo
+    resumo.base_relatorio_id = base.id
     if base.status != "finalizado":
         resumo.avisos.append(
             f"Base é o relatório {base.codigo} (status={base.status}). "

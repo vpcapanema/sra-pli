@@ -187,9 +187,77 @@
         </div>
       </details>
 
+      <details class="bloco" open id="ss-status-cron">
+        <summary>
+          <strong>2. Status de execução dos jobs</strong>
+          <span class="meta-inline">cron-job.org · execução HTTP</span>
+        </summary>
+        <div class="det-body">
+          <p class="sdesc">
+            Leitura rápida: <strong>Job</strong> é a rotina agendada; <strong>Estado</strong> mostra se ela está ativa no cron externo; <strong>Última execução</strong> é quando rodou pela última vez; <strong>Resultado</strong> é a resposta HTTP da aplicação; <strong>Próxima execução</strong> é o próximo disparo previsto; <strong>Duração</strong> mede quanto tempo a chamada levou.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Estado</th>
+                <th>Última execução</th>
+                <th>Resultado</th>
+                <th>Próxima execução</th>
+                <th>Duração</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in cron_status %}
+                <tr>
+                  <td>
+                    <strong>{{ row.label }}</strong>
+                    <br>
+                    <span class="muted-dash">#{{ row.job_id }}</span>
+                  </td>
+                  <td>
+                    {% if row.available %}
+                      {% if row.enabled %}
+                        <span class="tag tag-ok">ativo</span>
+                      {% else %}
+                        <span class="tag tag-warn">pausado</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="tag tag-neutral" title="{{ row.error or 'indisponível' }}">sem consulta</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ fmt_dt(row.last_execution) if row.available else '—' }}</td>
+                  <td>
+                    {% if row.available and row.last_http_status %}
+                      {% if row.last_http_status == 200 %}
+                        <span class="tag tag-ok">HTTP {{ row.last_http_status }}</span>
+                      {% else %}
+                        <span class="tag tag-err">HTTP {{ row.last_http_status }}</span>
+                      {% endif %}
+                    {% elif row.available %}
+                      <span class="tag tag-neutral">sem histórico</span>
+                    {% else %}
+                      <span class="muted-dash">—</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ fmt_dt(row.next_execution) if row.available else '—' }}</td>
+                  <td>
+                    {% if row.available and row.last_duration_ms is not none %}
+                      {{ row.last_duration_ms }} ms
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
       <details class="bloco" open id="ss-usuarios-notificados">
         <summary>
-          <strong>2. Usuários notificados</strong>
+          <strong>3. Usuários notificados</strong>
           <span class="meta-inline">
             {{ autores_lista | selectattr('notificacoes_ativas') | list | length }}/{{ autores_lista | length }} autores ativos
           </span>
@@ -241,12 +309,12 @@
 
       <details class="bloco" open id="ss-testar-sistema">
         <summary>
-          <strong>3. Testar sistema</strong>
+          <strong>4. Execução manual controlada</strong>
           <span class="meta-inline">modo de envio: {{ tag_modo_envio(modo_envio) }}</span>
         </summary>
         <div class="det-body">
           <p class="sdesc">
-            Console para disparar manualmente os jobs reais do ciclo. <strong>Atenção:</strong> em modo <code>real</code> os e-mails são enviados de fato pelo SendGrid; em <code>sandbox</code> a chamada vai à API mas não chega ao destinatário; em <code>desligado</code> o sistema apenas registra a tentativa.
+            Console para executar rotinas reais fora do horário agendado. Escolha a ação, o relatório base ou alvo, e o tipo de notificação quando aplicável. <strong>Atenção:</strong> em modo <code>real</code> os e-mails são enviados de fato pelo SendGrid; em <code>sandbox</code> a chamada vai à API mas não chega ao destinatário; em <code>desligado</code> o sistema apenas registra a tentativa.
           </p>
 
           {% if resultado_teste %}
@@ -283,12 +351,23 @@
                 <span class="coord-panel-badge"><span class="tag tag-warn">cria relatório</span></span>
               </div>
               <p class="coord-panel-desc">
-                Cria o relatório do mês corrente clonando estrutura do último <code>finalizado</code> (ou mais recente) e dispara <strong>Mensagem 1 (abertura)</strong> para cada autor com <em>Relatório = Sim</em>. Idempotente sem <code>force</code>; com <code>force</code> reabre mesmo se já existir.
+                Cria o relatório do mês corrente clonando a estrutura do relatório base selecionado e dispara <strong>Mensagem 1 (abertura)</strong> para cada autor com <em>Relatório = Sim</em>. Idempotente sem <code>force</code>; com <code>force</code> reabre mesmo se já existir.
               </p>
               <form method="post"
                     action="/governanca-relatorio/testar/abrir-periodo"
                     class="coord-form coord-form--stack"
                     onsubmit="return confirm('Confirma abrir período do mês?\n\nNo modo de envio real isto cria relatório novo e dispara e-mails de produção via SendGrid para todos os autores com Relatório = Sim.');">
+                <div class="coord-field-row">
+                  <div class="coord-field">
+                    <label for="t-ab-base">Relatório base para clonar</label>
+                    <select id="t-ab-base" name="base_relatorio_id" required>
+                      {% for r in relatorios_filtro %}
+                        <option value="{{ r.id }}"
+                                {% if loop.first %}selected{% endif %}>{{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
                 <input type="hidden" name="force" value="1">
                 <button type="submit" class="coord-btn-block">Executar (force=true)</button>
               </form>
@@ -377,73 +456,6 @@
         </div>
       </details>
 
-      <details class="bloco" open id="ss-status-cron">
-        <summary>
-          <strong>4. Status real do cron</strong>
-          <span class="meta-inline">cron-job.org · execução HTTP</span>
-        </summary>
-        <div class="det-body">
-          <p class="sdesc">
-            Consulta real dos jobs externos. Quando a chave <code>CRONJOB_ORG_API_KEY</code> não está configurada no ambiente, a página mostra os jobs esperados sem histórico.
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Job</th>
-                <th>Estado</th>
-                <th>Última execução</th>
-                <th>Resultado</th>
-                <th>Próxima execução</th>
-                <th>Duração</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in cron_status %}
-                <tr>
-                  <td>
-                    <strong>{{ row.label }}</strong>
-                    <br>
-                    <span class="muted-dash">#{{ row.job_id }}</span>
-                  </td>
-                  <td>
-                    {% if row.available %}
-                      {% if row.enabled %}
-                        <span class="tag tag-ok">ativo</span>
-                      {% else %}
-                        <span class="tag tag-warn">pausado</span>
-                      {% endif %}
-                    {% else %}
-                      <span class="tag tag-neutral" title="{{ row.error or 'indisponível' }}">sem consulta</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ fmt_dt(row.last_execution) if row.available else '—' }}</td>
-                  <td>
-                    {% if row.available and row.last_http_status %}
-                      {% if row.last_http_status == 200 %}
-                        <span class="tag tag-ok">HTTP {{ row.last_http_status }}</span>
-                      {% else %}
-                        <span class="tag tag-err">HTTP {{ row.last_http_status }}</span>
-                      {% endif %}
-                    {% elif row.available %}
-                      <span class="tag tag-neutral">sem histórico</span>
-                    {% else %}
-                      <span class="muted-dash">—</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ fmt_dt(row.next_execution) if row.available else '—' }}</td>
-                  <td>
-                    {% if row.available and row.last_duration_ms is not none %}
-                      {{ row.last_duration_ms }} ms
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </details>
     </div>
   </section>
 

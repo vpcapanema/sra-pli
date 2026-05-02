@@ -540,12 +540,24 @@ def governanca_testar_abrir_periodo(
     request: Request,
     db: Session = Depends(get_db),
     force: str = Form("1"),
+    base_relatorio_id: str = Form(""),
 ):
     """Executa `abrir_periodo` real (idempotente sem force)."""
     pre = _coord_admin_or_login(request, db)
     if pre[1] is not None:
         return pre[1]
-    resumo = abrir_periodo(db, force=force in ("1", "on", "true", "sim"))
+    base_id: int | None = None
+    base_raw = (base_relatorio_id or "").strip()
+    if base_raw:
+        try:
+            base_id = int(base_raw)
+        except ValueError:
+            base_id = None
+    resumo = abrir_periodo(
+        db,
+        force=force in ("1", "on", "true", "sim"),
+        base_relatorio_id=base_id,
+    )
     _guardar_resultado_teste(request, "Abrir período", asdict(resumo))
     return RedirectResponse(
         url="/governanca-relatorio#ss-testar-sistema",
