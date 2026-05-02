@@ -106,7 +106,7 @@ Notificações:
 - `User.email` + `User.email2` (ambos obrigatórios): principal (login, unicidade `(email, role)` em `uq_users_email_role`) e **secundário**. Ciclo envia para ambos quando distintos; `EntregaRelatorio.status` evolui só com sucesso para o **principal**.
 - `User.notificacoes_ativas` (bool, default true): só `role=autor` com true entram no ciclo. Opt-out em `/usuarios`.
 - `EntregaRelatorio` (1 por par `relatorio` × `user`): `status` (`notificado`/`aguardando_envio`/`enviado`/`validado`), `data_envio`, `data_validacao`, `validado_por_id`, auditoria. Estado "finalizado" é do `Relatorio` inteiro.
-- `NotificacaoEnvio` (1:N por `EntregaRelatorio`): `tipo` (`abertura`/`lembrete`/`ultima_chamada`/`manual`), `enviada_em`, `sucesso`, `erro`, `destinatario_email` (snapshot), `sendgrid_message_id`.
+- `NotificacaoEnvio` (1:N por `EntregaRelatorio`): `tipo` (`abertura`/`lembrete`/`ultima_chamada`/`manual`), `enviada_em`, `sucesso`, `erro`, `destinatario_email` (snapshot), `sendgrid_message_id`, `provedor_status`, `provedor_status_em`, `provedor_motivo`, `aberto_em`. `sucesso=true` significa aceite/tentativa bem-sucedida; entrega real só é exibida quando o Event Webhook do SendGrid registra `delivered`. Evento `open` aparece na UI como "Visualização detectada", sem afirmar leitura humana.
 
 ## Regras De Permissão
 
@@ -171,7 +171,7 @@ Não restringe o importador, oferece ficheiro alinhado ao que a análise reconhe
 
 ### Ciclo De Notificações Mensais
 
-Persistência editável (coord/admin): tabela singleton `parametros_ciclo_notificacao` (`app/models.ParametrosCicloNotificacao`); carga/definição em `app/notificacoes/ciclo_params.py`. UI `GET /governanca-relatorio` (`app/routes/governanca_relatorio.py`, template `complementos/governanca_relatorio.html`): edição das tabelas `parametros_ciclo_notificacao`, `entrega_relatorio`, `notificacao_envio` e `users` (coordenador só vê autores e próprio perfil), acompanhamento do ciclo em linguagem operacional (relatório aberto, avisos enviados, autores alcançados, próximos disparos e modal com situação por autor), console de execução manual real com escolha de relatório base para abertura e filtro server-side por relatório em entregas/notificações (padrão: relatório mais recente). Chave SendGrid, kill-switch e chave opcional `CRONJOB_ORG_API_KEY` ficam em ambiente. Sidebar: «Governança» > «Governança do relatório».
+Persistência editável (coord/admin): tabela singleton `parametros_ciclo_notificacao` (`app/models.ParametrosCicloNotificacao`); carga/definição em `app/notificacoes/ciclo_params.py`. UI `GET /governanca-relatorio` (`app/routes/governanca_relatorio.py`, template `complementos/governanca_relatorio.html`): edição das tabelas `parametros_ciclo_notificacao`, `entrega_relatorio`, `notificacao_envio` e `users` (coordenador só vê autores e próprio perfil), acompanhamento do ciclo em linguagem operacional (relatório aberto, envio solicitado, entrega confirmada, visualização técnica detectada, próximos disparos e modal com situação por autor), console de execução manual real com escolha de relatório base para abertura e filtro server-side por relatório em entregas/notificações (padrão: relatório mais recente). Chave SendGrid, kill-switch, token do webhook SendGrid e chave opcional `CRONJOB_ORG_API_KEY` ficam em ambiente. Sidebar: «Governança» > «Governança do relatório».
 
 Pontos de entrada (idempotentes) em `app/notificacoes/service.py`:
 
@@ -193,6 +193,8 @@ E-mail (`app/notificacoes/email_sender.py`):
 
 - Template único `app/notificacoes/templates/email_notificacao.{html,txt}` que muda intro/CTA por `tipo`. HTML usa tabelas + estilos inline (sem `&lt;details&gt;`, sem flexbox) para Outlook).
 
+- Envio real marca prioridade (`Importance`, `X-Priority`, `X-MSMail-Priority`) e habilita `open_tracking` do SendGrid para mensagens do ciclo. O endpoint `POST /admin/sendgrid/events?token=...` recebe Event Webhook (`delivered`, `open`, `bounce`, `dropped`, `spamreport`, `blocked`, `deferred`, `processed`) e atualiza `NotificacaoEnvio`; configure o webhook no painel SendGrid apontando para `APP_BASE_URL` e guardando o token em `SENDGRID_EVENT_WEBHOOK_TOKEN`.
+
 - Links: `link_upload`, `link_dotx` (`/relatorios/{rel}/secoes/{sec}/modelo.dotx` autenticado em `notificacoes.py`), `link_relatorio_painel`, `link_modelos_word_ajuda`, `link_login_sra`, `link_painel_upload`. Hosts derivados de `APP_BASE_URL`.
 
 - Prazos no corpo (`prazos_mensagem_relatorio` em `service.py`): mês/ano de `periodo_fim`; dias de autor e coordenação configuráveis (`prazo_autor_dia`, `prazo_coordenacao_dia`); horas exibidas 23:59.
@@ -206,7 +208,7 @@ Cron (Track 5):
 - Teste prático: `scripts/teste_http_cron_notificacao.py` (`--http`/`--in-process`; `--no-force` imita produção; `--cadeia-atribuir` atribui seção e notifica). E2E completo: `scripts/_e2e_notificacoes.py`.
 - Schedules externos espelham dias/horários guardados (`/governanca-relatorio` e `app/cron/*.py`).
 
-Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `CRON_TOKEN`; opcionais para status do cron externo: `CRONJOB_ORG_API_KEY` (`sync: false` no Render, valor só no ambiente) e `CRONJOB_ORG_JOB_*`.
+Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `SENDGRID_EVENT_WEBHOOK_TOKEN`, `CRON_TOKEN`; opcionais para status do cron externo: `CRONJOB_ORG_API_KEY` (`sync: false` no Render, valor só no ambiente) e `CRONJOB_ORG_JOB_*`.
 
 Fonte única do nome `.dotx` em `app/notificacoes/modelos.py` (`slug_titulo`, `filename_para`, `caminho_para`); `scripts/build_canonical_upload_dotx.py` importa daqui.
 

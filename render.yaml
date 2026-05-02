@@ -33,6 +33,9 @@ services:
         value: "true"
       - key: NOTIFICAR_SANDBOX
         value: "false"
+      # Token do Event Webhook do SendGrid para registrar delivered/open/bounce.
+      - key: SENDGRID_EVENT_WEBHOOK_TOKEN
+        sync: false
       # Token compartilhado dos endpoints /admin/cron/* (string longa aleatoria).
       - key: CRON_TOKEN
         sync: false

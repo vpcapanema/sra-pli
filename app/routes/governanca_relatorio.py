@@ -295,22 +295,34 @@ def _autor_status_notificacao(
             "quando": None,
             "motivo": "Este autor está fora do ciclo de notificações.",
             "enviado": False,
+            "entregue": False,
             "contabilizar": False,
         }
     eventos = [n for n in (entrega.notificacoes if entrega else []) if n.tipo == tipo]
-    sucessos = [n for n in eventos if n.sucesso]
+    confirmados = [
+        n
+        for n in eventos
+        if n.provedor_status in ("delivered", "open") or n.aberto_em is not None
+    ]
+    solicitados = [n for n in eventos if n.sucesso]
     falhas = [n for n in eventos if not n.sucesso]
-    if sucessos:
-        ultimo = max(sucessos, key=lambda n: n.enviada_em)
+    if confirmados:
+        ultimo = max(confirmados, key=lambda n: n.provedor_status_em or n.enviada_em)
+        aberto = ultimo.aberto_em is not None or ultimo.provedor_status == "open"
         return {
             "nome": autor.nome,
             "email": autor.email,
             "email2": autor.email2,
-            "estado": "Enviado",
+            "estado": "Visualização detectada" if aberto else "Entregue",
             "tag": "tag-ok",
-            "quando": ultimo.enviada_em,
-            "motivo": "Envio confirmado pelo sistema.",
+            "quando": ultimo.aberto_em or ultimo.provedor_status_em or ultimo.enviada_em,
+            "motivo": (
+                "O SendGrid registrou evento técnico de visualização do e-mail."
+                if aberto
+                else "O SendGrid confirmou entrega ao servidor de e-mail do destinatário."
+            ),
             "enviado": True,
+            "entregue": True,
             "contabilizar": True,
         }
     if falhas:
@@ -321,9 +333,28 @@ def _autor_status_notificacao(
             "email2": autor.email2,
             "estado": "Falhou",
             "tag": "tag-err",
-            "quando": ultimo.enviada_em,
-            "motivo": ultimo.erro or "O serviço de e-mail não confirmou o envio.",
+            "quando": ultimo.provedor_status_em or ultimo.enviada_em,
+            "motivo": (
+                ultimo.provedor_motivo
+                or ultimo.erro
+                or "O serviço de e-mail informou falha."
+            ),
             "enviado": False,
+            "entregue": False,
+            "contabilizar": True,
+        }
+    if solicitados:
+        ultimo = max(solicitados, key=lambda n: n.enviada_em)
+        return {
+            "nome": autor.nome,
+            "email": autor.email,
+            "email2": autor.email2,
+            "estado": "Envio solicitado",
+            "tag": "tag-warn",
+            "quando": ultimo.enviada_em,
+            "motivo": "O SendGrid aceitou a mensagem, mas ainda não confirmou entrega na caixa.",
+            "enviado": True,
+            "entregue": False,
             "contabilizar": True,
         }
     return {
@@ -335,6 +366,7 @@ def _autor_status_notificacao(
         "quando": None,
         "motivo": "Aguardando a rotina de envio ou execução manual.",
         "enviado": False,
+        "entregue": False,
         "contabilizar": True,
     }
 
@@ -350,7 +382,8 @@ def _linha_notificacao_ciclo(
         for autor in autores
     ]
     total = sum(1 for item in detalhes if item["contabilizar"])
-    enviados = sum(1 for item in detalhes if item["contabilizar"] and item["enviado"])
+    solicitados = sum(1 for item in detalhes if item["contabilizar"] and item["enviado"])
+    entregues = sum(1 for item in detalhes if item["contabilizar"] and item["entregue"])
     falhas = [item for item in detalhes if item["estado"] == "Falhou"]
     quando = max(
         (item["quando"] for item in detalhes if item["quando"] is not None),
@@ -364,29 +397,36 @@ def _linha_notificacao_ciclo(
         estado = "Sem autores ativos"
         tag = "tag-neutral"
         mensagem = "Nenhum autor está marcado para receber notificações."
-    elif enviados == total:
-        estado = "Enviado"
+    elif entregues == total:
+        estado = "Entrega confirmada"
         tag = "tag-ok"
-        mensagem = "Todos os autores ativos receberam esta comunicação."
+        mensagem = "O SendGrid confirmou entrega para todos os autores ativos."
     elif falhas:
         estado = "Atenção"
         tag = "tag-err"
         mensagem = "Há envio com falha. Abra a lista de autores para ver o motivo."
-    elif enviados:
-        estado = "Parcial"
+    elif entregues:
+        estado = "Entrega parcial"
         tag = "tag-warn"
-        mensagem = f"{total - enviados} autor(es) ainda não têm envio confirmado."
+        mensagem = f"{total - entregues} autor(es) ainda não têm entrega confirmada."
+    elif solicitados:
+        estado = "Envio solicitado"
+        tag = "tag-warn"
+        mensagem = (
+            "O SendGrid aceitou a mensagem, mas ainda não confirmou entrega. "
+            "Isto não prova recebimento na caixa."
+        )
     else:
         estado = "Aguardando envio"
         tag = "tag-warn"
-        mensagem = "Nenhum envio confirmado para esta etapa até agora."
+        mensagem = "Nenhum envio solicitado para esta etapa até agora."
     return {
         "tipo": "notificacao",
         "titulo": spec["titulo"],
         "estado": estado,
         "tag": tag,
         "quando": quando,
-        "autores_texto": f"{enviados}/{total} autores",
+        "autores_texto": f"{entregues}/{total} entregues",
         "modal_id": spec["modal_id"],
         "detalhes": detalhes,
         "proxima_execucao": spec["proxima_execucao"],

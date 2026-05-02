@@ -27,6 +27,7 @@ from .routes import notificacoes as notif_routes
 from .routes import pdf as pdf_routes
 from .routes import dev_ui
 from .routes import governanca_relatorio as governanca_relatorio_routes
+from .routes import sendgrid_events as sendgrid_events_routes
 from .routes import mapa_aplicacao as mapa_aplicacao_routes
 from .routes.pages import response_home
 from .access_control import SraAutorRouteGuardMiddleware
@@ -149,6 +150,7 @@ app.include_router(
 )
 app.include_router(bloco_routes.router)
 app.include_router(cron_admin_routes.router)
+app.include_router(sendgrid_events_routes.router)
 app.include_router(figura_routes.router)
 app.include_router(importacao_routes.router)
 app.include_router(modelos_word_routes.router)

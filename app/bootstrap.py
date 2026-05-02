@@ -93,6 +93,30 @@ def init_db() -> None:
                 )
             )
             conn.execute(text("ALTER TABLE users ALTER COLUMN email2 SET NOT NULL;"))
+            conn.execute(
+                text(
+                    "ALTER TABLE notificacao_envio "
+                    "ADD COLUMN IF NOT EXISTS provedor_status VARCHAR(32);"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE notificacao_envio "
+                    "ADD COLUMN IF NOT EXISTS provedor_status_em TIMESTAMP;"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE notificacao_envio "
+                    "ADD COLUMN IF NOT EXISTS provedor_motivo TEXT;"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE notificacao_envio "
+                    "ADD COLUMN IF NOT EXISTS aberto_em TIMESTAMP;"
+                )
+            )
     with SessionLocal() as db:
         ensure_admin(db)
         ensure_parametros_ciclo_notificacao(db)

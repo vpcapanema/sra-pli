@@ -194,7 +194,7 @@
         </summary>
         <div class="det-body">
           <p class="sdesc">
-            Mostra, em linguagem operacional, se o relatório do ciclo já foi aberto e como está o envio das mensagens aos autores. Clique na quantidade de autores para ver quem recebeu, quem ainda falta e o motivo quando houve falha.
+            Mostra apenas o que o sistema consegue provar. <strong>Envio solicitado</strong> significa que o SendGrid aceitou processar a mensagem; <strong>Entregue</strong> exige evento de entrega do provedor; <strong>Visualização detectada</strong> é só um sinal técnico do provedor e pode ser bloqueado pelo cliente de e-mail. Clique nos autores para ver o detalhe.
           </p>
           <table class="gov-ciclo-table">
             <thead>
@@ -252,7 +252,7 @@
                   </div>
                   <div class="gov-modal-body">
                     <p class="sdesc">
-                      Lista de autores cadastrados para o ciclo. Autores pausados aparecem para auditoria, mas não entram na contagem de envio.
+                      A lista separa tentativa, entrega e visualização detectada. O sistema não inventa recebimento: sem evento do SendGrid, a situação fica como envio solicitado ou ainda não enviado. Autores pausados aparecem para auditoria, mas não entram na contagem.
                     </p>
                     <table>
                       <thead>
@@ -621,7 +621,7 @@
     </div>
     <div class="sb2">
       <p class="sdesc">
-        Tabela <code>notificacao_envio</code>. Histórico de e-mails disparados pelo SendGrid (notificação inicial, lembretes, última chamada, abertura de ciclo).
+        Tabela <code>notificacao_envio</code>. Histórico de e-mails disparados pelo SendGrid. <strong>Solicitado</strong> quer dizer aceite para processamento; <strong>Entregue</strong> e <strong>Visualização detectada</strong> vêm do webhook do provedor.
       </p>
       <form method="get" action="/governanca-relatorio" class="gov-filter-form">
         <label for="gov-filter-notifs">Filtrar por relatório</label>
@@ -661,8 +661,12 @@
                 <td>{{ n.tipo }}</td>
                 <td>{{ fmt_dt(n.enviada_em) }}</td>
                 <td>
-                  {% if n.sucesso %}
-                    <span class="tag tag-ok">Sucesso</span>
+                  {% if n.provedor_status == "open" or n.aberto_em %}
+                    <span class="tag tag-ok" title="{{ n.provedor_motivo or '' }}">Visualização detectada</span>
+                  {% elif n.provedor_status == "delivered" %}
+                    <span class="tag tag-ok" title="{{ n.provedor_motivo or '' }}">Entregue</span>
+                  {% elif n.sucesso %}
+                    <span class="tag tag-warn" title="SendGrid aceitou processar; entrega ainda não confirmada">Solicitado</span>
                   {% else %}
                     <span class="tag tag-err" title="{{ n.erro or 'Falha no envio' }}">Falhou</span>
                   {% endif %}

@@ -196,6 +196,10 @@ class NotificacaoEnvio(Base):
     # User trocar de email depois.
     destinatario_email = Column(String(255), nullable=False)
     sendgrid_message_id = Column(String(255), nullable=True)
+    provedor_status = Column(String(32), nullable=True)
+    provedor_status_em = Column(DateTime, nullable=True)
+    provedor_motivo = Column(Text, nullable=True)
+    aberto_em = Column(DateTime, nullable=True)
 
     entrega = relationship("EntregaRelatorio", back_populates="notificacoes")
 

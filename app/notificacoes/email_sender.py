@@ -23,6 +23,16 @@ from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from sendgrid.helpers.mail import (
+    ClickTracking,
+    Content,
+    Email,
+    Header,
+    Mail,
+    OpenTracking,
+    TrackingSettings,
+    To,
+)
 
 from ..config import settings
 
@@ -106,36 +116,39 @@ def preview_assunto_notificacao(tipo: str, contexto: dict[str, Any]) -> str:
     return _assunto_para(tipo, contexto)
 
 
-def _enviar_real(
-    destinatario_email: str,
-    destinatario_nome: str,
-    assunto: str,
-    html: str,
-    texto: str,
-) -> ResultadoEnvio:
+def _criar_mail_sendgrid(payload: dict[str, str]) -> Mail:
+    msg = Mail(
+        from_email=Email(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
+        to_emails=To(payload["destinatario_email"], payload["destinatario_nome"]),
+        subject=payload["assunto"],
+    )
+    msg.add_content(Content("text/plain", payload["texto"]))
+    msg.add_content(Content("text/html", payload["html"]))
+    msg.add_header(Header("Importance", "high"))
+    msg.add_header(Header("X-Priority", "1"))
+    msg.add_header(Header("X-MSMail-Priority", "High"))
+    if payload["tipo"] in ("abertura", "lembrete", "ultima_chamada"):
+        msg.tracking_settings = TrackingSettings()
+        msg.tracking_settings.open_tracking = OpenTracking(True)
+        msg.tracking_settings.click_tracking = ClickTracking(False, False)
+    return msg
+
+
+def _message_id_resposta(resp: Any) -> str | None:
+    try:
+        return resp.headers.get("X-Message-Id")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _enviar_real(payload: dict[str, str]) -> ResultadoEnvio:
     """Envia via SendGrid Web API v3."""
     try:
         from sendgrid import SendGridAPIClient  # noqa: PLC0415
-        from sendgrid.helpers.mail import (  # noqa: PLC0415
-            Content, Email, Mail, To,
-        )
 
-        msg = Mail(
-            from_email=Email(
-                settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME
-            ),
-            to_emails=To(destinatario_email, destinatario_nome),
-            subject=assunto,
-        )
-        msg.add_content(Content("text/plain", texto))
-        msg.add_content(Content("text/html", html))
         client = SendGridAPIClient(settings.SENDGRID_API_KEY)
-        resp = client.send(msg)
-        message_id = None
-        try:
-            message_id = resp.headers.get("X-Message-Id")
-        except Exception:  # noqa: BLE001
-            message_id = None
+        resp = client.send(_criar_mail_sendgrid(payload))
+        message_id = _message_id_resposta(resp)
         if 200 <= resp.status_code < 300:
             return ResultadoEnvio(True, message_id, None, "real")
         return ResultadoEnvio(
@@ -182,5 +195,12 @@ def enviar_notificacao(
         return ResultadoEnvio(True, message_id, None, "sandbox")
 
     return _enviar_real(
-        destinatario_email, destinatario_nome, assunto, html, texto
+        {
+            "destinatario_email": destinatario_email,
+            "destinatario_nome": destinatario_nome,
+            "assunto": assunto,
+            "html": html,
+            "texto": texto,
+            "tipo": tipo,
+        }
     )

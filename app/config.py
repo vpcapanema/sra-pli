@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Token compartilhado dos endpoints de cron (X-Cron-Token). Em prod use
     # uma string longa aleatória; em dev qualquer valor não-vazio basta.
     CRON_TOKEN: str = ""
+    # Token simples para autenticar o Event Webhook do SendGrid. Configure no
+    # Render e use na URL do webhook: /admin/sendgrid/events?token=...
+    SENDGRID_EVENT_WEBHOOK_TOKEN: str = ""
     # Integração opcional com cron-job.org para exibir status real na governança.
     CRONJOB_ORG_API_KEY: str = ""
     CRONJOB_ORG_JOB_ABRIR_PERIODO: int = 7547405
