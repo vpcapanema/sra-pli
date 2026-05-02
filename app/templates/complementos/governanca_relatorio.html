@@ -59,7 +59,7 @@
 
       <details class="bloco" open id="ss-parametros-ciclo">
         <summary>
-          <strong>1. Parâmetros do ciclo</strong>
+          <strong>1.1. Parâmetros do ciclo</strong>
           <span class="meta-inline">tabela <code>parametros_ciclo_notificacao</code> · id 1</span>
         </summary>
         <div class="det-body">
@@ -189,7 +189,7 @@
 
       <details class="bloco" open id="ss-status-cron">
         <summary>
-          <strong>2. Acompanhamento do ciclo</strong>
+          <strong>1.2. Acompanhamento do ciclo</strong>
           <span class="meta-inline">relatório, avisos e próximos envios</span>
         </summary>
         <div class="det-body">
@@ -292,7 +292,7 @@
 
       <details class="bloco" open id="ss-usuarios-notificados">
         <summary>
-          <strong>3. Usuários notificados</strong>
+          <strong>1.3. Usuários notificados</strong>
           <span class="meta-inline">
             {{ autores_lista | selectattr('notificacoes_ativas') | list | length }}/{{ autores_lista | length }} autores ativos
           </span>
@@ -344,7 +344,7 @@
 
       <details class="bloco" open id="ss-testar-sistema">
         <summary>
-          <strong>4. Execução manual controlada</strong>
+          <strong>1.4. Execução manual controlada</strong>
           <span class="meta-inline">modo de envio: {{ tag_modo_envio(modo_envio) }}</span>
         </summary>
         <div class="det-body">
@@ -382,10 +382,17 @@
           <div class="coord-actions-grid">
             <div class="coord-panel">
               <div class="coord-panel-h">
-                <h3 class="coord-panel-title">Abrir período do mês</h3>
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Abrir período do mês</h3>
+                  <button type="button"
+                          class="coord-help-btn"
+                          aria-label="Ajuda sobre abrir período"
+                          aria-expanded="false"
+                          data-coord-help="coord-help-abrir">?</button>
+                </div>
                 <span class="coord-panel-badge"><span class="tag tag-warn">cria relatório</span></span>
               </div>
-              <p class="coord-panel-desc">
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-abrir">
                 Cria o relatório do mês corrente clonando a estrutura do relatório base selecionado e dispara <strong>Mensagem 1 (abertura)</strong> para cada autor com <em>Relatório = Sim</em>. Idempotente sem <code>force</code>; com <code>force</code> reabre mesmo se já existir.
               </p>
               <form method="post"
@@ -410,10 +417,17 @@
 
             <div class="coord-panel">
               <div class="coord-panel-h">
-                <h3 class="coord-panel-title">Reenviar abertura</h3>
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Reenviar abertura</h3>
+                  <button type="button"
+                          class="coord-help-btn"
+                          aria-label="Ajuda sobre reenviar abertura"
+                          aria-expanded="false"
+                          data-coord-help="coord-help-reenviar">?</button>
+                </div>
                 <span class="coord-panel-badge"><span class="tag tag-ok">e-mail</span></span>
               </div>
-              <p class="coord-panel-desc">
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-reenviar">
                 Reenvia <strong>Mensagem 1</strong> aos autores que ainda não receberam <em>abertura</em> com sucesso, num relatório existente. Idempotente por endereço (principal e secundário).
               </p>
               <form method="post"
@@ -441,10 +455,17 @@
 
             <div class="coord-panel">
               <div class="coord-panel-h">
-                <h3 class="coord-panel-title">Lembretes / última chamada</h3>
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Lembretes / última chamada</h3>
+                  <button type="button"
+                          class="coord-help-btn"
+                          aria-label="Ajuda sobre lembretes e última chamada"
+                          aria-expanded="false"
+                          data-coord-help="coord-help-lembretes">?</button>
+                </div>
                 <span class="coord-panel-badge"><span class="tag tag-ok">e-mail</span></span>
               </div>
-              <p class="coord-panel-desc">
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-lembretes">
                 Dispara <strong>Mensagem 2</strong> (lembrete ou última chamada) para entregas pendentes. Por padrão ignora o calendário do ciclo (executa fora do dia configurado); restrinja a um relatório se quiser.
               </p>
               <form method="post"
@@ -475,10 +496,17 @@
 
             <div class="coord-panel">
               <div class="coord-panel-h">
-                <h3 class="coord-panel-title">Retry · falhas recentes</h3>
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Retry · falhas recentes</h3>
+                  <button type="button"
+                          class="coord-help-btn"
+                          aria-label="Ajuda sobre retry de falhas"
+                          aria-expanded="false"
+                          data-coord-help="coord-help-retry">?</button>
+                </div>
                 <span class="coord-panel-badge"><span class="tag tag-warn">retry</span></span>
               </div>
-              <p class="coord-panel-desc">
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-retry">
                 Retenta envios que falharam nos últimos <strong>7 dias</strong>, até <strong>3 tentativas</strong> por par (entrega, tipo). Cria nova linha em <code>notificacao_envio</code> a cada tentativa para audit trail.
               </p>
               <form method="post"
@@ -857,7 +885,36 @@
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") {
           document.querySelectorAll(".gov-modal:not(.is-hidden)").forEach(closeModal);
+          document.querySelectorAll(".coord-help-pop.is-open").forEach((pop) => {
+            pop.classList.remove("is-open");
+          });
+          document.querySelectorAll("[data-coord-help][aria-expanded='true']").forEach((btn) => {
+            btn.setAttribute("aria-expanded", "false");
+          });
         }
+      });
+      document.querySelectorAll("[data-coord-help]").forEach((btn) => {
+        btn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const pop = document.getElementById(btn.dataset.coordHelp);
+          const opening = pop && !pop.classList.contains("is-open");
+          document.querySelectorAll(".coord-help-pop.is-open").forEach((item) => {
+            if (item !== pop) item.classList.remove("is-open");
+          });
+          document.querySelectorAll("[data-coord-help]").forEach((item) => {
+            if (item !== btn) item.setAttribute("aria-expanded", "false");
+          });
+          if (pop) pop.classList.toggle("is-open", opening);
+          btn.setAttribute("aria-expanded", opening ? "true" : "false");
+        });
+      });
+      document.addEventListener("click", () => {
+        document.querySelectorAll(".coord-help-pop.is-open").forEach((pop) => {
+          pop.classList.remove("is-open");
+        });
+        document.querySelectorAll("[data-coord-help][aria-expanded='true']").forEach((btn) => {
+          btn.setAttribute("aria-expanded", "false");
+        });
       });
     })();
   </script>

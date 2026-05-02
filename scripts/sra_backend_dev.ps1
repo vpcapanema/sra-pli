@@ -17,6 +17,21 @@ $py = Join-Path $repo ".venv/Scripts/python.exe"
 if (-not (Test-Path $py)) {
     throw "Interpretador nao encontrado: $py (crie a venv e pip install -r requirements.txt)."
 }
+$envPath = Join-Path $repo ".env"
+if (Test-Path $envPath) {
+    Get-Content $envPath | ForEach-Object {
+        $line = $_.Trim()
+        if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
+            return
+        }
+        $parts = $line.Split("=", 2)
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim().Trim('"').Trim("'")
+        if ($key -eq "SENDGRID_EVENT_WEBHOOK_TOKEN" -and -not $env:SENDGRID_EVENT_WEBHOOK_TOKEN) {
+            $env:SENDGRID_EVENT_WEBHOOK_TOKEN = $value
+        }
+    }
+}
 
 Get-Job -Name sra-open -ErrorAction SilentlyContinue | Remove-Job -Force -ErrorAction SilentlyContinue
 Start-Job -Name sra-open -ScriptBlock {
