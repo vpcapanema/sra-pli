@@ -1,4 +1,7 @@
+import io
+import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from fastapi.responses import Response, HTMLResponse
@@ -128,3 +131,58 @@ def exportar_relatorio(
             headers={"Content-Disposition": f'attachment; filename="{fname}"'},
         )
     raise HTTPException(400, detail="Formato de exportação inválido.")
+
+
+@router.get("/relatorios/{rel_id}/exportar-assinatura")
+def exportar_para_assinatura(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Pacote para o coordenador enviar para assinatura: ZIP com PDF + DOCX
+    no escopo inteiro do relatório, mais um README pequeno indicando versão e
+    data de geração. Restrito a admin/coordenador (dado o uso final).
+    """
+    user = current_user(request, db)
+    if not user:
+        return response_login(request)
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
+    rel = _get_relatorio_completo(db, rel_id)
+    if not rel:
+        raise HTTPException(404)
+
+    pdf_bytes = render_pdf(db, rel, None)
+    docx_bytes = render_docx(db, rel, None)
+    base = f"{rel.codigo}-{rel.versao}"
+    gerado_em = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    readme = (
+        f"Relatorio: {rel.codigo} - {rel.titulo}\n"
+        f"Mes de referencia: {rel.mes_referencia}\n"
+        f"Versao: {rel.versao}\n"
+        f"Status no momento da geracao: {rel.status}\n"
+        f"Gerado em: {gerado_em}\n"
+        f"\n"
+        f"Conteudo:\n"
+        f"  - {base}.pdf  (assinatura primaria)\n"
+        f"  - {base}.docx (versao editavel para revisao final)\n"
+        f"\n"
+        f"Ambos os arquivos refletem o escopo INTEIRO do relatorio.\n"
+    )
+
+    buf = io.BytesIO()
+    # ZIP_DEFLATED comprime ~50% no DOCX e quase nada no PDF; ainda assim vale
+    # para reduzir o anexo de e-mail. Sem level: usa default (6) que é o ponto
+    # de equilíbrio razoável tempo/ratio.
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{base}.pdf", pdf_bytes)
+        zf.writestr(f"{base}.docx", docx_bytes)
+        zf.writestr("LEIA-ME.txt", readme.encode("utf-8"))
+    buf.seek(0)
+
+    fname = f"{base}-para-assinatura.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )

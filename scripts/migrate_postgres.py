@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db import Base  # noqa: E402
 import app.models  # noqa: F401,E402  registra as tabelas no Base.metadata
+from scripts.postgres_seq_discovery import POSTGRES_SEQUENCE_COLUMN_MAP_SQL  # noqa: E402
 
 
 def _normalize(url: str) -> str:
@@ -85,14 +86,7 @@ def main() -> int:  # pylint: disable=too-many-locals
 
     print("[4/4] Resetando sequences...")
     with tgt.connect() as tconn:
-        seqs = tconn.execute(text("""
-            SELECT s.relname AS seq, t.relname AS tbl, a.attname AS col
-            FROM pg_class s
-            JOIN pg_depend d ON d.objid = s.oid
-            JOIN pg_class t ON t.oid = d.refobjid
-            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
-            WHERE s.relkind = 'S'
-        """)).all()
+        seqs = tconn.execute(text(POSTGRES_SEQUENCE_COLUMN_MAP_SQL)).all()
         for seq, tbl, col in seqs:
             mx = tconn.execute(text(f'SELECT COALESCE(MAX("{col}"), 0) FROM "{tbl}"')).scalar()
             tconn.execute(text(f"SELECT setval('{seq}', {int(mx) + 1}, false)"))

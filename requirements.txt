@@ -15,3 +15,10 @@ pypdf==5.1.0
 python-docx==1.1.2
 sendgrid==6.11.0
 tzdata==2024.2
+# Revisão linguística (página /relatorios/{id}/validacao-revisao, Seção 2):
+# pyspellchecker é puro Python, ~7MB instalado, dicionário PT-BR offline com
+# 416k palavras. Sem dependência de Java, sem chamadas externas.
+# Se language_tool_python estiver instalado adicionalmente E Java disponível,
+# o serviço prefere LT pela qualidade (gramática + estilo, não só ortografia);
+# instalação é opcional e deixada para o operador conforme política do ambiente.
+pyspellchecker==0.8.1

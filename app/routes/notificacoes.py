@@ -7,8 +7,7 @@ ficam para as Tracks 4/5.
 """
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse
-from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, Response
 
 from ..db import get_db
@@ -20,12 +19,29 @@ from ..notificacoes.service import (
     notificar_autores_abertura,
     prazos_mensagem_relatorio,
     reenviar_manual,
+    reprovar_entrega,
 )
+from ..services.entregas.lista_painel import montar_lista_entregas
 from .pages import (
     response_usuarios,
     templates,
     user_or_login_page,
 )
+
+
+def _redirect_seguro(destino: str) -> str | None:
+    """Aceita apenas paths internos para evitar open redirect.
+
+    Form externo poderia injetar `https://evil.tld/...`. Aqui restringimos a
+    paths que começam com '/' e não com '//' (que browsers tratam como host).
+    Devolve None quando o valor não pode ser confiado, fazendo a rota cair no
+    comportamento padrão (renderização inline).
+    """
+    valor = (destino or "").strip()
+    if not valor or not valor.startswith("/") or valor.startswith("//"):
+        return None
+    return valor
+
 
 router = APIRouter()
 
@@ -59,73 +75,30 @@ def usuarios_notificacoes_toggle(
     return response_usuarios(request, db)
 
 
-def _montar_linha_entrega(
-    entrega: EntregaRelatorio, sec_counts: dict[int, int]
-) -> dict:
-    """Achata ``EntregaRelatorio`` para o template, derivando notif1/2/3/última
-    da relação 1:N ``notificacoes`` (já ordenada por ``enviada_em``)."""
-    enviadas = [n for n in entrega.notificacoes if n.sucesso]
-    notif1 = enviadas[0].enviada_em if len(enviadas) >= 1 else None
-    notif2 = enviadas[1].enviada_em if len(enviadas) >= 2 else None
-    notif3 = enviadas[2].enviada_em if len(enviadas) >= 3 else None
-    ultima = enviadas[-1].enviada_em if enviadas else None
-    u = entrega.user
-    return {
-        "entrega_id": entrega.id,
-        "user_id": u.id if u else None,
-        "nome": u.nome if u else "—",
-        "email": u.email if u else "—",
-        "perfil": u.role if u else "—",
-        "secoes_count": sec_counts.get(u.id, 0) if u else 0,
-        "notif1": notif1,
-        "notif2": notif2,
-        "notif3": notif3,
-        "ultima": ultima,
-        "data_envio": entrega.data_envio,
-        "status": entrega.status,
-    }
-
-
 def response_entregas_painel(
     request: Request, db: Session, rel_id: int
 ) -> Response:
-    """Painel das entregas de um relatório. Coord/admin veem todas as linhas;
-    autores veem apenas a sua. Agregação dos timestamps das notificações é
-    feita em Python (≤ ~30 linhas/relatório torna SQL agregado sobre-engenharia).
+    """Painel das entregas — exclusivo de admin/coordenador.
+
+    A montagem das linhas vem de
+    ``services.entregas.lista_painel.montar_lista_entregas`` — mesma fonte
+    consumida pelo painel de governança e pela página de Validação e Revisão,
+    garantindo que ações em qualquer um dos três locais reflitam nos demais
+    sem duplicação de regra. O bloqueio de autor é feito antes pelo
+    `SraAutorRouteGuardMiddleware`; este `_coord_or_403` é defesa em
+    profundidade caso o middleware seja desviado.
     """
     user, p = user_or_login_page(request, db)
     if p is not None:
         return p
     assert user is not None
+    _coord_or_403(user)
 
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404, detail="Relatório não encontrado.")
 
-    q = (
-        db.query(EntregaRelatorio)
-        .options(
-            selectinload(EntregaRelatorio.user),
-            selectinload(EntregaRelatorio.notificacoes),
-        )
-        .filter(EntregaRelatorio.relatorio_id == rel_id)
-    )
-    if user.role not in ("admin", "coordenador"):
-        q = q.filter(EntregaRelatorio.user_id == user.id)
-    entregas = q.all()
-    entregas.sort(key=lambda e: (e.user.nome if e.user else ""))
-
-    sec_counts: dict[int, int] = dict(
-        db.query(
-            Secao.responsavel_id,
-            func.count(Secao.id),  # pylint: disable=not-callable
-        )
-        .filter(Secao.relatorio_id == rel_id, Secao.responsavel_id.isnot(None))
-        .group_by(Secao.responsavel_id)
-        .all()
-    )
-
-    linhas = [_montar_linha_entrega(e, sec_counts) for e in entregas]
+    linhas, pode_acoes = montar_lista_entregas(db, rel, user)
 
     primeira_sec = (
         db.query(Secao)
@@ -148,7 +121,7 @@ def response_entregas_painel(
             "user": user,
             "rel": rel,
             "linhas": linhas,
-            "pode_acoes": user.role in ("admin", "coordenador"),
+            "pode_acoes": pode_acoes,
             "link_upload_exemplo": link_upload_exemplo,
             "prazo_limite_conteudo_autor": prazos_ent["prazo_limite_conteudo_autor"],
             "prazo_envio_coord": prazos_ent["prazo_envio"],
@@ -171,7 +144,12 @@ def rota_notificar_autores_abertura(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Dispara e-mail de abertura (Mensagem 1) para responsáveis já atribuídos."""
+    """Dispara e-mail de abertura (Mensagem 1) para todos os autores ativos.
+
+    Ação **assistida** pelo coordenador: ``force=True`` ignora a idempotência
+    (não pula quem já recebeu) e força reenvio também ao endereço secundário.
+    O cron continua usando o caminho idempotente.
+    """
     user, p = user_or_login_page(request, db)
     if p is not None:
         return p
@@ -180,19 +158,28 @@ def rota_notificar_autores_abertura(
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404, detail="Relatório não encontrado.")
-    notificar_autores_abertura(db, rel_id)
+    notificar_autores_abertura(db, rel_id, force=True)
     return RedirectResponse(url=f"/relatorios/{rel_id}", status_code=303)
 
 
 @router.post("/relatorios/{rel_id}/entregas/{entrega_id}/status")
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+# Os 6 parâmetros vêm do contrato HTTP (path, body Form, request, dependency).
+# Aglutiná-los em dataclass desfigura a injeção do FastAPI sem ganho.
 def entrega_atualizar_status(
     rel_id: int,
     entrega_id: int,
     request: Request,
     novo_status: str = Form(...),
+    redirect_to: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Coord/admin altera o status de uma linha de entrega."""
+    """Coord/admin altera o status de uma linha de entrega.
+
+    ``redirect_to`` (opcional) permite que callers como o painel de
+    governança peçam para a rota devolver 303 para a sua URL de origem em
+    vez de re-renderizar o painel de entregas inline.
+    """
     user, p = user_or_login_page(request, db)
     if p is not None:
         return p
@@ -205,6 +192,9 @@ def entrega_atualizar_status(
         alterar_status_entrega(db, entrega, novo_status, coord=user)
     except ValueError as exc:
         raise HTTPException(400, detail=str(exc)) from exc
+    destino = _redirect_seguro(redirect_to)
+    if destino:
+        return RedirectResponse(url=destino, status_code=303)
     return response_entregas_painel(request, db, rel_id)
 
 
@@ -213,9 +203,13 @@ def entrega_reenviar(
     rel_id: int,
     entrega_id: int,
     request: Request,
+    redirect_to: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Coord/admin reenvia Mensagem 2 manualmente para uma entrega."""
+    """Coord/admin reenvia Mensagem 2 manualmente para uma entrega.
+
+    ``redirect_to`` segue a mesma convenção da rota de status acima.
+    """
     user, p = user_or_login_page(request, db)
     if p is not None:
         return p
@@ -225,6 +219,43 @@ def entrega_reenviar(
     if not entrega or entrega.relatorio_id != rel_id:
         raise HTTPException(404, detail="Entrega não encontrada.")
     reenviar_manual(db, entrega)
+    destino = _redirect_seguro(redirect_to)
+    if destino:
+        return RedirectResponse(url=destino, status_code=303)
+    return response_entregas_painel(request, db, rel_id)
+
+
+@router.post("/relatorios/{rel_id}/entregas/{entrega_id}/reprovar")
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+# Mesmo motivo do entrega_atualizar_status: parâmetros vêm do contrato HTTP.
+def entrega_reprovar(
+    rel_id: int,
+    entrega_id: int,
+    request: Request,
+    motivo: str = Form(...),
+    redirect_to: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Coord/admin devolve a parcial ao autor com justificativa obrigatória.
+
+    Volta a entrega para ``aguardando_envio`` e carimba motivo/data/autor da
+    reprovação. Justificativa vazia é rejeitada com 400.
+    """
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return p
+    assert user is not None
+    _coord_or_403(user)
+    entrega = db.get(EntregaRelatorio, entrega_id)
+    if not entrega or entrega.relatorio_id != rel_id:
+        raise HTTPException(404, detail="Entrega não encontrada.")
+    try:
+        reprovar_entrega(db, entrega, motivo, coord=user)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    destino = _redirect_seguro(redirect_to)
+    if destino:
+        return RedirectResponse(url=destino, status_code=303)
     return response_entregas_painel(request, db, rel_id)
 
 

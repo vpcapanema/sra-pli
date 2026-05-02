@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+{% block title %}Validação e Revisão · {{ rel.codigo }}{% endblock %}
+{% block header %}Validação e Revisão — {{ rel.codigo }}{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Validação e Revisão do relatório</h1>
+    <div class="subtitle">
+      {{ rel.codigo }} — {{ rel.titulo }} · {{ rel.mes_referencia }} · status do relatório:
+      <span class="tag tag-status-{{ rel.status }}">{{ rel.status | replace('_', ' ') }}</span>
+    </div>
+    <p>
+      Página única para o coordenador/admin: <strong>Validação</strong> percorre as parciais de cada autor; <strong>Revisão</strong> trabalha o documento como um todo e termina em "Aprovar e finalizar". Tudo orbita a <a href="/relatorios/{{ rel.id }}/entregas">Lista de entregas</a> — Aprovar/Reprovar aqui altera o status da parcial lá.
+    </p>
+    <div class="chips">
+      <span class="chip">{{ total_entregas }} autores no ciclo</span>
+      <span class="chip">{{ aprovadas }} aprovadas</span>
+      <span class="chip">{{ prontas_para_aprovar }} prontas para aprovar</span>
+      <span class="chip">{{ com_erros }} com erros estruturais</span>
+    </div>
+  </section>
+
+  <section class="ss active-tab" id="ss-validacao">
+    <div class="ss-hdr">
+      <span class="sn">01</span>
+      <span class="st">Validação — parciais dos autores</span>
+      <span class="sbadge">aprovar/reprovar por autor</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Cada autor abaixo expande para mostrar as <strong>checagens estruturais automáticas</strong> de cada seção sob sua responsabilidade. Erros (vermelho) indicam problema que provavelmente deveria voltar para o autor; avisos (amarelo) são pontos de atenção. <strong>Aprovar</strong> carimba a entrega como <em>validado</em> e cessa o ciclo de notificação para esse autor. <strong>Reprovar</strong> exige justificativa e devolve a entrega para <em>aguardando_envio</em>.
+      </p>
+
+      {% if not checagens %}
+        <p class="empty-section">
+          Nenhuma entrega registrada para este relatório. As entregas são criadas pelo serviço de abertura mensal (dia 01, 03:00 BRT) ou pela ação manual «Abrir período» do coordenador.
+        </p>
+      {% else %}
+        <div class="vr-autores">
+          {% for c in checagens %}
+            <details class="vr-autor"
+                     {% if c.total_erros > 0 or c.status != 'validado' %}open{% endif %}>
+              <summary class="vr-autor-hdr">
+                <span class="vr-autor-nome">
+                  <strong>{{ c.user_nome }}</strong>
+                  <span class="vr-autor-email">{{ c.user_email }}</span>
+                </span>
+                <span class="vr-autor-status">
+                  <span class="tag tag-status-{{ c.status }}">{{ c.status | replace('_', ' ') }}</span>
+                  {% if c.total_erros %}
+                    <span class="tag tag-err" title="Erros estruturais detectados">{{ c.total_erros }} erro{{ '' if c.total_erros == 1 else 's' }}</span>
+                  {% endif %}
+                  {% if c.total_avisos %}
+                    <span class="tag tag-warn" title="Avisos (não bloqueiam)">{{ c.total_avisos }} aviso{{ '' if c.total_avisos == 1 else 's' }}</span>
+                  {% endif %}
+                  <span class="tag tag-neutral" title="Blocos confirmados / total nas seções deste autor">
+                    {{ c.total_blocos_bloqueados }}/{{ c.total_blocos }} blocos confirmados
+                  </span>
+                </span>
+              </summary>
+
+              <div class="vr-autor-body">
+                {% if c.motivo_reprovacao %}
+                  <div class="vr-reprovacao">
+                    <strong class="vr-reprovacao-tit">Última devolução ao autor</strong>
+                    <p class="vr-reprovacao-data">
+                      em {{ c.data_reprovacao.strftime("%d/%m/%Y %H:%M") if c.data_reprovacao else '—' }}
+                    </p>
+                    <p class="vr-reprovacao-msg">{{ c.motivo_reprovacao }}</p>
+                  </div>
+                {% endif %}
+
+                {% if not c.secoes %}
+                  <p class="vr-sem-secoes">
+                    Este autor não tem nenhuma seção atribuída no relatório atual. Atribua responsabilidade em <a href="/relatorios/{{ rel.id }}">Sumário do relatório</a> antes de aprovar.
+                  </p>
+                {% else %}
+                  <table class="vr-secoes">
+                    <thead>
+                      <tr>
+                        <th>Seção</th>
+                        <th>Blocos</th>
+                        <th>Checagens automáticas</th>
+                        <th>Abrir</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for s in c.secoes %}
+                        <tr class="vr-secao
+                                   {% if s.tem_erro %}vr-secao--erro
+                                   {% elif s.tem_aviso %}vr-secao--aviso{% endif %}">
+                          <td>
+                            <strong>{{ s.secao_numero }}</strong>
+                            <span class="vr-secao-titulo">{{ s.secao_titulo }}</span>
+                          </td>
+                          <td>{{ s.blocos_bloqueados }}/{{ s.blocos_total }}</td>
+                          <td>
+                            {% if s.achados %}
+                              <ul class="vr-achados">
+                                {% for a in s.achados %}
+                                  <li class="vr-achado vr-achado--{{ a.severidade }}">
+                                    <span class="vr-achado-sev tag tag-{{ 'err' if a.severidade == 'erro' else ('warn' if a.severidade == 'aviso' else 'neutral') }}">
+                                      {{ a.severidade }}
+                                    </span>
+                                    <span class="vr-achado-msg">{{ a.rotulo }}</span>
+                                  </li>
+                                {% endfor %}
+                              </ul>
+                            {% else %}
+                              <span class="muted-dash" title="Nenhum problema estrutural detectado">— sem ressalvas —</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            <a class="vr-abrir-btn"
+                               href="{{ s.link_upload }}"
+                               title="Abrir página de edição/visualização da seção">Abrir</a>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% endif %}
+
+                <div class="vr-acoes">
+                  {% if c.status == 'validado' %}
+                    <span class="vr-acoes-info">
+                      Entrega já <strong>aprovada (validado)</strong>. Para reabrir, use o menu ⋮ na <a href="/relatorios/{{ rel.id }}/entregas">Lista de entregas</a> e devolva o status para <em>aguardando_envio</em>.
+                    </span>
+                  {% else %}
+                    <form method="post"
+                          action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/status"
+                          class="vr-form vr-form-aprovar"
+                          onsubmit="return confirm('Confirma APROVAR esta parcial?\n\nEntrega vai para status validado e o autor para de receber lembretes do ciclo.');">
+                      <input type="hidden" name="novo_status" value="validado">
+                      <input type="hidden"
+                             name="redirect_to"
+                             value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
+                      <button type="submit"
+                              class="vr-btn vr-btn-aprovar"
+                              {% if not c.pronta_para_aprovar %}
+                                title="Há erros estruturais ou seções sem bloco confirmado. Você ainda pode aprovar mesmo assim."
+                              {% endif %}>
+                        Aprovar parcial
+                      </button>
+                    </form>
+
+                    <details class="vr-reprovar-pop">
+                      <summary class="vr-btn vr-btn-reprovar">Reprovar com justificativa</summary>
+                      <form method="post"
+                            action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/reprovar"
+                            class="vr-form vr-form-reprovar">
+                        <input type="hidden"
+                               name="redirect_to"
+                               value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
+                        <label class="vr-label" for="vr-mot-{{ c.entrega_id }}">
+                          Justificativa (será mostrada ao autor)
+                        </label>
+                        <textarea id="vr-mot-{{ c.entrega_id }}"
+                                  name="motivo"
+                                  rows="3"
+                                  required
+                                  minlength="10"
+                                  maxlength="2000"
+                                  placeholder="Explique objetivamente o que precisa ser ajustado, citando seção e bloco quando aplicável."></textarea>
+                        <button type="submit" class="vr-btn vr-btn-reprovar-confirmar">
+                          Devolver ao autor (status volta para aguardando_envio)
+                        </button>
+                      </form>
+                    </details>
+                  {% endif %}
+                </div>
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <details class="vr-lista-entregas">
+        <summary>Mostrar tabela canônica «Lista de entregas» (mesma visão de /relatorios/{{ rel.id }}/entregas)</summary>
+        <div class="vr-lista-entregas-body">
+          {% with rel=rel,
+                  linhas=lista_entregas_linhas,
+                  pode_acoes=lista_entregas_pode_acoes,
+                  redirect_to="/relatorios/" ~ rel.id ~ "/validacao-revisao#ss-validacao" %}
+            {% include "complementos/_lista_entregas_partial.html" %}
+          {% endwith %}
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="ss" id="ss-revisao">
+    <div class="ss-hdr">
+      <span class="sn">02</span>
+      <span class="st">Revisão — documento como um todo</span>
+      <span class="sbadge">checagens globais · finalização · exportação</span>
+    </div>
+    <div class="sb2">
+      <p class="sdesc">
+        Esta seção concentra a revisão final do <strong>documento inteiro</strong>: checagens estruturais agregadas, ferramentas linguísticas (ortografia/gramática), e os botões de fechamento — <strong>Aprovar e finalizar</strong> e <strong>Exportar para assinatura</strong>.
+      </p>
+
+      <div class="vr-resumo-global">
+        <div class="vr-resumo-cell">
+          <div class="vr-resumo-num">{{ resumo_global.secoes }}</div>
+          <div class="vr-resumo-lbl">seções</div>
+        </div>
+        <div class="vr-resumo-cell">
+          <div class="vr-resumo-num">{{ resumo_global.blocos_total }}</div>
+          <div class="vr-resumo-lbl">blocos</div>
+        </div>
+        <div class="vr-resumo-cell">
+          <div class="vr-resumo-num">{{ resumo_global.percent_confirmacao }}%</div>
+          <div class="vr-resumo-lbl">blocos confirmados</div>
+        </div>
+        <div class="vr-resumo-cell">
+          <div class="vr-resumo-num">{{ resumo_global.figuras_total }}</div>
+          <div class="vr-resumo-lbl">figuras</div>
+        </div>
+        <div class="vr-resumo-cell">
+          <div class="vr-resumo-num">{{ resumo_global.entregas_validadas }}/{{ resumo_global.entregas_total }}</div>
+          <div class="vr-resumo-lbl">entregas validadas</div>
+        </div>
+        <div class="vr-resumo-cell {% if erros_globais %}vr-resumo--erro{% endif %}">
+          <div class="vr-resumo-num">{{ erros_globais }}</div>
+          <div class="vr-resumo-lbl">erros estruturais</div>
+        </div>
+        <div class="vr-resumo-cell {% if avisos_globais %}vr-resumo--aviso{% endif %}">
+          <div class="vr-resumo-num">{{ avisos_globais }}</div>
+          <div class="vr-resumo-lbl">avisos</div>
+        </div>
+      </div>
+
+      <h3 class="vr-h3">2.1 Checagens estruturais do relatório</h3>
+      <div class="vr-categorias">
+        {% for cat in categorias_globais %}
+          <details class="vr-categoria vr-categoria--{{ cat.severidade }}"
+                   {% if cat.total > 0 %}open{% endif %}>
+            <summary class="vr-categoria-hdr">
+              <span class="vr-categoria-tit">{{ cat.titulo }}</span>
+              {% if cat.total == 0 %}
+                <span class="tag tag-ok">— ok</span>
+              {% else %}
+                <span class="tag tag-{{ 'err' if cat.severidade == 'erro' else ('warn' if cat.severidade == 'aviso' else 'neutral') }}">
+                  {{ cat.total }} item{{ '' if cat.total == 1 else 's' }}
+                </span>
+              {% endif %}
+            </summary>
+            <div class="vr-categoria-body">
+              <p class="vr-categoria-desc">{{ cat.descricao }}</p>
+              {% if cat.itens %}
+                <ul class="vr-categoria-itens">
+                  {% for it in cat.itens %}
+                    <li>
+                      {% if it.link %}
+                        <a href="{{ it.link }}">{{ it.rotulo }}</a>
+                      {% else %}
+                        {{ it.rotulo }}
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </details>
+        {% endfor %}
+      </div>
+
+      <h3 class="vr-h3">2.2 Revisão linguística (ortografia e gramática)</h3>
+      <div class="vr-revisao-ling" id="vr-revisao-ling">
+        <p class="vr-categoria-desc">
+          Análise sob demanda — pode levar de poucos segundos a alguns minutos dependendo do tamanho do relatório. O sistema usa LanguageTool (gramática + ortografia, exige Java) se disponível e cai automaticamente para pyspellchecker PT-BR (só ortografia, offline) caso contrário. Roda sobre blocos do tipo <em>texto</em>, <em>lista</em> e legendas/fontes.
+        </p>
+        <button type="button"
+                id="vr-rodar-ling-btn"
+                class="vr-btn vr-btn-ling"
+                data-rel-id="{{ rel.id }}">
+          Rodar análise linguística
+        </button>
+        <div id="vr-ling-status" class="vr-ling-status muted-dash">— ainda não executada nesta sessão —</div>
+        <div id="vr-ling-resultado" class="vr-ling-resultado" hidden></div>
+      </div>
+
+      <h3 class="vr-h3">2.3 Fechamento do relatório</h3>
+      <div class="vr-fechamento">
+        <div class="vr-fechamento-acao">
+          <h4>Exportar para assinatura</h4>
+          <p>
+            ZIP com o PDF (assinatura primária) + DOCX (revisão final editável) + LEIA-ME identificando código, versão e data de geração. Escopo inteiro do relatório.
+          </p>
+          <a class="vr-btn vr-btn-exportar"
+             href="/relatorios/{{ rel.id }}/exportar-assinatura"
+             download>
+            Baixar pacote para assinatura (.zip)
+          </a>
+          <p class="muted-dash">
+            Também disponíveis individualmente:
+            <a href="/relatorios/{{ rel.id }}/exportar?formato=pdf&escopo=inteiro" download>PDF</a>
+            ·
+            <a href="/relatorios/{{ rel.id }}/exportar?formato=docx&escopo=inteiro" download>DOCX</a>
+          </p>
+        </div>
+
+        <div class="vr-fechamento-acao">
+          <h4>Aprovar e finalizar o relatório</h4>
+          <p>
+            Muda o status do relatório no painel para <strong>Finalizado</strong>, congelando edições por autores. Operação reversível pelo coord/admin via <a href="/relatorios/{{ rel.id }}">Sumário do relatório</a>.
+          </p>
+          {% if rel.status == 'finalizado' %}
+            <div class="vr-finalizado-info tag tag-ok">
+              Relatório já está finalizado.
+            </div>
+          {% else %}
+            <form method="post"
+                  action="/relatorios/{{ rel.id }}/status"
+                  class="vr-form-finalizar"
+                  onsubmit="return confirm('Confirma APROVAR E FINALIZAR este relatório?\n\nO status passa para Finalizado e edições por autores ficam bloqueadas. Reversível pelo coordenador.');">
+              <input type="hidden" name="status" value="finalizado">
+              <button type="submit"
+                      class="vr-btn vr-btn-finalizar"
+                      {% if not pode_finalizar %}
+                        title="Há erros estruturais ou entregas pendentes — ainda assim você pode finalizar (a seu critério)."
+                      {% endif %}>
+                Aprovar e finalizar o relatório
+              </button>
+            </form>
+            {% if not pode_finalizar %}
+              <p class="muted-dash" style="margin-top:6px">
+                Recomendação: zere os erros estruturais acima e valide as entregas pendentes na Seção 1 antes de finalizar.
+              </p>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+  /* Análise linguística sob demanda — POST /relatorios/{id}/revisao-linguistica
+     devolve JSON { motor, total_avisos, secoes: [{ secao_numero, titulo, achados: [...] }], aviso_motor }. */
+  (function () {
+    var btn = document.getElementById('vr-rodar-ling-btn');
+    if (!btn) { return; }
+    var statusEl = document.getElementById('vr-ling-status');
+    var resultadoEl = document.getElementById('vr-ling-resultado');
+    btn.addEventListener('click', function () {
+      var relId = btn.getAttribute('data-rel-id');
+      btn.disabled = true;
+      btn.textContent = 'Analisando…';
+      statusEl.textContent = 'Coletando texto e enviando à ferramenta de revisão…';
+      resultadoEl.hidden = true;
+      resultadoEl.innerHTML = '';
+      fetch('/relatorios/' + relId + '/revisao-linguistica', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      }).then(function (r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      }).then(function (data) {
+        var partes = [];
+        partes.push('<div class="vr-ling-meta">');
+        partes.push('<strong>Motor:</strong> ' + (data.motor_rotulo || data.motor || '—') + ' · ');
+        partes.push('<strong>Achados:</strong> ' + (data.total_avisos || 0));
+        partes.push('</div>');
+        if (data.aviso_motor) {
+          partes.push('<p class="vr-ling-aviso">' + data.aviso_motor + '</p>');
+        }
+        if (!data.secoes || data.secoes.length === 0) {
+          partes.push('<p class="muted-dash">Nenhum achado linguístico — texto considerado limpo pela ferramenta.</p>');
+        } else {
+          data.secoes.forEach(function (sec) {
+            partes.push('<details class="vr-ling-secao" open>');
+            partes.push('<summary><strong>' + sec.secao_numero + '</strong> ' + sec.secao_titulo +
+                        ' <span class="tag tag-warn">' + sec.achados.length + '</span></summary>');
+            partes.push('<ul>');
+            sec.achados.forEach(function (a) {
+              var trecho = a.trecho ? ('<code>' + a.trecho + '</code>') : '';
+              var sug = (a.sugestoes && a.sugestoes.length) ?
+                  (' → <em>' + a.sugestoes.join(', ') + '</em>') : '';
+              partes.push('<li><span class="tag tag-warn">' + a.regra + '</span> ' +
+                          a.mensagem + ' ' + trecho + sug + '</li>');
+            });
+            partes.push('</ul></details>');
+          });
+        }
+        resultadoEl.innerHTML = partes.join('');
+        resultadoEl.hidden = false;
+        statusEl.textContent = 'Concluído.';
+        btn.disabled = false;
+        btn.textContent = 'Rodar análise linguística novamente';
+      }).catch(function (err) {
+        statusEl.textContent = 'Falha: ' + err.message;
+        btn.disabled = false;
+        btn.textContent = 'Tentar novamente';
+      });
+    });
+  })();
+  </script>
+{% endblock %}

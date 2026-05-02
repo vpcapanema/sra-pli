@@ -6,7 +6,7 @@
   "scripts": {
     "spell": "cspell --no-progress \"app/**/*.{py,html,css,js}\" \"*.md\" \".github/**/*.md\" \".cursor/**/*.{md,mdc}\"",
     "mdlint": "markdownlint-cli2 \".cursor/**/*.mdc\"",
-    "dump-diags": "python scripts/dump_agent_diagnostics.py"
+    "dump-diags": "node scripts/npm-dump-diags.mjs"
   },
   "devDependencies": {
     "@cspell/dict-pt-br": "^1.0.0",

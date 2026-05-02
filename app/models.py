@@ -162,6 +162,13 @@ class EntregaRelatorio(Base):
     data_envio = Column(DateTime, nullable=True)
     data_validacao = Column(DateTime, nullable=True)
     validado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # Reprovação pelo coordenador na página Validação e Revisão. Quando o coord
+    # devolve a entrega, status volta a ``aguardando_envio`` e estes três campos
+    # carregam o último motivo (sobrescrito a cada reprovação). Histórico
+    # completo de reprovações fica fora desta v1 para manter o schema enxuto.
+    motivo_reprovacao = Column(Text, nullable=True)
+    data_reprovacao = Column(DateTime, nullable=True)
+    reprovado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     atualizado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     atualizado_em = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -169,6 +176,7 @@ class EntregaRelatorio(Base):
     relatorio = relationship("Relatorio")
     user = relationship("User", foreign_keys=[user_id])
     validado_por = relationship("User", foreign_keys=[validado_por_id])
+    reprovado_por = relationship("User", foreign_keys=[reprovado_por_id])
     atualizado_por = relationship("User", foreign_keys=[atualizado_por_id])
     notificacoes = relationship(
         "NotificacaoEnvio",

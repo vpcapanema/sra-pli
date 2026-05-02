@@ -60,6 +60,38 @@
       ask: "Excluir definitivamente este relatório?",
       show_detail: false,
     },
+    notificar_autores_abertura: {
+      title: "Confirmar envio de abertura aos autores",
+      lead:
+        "Será enviado o e-mail de abertura do período (Mensagem 1) a todos os autores com notificações ativas, " +
+        "incluindo o endereço principal e o secundário.",
+      detail:
+        "Quem já tiver recebido receberá novamente — útil para reforçar, mas evite duplicar por engano.",
+      ask: "Enviar o e-mail de abertura a todos os autores agora?",
+      show_detail: true,
+    },
+    notificar_ciclo_lembrete: {
+      title: "Confirmar lembretes (Mensagem 2)",
+      lead:
+        "Será disparado o lembrete do ciclo para entregas ainda pendentes neste relatório, " +
+        "fora do calendário automático de dias.",
+      detail:
+        "Quem já tiver entrega em «enviado» ou «validado» não entra no lote. " +
+        "O serviço pode abrandar reenvios muito próximos (janela mínima entre envios).",
+      ask: "Enviar lembretes para este relatório agora?",
+      show_detail: true,
+    },
+    notificar_ciclo_ultima_chamada: {
+      title: "Confirmar última chamada (Mensagem 2)",
+      lead:
+        "Será disparada a variante «última chamada» do ciclo para entregas pendentes neste relatório, " +
+        "fora do dia fixo configurado no calendário.",
+      detail:
+        "Quem já tiver entrega em «enviado» ou «validado» não entra no lote. " +
+        "O serviço pode abrandar reenvios muito próximos (janela mínima entre envios).",
+      ask: "Enviar última chamada para este relatório agora?",
+      show_detail: true,
+    },
     secao_excluir: {
       title: "Confirmar exclusão da secção",
       lead:
@@ -240,6 +272,9 @@
     relatorio_excluir: "A excluir o relatório no servidor…",
     relatorio_criar: "A criar o relatório…",
     secao_excluir: "A excluir a secção…",
+    notificar_autores_abertura: "A enviar e-mails de abertura…",
+    notificar_ciclo_lembrete: "A enviar lembretes…",
+    notificar_ciclo_ultima_chamada: "A enviar última chamada…",
   };
 
   function obterMensagemBusy(form, chaveConfirm) {

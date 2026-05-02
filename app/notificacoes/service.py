@@ -627,12 +627,22 @@ def _avancar_status_apos_envio(
         entrega.status = "aguardando_envio"
 
 
-def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutores:
+def notificar_autores_abertura(
+    db: Session, rel_id: int, *, force: bool = False
+) -> ResumoNotificarAutores:
     """Envia Mensagem 1 (abertura) para cada autor com notificações ativas.
 
-    Idempotente: usuários que já receberam ``abertura`` com ``sucesso`` são
-    ignorados (``pulados_ja_enviados``). Use após atribuir responsáveis ao
-    relatório recém-clonado.
+    Por padrão é idempotente: usuários que já receberam ``abertura`` com
+    ``sucesso`` (em todos os endereços) são contados em ``pulados_ja_enviados``
+    e não recebem novo e-mail. Esta forma é usada pelo cron e por scripts de
+    correção de gaps.
+
+    Com ``force=True``, **força o reenvio** a todos os autores ativos
+    independentemente de tentativas anteriores e em todos os endereços
+    (principal e secundário): é o caminho do botão *Notificar autores
+    (abertura)* no sumário do relatório e da execução manual da governança.
+    Cada chamada cria nova linha em ``notificacao_envio`` (audit trail) e o
+    status da entrega não regride (``_avancar_status_apos_envio``).
     """
     resumo = ResumoNotificarAutores(relatorio_id=rel_id)
     rel = db.get(Relatorio, rel_id)
@@ -656,32 +666,37 @@ def notificar_autores_abertura(db: Session, rel_id: int) -> ResumoNotificarAutor
         .all()
     }
     log.info(
-        "[notif/notificar_autores_abertura] relatorio=%s destinatarios=%d",
+        "[notif/notificar_autores_abertura] relatorio=%s destinatarios=%d force=%s",
         rel.codigo,
         len(pares),
+        force,
     )
+    enviar_para_modo = "todos" if force else "faltam"
     for user_obj, secoes_user in pares:
-        entrega_ex = (
-            db.query(EntregaRelatorio)
-            .filter(
-                EntregaRelatorio.relatorio_id == rel.id,
-                EntregaRelatorio.user_id == user_obj.id,
+        if not force:
+            entrega_ex = (
+                db.query(EntregaRelatorio)
+                .filter(
+                    EntregaRelatorio.relatorio_id == rel.id,
+                    EntregaRelatorio.user_id == user_obj.id,
+                )
+                .one_or_none()
             )
-            .one_or_none()
-        )
-        destinos_full = destinatarios_ciclo.emails_destino_notificacao(user_obj)
-        pendentes = (
-            destinatarios_ciclo.destinos_pendentes_tipo(
-                db, entrega_ex.id, "abertura", destinos_full
+            destinos_full = destinatarios_ciclo.emails_destino_notificacao(user_obj)
+            pendentes = (
+                destinatarios_ciclo.destinos_pendentes_tipo(
+                    db, entrega_ex.id, "abertura", destinos_full
+                )
+                if entrega_ex
+                else destinos_full
             )
-            if entrega_ex
-            else destinos_full
-        )
-        if entrega_ex and not pendentes:
-            resumo.pulados_ja_enviados += 1
-            continue
+            if entrega_ex and not pendentes:
+                resumo.pulados_ja_enviados += 1
+                continue
         env = _Envio(rel, user_obj, secoes_user, todas_map)
-        resultado = _processar_destinatario(db, env, "abertura")
+        resultado = _processar_destinatario(
+            db, env, "abertura", enviar_para=enviar_para_modo
+        )
         if resultado.sucesso:
             resumo.emails_enviados += 1
         else:
@@ -1021,6 +1036,33 @@ def alterar_status_entrega(
     if novo_status == "validado":
         entrega.validado_por_id = coord.id
         entrega.data_validacao = entrega.atualizado_em
+    db.commit()
+
+
+def reprovar_entrega(
+    db: Session,
+    entrega: EntregaRelatorio,
+    motivo: str,
+    *,
+    coord: User,
+) -> None:
+    """Devolve a parcial ao autor com justificativa obrigatória.
+
+    Volta ``status`` para ``aguardando_envio`` (autor passa a receber lembretes
+    do ciclo de novo) e carimba ``motivo_reprovacao``/``data_reprovacao``/
+    ``reprovado_por_id``. O autor verá o motivo na sua próxima visita à página
+    de upload da seção ou ao receber o próximo e-mail manual do coord.
+    """
+    motivo_limpo = (motivo or "").strip()
+    if not motivo_limpo:
+        raise ValueError("Justificativa obrigatória para reprovar a entrega.")
+    agora = datetime.utcnow()
+    entrega.status = "aguardando_envio"
+    entrega.motivo_reprovacao = motivo_limpo
+    entrega.data_reprovacao = agora
+    entrega.reprovado_por_id = coord.id
+    entrega.atualizado_por_id = coord.id
+    entrega.atualizado_em = agora
     db.commit()
 
 

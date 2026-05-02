@@ -59,7 +59,9 @@ def _set_runs_font(
             run.font.italic = italic
 
 
-def _format_body_paragraph(paragraph, *, space_after_pt: float = 12) -> None:
+def _format_body_paragraph(paragraph, *, space_after_pt: float = 10) -> None:
+    """Parágrafo de corpo. Default 10pt depois para combinar com `margin:0 0 10pt`
+    do PDF (`app/templates/pdf/relatorio.html`, regra `.bloco p`)."""
     paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     paragraph_format = paragraph.paragraph_format
     paragraph_format.space_before = Pt(0)
@@ -183,13 +185,32 @@ def _add_numbered_heading(document: Document, numero: str, titulo: str, level: i
     return paragraph
 
 
-def _format_caption(paragraph, *, bold: bool = False, space_before_pt: float = 6, size_pt: float = 10) -> None:
+def _format_caption(
+    paragraph,
+    *,
+    bold: bool = True,
+    space_before_pt: float = 10,
+    size_pt: float = 9,
+) -> None:
+    """Legenda de figura/tabela (e fonte). Defaults agora batem com o PDF:
+    9pt bold, 10pt antes e 10pt depois (`.figura .cap`/`.tabela .cap`).
+    Caller que precise de variação (ex.: linha 'Fonte:' menor) sobrescreve."""
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph_format = paragraph.paragraph_format
     paragraph_format.space_before = Pt(space_before_pt)
     paragraph_format.space_after = Pt(10)
     paragraph_format.line_spacing = 1.15
     _set_runs_font(paragraph, size_pt=size_pt, bold=bold)
+
+
+def _format_caption_fonte(paragraph) -> None:
+    """Linha 'Fonte: ...' — 8.5pt sem negrito, alinhada ao PDF (`.figura .src`)."""
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    paragraph_format = paragraph.paragraph_format
+    paragraph_format.space_before = Pt(0)
+    paragraph_format.space_after = Pt(10)
+    paragraph_format.line_spacing = 1.15
+    _set_runs_font(paragraph, size_pt=8.5, bold=False)
 
 
 def _format_empty_section(paragraph) -> None:
@@ -519,7 +540,7 @@ def _add_table(document: Document, conteudo: str, legenda: str | None, fonte: st
     if legenda and posicao == "I":
         _format_caption(document.add_paragraph(f"Tabela {numero}: {legenda}"))
     if fonte:
-        _format_caption(document.add_paragraph(f"Fonte: {fonte}"))
+        _format_caption_fonte(document.add_paragraph(f"Fonte: {fonte}"))
 
 
 def _add_figura(document: Document, figura: Figura | None, legenda: str | None, fonte: str | None, numero: str, posicao: str = "I") -> None:
@@ -542,7 +563,7 @@ def _add_figura(document: Document, figura: Figura | None, legenda: str | None, 
         _format_caption(paragraph)
     if fonte:
         paragraph = document.add_paragraph(f"Fonte: {fonte}")
-        _format_caption(paragraph)
+        _format_caption_fonte(paragraph)
 
 
 def _add_texto_com_marcadores(
@@ -650,7 +671,11 @@ def render_docx(db: Session, rel: Relatorio, section_ids: set[int] | None = None
             continue
         for bloco in sec.blocos:
             if bloco.titulo:
-                _format_heading(document.add_heading(bloco.titulo, level=4), 4)
+                # PDF renderiza ``bloco.titulo`` como h2 12pt bold (regra
+                # ``.bloco h2`` em ``app/templates/pdf/relatorio.html``).
+                # Antes mapeávamos para H4 (10pt italic), o que apertava
+                # visualmente. H2 = level 2 alinha o DOCX ao PDF.
+                _format_heading(document.add_heading(bloco.titulo, level=2), 2)
             if bloco.tipo == "figura":
                 fig_counter += 1
                 _add_figura(document, figuras_by_id.get(bloco.figura_id or 0), bloco.legenda, bloco.fonte, _figura_label(sec.numero, fig_counter))

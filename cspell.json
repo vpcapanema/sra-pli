@@ -51,7 +51,8 @@
     "package-lock.json"
   ],
   "ignoreRegExpList": [
-    "/\\b[A-Fa-f0-9]{7,}\\b/g"
+    "/\\b[A-Fa-f0-9]{7,}\\b/g",
+    "/data:[^)\\s\"']+/g"
   ],
   "useGitignore": true
 }

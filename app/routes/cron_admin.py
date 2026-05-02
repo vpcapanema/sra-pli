@@ -88,10 +88,14 @@ def http_abrir_periodo_background(
 @router.post("/notificar-autores-abertura")
 def http_notificar_autores_abertura(
     relatorio_id: int = Query(...),
+    force: bool = Query(False),
     db: Session = Depends(get_db),
     _t: None = Depends(_check_token),
 ):
-    return asdict(notificar_autores_abertura(db, relatorio_id))
+    """Cron/HTTP. ``force=true`` força reenvio mesmo a quem já recebeu —
+    espelha o botão assistido do coordenador. Padrão é idempotente (cron seguro).
+    """
+    return asdict(notificar_autores_abertura(db, relatorio_id, force=force))
 
 
 @router.post("/lembretes")

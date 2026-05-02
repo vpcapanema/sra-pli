@@ -63,6 +63,12 @@
             "/relatorios/" ~ _hub_rid ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo"
           ) if (_hub_rid and _hub_sid) else "/painel-upload" %}
           {% set _url_entregas_hub = ("/relatorios/" ~ _hub_rid ~ "/entregas") if _hub_rid else "/painel-upload" %}
+          {% set _url_validacao_hub = ("/relatorios/" ~ _hub_rid ~ "/validacao-revisao") if _hub_rid else "/painel-upload" %}
+          {% set _on_val = _path.endswith('/validacao-revisao') %}
+          {% if _on_val %}
+            {% set _cls_rel = 'ni-grp ni-grp-active' %}
+            {% set _open_rel = 'open' %}
+          {% endif %}
           {% if user.role in ['admin','coordenador'] %}
             <details class="{{ _cls_rel }}" {{ _open_rel }}>
               <summary class="ni ni-toggle">
@@ -73,6 +79,7 @@
                 <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
                 <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário do relatório</a>
                 <a class="ni-sub-link" href="{{ _url_entregas_hub }}">Entregas do relatório</a>
+                <a class="ni-sub-link" href="{{ _url_validacao_hub }}">Validação e Revisão</a>
               </div>
             </details>
           {% endif %}

@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, MetaData, text
 from app.db import Base
 
 import app.models  # noqa: F401 — registra os modelos para create_all
+from scripts.postgres_seq_discovery import POSTGRES_SEQUENCE_COLUMN_MAP_SQL
 
 URL = sys.argv[1]
 INP = sys.argv[2]
@@ -39,14 +40,7 @@ with eng.connect() as c:
         print(f"  {tname}: {len(rows)}")
 print("[3/3] sequences...")
 with eng.connect() as c:
-    seqs = c.execute(text("""
-        SELECT s.relname AS seq, t.relname AS tbl, a.attname AS col
-        FROM pg_class s
-        JOIN pg_depend d ON d.objid = s.oid
-        JOIN pg_class t ON t.oid = d.refobjid
-        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
-        WHERE s.relkind='S'
-    """)).all()
+    seqs = c.execute(text(POSTGRES_SEQUENCE_COLUMN_MAP_SQL)).all()
     for seq, tbl, col in seqs:
         mx = c.execute(text(f'SELECT COALESCE(MAX("{col}"),0) FROM "{tbl}"')).scalar()
         c.execute(text(f"SELECT setval('{seq}', {int(mx)+1}, false)"))

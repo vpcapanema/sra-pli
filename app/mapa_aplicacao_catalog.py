@@ -77,8 +77,22 @@ PAGINAS_COMPLEMENTOS: tuple[PaginaComplementoMeta, ...] = (
         "entregas_painel.html",
         "Painel de entregas",
         "/relatorios/1/entregas",
-        "Sessão; coord/admin veem todos; autor só a sua entrega",
+        "Sessão; admin e coordenador (autor não acede)",
         "GET /relatorios/{rel_id}/entregas",
+    ),
+    PaginaComplementoMeta(
+        "validacao_revisao.html",
+        "Validação e Revisão",
+        "/relatorios/1/validacao-revisao",
+        "Sessão; admin e coordenador",
+        (
+            "GET /relatorios/{rel_id}/validacao-revisao · "
+            "POST …/entregas/{eid}/status (Aprovar) · "
+            "POST …/entregas/{eid}/reprovar (devolução com motivo) · "
+            "POST /relatorios/{rel_id}/revisao-linguistica (JSON sob demanda) · "
+            "POST /relatorios/{rel_id}/status (Finalizar) · "
+            "GET /relatorios/{rel_id}/exportar-assinatura (ZIP PDF+DOCX)"
+        ),
     ),
     PaginaComplementoMeta(
         "recuperar_senha.html",

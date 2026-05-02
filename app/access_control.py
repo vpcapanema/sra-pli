@@ -11,13 +11,16 @@ from .db import SessionLocal
 from .models import User
 
 # Rotas necessárias ao hub `/relatorios/{id}`, `upload-conteudo`, `modelos-word-importacao` e suporte.
+# `/relatorios/{id}/entregas` é restrito a admin/coordenador desde a revisão de
+# perfis: autor acompanha sua entrega pelo sumário do relatório (`/relatorios/{id}`)
+# e pelo painel da sua seção (`/relatorios/{id}/secoes/{sid}/upload-conteudo`),
+# sem precisar do painel agregado de entregas dos autores.
 _AUTOR_PATH_RES: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p)
     for p in (
         r"^/$",
         r"^/painel-upload$",
         r"^/relatorios/\d+$",
-        r"^/relatorios/\d+/entregas$",
         r"^/modelos-word-importacao$",
         r"^/modelos-word-importacao/baixar/.+$",
         r"^/relatorios/\d+/secoes/\d+/upload-conteudo$",

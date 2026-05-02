@@ -3,9 +3,27 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="format-detection" content="telephone=no,address=no,email=no,date=no">
     <title>SRA · {{ relatorio_codigo }}</title>
+    <!--[if mso]>
+    <style type="text/css">
+      table,td,div,p,a {font-family:Arial,Helvetica,sans-serif !important;}
+    </style>
+    <![endif]-->
+    <style>
+      /* Mobile: clientes que respeitam media queries (iOS Mail, Gmail mobile,
+         Outlook mobile). Outlook desktop ignora — cai no width inline. */
+      @media only screen and (max-width:600px) {
+        .sra-email-shell {width:100% !important;max-width:100% !important;border-radius:0 !important;}
+        .sra-email-pad {padding:16px !important;}
+        .sra-email-h {padding:14px 16px !important;}
+        .sra-email-h-tit {font-size:16px !important;}
+        .sra-email-paragrafo {font-size:13.5px !important;line-height:1.5 !important;}
+      }
+    </style>
   </head>
-  <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;">
+  <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
     <!-- djlint:off -->
     {%- macro render_subarvore(filhos, depth) -%}
       {% if filhos %}
@@ -43,29 +61,29 @@
       {% endif %}
     {%- endmacro -%}
 
-    {%- macro render_modelos_collapsible(nodes) -%}
+    {# Tabela por nó de nível 1 — garante bloco em Outlook/MSO (que ignora
+       <details>/<summary> e quebra a sequência horizontal quando o nó não
+       tem filhos). Sem colapso: consistência > economia de altura. #}
+    {%- macro render_modelos_arvore(nodes) -%}
       {% if nodes %}
         {% for n in nodes %}
-          {% if n.filhos %}
-            <details style="margin:6px 0;border:1px solid #cfdbe7;border-radius:5px;background:#ffffff;">
-          {% else %}
-            <details style="margin:6px 0;border:1px solid #cfdbe7;border-radius:5px;background:#ffffff;box-shadow:none;">
-          {% endif %}
-            <summary style="padding:10px 12px;cursor:pointer;font-size:13.5px;line-height:1.5;text-align:left;background:#eaf2f8;border-radius:4px;list-style:none;">
-              <span style="display:inline-block;min-width:36px;font-family:Consolas,'Courier New',monospace;font-size:12px;font-weight:700;color:#ffffff;background:#116593;padding:2px 8px;border-radius:3px;text-align:center;">{{ n.numero }}</span>
-              <span style="font-weight:700;color:#1c3d59;">&nbsp;{{ n.titulo }}</span>
-              &nbsp;—&nbsp;
-              <a href="{{ n.link_dotx }}" style="color:#2a9450;text-decoration:underline;font-weight:600;white-space:nowrap;">Baixar modelo .dotx</a>
-              {% if n.filhos %}
-                <span style="color:#7a8694;font-size:11px;font-weight:500;font-style:italic;">&nbsp;&nbsp;({{ n.filhos | length }} {{ 'subseções' if n.filhos | length > 1 else 'subseção' }} — clique para expandir)</span>
-              {% endif %}
-            </summary>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:6px 0;border:1px solid #cfdbe7;border-radius:5px;background:#ffffff;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+            <tr>
+              <td style="padding:10px 12px;background:#eaf2f8;border-radius:4px 4px 0 0;font-size:13.5px;line-height:1.5;text-align:left;color:#1c3d59;">
+                <span style="display:inline-block;min-width:36px;font-family:Consolas,'Courier New',monospace;font-size:12px;font-weight:700;color:#ffffff;background:#116593;padding:2px 8px;border-radius:3px;text-align:center;">{{ n.numero }}</span>
+                <span style="font-weight:700;color:#1c3d59;">&nbsp;{{ n.titulo }}</span>
+                &nbsp;—&nbsp;
+                <a href="{{ n.link_dotx }}" style="color:#2a9450;text-decoration:underline;font-weight:600;white-space:nowrap;">Baixar modelo .dotx</a>
+              </td>
+            </tr>
             {% if n.filhos %}
-              <div style="padding:8px 12px 12px;margin:0;background:#fafbfc;border-top:1px solid #eef1f5;">
-                {{ render_subarvore(n.filhos, 1) }}
-              </div>
+              <tr>
+                <td style="padding:8px 12px 12px;background:#fafbfc;border-top:1px solid #eef1f5;">
+                  {{ render_subarvore(n.filhos, 1) }}
+                </td>
+              </tr>
             {% endif %}
-          </details>
+          </table>
         {% endfor %}
       {% endif %}
     {%- endmacro -%}
@@ -73,15 +91,15 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1f5;padding:24px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="1200" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #d5dce6;border-radius:6px;width:1200px;max-width:100%;">
+          <table role="presentation" class="sra-email-shell" width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #d5dce6;border-radius:6px;width:600px;max-width:100%;">
             <tr>
-              <td style="background:#1c3d59;color:#ffffff;padding:18px 22px;border-top-left-radius:6px;border-top-right-radius:6px;">
+              <td class="sra-email-h" style="background:#1c3d59;color:#ffffff;padding:18px 22px;border-top-left-radius:6px;border-top-right-radius:6px;">
                 <div style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#3ec26e;font-weight:700;">SRA · PLI-SP</div>
-                <div style="font-size:18px;font-weight:700;margin-top:4px;">{{ relatorio_codigo }} — {{ mes_referencia }}</div>
+                <div class="sra-email-h-tit" style="font-size:18px;font-weight:700;margin-top:4px;">{{ relatorio_codigo }} — {{ mes_referencia }}</div>
               </td>
             </tr>
             <tr>
-              <td style="padding:22px;font-size:14px;line-height:1.55;text-align:justify;border-bottom-left-radius:6px;border-bottom-right-radius:6px;">
+              <td class="sra-email-pad sra-email-paragrafo" style="padding:22px;font-size:14px;line-height:1.55;text-align:justify;border-bottom-left-radius:6px;border-bottom-right-radius:6px;">
                 <p style="margin:0 0 12px;text-align:justify;">Olá, <strong>{{ destinatario_nome }}</strong>.</p>
                 {% if tipo == 'abertura' %}
                   <p style="margin:0 0 12px;text-align:justify;">
@@ -137,7 +155,7 @@
 
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 18px;border-collapse:separate;">
                   <tr>
-                    <td style="padding:14px 16px;border:2px solid #7a1212;border-radius:6px;background:linear-gradient(180deg,#fff5f5 0%,#ffe8e8 100%);font-size:14px;line-height:1.55;color:#5c0f0f;font-weight:700;text-align:center;">
+                    <td style="padding:14px 16px;border:2px solid #7a1212;border-radius:6px;background-color:#ffe8e8;font-size:14px;line-height:1.55;color:#5c0f0f;font-weight:700;text-align:center;">
                       <span style="display:block;font-size:15px;font-weight:800;margin-bottom:8px;letter-spacing:.02em;">ATENÇÃO — PRAZO PARA AUTORES</span>
                       Envie e conclua o <strong>registro</strong> do seu conteúdo no SRA até
                       <strong>{{ prazo_limite_conteudo_autor }}</strong>.
@@ -150,10 +168,10 @@
 
                 <h3 style="margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#1c3d59;text-align:justify;">Links diretos para download dos arquivos modelo, por seção</h3>
                 <p style="margin:0 0 10px;font-size:12.5px;color:#4f5d6e;text-align:justify;">
-                  Expanda cada seção de nível 1 para ver subseções e o link do modelo (<code>.dotx</code>) correspondente.
+                  Localize a seção sob sua responsabilidade abaixo e clique em <strong>Baixar modelo .dotx</strong>.
                 </p>
                 {% if arvore_secoes_links %}
-                  {{ render_modelos_collapsible(arvore_secoes_links) }}
+                  {{ render_modelos_arvore(arvore_secoes_links) }}
                 {% else %}
                   <p style="margin:0 0 12px;color:#4f5d6e;font-style:italic;text-align:justify;">Nenhuma seção cadastrada neste relatório.</p>
                 {% endif %}

@@ -14,11 +14,13 @@
 #   7. git push origin HEAD.
 #   8. Polling do Render via CLI: aguarda deploy com commit.id == HEAD aparecer
 #      e segue ate estado terminal. Mostra status + tempo decorrido a cada iteracao.
+#      -SkipDeploy pula esta etapa e o health-check (ideal para tasks do Cursor).
 #   9. Health-check final em $RenderUrl/health.
 #
 # Uso:
-#   .\.venv\Scripts\python.exe ... (nao se aplica)
 #   pwsh -File scripts/sra_commit_deploy.ps1 -Message "feat: ..."
+#   pwsh -File scripts/sra_commit_deploy.ps1 -Message "fix: ..." -SkipDeploy
+#   pwsh -File scripts/sra_commit_deploy.ps1 -Message "chore: ..." -SkipLint -SkipDeploy
 #
 # Pre-requisitos:
 #   - Render CLI instalada e autenticada (RENDER_API_KEY no env do usuario).
@@ -40,7 +42,8 @@ param(
 
     [switch] $SkipLint,
     [switch] $NoPull,
-    [switch] $NoHealthCheck
+    [switch] $NoHealthCheck,
+    [switch] $SkipDeploy
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,6 +99,10 @@ $SuccessStates = @("live")
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repo
+
+# Git abre o pager (less) por defeito em diff/status longos; sem TTY as tasks do
+# Cursor ficam presas em "(END)" ate alguem carregar em q. Desliga o pager.
+$env:GIT_PAGER = ""
 
 if (-not $Message -or $Message.Trim().Length -lt 3) {
     Fail "Mensagem do commit ausente ou muito curta. Passe -Message 'mensagem'."
@@ -180,7 +187,7 @@ if (-not $SkipLint) {
     if ($lintExit -ne 0) {
         Write-Host ""
         Write-Host "Lint falhou (exit $lintExit). Des-stageando para preservar working tree..." -ForegroundColor Yellow
-        git reset HEAD -- $stagedAll 2>&1 | Out-Null
+        & git reset HEAD -- @stagedAll 2>&1 | Out-Null
         Fail "dump_agent_diagnostics falhou. Veja artifacts/agent-diagnostics.txt e corrija." $lintExit
     }
 } else {
@@ -200,6 +207,16 @@ Write-Host "Commit local: $commitShort  ($commitSha)"
 
 Write-Section "7. git push"
 Run "git push" { git push $remote "HEAD:$branch" }
+
+if ($SkipDeploy) {
+    Write-Host ""
+    Write-Host "(-SkipDeploy) Deploy no Render e health-check nao aguardados." -ForegroundColor DarkYellow
+    Write-Section "FINALIZADO"
+    Write-Host "Commit  : $commitShort em $branch"
+    Write-Host "Push    : origin/$branch"
+    Write-Host "URL     : $RenderUrl (deploy em curso ou pendente no painel Render)"
+    exit 0
+}
 
 # ---------- 8. polling do deploy no Render -----------------------------------
 

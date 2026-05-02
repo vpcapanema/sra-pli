@@ -78,10 +78,16 @@
               <h3 class="coord-panel-title">Notificar autores</h3>
             </header>
             <p class="coord-panel-desc">
-              Envia e-mail de abertura do período aos responsáveis já associados a secções neste relatório.
+              Envia e-mail de abertura do período a todos os autores ativos. Reenvia também a quem já tinha recebido — útil quando precisar reforçar.
             </p>
-            <form method="post" action="/relatorios/{{ rel.id }}/notificar-autores-abertura" class="coord-form coord-form--stack">
-              <button type="submit" class="secondary coord-btn-block" title="Envia e-mail de abertura aos responsáveis já atribuídos às seções">
+            <form
+              method="post"
+              action="/relatorios/{{ rel.id }}/notificar-autores-abertura"
+              class="coord-form coord-form--stack"
+              data-sra-confirm="notificar_autores_abertura"
+              data-sra-iniciar-acompanhamento="1"
+            >
+              <button type="submit" class="secondary coord-btn-block" title="Envia e-mail de abertura a todos os autores ativos, incluindo quem já recebeu antes">
                 Notificar autores (abertura)
               </button>
             </form>
@@ -99,9 +105,11 @@
         <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf"
           >Gerar PDF</a
         >
-        <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
-          >Entregas dos autores</a
-        >
+        {% if user.role in ['admin','coordenador'] %}
+          <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
+            >Entregas dos autores</a
+          >
+        {% endif %}
       </div>
       <div class="sb2">
         <table>

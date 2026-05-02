@@ -27,6 +27,7 @@
   "djlint.ignore": [
     "**/*.py",
     "**/*.js",
+    "**/*.css",
     "**/.github/**/*.md",
     "**/.cursor/**/*.md",
     "**/.cursor/*.md",
@@ -66,5 +67,33 @@
   "tasks.statusbar.limit": 0,
   "tasks.statusbar.select.label": "$(list-tree) Tasks",
   "tasks.statusbar.select.color": "",
-  "livePreview.defaultPreviewPath": "/app/templates/entregas_painel.html"
+  "livePreview.defaultPreviewPath": "/app/templates/entregas_painel.html",
+
+  "terminal.integrated.profiles.windows": {
+    "SRA PowerShell 7": {
+      "path": "${env:ProgramFiles}\\PowerShell\\7\\pwsh.exe",
+      "args": ["-NoProfile"],
+      "icon": "terminal-powershell"
+    },
+    "SRA Windows PowerShell 5.1": {
+      "path": "${env:WINDIR}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": ["-NoProfile"],
+      "icon": "terminal-powershell"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "SRA PowerShell 7",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "${env:ProgramFiles}\\PowerShell\\7\\pwsh.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass"]
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "${env:ProgramFiles}\\PowerShell\\7;${env:WINDIR}\\System32\\WindowsPowerShell\\v1.0;${env:PATH}"
+  },
+
+  "code-runner.runInTerminal": true,
+  "code-runner.clearPreviousOutput": false,
+  "code-runner.executorMap": {
+    "powershell": "${env:WINDIR}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -ExecutionPolicy Bypass -File",
+    "pwsh": "${env:ProgramFiles}\\PowerShell\\7\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File"
+  }
 }

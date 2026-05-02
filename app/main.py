@@ -29,6 +29,7 @@ from .routes import dev_ui
 from .routes import governanca_relatorio as governanca_relatorio_routes
 from .routes import sendgrid_events as sendgrid_events_routes
 from .routes import mapa_aplicacao as mapa_aplicacao_routes
+from .routes import validacao_revisao as validacao_revisao_routes
 from .routes.pages import response_home
 from .access_control import SraAutorRouteGuardMiddleware
 
@@ -156,4 +157,5 @@ app.include_router(importacao_routes.router)
 app.include_router(modelos_word_routes.router)
 app.include_router(notif_routes.router)
 app.include_router(pdf_routes.router)
+app.include_router(validacao_revisao_routes.router)
 app.include_router(dev_ui.router)

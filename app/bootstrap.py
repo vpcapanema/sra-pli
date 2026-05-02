@@ -117,6 +117,28 @@ def init_db() -> None:
                     "ADD COLUMN IF NOT EXISTS aberto_em TIMESTAMP;"
                 )
             )
+            # Reprovação pelo coordenador (página Validação e Revisão).
+            # Sobrescritos a cada nova reprovação; histórico completo fica fora
+            # desta v1 para manter o schema simples.
+            conn.execute(
+                text(
+                    "ALTER TABLE entrega_relatorio "
+                    "ADD COLUMN IF NOT EXISTS motivo_reprovacao TEXT;"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE entrega_relatorio "
+                    "ADD COLUMN IF NOT EXISTS data_reprovacao TIMESTAMP;"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE entrega_relatorio "
+                    "ADD COLUMN IF NOT EXISTS reprovado_por_id INTEGER "
+                    "REFERENCES users(id);"
+                )
+            )
     with SessionLocal() as db:
         ensure_admin(db)
         ensure_parametros_ciclo_notificacao(db)

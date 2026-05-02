@@ -293,6 +293,7 @@ permissao
 permissoes
 persistencia
 persistencias
+pids
 PLI
 posicao
 possiveis
@@ -428,6 +429,7 @@ varios
 verificavel
 versao
 versoes
+visiveis
 visivel
 visualizacao
 
@@ -654,6 +656,7 @@ execucao
 expoe
 ferias
 Ferias
+hackeado
 indentação
 instituicao
 isnot
@@ -677,7 +680,10 @@ orquestracao
 ortografico
 padronizacao
 Padronizacao
+procs
+PYTHONUNBUFFERED
 rapido
+reprovacao
 senao
 sendgrid
 SendGrid
@@ -695,3 +701,21 @@ Tecnico
 ultimos
 visao
 Visao
+
+# === Validacao linguistica (pyspellchecker / LanguageTool) ===
+ACMR
+Codgi
+DAEE
+dckfvc
+Gmail
+linguistica
+linguisticas
+ortografia
+PMSP
+pyspellchecker
+Resetando
+sconn
+serao
+sincronizacao
+tconn
+tname
