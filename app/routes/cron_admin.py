@@ -12,13 +12,14 @@ Estes endpoints **não** redirecionam para login: 401 estruturado em JSON.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..db import get_db
+from ..db import SessionLocal, get_db
 from ..notificacoes.service import (
     abrir_periodo,
     enviar_lembretes,
@@ -27,6 +28,7 @@ from ..notificacoes.service import (
 )
 
 router = APIRouter(prefix="/admin/cron")
+log = logging.getLogger(__name__)
 
 
 def _check_token(
@@ -53,6 +55,34 @@ def http_abrir_periodo(
     _t: None = Depends(_check_token),
 ):
     return asdict(abrir_periodo(db, force=force))
+
+
+def _abrir_periodo_background(force: bool) -> None:
+    """Executa abertura em sessão própria após resposta rápida ao cron externo."""
+    db = SessionLocal()
+    try:
+        resumo = abrir_periodo(db, force=force)
+        log.info("[cron/bg/abrir-periodo] done %s", asdict(resumo))
+    except Exception:  # noqa: BLE001
+        log.exception("[cron/bg/abrir-periodo] falhou")
+    finally:
+        db.close()
+
+
+@router.post("/abrir-periodo-background")
+def http_abrir_periodo_background(
+    background_tasks: BackgroundTasks,
+    force: bool = Query(False),
+    _t: None = Depends(_check_token),
+):
+    """Agenda a abertura em background e responde rápido ao cron HTTP.
+
+    O cron-job.org encerra chamadas longas por volta de 30s. A abertura mensal
+    pode demorar mais quando clona conteúdo e envia e-mails, então este endpoint
+    evita falso negativo do cron sem mudar a rotina de negócio.
+    """
+    background_tasks.add_task(_abrir_periodo_background, force)
+    return {"accepted": True, "job": "abrir_periodo", "force": force}
 
 
 @router.post("/notificar-autores-abertura")

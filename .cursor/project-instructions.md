@@ -202,7 +202,7 @@ E-mail (`app/notificacoes/email_sender.py`):
 Cron (Track 5):
 
 - CLI em `app/cron/`: `python -m app.cron.abrir_periodo [--force]`, `python -m app.cron.enviar_lembretes --tipo {lembrete|ultima_chamada} [--relatorio-id N]`, `python -m app.cron.retry_falhas`. Cada um abre `SessionLocal()` próprio.
-- HTTP em `/admin/cron/{abrir-periodo,notificar-autores-abertura?relatorio_id=N,lembretes,retry}`: equivalente JSON, exige `X-Cron-Token == settings.CRON_TOKEN`. Token vazio → 503 (fail-closed). Comparação em tempo constante.
+- HTTP em `/admin/cron/{abrir-periodo,abrir-periodo-background,notificar-autores-abertura?relatorio_id=N,lembretes,retry}`: equivalente JSON, exige `X-Cron-Token == settings.CRON_TOKEN`. Token vazio → 503 (fail-closed). Comparação em tempo constante. Cron externo deve preferir `abrir-periodo-background`, pois a abertura mensal pode ultrapassar o timeout de 30s do cron-job.org quando clona conteúdo e envia e-mails.
 - Teste prático: `scripts/teste_http_cron_notificacao.py` (`--http`/`--in-process`; `--no-force` imita produção; `--cadeia-atribuir` atribui seção e notifica). E2E completo: `scripts/_e2e_notificacoes.py`.
 - Schedules externos espelham dias/horários guardados (`/governanca-relatorio` e `app/cron/*.py`).
 
