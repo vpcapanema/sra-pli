@@ -1,0 +1,22 @@
+================================================================================
+COMANDO INICIAL PARA O AGENTE DE IA (copiar tudo abaixo da linha tracejada)
+================================================================================
+
+Lê primeiro o ficheiro docs/AI_AGENT_WELCOME_PROMPT.md na raiz deste repositório (boas-vindas, arquitetura, serviços externos e mapa de credenciais — sem abrir nem expor o .env).
+
+Em seguida, lê por esta ordem:
+1) .env.example
+2) app/config.py
+3) AGENTS.md
+4) .cursor/project-instructions.md (documento longo; usa-o como fonte principal de domínio, rotas e regras do projeto)
+
+Regras:
+- Não lês, não cites e não reproduzas o ficheiro .env nem valores reais de chaves, tokens ou passwords.
+- Segue as convenções do repo descritas em AGENTS.md e em project-instructions.md.
+- Produção real: evita mocks, dados fictícios e atalhos que escondam comportamento.
+
+Quando terminares a leitura, resume em 5–8 linhas o que entendeste (stack, segredos onde vivem, e um risco de segurança a evitar) e pergunta em que tarefa queres que eu trabalhe.
+
+================================================================================
+FIM DO COMANDO
+================================================================================

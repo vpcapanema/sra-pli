@@ -4,7 +4,7 @@
 
 Fonte canônica de domínio, stack, permissões, fluxos, PDF e ciclo de notificações. Atualize na mesma entrega quando mudar comportamento persistente, modelo de dados, rotas, templates principais, importação, PDF, deploy ou tarefas do Cursor. Não atualize por correções triviais.
 
-Estrutura de `.cursor/`: `rules/*.mdc` (regras editor), `skills/*/SKILL.md` (workflows `/nome-do-skill`), `agents/*.md` (subagentes `/nome`). Encerramento de tarefa: `.cursor/rules/task-completion.mdc`. Índice resumido para agentes: `AGENTS.md`.
+Estrutura de `.cursor/`: `rules/*.mdc` (regras editor), `skills/*/SKILL.md` (workflows `/nome-do-skill`), `agents/*.md` (subagentes `/nome`). Encerramento de tarefa: `.cursor/rules/task-completion.mdc`. Índice resumido para agentes: `AGENTS.md`. **Boas-vindas genéricas para agentes IA** (segredos, serviços externos, leituras iniciais, fora de pastas de IDE): `docs/AI_AGENT_WELCOME_PROMPT.md`.
 
 ## O Que É Esta Aplicação
 

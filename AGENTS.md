@@ -4,6 +4,7 @@ SRA (Sistema de Relatórios de Atividades) — contrato PLI/SP-2050. Aplicação
 
 ## Onde Ler O Que
 
+- **`docs/AI_AGENT_WELCOME_PROMPT.md`** — boas-vindas **agnósticas de IDE** (fora de `.cursor/`): objetivos, arquitetura, serviços externos, **mapa de credenciais** (onde estão e onde *não* estão) e ordem de leitura. Use no início da sessão ou com agentes que não carregam regras do Cursor.
 - **`.cursor/project-instructions.md`** — fonte canônica: stack, modelo de domínio, permissões, fluxos, banco, PDF, frontend. Leia antes de mudar comportamento persistente ou contrato de dados.
 - **`.cursor/rules/*.mdc`** — regras (linting, sanitização, encerramento de tarefa, browser, documentação viva). `alwaysApply: true` carrega em toda mensagem; demais ativam por descrição/glob.
 - **`.cursor/skills/*/SKILL.md`** — workflows especializados; ative com `/nome-do-skill` no modo Agent.
