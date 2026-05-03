@@ -18,7 +18,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - Templates: Jinja2 com HTML tradicional. Frontend: HTML/CSS/JS simples — **não migrar para React**.
 - PDF: WeasyPrint a partir de `app/templates/pdf/relatorio.html`.
 - Sessão assinada via `SessionMiddleware`; senha com `bcrypt`. Uploads de figura ficam no banco em `Figura.dados` (binário).
-- Deploy: Docker e Render.
+- Deploy: Docker e Render. O `render.yaml` do repo fixa o web service em **plano Standard** (2 GB RAM); Free/Starter (512 MB) não chegam para PDF/WeasyPrint em produção.
 
 ### Arquivos Centrais
 
@@ -84,7 +84,7 @@ Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra
 - Importação assistida de TXT/DOCX com revisão humana antes da persistência.
 - Geração, preview e exportação de PDF no padrão visual do contrato.
 - Ciclo mensal de notificações (detalhes em **Ciclo De Notificações** abaixo).
-- Tarefas de dev no Cursor (`.vscode/tasks.json`): **SRA: backend (8001) + abrir / e /mapa-aplicacao** (`scripts/sra_backend_dev.ps1`, job `sra-open`); **SRA: diagnostico agregado** (`dump_agent_diagnostics.py` via interpretador do workspace ou `npm run dump-diags` → `scripts/npm-dump-diags.mjs`); **SRA: spelling** (`npm run spell`); **SRA: commit + push** (`scripts/sra_commit_deploy.ps1` com **`-SkipDeploy`** na task rapida — evita pager `less`/`(END)` e nao bloqueia 20 min no Render; ha task separada **commit + push + aguardar deploy no Render**).
+- Tarefas de dev no Cursor (`.vscode/tasks.json`): **SRA: backend (8001) + abrir / e /mapa-aplicacao** (`scripts/sra_backend_dev.ps1`, job `sra-open`); **SRA: diagnostico agregado** (`dump_agent_diagnostics.py` via interpretador do workspace ou `npm run dump-diags` → `scripts/npm-dump-diags.mjs`); **SRA: spelling** (`npm run spell`); **SRA: commit + push** (`scripts/sra_commit_deploy.ps1` com **`-SkipDeploy`** na task rapida — evita pager `less`/`(END)` e nao bloqueia 20 min no Render; ha task separada **commit + push + aguardar deploy no Render**). Na barra de estado, a extensao **TaskBari** (`SkySloane.taskbari`, recomendada em `.vscode/extensions.json`) agrupa essas entradas no mesmo `options.statusbar.group` (`SRA`): um unico botao abre o **QuickPick** vertical com a lista; nao usar `tasks.statusbar.limit: 0` com grupos (o overflow mistura comandos de grupo com tarefas soltas).
 - Shell Windows neste repo: em `.vscode/settings.json` o perfil por defeito do terminal é **SRA PowerShell 7** (`pwsh` com caminho explícito em `Program Files`), há perfil **SRA Windows PowerShell 5.1** como alternativa, `automationProfile` e `PATH` do terminal pré-fixam PS7 e a pasta do 5.1 no `System32` (para `Get-Command` e ferramentas que dependem do PATH). Tasks `process`/`shell` e Code Runner alinham com esses caminhos. Se o teu PS7 não estiver em `%ProgramFiles%\PowerShell\7` (ex.: só via Scoop noutro sítio), altera o `path` nesses perfis ou define **SRA Windows PowerShell 5.1** como `defaultProfile`.
 
 ## Modelo De Domínio

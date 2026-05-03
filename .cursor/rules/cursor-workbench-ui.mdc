@@ -23,6 +23,12 @@ alwaysApply: false
 - **Activity bar** por defeito **horizontal** para espaco de chat; opcao `workbench.activityBar.orientation` = `vertical` (reiniciar) — ver [migracoes e VS Code (Cursor)](https://cursor.com/docs/configuration/migrations/vscode)
 - Extensoes: Open VSX; comportamento **pode** diferir do marketplace Microsoft.
 
+## TaskBari (SkySloane.taskbari) — Tarefas Na Barra De Estado
+
+- Le tarefas do **workspace** (`tasks.json`) e pode mostrar botoes na barra de estado. Para **um menu vertical** (QuickPick) em vez de varios botoes horizontais: em cada task visivel na barra, `options.statusbar.hide` deve ser **`false`** (o schema da extensao assume `hide: true` por defeito) e as entradas devem partilhar o mesmo `options.statusbar.group` (string ou objecto com `id`).
+- `tasks.statusbar.limit` em `null` (valor por defeito da extensao, ou chave omitida no `settings.json`) mostra as entradas agrupadas normalmente. **`tasks.statusbar.limit: 0`** forca tudo para o botao “overflow”; com **grupos**, isso mistura comandos de grupo com `runTask` e quebra o fluxo — evitar `0` quando se usam grupos.
+- Dentro do QuickPick do grupo, ordenar pelo texto da entrada: `tasks.statusbar.groups.sortAlphabetically`. Rotulo do overflow (quando ha limite e sobresselentes): `tasks.statusbar.select.label`.
+
 ## Database Client (cweijan) — Vista "Database" No Explorador
 
 - A extensao **cweijan.vscode-database-client2** publica a vista "Database" no contentor `explorer` (ajuste no `package.json` instalado em `.cursor/extensions`, para a mesma coluna que a arvore de ficheiros). O **SQLTools** deve permanecer no *seu* contentor (icone SQLTools) para nao competir com a Database Client no Explorador.

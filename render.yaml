@@ -2,7 +2,9 @@ services:
   - type: web
     name: sra-pli-starter
     runtime: docker
-    plan: starter
+    # Standard = 2 GB RAM / 1 CPU. Starter e Free = 512 MB (WeasyPrint + app estouram).
+    # Tarifa: docs.render.com/pricing — exige metodo de pagamento no workspace Render.
+    plan: standard
     region: oregon
     healthCheckPath: /health
     envVars:

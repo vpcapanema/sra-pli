@@ -64,8 +64,8 @@
   "workbench.statusBar.visible": true,
   "zenMode.hideStatusBar": false,
 
-  "tasks.statusbar.limit": 0,
-  "tasks.statusbar.select.label": "$(list-tree) Tasks",
+  "tasks.statusbar.groups.sortAlphabetically": true,
+  "tasks.statusbar.select.label": "$(chevron-down) Mais tarefas",
   "tasks.statusbar.select.color": "",
   "livePreview.defaultPreviewPath": "/app/templates/entregas_painel.html",
 
