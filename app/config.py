@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     CRONJOB_ORG_JOB_LEMBRETE_D8: int = 7547407
     CRONJOB_ORG_JOB_ULTIMA_CHAMADA: int = 7547408
     CRONJOB_ORG_JOB_RETRY_FALHAS: int = 7547409
+    # Em produção com HTTPS (ex.: Render): True para cookie de sessão com atributo Secure.
+    SESSION_COOKIE_SECURE: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

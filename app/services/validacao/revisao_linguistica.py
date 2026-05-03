@@ -17,9 +17,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from ...models import Bloco, Relatorio, Secao
+from .checagens_globais import autor_rotulo_secao
+from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +59,7 @@ class AchadoLing:
 class SecaoLing:
     secao_numero: str
     secao_titulo: str
+    responsavel_rotulo: str
     achados: list[AchadoLing] = field(default_factory=list)
 
 
@@ -183,21 +186,21 @@ def _analisar_sp(texto: str) -> list[AchadoLing]:
 # Orquestração
 # ---------------------------------------------------------------------------
 _ROTULOS = {
-    "languagetool": "LanguageTool (gramática + ortografia, offline com Java)",
+    "languagetool": "LanguageTool (gramática + estilo + ortografia; Java 8+)",
     "pyspellchecker": "pyspellchecker PT-BR (somente ortografia, offline)",
     "desligado": "desligado",
 }
 _AVISO_MOTOR = {
     "languagetool": "",
     "pyspellchecker": (
-        "Apenas ortografia foi analisada. Para incluir gramática e estilo, "
-        "instale 'language_tool_python' e Java 8+ no servidor — o sistema "
-        "passará a usá-lo automaticamente."
+        "Apenas ortografia foi analisada. Para gramática e estilo, garanta "
+        "**Java 8+** no PATH do servidor (o pacote language_tool_python já está no projeto — "
+        "`pip install -r requirements.txt`). O sistema usa LanguageTool automaticamente quando a JVM responde."
     ),
     "desligado": (
         "Nenhum motor de revisão linguística foi encontrado. Instale "
-        "'pyspellchecker' (incluído em requirements.txt) ou "
-        "'language_tool_python' para habilitar esta análise."
+        "'pyspellchecker' (incluído em requirements.txt) para ortografia, ou "
+        "'language_tool_python' com Java 8+ no servidor para gramática e estilo também."
     ),
 }
 
@@ -208,12 +211,7 @@ def analisar_relatorio(db: Session, rel: Relatorio) -> ResultadoLing:
     Falhas no motor escolhido (ex.: LT travou no Java) caem para o pyspellchecker
     em vez de devolverem erro 500 — o coord precisa de algo, não de exceção.
     """
-    rel_full = (
-        db.query(Relatorio)
-        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
-        .filter(Relatorio.id == rel.id)
-        .one()
-    )
+    rel_full = load_relatorio_secoes_blocos_responsavel(db, rel.id)
     motor = _detectar_motor()
     if motor == "desligado":
         return ResultadoLing(
@@ -248,8 +246,8 @@ def analisar_relatorio(db: Session, rel: Relatorio) -> ResultadoLing:
             log.warning("Motor %s falhou: %s — caindo para pyspellchecker.", motor_efetivo, exc)
             motor_efetivo = "pyspellchecker"
             aviso_extra = (
-                "O motor preferencial falhou em tempo de execução; "
-                "resultados a partir desta seção vieram do pyspellchecker."
+                "O LanguageTool falhou em tempo de execução (confirme Java 8+ no servidor); "
+                "resultados a partir desta seção vieram do pyspellchecker (somente ortografia)."
             )
             try:
                 achados = _analisar_sp(texto)
@@ -265,6 +263,7 @@ def analisar_relatorio(db: Session, rel: Relatorio) -> ResultadoLing:
                 SecaoLing(
                     secao_numero=sec.numero,
                     secao_titulo=sec.titulo,
+                    responsavel_rotulo=autor_rotulo_secao(sec),
                     achados=achados,
                 )
             )
@@ -291,6 +290,7 @@ def resultado_para_dict(r: ResultadoLing) -> dict[str, Any]:
             {
                 "secao_numero": s.secao_numero,
                 "secao_titulo": s.secao_titulo,
+                "responsavel_rotulo": s.responsavel_rotulo,
                 "achados": [
                     {
                         "regra": a.regra,

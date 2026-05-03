@@ -8,6 +8,7 @@
     · SRA</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/css/app.css" />
+    {% block head_extra %}{% endblock %}
     {% if user %}
       <script>
         window.__SRA_CONSOLE_VERBOSE__ = {{ 'true' if sra_console_verbose else 'false' }};

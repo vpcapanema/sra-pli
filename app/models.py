@@ -86,6 +86,8 @@ class Secao(Base):
     relatorio = relationship("Relatorio", back_populates="secoes")
     responsavel = relationship("User")
     blocos = relationship("Bloco", back_populates="secao", cascade="all, delete-orphan", order_by="Bloco.ordem")
+    # Rascunho do coordenador na página Validação e Revisão (não entra no PDF).
+    observacao_validacao = Column(Text, nullable=True)
 
     __table_args__ = (UniqueConstraint("relatorio_id", "numero", name="uq_secao_rel_num"),)
 

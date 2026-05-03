@@ -1,7 +1,7 @@
 """Resolução de marcadores estáveis ``[[REF:tipo|id]]`` para texto legível.
 
 Usado pelo PDF/HTML do relatório e pela API/UI para pré-visualização do mesmo
-formato PLI: Figura ou Tabela ``{capítulo} - {sequência}`` (ex.: ``4 - 1``).
+formato de exibição: Figura ou Tabela ``{capítulo}.{sequência}`` (ex.: ``4.1``, ``3.2``).
 """
 from __future__ import annotations
 
@@ -28,8 +28,21 @@ class MapasRef:
 
 
 def label_numero_pli(sec_top: str, n: int) -> str:
-    """Rótulo por capítulo no modelo PLI: ``capítulo - sequência``."""
-    return f"{sec_top} - {n}" if sec_top else str(n)
+    """Rótulo por capítulo: ``capítulo.sequência`` (ex.: ``4.1``)."""
+    return f"{sec_top}.{n}" if sec_top else str(n)
+
+
+def idx_efetivo_marcador(idx_raw: str, derivado: str) -> str:
+    """Resolve ``idx`` em ``[[FIGURA:idx|…]]`` / ``[[TABELA:idx|…]]``.
+
+    - Só dígitos: sequência global explícita (ex.: ``12``).
+    - Qualquer outro valor (vazio, ``4.1``, ``4-1``, legado): usa ``derivado``
+      (``label_numero_pli`` por secção).
+    """
+    raw = (idx_raw or "").strip()
+    if raw.isdigit():
+        return raw
+    return derivado
 
 
 def calcular_mapas_referencia(secoes_relatorio) -> MapasRef:

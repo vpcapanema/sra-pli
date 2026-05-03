@@ -43,12 +43,58 @@
 body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-height: 1.15; color: #141414; }
 @media screen {
   html{ background:#dfe5ec; }
-  body{ margin:0; padding:24px 0; background:#dfe5ec; }
-  .report-page{
-    width:210mm; min-height:297mm; margin:0 auto; padding:24mm 20mm 22mm 20mm;
-    box-sizing:border-box; background:#fff; box-shadow:0 10px 35px rgba(0,0,0,.22);
+  body{ margin:0; padding:12px clamp(12px, 3vw, 28px); background:#dfe5ec; box-sizing:border-box; }
+  body *, body *::before, body *::after { box-sizing: inherit; }
+  .preview-root{
+    width:100%; max-width:none; margin:0 auto;
+    display:flex; flex-direction:column; align-items:center; gap:20px;
   }
-  .capa{ width:210mm; margin:-24mm -20mm 16mm -20mm; }
+  .preview-sheet{
+    position:relative;
+    width:min(210mm, 100%);
+    max-width:210mm;
+    min-height:297mm;
+    margin:0;
+    padding:22.2mm 20mm 25mm 20mm;
+    box-sizing:border-box;
+    background:#fff;
+    box-shadow:0 10px 35px rgba(0,0,0,.22);
+    border-radius:2px;
+  }
+  .preview-sheet--capa{
+    padding:0;
+    overflow:hidden;
+  }
+  .preview-sheet--capa .capa{
+    margin:0;
+    width:100%;
+    max-width:210mm;
+  }
+  .sheet-running-header{
+    position:absolute; top:10mm; right:20mm; left:auto;
+    width:50mm; z-index:2; text-align:right; pointer-events:none;
+  }
+  .sheet-running-header img{ width:50mm; height:auto; display:inline-block; }
+  .preview-sheet--capa .sheet-running-header{ display:none; }
+  .sheet-running-footer{
+    position:absolute; left:20mm; right:20mm; bottom:12mm; z-index:2;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding-top:5pt; border-top:1pt dotted #cfcfcf;
+    font-family:Verdana, Arial, Helvetica, sans-serif; font-size:7.4pt;
+    color:#a8a8a8; pointer-events:none;
+  }
+  .sheet-ftr-right{
+    font-size:8pt; color:#777; font-weight:700;
+  }
+  .preview-sheet--capa .sheet-running-footer{ display:none; }
+  .page-header,.page-footer-line{ display:none !important; }
+}
+@media print {
+  body{ margin:0; padding:0; background:#fff; }
+  .preview-root{ display:block; width:auto; max-width:none; margin:0; padding:0; }
+  .preview-sheet,.sheet-body{ display:contents; }
+  .sheet-running-header,.sheet-running-footer{ display:none !important; }
+  .page-header,.page-footer-line{ display:block; }
 }
 
 .page-header{ position:fixed; top:-15.5mm; right:0; width:50mm; height:8.4mm; text-align:right; z-index:10; }
@@ -117,9 +163,28 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
 .bloco{ margin: 0; }
 .bloco h2{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:12pt; line-height:1.15; color:#102246; margin:10pt 0 10pt; font-weight:800; page-break-after:avoid; }
 .bloco h3{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 11pt; line-height:1.15; color:#102246; margin:10pt 0 10pt; font-weight:700; page-break-after:avoid; }
+.bloco h4{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10.5pt; line-height:1.15; color:#102246; margin:8pt 0 8pt; font-weight:700; page-break-after:avoid; }
+.bloco h5,.bloco h6{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.15; color:#102246; margin:6pt 0 6pt; font-weight:700; font-style:italic; page-break-after:avoid; }
 .bloco p{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.15; text-align: justify; margin:0 0 10pt; }
-.bloco ul{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.15; padding-left: 12.7mm; margin:0 0 6pt; }
-.bloco ul li{ margin:0 0 6pt; line-height:1.15; padding-left:0; }
+.bloco .ql-align-center{ text-align:center; }
+.bloco .ql-align-right{ text-align:right; }
+.bloco .ql-align-justify{ text-align:justify; }
+.bloco .ql-align-left{ text-align:left; }
+.bloco table { width:100%; border-collapse:collapse; margin:0 0 10pt; font-size:9.5pt; }
+.bloco th,
+.bloco td { border:1pt solid #ccc; padding:4pt 6pt; vertical-align:top; }
+.bloco img { max-width:100%; height:auto; display:block; margin:0 0 8pt; }
+.bloco blockquote { margin:0 0 10pt 10pt; padding-left:8pt; border-left:2.5pt solid #cfd6e6; font-size:9.8pt; }
+.bloco hr { border:none; border-top:1pt solid #ccc; margin:8pt 0; }
+.bloco ul,.bloco ol{
+  font-family:Verdana, Arial, Helvetica, sans-serif;
+  font-size:10pt;
+  line-height:1.15;
+  padding-left:12.7mm;
+  margin:0 0 6pt;
+  text-align:justify;
+}
+.bloco ul li,.bloco ol li{ margin:0 0 6pt; line-height:1.15; padding-left:0; text-align:justify; }
 .empty-section{ color:#7a8694; font-style:italic; }
 .figura{ text-align:center; margin: 10pt 0 14pt; page-break-inside: avoid; }
 .figura img{ max-width: 100%; max-height: 112mm; border: 0; }
@@ -141,100 +206,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
     </style>
   </head>
   <body>
-    <div class="report-page">
-      <!-- ===================== CAPA ===================== -->
-      <section class="capa">
-        <img src="{{ cover_bg_src }}" class="capa-bg" alt="">
-        <div class="subt">
-          <span>RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or '' }}</span><span>Produto {{ cover_produto }}</span>
-        </div>
-      </section>
-      <div class="page-header">
-        <img src="{{ header_logos_src }}" alt="">
-      </div>
-      <div class="page-footer-line">
-        <img src="{{ pli_line_src }}" alt="">
-      </div>
-      <!-- ===================== FICHA TÉCNICA ===================== -->
-      <section class="ficha">
-        <div class="brand-row">
-          <img src="{{ header_logos_src }}" alt="">
-        </div>
-        <h2>Relatório Mensal {{ rel.codigo }}</h2>
-        <table>
-          <tr>
-            <td>
-              Código do documento<span class="valor">{{ rel.codigo }}</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Título<span class="valor">RELATÓRIO MENSAL</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Elaboração<span class="valor">Consórcio Concremat / Transplan</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Contrato<span class="valor">Contrato Nº 22.607-5</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Contratação<span class="valor">Secretaria de Meio Ambiente, Infraestrutura e Logística – SEMIL – Governo do Estado de São Paulo</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Financiamento<span class="valor">Banco Interamericano de Desenvolvimento (BID)</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Observações<span class="valor">Este Relatório corresponde ao entregável {{ rel.codigo }}.</span>
-            </td>
-          </tr>
-        </table>
-        <table class="versoes">
-          <thead>
-            <tr>
-              <th>Versão</th>
-              <th>Data</th>
-              <th>Conteúdo das modificações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>&nbsp;</td>
-              <td></td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>&nbsp;</td>
-              <td></td>
-              <td></td>
-            </tr>
-            <tr>
-              <td>{{ rel.versao }}</td>
-              <td>{{ hoje.strftime("%d/%m/%Y") }}</td>
-              <td>Versão inicial</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-      <!-- ===================== SUMÁRIO ===================== -->
-      <section class="sumario">
-        <div class="brand-row">
-          <img src="{{ header_logos_src }}" alt="">
-        </div>
-        <h2>Sumário</h2>
-        {{ sumario_html|safe }}
-      </section>
-      <!-- ===================== SEÇÕES ===================== -->
-      {% for s in secoes %}
+    {% macro secao_conteudo(s) -%}
         {% set nivel = s.numero.count('.') + 1 %}
         <section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}">
           <h1>
@@ -280,24 +252,168 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
             <p class="empty-section">— sem conteúdo nesta seção —</p>
           {% endif %}
         </section>
+    {%- endmacro %}
+    <div class="preview-root">
+      <!-- ===================== CAPA ===================== -->
+      <div class="preview-sheet preview-sheet--capa">
+        <section class="capa">
+          <img src="{{ cover_bg_src }}" class="capa-bg" alt="">
+          <div class="subt">
+            <span>RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or '' }}</span><span>Produto {{ cover_produto }}</span>
+          </div>
+        </section>
+      </div>
+      <div class="page-header">
+        <img src="{{ header_logos_src }}" alt="">
+      </div>
+      <div class="page-footer-line">
+        <img src="{{ pli_line_src }}" alt="">
+      </div>
+      <!-- ===================== FICHA TÉCNICA ===================== -->
+      <div class="preview-sheet">
+        <div class="sheet-running-header">
+          <img src="{{ header_logos_src }}" alt="">
+        </div>
+        <div class="sheet-body">
+          <section class="ficha">
+            <div class="brand-row">
+              <img src="{{ header_logos_src }}" alt="">
+            </div>
+            <h2>Relatório Mensal {{ rel.codigo }}</h2>
+            <table>
+              <tr>
+                <td>
+                  Código do documento<span class="valor">{{ rel.codigo }}</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Título<span class="valor">RELATÓRIO MENSAL</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Elaboração<span class="valor">Consórcio Concremat / Transplan</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Contrato<span class="valor">Contrato Nº 22.607-5</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Contratação<span class="valor">Secretaria de Meio Ambiente, Infraestrutura e Logística – SEMIL – Governo do Estado de São Paulo</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Financiamento<span class="valor">Banco Interamericano de Desenvolvimento (BID)</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Observações<span class="valor">Este Relatório corresponde ao entregável {{ rel.codigo }}.</span>
+                </td>
+              </tr>
+            </table>
+            <table class="versoes">
+              <thead>
+                <tr>
+                  <th>Versão</th>
+                  <th>Data</th>
+                  <th>Conteúdo das modificações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>&nbsp;</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>&nbsp;</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>{{ rel.versao }}</td>
+                  <td>{{ hoje.strftime("%d/%m/%Y") }}</td>
+                  <td>Versão inicial</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+        <div class="sheet-running-footer">
+          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-right">2</span>
+        </div>
+      </div>
+      <!-- ===================== SUMÁRIO ===================== -->
+      <div class="preview-sheet">
+        <div class="sheet-running-header">
+          <img src="{{ header_logos_src }}" alt="">
+        </div>
+        <div class="sheet-body">
+          <section class="sumario">
+            <div class="brand-row">
+              <img src="{{ header_logos_src }}" alt="">
+            </div>
+            <h2>Sumário</h2>
+            {{ sumario_html|safe }}
+          </section>
+        </div>
+        <div class="sheet-running-footer">
+          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-right">3</span>
+        </div>
+      </div>
+      <!-- ===================== SEÇÕES (folhas por capítulo nível 1) ===================== -->
+      {% for grupo in secoes_preview_grupos %}
+      <div class="preview-sheet">
+        <div class="sheet-running-header">
+          <img src="{{ header_logos_src }}" alt="">
+        </div>
+        <div class="sheet-body">
+          {% for s in grupo %}
+            {{ secao_conteudo(s) }}
+          {% endfor %}
+        </div>
+        <div class="sheet-running-footer">
+          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-right">{{ 3 + loop.index }}</span>
+        </div>
+      </div>
       {% endfor %}
       <!-- ===================== ASSINATURAS ===================== -->
-      <section class="assinaturas">
-        <h2>Página de assinaturas</h2>
-        <p>
-          Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime("%d/%m/%Y") }}, e está pronto para assinatura eletrônica via plataforma D4Sign.
-        </p>
-        <div class="sig-row">
-          <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
+      <div class="preview-sheet">
+        <div class="sheet-running-header">
+          <img src="{{ header_logos_src }}" alt="">
         </div>
-        <div class="sig-row">
-          <div class="linha">Fiscalização — SEMIL/DER-SP</div>
+        <div class="sheet-body">
+          <section class="assinaturas">
+            <h2>Página de assinaturas</h2>
+            <p>
+              Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime("%d/%m/%Y") }}, e está pronto para assinatura eletrônica via plataforma D4Sign.
+            </p>
+            <div class="sig-row">
+              <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
+            </div>
+            <div class="sig-row">
+              <div class="linha">Fiscalização — SEMIL/DER-SP</div>
+            </div>
+            <div class="nota">
+              Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
+              Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
+            </div>
+          </section>
         </div>
-        <div class="nota">
-          Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
-          Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
+        <div class="sheet-running-footer">
+          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-right">{{ 3 + (secoes_preview_grupos|length) + 1 }}</span>
         </div>
-      </section>
+      </div>
     </div>
   </body>
 </html>

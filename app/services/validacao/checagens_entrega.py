@@ -11,9 +11,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from ...models import Bloco, EntregaRelatorio, Figura, Relatorio, Secao, User
+from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
 
 
 # Severidades: 'erro' bloqueia visualmente (vermelho), 'aviso' chama atenção
@@ -36,10 +37,13 @@ class Achado:
 
 
 @dataclass(slots=True)
+# pylint: disable=too-many-instance-attributes
+# Transporte direto ao template Jinja (coluna «Responsável» na validação).
 class ChecagemSecao:
     secao_id: int
     secao_numero: str
     secao_titulo: str
+    responsavel_nome: str
     blocos_total: int
     blocos_bloqueados: int
     achados: list[Achado] = field(default_factory=list)
@@ -265,10 +269,17 @@ def _checar_secao(
             achados.extend(_checar_bloco_lista(b))
         achados.extend(_checar_referencias(b, ids_secoes, ids_blocos_figtab))
 
+    resp_nome = ""
+    if sec.responsavel:
+        resp_nome = (sec.responsavel.nome or "").strip()
+        if not resp_nome:
+            resp_nome = (sec.responsavel.email or "").strip()
+
     return ChecagemSecao(
         secao_id=sec.id,
         secao_numero=sec.numero,
         secao_titulo=sec.titulo,
+        responsavel_nome=resp_nome,
         blocos_total=len(blocos),
         blocos_bloqueados=bloqueados,
         achados=achados,
@@ -284,16 +295,12 @@ def montar_checagens_validacao(
     """Para cada entrega, devolve checagens estruturais agregadas por seção do
     autor responsável. Entregas sem usuário (caso de borda) são ignoradas.
 
-    A consulta carrega seções com ``selectinload`` para evitar N+1 ao varrer
-    blocos. Figuras com binário são pré-buscadas em uma única query.
+    O relatório é carregado com ``load_relatorio_secoes_blocos_responsavel`` para
+    evitar N+1 ao varrer blocos e responsáveis. Figuras com binário são
+    pré-buscadas em uma única query.
     """
     figuras_validas = _figuras_com_dados(db, rel.id)
-    rel_carregado = (
-        db.query(Relatorio)
-        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
-        .filter(Relatorio.id == rel.id)
-        .one()
-    )
+    rel_carregado = load_relatorio_secoes_blocos_responsavel(db, rel.id)
     ids_secoes, ids_blocos_figtab = _ids_validos_referencia(rel_carregado)
     secoes_por_responsavel: dict[int, list[Secao]] = {}
     for sec in rel_carregado.secoes:

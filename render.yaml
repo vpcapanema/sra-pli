@@ -18,6 +18,9 @@ services:
         sync: false
       - key: APP_ENV
         value: production
+      # Cookie de sessao com Secure (obrigatorio em HTTPS).
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
       # ---- Notificacoes mensais (Track 5: cron) ----
       # Preencha SENDGRID_API_KEY no painel do Render (sync: false). Sem chave,
       # o servico opera em sandbox (renderiza email mas nao envia).

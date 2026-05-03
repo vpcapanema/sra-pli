@@ -1,4 +1,12 @@
-{% extends "base.html" %} {% block body_class %}page-conteudo-upload
+{% extends "base.html" %}
+{% block head_extra %}
+<link
+  href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
+  rel="stylesheet"
+/>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+{% endblock %}
+{% block body_class %}page-conteudo-upload
 page-rel-com-preview{% endblock %} {% block title %}Gerenciador e editor de seção e upload · {{
 sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block header
 %}{{ rel.codigo }} · Gerenciador e editor de seção e upload · {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
@@ -475,6 +483,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </button>
+              <button
+                type="button"
+                class="ucr-side-btn ucr-side-btn-primary"
+                id="btn-edit-salvar-todos"
+                title="Gravar no servidor todos os rascunhos locais pendentes (última carga de blocos e texto em edição)"
+                aria-label="Salvar tudo no servidor"
+              >
+                Salvar tudo
+              </button>
               {% if user.role in ['admin','coordenador'] %}
               <button
                 type="button"
@@ -531,7 +548,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           />
           <div class="full add-bloco-grid">
             <div class="add-bloco-conteudo-head bloco-toolbar-wrap">
-              <label for="add-bloco-conteudo">Conteúdo</label>
+              <span id="add-bloco-conteudo-lbl" class="mini-label">Conteúdo</span>
               <div class="bloco-toolbar-row">
                 <div
                   class="bloco-toolbar bloco-toolbar-structural"
@@ -598,12 +615,21 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </div>
             </div>
             <div class="add-bloco-conteudo-body">
+              <div
+                id="add-bloco-quill"
+                class="add-bloco-quill"
+                role="textbox"
+                aria-multiline="true"
+                aria-labelledby="add-bloco-conteudo-lbl"
+              ></div>
               <textarea
                 name="conteudo"
                 id="add-bloco-conteudo"
-                rows="14"
-                title="Conteúdo do bloco"
-                placeholder="Conteúdo do bloco. Posicione o cursor onde quiser inserir uma figura ou tabela e use os painéis ao lado."
+                class="add-bloco-conteudo-sync is-offscreen"
+                rows="6"
+                title="Conteúdo do bloco (sincronizado com o editor)"
+                tabindex="-1"
+                aria-hidden="true"
               ></textarea>
               <div
                 class="bloco-status-bar"
@@ -1248,6 +1274,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     const tipoIn = document.getElementById("add-bloco-tipo");
     const tituloHidden = document.getElementById("add-bloco-titulo");
     const ta = document.getElementById("add-bloco-conteudo");
+    const quillWrap = document.getElementById("add-bloco-quill");
+    let editTabBtn = null;
     const relId = readSecaoEditData("relId", 0);
     const secNumero = readSecaoEditData("secNumero", "");
     const secTop = secNumero.split(".")[0];
@@ -1310,23 +1338,109 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           "Sequencial (Ex: TABELA " + (tabGlobalBase + _countTaTab() + 1) + ")";
     }
     window.atualizaExemplosBloco = _atualizaExemplos;
+    const RICH_MARK = "<!--SRA_RICH-->\n";
+    function syncQuillToTextarea() {
+      const q = window._sraQuill;
+      if (!q || !ta) return;
+      let html = "";
+      if (typeof q.getSemanticHTML === "function") {
+        html = q.getSemanticHTML();
+      } else {
+        html = q.root.innerHTML;
+      }
+      ta.value = RICH_MARK + html;
+    }
+    window.syncSraQuillToTa = syncQuillToTextarea;
+    function loadQuillContent(raw) {
+      const q = window._sraQuill;
+      if (!q) {
+        ta.value = raw || "";
+        return;
+      }
+      const s = raw || "";
+      if (s.startsWith("<!--SRA_RICH-->")) {
+        const nl = s.indexOf("\n");
+        const html = nl === -1 ? "" : s.slice(nl + 1);
+        try {
+          const delta = q.clipboard.convert({ html: html || "<p><br></p>" });
+          q.setContents(delta, "silent");
+        } catch (e1) {
+          q.setText(html.replace(/<[^>]+>/g, ""));
+        }
+      } else {
+        q.setContents([], "silent");
+        q.setText(s);
+      }
+      syncQuillToTextarea();
+    }
+    window.loadSraQuillContent = loadQuillContent;
+    if (typeof Quill !== "undefined" && quillWrap) {
+      window._sraQuill = new Quill("#add-bloco-quill", {
+        theme: "snow",
+        modules: {
+          toolbar: [
+            [{ header: [2, 3, 4, 5, 6, false] }],
+            ["bold", "italic", "underline", "strike"],
+            ["blockquote"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            [{ script: "sub" }, { script: "super" }],
+            [{ indent: "-1" }, { indent: "+1" }],
+            [{ align: [] }],
+            ["link", "image"],
+            ["clean"],
+          ],
+        },
+      });
+      window._sraQuill.on("text-change", () => {
+        syncQuillToTextarea();
+        _atualizaExemplos();
+        if (typeof updateStatus === "function") updateStatus();
+      });
+      loadQuillContent("");
+    } else if (ta) {
+      ta.classList.remove("is-offscreen");
+      ta.rows = 14;
+      ta.removeAttribute("aria-hidden");
+      ta.removeAttribute("tabindex");
+      ta.placeholder =
+        "Conteúdo do bloco. Carregue com rede para o editor Quill (formatado).";
+    }
+    form.addEventListener("submit", () => {
+      syncQuillToTextarea();
+    });
     function syncTitulo() {
       /* título fixo da seção atual */
     }
 
     let lastCursor = { start: 0, end: 0 };
-    ta.addEventListener("blur", () => {
-      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
-    });
-    ta.addEventListener("keyup", () => {
-      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
-    });
-    ta.addEventListener("mouseup", () => {
-      lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
-    });
+    if (!window._sraQuill) {
+      ta.addEventListener("blur", () => {
+        lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
+      });
+      ta.addEventListener("keyup", () => {
+        lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
+      });
+      ta.addEventListener("mouseup", () => {
+        lastCursor = { start: ta.selectionStart, end: ta.selectionEnd };
+      });
+    }
 
     function insertText(text, opts) {
       opts = opts || {};
+      const q = window._sraQuill;
+      if (q) {
+        let range = q.getSelection(true);
+        let idx = range ? range.index : Math.max(0, q.getLength() - 1);
+        if (opts.blockLine && idx > 0) {
+          q.insertText(idx, "\n", "user");
+          idx += 1;
+        }
+        q.insertText(idx, text, "user");
+        q.setSelection(idx + text.length, 0, "silent");
+        syncQuillToTextarea();
+        _atualizaExemplos();
+        return;
+      }
       const pos =
         document.activeElement === ta
           ? { start: ta.selectionStart, end: ta.selectionEnd }
@@ -1345,6 +1459,28 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     }
 
     function insertAtCursor(prefix, perLine) {
+      const q = window._sraQuill;
+      if (q) {
+        const range = q.getSelection(true);
+        const start = range ? range.index : 0;
+        const end = range ? range.index + range.length : start;
+        const sel = q.getText(start, end - start);
+        let inserted;
+        if (perLine && sel) {
+          inserted = sel
+            .split("\n")
+            .map((l) => (l ? prefix + l : l))
+            .join("\n");
+        } else {
+          inserted = prefix + sel;
+        }
+        q.deleteText(start, end - start, "user");
+        q.insertText(start, inserted, "user");
+        q.setSelection(start + inserted.length, 0, "silent");
+        syncQuillToTextarea();
+        _atualizaExemplos();
+        return;
+      }
       const start = ta.selectionStart,
         end = ta.selectionEnd;
       const before = ta.value.slice(0, start),
@@ -1365,6 +1501,19 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       ta.selectionEnd = start + inserted.length;
     }
     function wrapMarkdown(before, after) {
+      const q = window._sraQuill;
+      if (q) {
+        const range = q.getSelection(true);
+        if (!range || range.length === 0) {
+          if (before === "**") q.format("bold", true);
+          if (before === "_") q.format("italic", true);
+          return;
+        }
+        if (before === "**") q.formatText(range.index, range.length, "bold", true);
+        else if (before === "_") q.formatText(range.index, range.length, "italic", true);
+        syncQuillToTextarea();
+        return;
+      }
       const endMark = after === undefined || after === null ? before : after;
       const start = ta.selectionStart,
         end = ta.selectionEnd;
@@ -1379,18 +1528,23 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       btn.addEventListener("click", () => {
         const act = btn.dataset.act;
         if (act === "titulo") {
-          insertAtCursor("# ");
+          if (window._sraQuill) window._sraQuill.format("header", 2);
+          else insertAtCursor("# ");
           tipoIn.value = "texto";
         } else if (act === "subtitulo") {
-          insertAtCursor("## ");
+          if (window._sraQuill) window._sraQuill.format("header", 3);
+          else insertAtCursor("## ");
           tipoIn.value = "texto";
         } else if (act === "paragrafo") {
+          if (window._sraQuill) window._sraQuill.format("header", false);
           tipoIn.value = "texto";
         } else if (act === "lista") {
           tipoIn.value = "lista";
-          insertAtCursor("- ", true);
+          if (window._sraQuill) window._sraQuill.format("list", "bullet");
+          else insertAtCursor("- ", true);
         } else if (act === "bullet") {
-          insertAtCursor("- ", true);
+          if (window._sraQuill) window._sraQuill.format("list", "bullet");
+          else insertAtCursor("- ", true);
         } else if (act === "wrap-bold") {
           wrapMarkdown("**", "**");
           tipoIn.value = "texto";
@@ -1440,7 +1594,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     const tabCols = document.getElementById("ins-tab-cols");
     const tabLeg = document.getElementById("ins-tab-leg");
     const tabBtn = document.getElementById("ins-tab-btn");
-    const editTabBtn = document.getElementById("edit-tab-btn");
+    editTabBtn = document.getElementById("edit-tab-btn");
     tabBtn.addEventListener("click", () => {
       const r = Math.max(1, Math.min(50, parseInt(tabRows.value, 10) || 1));
       const c = Math.max(1, Math.min(12, parseInt(tabCols.value, 10) || 1));
@@ -1706,13 +1860,22 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       if (!_tabState) return;
       const marker = _serializeTabela(_tabState, tabModalLeg.value);
       if (_tabState.mode === "replace" && _tabState.range) {
-        const before = ta.value.slice(0, _tabState.range.start);
-        const after = ta.value.slice(_tabState.range.end);
-        ta.value = before + marker + after;
-        const newPos = before.length + marker.length;
-        ta.focus();
-        ta.selectionStart = ta.selectionEnd = newPos;
-        lastCursor = { start: newPos, end: newPos };
+        const q = window._sraQuill;
+        if (q) {
+          const delLen = _tabState.range.end - _tabState.range.start;
+          q.deleteText(_tabState.range.start, delLen, "user");
+          q.insertText(_tabState.range.start, marker, "user");
+          q.setSelection(_tabState.range.start + marker.length, 0, "silent");
+          syncQuillToTextarea();
+        } else {
+          const before = ta.value.slice(0, _tabState.range.start);
+          const after = ta.value.slice(_tabState.range.end);
+          ta.value = before + marker + after;
+          const newPos = before.length + marker.length;
+          ta.focus();
+          ta.selectionStart = ta.selectionEnd = newPos;
+          lastCursor = { start: newPos, end: newPos };
+        }
       } else {
         insertText(marker, { blockLine: true });
         tabLeg.value = "";
@@ -1722,8 +1885,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     });
 
     function findTableMarkerAtCursor() {
-      const val = ta.value || "";
-      const pos = ta.selectionStart || 0;
+      const q = window._sraQuill;
+      const val = q ? q.getText(0, Math.max(0, q.getLength())) : ta.value || "";
+      let pos = 0;
+      if (q) {
+        const sel = q.getSelection(true);
+        pos = sel ? sel.index : 0;
+      } else {
+        pos = ta.selectionStart || 0;
+      }
       const reOpen =
         /\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]/g;
       const reClose = /\[\[\/TABELA\]\]/g;
@@ -1811,6 +1981,20 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     }
     function updateStatus() {
       if (!bsTag || !bsInfo) return;
+      if (window._sraQuill) {
+        const q = window._sraQuill;
+        const charCount = Math.max(0, q.getLength() - 1);
+        bsTag.dataset.cls = "paragrafo";
+        bsTag.textContent = "Editor formatado";
+        bsInfo.textContent =
+          charCount +
+          " caractere" +
+          (charCount === 1 ? "" : "s") +
+          " (Quill)";
+        const val = ta.value || "";
+        if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(:|\||\]\])/.test(val);
+        return;
+      }
       const val = ta.value || "";
       const pos = ta.selectionStart || 0;
       const before = val.slice(0, pos);
@@ -1828,13 +2012,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       bsInfo.textContent = "linha " + lineNum + ", coluna " + colNum;
       if (editTabBtn) editTabBtn.disabled = !/\[\[TABELA(:|\||\]\])/.test(val);
     }
-    ["keyup", "mouseup", "click", "focus", "input", "select"].forEach((ev) =>
-      ta.addEventListener(ev, updateStatus),
-    );
-    ta.addEventListener("input", _atualizaExemplos);
-    document.addEventListener("selectionchange", () => {
-      if (document.activeElement === ta) updateStatus();
-    });
+    if (!window._sraQuill) {
+      ["keyup", "mouseup", "click", "focus", "input", "select"].forEach((ev) =>
+        ta.addEventListener(ev, updateStatus),
+      );
+      ta.addEventListener("input", _atualizaExemplos);
+      document.addEventListener("selectionchange", () => {
+        if (document.activeElement === ta) updateStatus();
+      });
+    } else {
+      ta.addEventListener("input", _atualizaExemplos);
+    }
     updateStatus();
     _atualizaExemplos();
   })();
@@ -1843,6 +2031,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     document.getElementById("add-bloco-titulo").value = titulo || "";
     document.getElementById("add-bloco-tipo").value = tipo || "texto";
     document.getElementById("add-bloco-conteudo").value = conteudo || "";
+    if (window.loadSraQuillContent) window.loadSraQuillContent(conteudo || "");
     const wrapEc = document.getElementById("edit-bloco-controls");
     const relIdEc = wrapEc ? wrapEc.dataset.relId : "{{ rel.id }}";
     const selEc = document.getElementById("sec-nav");
@@ -1896,15 +2085,22 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           : "{{ sec.numero }} – {{ sec.titulo }}";
         document.getElementById("add-bloco-tipo").value = "texto";
         document.getElementById("add-bloco-conteudo").value = "";
+        if (window.loadSraQuillContent) window.loadSraQuillContent("");
         if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
         this.remove();
       };
       submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
     }
-    document
-      .getElementById("add-bloco-conteudo")
-      .scrollIntoView({ behavior: "smooth", block: "center" });
-    document.getElementById("add-bloco-conteudo").focus();
+    const _quillFocus = document.getElementById("add-bloco-quill");
+    if (window._sraQuill && _quillFocus) {
+      _quillFocus.scrollIntoView({ behavior: "smooth", block: "center" });
+      window._sraQuill.focus();
+    } else {
+      document
+        .getElementById("add-bloco-conteudo")
+        .scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("add-bloco-conteudo").focus();
+    }
     if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
   }
 
@@ -1928,6 +2124,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     const btnCarregar = document.getElementById("btn-edit-carregar");
     const btnSalvar = document.getElementById("btn-edit-salvar");
     const btnConfirmar = document.getElementById("btn-edit-confirmar");
+    const btnSalvarTodos = document.getElementById("btn-edit-salvar-todos");
     const status = document.getElementById("edit-bloco-status");
     const tabelaWrap = document.getElementById("edit-bloco-tabela-wrap");
     const tabelaBody = document.getElementById("edit-bloco-tabela-body");
@@ -1937,6 +2134,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     const inpTitulo = document.getElementById("add-bloco-titulo");
     const inpTipo = document.getElementById("add-bloco-tipo");
     const formAdd = document.getElementById("form-add-bloco");
+    let _ultimosBlocosCarregados = [];
 
     function setStatus(msg, kind) {
       status.textContent = msg || "";
@@ -2111,6 +2309,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         const data = await r.json();
         refMapas = data.ref_mapas || null;
         const blocos = data.blocos || [];
+        _ultimosBlocosCarregados = blocos.slice();
         const secNumero = (data.secao && data.secao.numero) || "";
         _podeEditarSecao = data.pode_editar_secao !== false;
         _motivoBloqueio = data.motivo_bloqueio || "";
@@ -2181,6 +2380,19 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       }
     }
 
+    function parseEditTarget() {
+      if (!formAdd) return null;
+      const m = formAdd.action.match(
+        /\/relatorios\/(\d+)\/secoes\/(\d+)\/blocos\/(\d+)\/editar(?:\?|$|\/|#)/,
+      );
+      if (!m) return null;
+      return {
+        relId: Number(m[1]),
+        secaoId: Number(m[2]),
+        blocoId: Number(m[3]),
+      };
+    }
+
     function salvar() {
       if (!_blocoIdEmEdicao) {
         setStatus("Carregue um bloco no editor antes de salvar.", "warn");
@@ -2193,6 +2405,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         conteudo: taConteudo.value || "",
         ts: Date.now(),
       };
+      const pe = parseEditTarget();
+      if (pe) payload.secao_id = pe.secaoId;
       try {
         window.localStorage.setItem(
           localKey(_blocoIdEmEdicao),
@@ -2207,6 +2421,122 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       } catch (e) {
         setStatus("Falha ao salvar localmente: " + e.message, "danger");
       }
+    }
+
+    async function salvarTodosRascunhosNoServidor() {
+      if (!_podeEditarSecao) {
+        setStatus(
+          _motivoBloqueio ||
+            "Edição não permitida no status atual do relatório.",
+          "warn",
+        );
+        return;
+      }
+      if (
+        _blocoIdEmEdicao &&
+        formAdd &&
+        formAdd.action.indexOf("/editar") !== -1
+      ) {
+        const flush = {
+          id: _blocoIdEmEdicao,
+          titulo: inpTitulo.value || "",
+          tipo: inpTipo.value || "texto",
+          conteudo: taConteudo.value || "",
+          ts: Date.now(),
+        };
+        const pe0 = parseEditTarget();
+        if (pe0) flush.secao_id = pe0.secaoId;
+        try {
+          window.localStorage.setItem(
+            localKey(_blocoIdEmEdicao),
+            JSON.stringify(flush),
+          );
+        } catch (e) {
+          setStatus("Falha ao sincronizar o editor atual: " + e.message, "danger");
+          return;
+        }
+      }
+      const mapa = {};
+      _ultimosBlocosCarregados.forEach(function (b) {
+        mapa[b.id] = b;
+      });
+      const pendentes = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (!k || k.indexOf("sra:rascunho:bloco:") !== 0) continue;
+        let d;
+        try {
+          d = JSON.parse(window.localStorage.getItem(k));
+        } catch (e2) {
+          continue;
+        }
+        if (!d || !d.id) continue;
+        let sid = d.secao_id;
+        if (!Number.isFinite(Number(sid))) {
+          const mb = mapa[d.id];
+          if (mb) sid = mb.secao_id;
+        }
+        sid = Number(sid);
+        if (!Number.isFinite(sid)) continue;
+        const mb = mapa[d.id];
+        if (mb && mb.pode_editar === false) continue;
+        const tipo = (d.tipo || "texto").toLowerCase();
+        if (
+          (tipo === "figura" || tipo === "tabela") &&
+          !mb
+        ) {
+          continue;
+        }
+        pendentes.push({ draft: d, secId: sid, meta: mb || null });
+      }
+      if (!pendentes.length) {
+        setStatus("Nenhum rascunho local pendente para enviar ao servidor.", "info");
+        return;
+      }
+      setStatus("A gravar " + pendentes.length + " rascunho(s) no servidor…", "working");
+      let ok = 0;
+      for (let p = 0; p < pendentes.length; p++) {
+        const item = pendentes[p];
+        const d = item.draft;
+        const fd = new FormData();
+        fd.append("titulo", d.titulo || "");
+        fd.append("conteudo", d.conteudo || "");
+        const meta = item.meta;
+        fd.append("legenda", meta && meta.legenda ? meta.legenda : "");
+        fd.append("fonte", meta && meta.fonte ? meta.fonte : "");
+        fd.append(
+          "figura_id",
+          meta && meta.figura_id != null && String(meta.figura_id).trim() !== ""
+            ? String(meta.figura_id)
+            : "",
+        );
+        const url =
+          "/relatorios/" +
+          relId +
+          "/secoes/" +
+          item.secId +
+          "/blocos/" +
+          d.id +
+          "/editar";
+        const r = await fetch(url, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+        });
+        if (!r.ok) {
+          setStatus(
+            "Falha ao gravar bloco #" + d.id + " (HTTP " + r.status + ").",
+            "danger",
+          );
+          return;
+        }
+        window.localStorage.removeItem(localKey(d.id));
+        ok++;
+      }
+      setStatus(
+        ok + " bloco(s) gravados no servidor. Rascunhos locais correspondentes foram removidos.",
+        "ok",
+      );
     }
 
     function confirmar() {
@@ -2227,6 +2557,12 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     btnCarregar.addEventListener("click", carregar);
     btnSalvar.addEventListener("click", salvar);
     btnConfirmar.addEventListener("click", confirmar);
+    if (btnSalvarTodos) {
+      btnSalvarTodos.addEventListener("click", function () {
+        salvarTodosRascunhosNoServidor();
+      });
+    }
+    window.SRA_salvarTodosRascunhos = salvarTodosRascunhosNoServidor;
     sel.addEventListener("change", () => {
       syncFormActionNovoBloco();
       syncExcluirConfirmadosBtn();
@@ -4180,17 +4516,35 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     flex-direction: column;
     min-width: 0;
   }
-  .add-bloco-conteudo-body textarea {
+  .add-bloco-conteudo-body .add-bloco-quill {
     width: 100%;
     flex: 1;
     min-height: 520px;
     box-sizing: border-box;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    tab-size: 2;
-    white-space: pre;
-    overflow: auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px 4px 0 0;
+  }
+  .add-bloco-conteudo-body .add-bloco-quill .ql-container {
+    min-height: 460px;
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .add-bloco-conteudo-body .add-bloco-quill .ql-toolbar {
+    border-radius: 4px 4px 0 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .add-bloco-conteudo-body .is-offscreen {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .bloco-status-bar {
     display: flex;

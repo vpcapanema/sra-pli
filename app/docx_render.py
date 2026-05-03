@@ -15,6 +15,8 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from sqlalchemy.orm import Session
 
+from . import ref_resolve
+from . import sra_rich_html as srh
 from .list_lines import _ListItem, line_is_list_item, parse_list_for_docx
 from .models import Figura, Relatorio, Secao
 from .pdf_render import (
@@ -66,8 +68,9 @@ def _figura_ids_relatorio(rel: Relatorio, section_ids: set[int] | None) -> set[i
 
 
 def _figura_label(sec_numero: str, counter: int) -> str:
-    top = (sec_numero or "").split(".")[0]
-    return f"{top}.{counter}" if top else str(counter)
+    """Mesmo rótulo que PDF/HTML: ``ref_resolve.label_numero_pli``."""
+    sec_top = (sec_numero or "").split(".")[0]
+    return ref_resolve.label_numero_pli(sec_top, counter)
 
 
 def _set_runs_font(
@@ -198,6 +201,10 @@ def _format_heading(paragraph, level: int) -> None:
     paragraph_format.line_spacing = 1.15
     paragraph_format.keep_with_next = True
     _set_runs_font(paragraph, size_pt=sizes.get(level, 10), bold=True, italic=level >= 4, color=HEADING_COLOR)
+
+
+format_docx_heading = _format_heading
+format_docx_body_paragraph = _format_body_paragraph
 
 
 def _add_numbered_heading(document: Document, numero: str, titulo: str, level: int):
@@ -665,7 +672,9 @@ def _parts_texto_e_tabelas(
         parts.append(("texto", text[last:match.start()]))
         idx_raw, posicao, legenda, corpo_tab = _parse_tabela_marker(match)
         tab_counter += 1
-        numero = idx_raw or _figura_label(sec_numero, tab_counter)
+        numero = ref_resolve.idx_efetivo_marcador(
+            idx_raw, _figura_label(sec_numero, tab_counter)
+        )
         parts.append(
             (
                 "tabela",
@@ -677,19 +686,34 @@ def _parts_texto_e_tabelas(
     return parts, tab_counter
 
 
-def _emit_figuras_em_trecho_texto(
+def _add_rich_html_docx(document: Document, html: str) -> None:
+    """Delega HTML rico sanitizado para módulo dedicado (import tardio evita ciclo estático)."""
+    from .docx_rich_html import add_rich_html_docx
+
+    add_rich_html_docx(document, html)
+
+
+def _emit_figuras_em_trecho_texto(  # pylint: disable=too-many-arguments
     document: Document,
     chunk: str,
     figuras_by_id: dict[int, Figura],
     sec_numero: str,
     contadores: _MarcadoresContadores,
+    *,
+    rich_html: bool = False,
 ) -> None:
     sub_last = 0
     for match in _RE_FIGURA.finditer(chunk):
-        _add_texto(document, chunk[sub_last:match.start()])
+        sub = chunk[sub_last : match.start()]
+        if rich_html:
+            _add_rich_html_docx(document, sub)
+        else:
+            _add_texto(document, sub)
         idx_raw, figura_id, legenda, posicao = _parse_figura_marker(match)
         contadores.fig += 1
-        numero = idx_raw or _figura_label(sec_numero, contadores.fig)
+        numero = ref_resolve.idx_efetivo_marcador(
+            idx_raw, _figura_label(sec_numero, contadores.fig)
+        )
         _add_figura(
             document,
             figuras_by_id.get(figura_id),
@@ -697,17 +721,24 @@ def _emit_figuras_em_trecho_texto(
             _DocxFiguraOpts(legenda=legenda, fonte="", posicao=posicao),
         )
         sub_last = match.end()
-    _add_texto(document, chunk[sub_last:])
+    tail = chunk[sub_last:]
+    if rich_html:
+        _add_rich_html_docx(document, tail)
+    else:
+        _add_texto(document, tail)
 
 
-def _add_texto_com_marcadores(
+def _add_texto_com_marcadores(  # pylint: disable=too-many-arguments
     document: Document,
     conteudo: str,
     figuras_by_id: dict[int, Figura],
     sec_numero: str,
     contadores: _MarcadoresContadores,
+    *,
+    rich_html: bool = False,
 ) -> None:
-    parts, contadores.tab = _parts_texto_e_tabelas(conteudo, sec_numero, contadores.tab)
+    work = srh.storage_body(conteudo) if rich_html else (conteudo or "")
+    parts, contadores.tab = _parts_texto_e_tabelas(work, sec_numero, contadores.tab)
     for kind, value in parts:
         if kind == "tabela":
             corpo, legenda, fonte, numero, posicao = value  # type: ignore[misc]
@@ -718,7 +749,14 @@ def _add_texto_com_marcadores(
                 _DocxTabelaOpts(legenda=legenda, fonte=fonte, posicao=posicao),
             )
             continue
-        _emit_figuras_em_trecho_texto(document, str(value), figuras_by_id, sec_numero, contadores)
+        _emit_figuras_em_trecho_texto(
+            document,
+            str(value),
+            figuras_by_id,
+            sec_numero,
+            contadores,
+            rich_html=rich_html,
+        )
 
 
 def _render_blocos_da_secao(
@@ -752,15 +790,22 @@ def _render_blocos_da_secao(
                 _DocxTabelaOpts(legenda=bloco.legenda, fonte=bloco.fonte),
             )
         elif bloco.tipo == "lista":
-            _add_lista_bloco_docx(document, bloco.conteudo or "")
+            raw_list = bloco.conteudo or ""
+            if srh.is_rich_html_storage(raw_list):
+                _add_rich_html_docx(document, srh.storage_body(raw_list))
+            else:
+                _add_lista_bloco_docx(document, raw_list)
         else:
+            raw_txt = bloco.conteudo or ""
+            rich_blk = srh.is_rich_html_storage(raw_txt)
             mc = _MarcadoresContadores(fig=fig_counter, tab=tab_counter)
             _add_texto_com_marcadores(
                 document,
-                bloco.conteudo or "",
+                raw_txt,
                 figuras_by_id,
                 sec.numero,
                 mc,
+                rich_html=rich_blk,
             )
             fig_counter = mc.fig
             tab_counter = mc.tab

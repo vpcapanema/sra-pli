@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %}page-validacao-revisao{% endblock %}
 {% block title %}Validação e Revisão · {{ rel.codigo }}{% endblock %}
 {% block header %}Validação e Revisão — {{ rel.codigo }}{% endblock %}
 
@@ -12,167 +13,308 @@
     <p>
       Página única para o coordenador/admin: <strong>Validação</strong> percorre as parciais de cada autor; <strong>Revisão</strong> trabalha o documento como um todo e termina em "Aprovar e finalizar". Tudo orbita a <a href="/relatorios/{{ rel.id }}/entregas">Lista de entregas</a> — Aprovar/Reprovar aqui altera o status da parcial lá.
     </p>
+    <p class="vr-hero-compromisso">
+      <strong>Transparência:</strong> nesta página, sempre que os dados existem no sistema, a associação
+      <strong>seção ↔ responsável (autor)</strong> é mostrada explicitamente — na árvore, no painel de validação,
+      no mapa da Revisão e em cada item das checagens globais.
+    </p>
     <div class="chips">
       <span class="chip">{{ total_entregas }} autores no ciclo</span>
       <span class="chip">{{ aprovadas }} aprovadas</span>
       <span class="chip">{{ prontas_para_aprovar }} prontas para aprovar</span>
       <span class="chip">{{ com_erros }} com erros estruturais</span>
     </div>
+    {% if relatorios_opcao %}
+      <div class="gov-filter-form vr-rel-selector" role="region" aria-label="Trocar relatório">
+        <label for="vr-sel-relatorio">Relatório</label>
+        <select id="vr-sel-relatorio"
+                onchange="const v=this.value; if (v) { window.location.href='/relatorios/'+v+'/validacao-revisao'+window.location.hash; }">
+          {% for r in relatorios_opcao %}
+            <option value="{{ r.id }}"
+                    {% if r.id == rel.id %}selected{% endif %}>{{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
   </section>
 
   <section class="ss active-tab" id="ss-validacao">
     <div class="ss-hdr">
       <span class="sn">01</span>
-      <span class="st">Validação — parciais dos autores</span>
-      <span class="sbadge">aprovar/reprovar por autor</span>
+      <span class="st">Validação — conteúdo e parciais</span>
+      <span class="sbadge">árvore · pré-visualização · aprovar parciais</span>
     </div>
     <div class="sb2">
       <p class="sdesc">
-        Cada autor abaixo expande para mostrar as <strong>checagens estruturais automáticas</strong> de cada seção sob sua responsabilidade. Erros (vermelho) indicam problema que provavelmente deveria voltar para o autor; avisos (amarelo) são pontos de atenção. <strong>Aprovar</strong> carimba a entrega como <em>validado</em> e cessa o ciclo de notificação para esse autor. <strong>Reprovar</strong> exige justificativa e devolve a entrega para <em>aguardando_envio</em>.
+        À <strong>esquerda</strong>, o sumário filtra/navega: ao clicar numa seção, o documento
+        <strong>completo</strong> permanece na pré-visualização e a vista salta para o trecho
+        correspondente. À <strong>direita</strong>, a pré-visualização formatada (mesmo HTML do PDF) e,
+        abaixo dela no mesmo painel, a <strong>aprovação ou devolução da parcial</strong> do responsável
+        por essa seção. Comentários do coordenador ficam em notas internas (não entram no documento).
       </p>
+
+      {% if not rel.secoes %}
+        <p class="empty-section">Este relatório ainda não tem seções.</p>
+      {% else %}
+        <script type="application/json" id="vr-arvore-json">{{ arvore_validacao | tojson }}</script>
+        <div class="vr-val-workspace">
+          <details class="vr-val-tree-collapsible" open>
+            <summary class="vr-val-tree-collapsible-sum">
+              <span class="vr-val-tree-sum-tit">Seções · responsável / autor</span>
+              <span class="vr-val-tree-sum-hint muted-dash">clique para recolher</span>
+            </summary>
+            <nav class="vr-val-tree" aria-label="Seções do relatório e responsáveis">
+            <ul class="vr-val-tree-list" role="list">
+              {% for node in arvore_validacao %}
+                <li class="vr-val-tree-li vr-val-tree-lvl-{{ node.nivel }}
+                           {% if node.tem_erro %} vr-val-tree-li--err
+                           {% elif node.tem_aviso %} vr-val-tree-li--aviso{% endif %}">
+                  <button type="button"
+                          class="vr-tree-node vr-tree-node--val {% if loop.first %}is-default{% endif %}"
+                          data-sec-id="{{ node.secao_id if node.secao_id is not none else '' }}"
+                          data-sec-numero="{{ node.numero }}"
+                          data-sec-titulo="{{ node.titulo | e }}"
+                          data-anchor="{{ node.anchor_id }}"
+                          data-responsavel-user-id="{{ node.responsavel_user_id if node.responsavel_user_id is not none else '' }}"
+                          data-responsavel-nome="{{ node.responsavel_rotulo | e }}"
+                          data-editor-url="{{ node.editor_url }}"
+                          data-blocos-txt="{{ node.blocos_txt | e }}">
+                    <span class="vr-tree-num">{% if node.numero %}{{ node.numero }}{% else %}★{% endif %}</span>
+                    <span class="vr-tree-body">
+                      <span class="vr-tree-tit">{{ node.titulo }}</span>
+                      {% if node.nivel > 0 %}
+                        {% if node.sem_responsavel %}
+                          <span class="vr-tree-auth vr-tree-auth--missing">Sem responsável atribuído</span>
+                        {% else %}
+                          <span class="vr-tree-auth vr-tree-auth--ok">{{ node.responsavel_rotulo }}</span>
+                        {% endif %}
+                      {% endif %}
+                    </span>
+                  </button>
+                </li>
+              {% endfor %}
+            </ul>
+            </nav>
+          </details>
+          <div class="vr-val-panel">
+            <div class="vr-val-panel-toolbar">
+              <button type="button" id="vr-val-reload" class="vr-btn vr-btn-quiet">
+                Recarregar pré-visualização
+              </button>
+              <a id="vr-val-open-pdf"
+                 class="vr-abrir-btn"
+                 href="/relatorios/{{ rel.id }}/pdf"
+                 target="_blank"
+                 rel="noopener">Abrir PDF completo</a>
+            </div>
+            <div class="vr-val-viewer">
+              <iframe id="vr-val-frame"
+                      class="vr-val-frame"
+                      title="Pré-visualização formatada (modelo do PDF)"></iframe>
+              <div id="vr-val-autor-dock" class="vr-val-autor-dock" aria-live="polite">
+                <div id="vr-val-dock-ctx" class="vr-val-dock-ctx" hidden></div>
+                <div id="vr-autor-dock-default" class="vr-autor-dock-pane">
+                  <p class="vr-autor-dock-msg muted-dash">
+                    Selecione uma seção no sumário para ir ao trecho no documento e ver aqui a
+                    <strong>parcial do responsável</strong> (aprovar ou devolver com justificativa).
+                  </p>
+                </div>
+                <div id="vr-autor-dock-sem-resp" class="vr-autor-dock-pane" hidden>
+                  <p class="vr-autor-dock-msg">
+                    Esta seção <strong>não tem responsável</strong> atribuído. Defina em
+                    <a href="/relatorios/{{ rel.id }}">Sumário do relatório</a> antes de aprovar parciais.
+                  </p>
+                </div>
+                <div id="vr-autor-dock-sem-entrega" class="vr-autor-dock-pane" hidden>
+                  <p class="vr-autor-dock-msg muted-dash">
+                    Não há entrega registrada no ciclo para o responsável desta seção.
+                  </p>
+                </div>
+                {% if checagens %}
+                  {% for c in checagens %}
+                    {% if c.user_id is not none %}
+                    <div class="vr-autor-dock-pane vr-autor-dock-pane--full"
+                         data-entrega-user-id="{{ c.user_id }}"
+                         hidden>
+                      <div class="vr-autor-dock-hdr">
+                        <div class="vr-autor-nome">
+                          <strong>{{ c.user_nome }}</strong>
+                          <span class="vr-autor-email">{{ c.user_email }}</span>
+                        </div>
+                        <div class="vr-autor-status">
+                          <span class="tag tag-status-{{ c.status }}">{{ c.status | replace('_', ' ') }}</span>
+                          {% if c.total_erros %}
+                            <span class="tag tag-err" title="Erros estruturais detectados">{{ c.total_erros }} erro{{ '' if c.total_erros == 1 else 's' }}</span>
+                          {% endif %}
+                          {% if c.total_avisos %}
+                            <span class="tag tag-warn" title="Avisos (não bloqueiam)">{{ c.total_avisos }} aviso{{ '' if c.total_avisos == 1 else 's' }}</span>
+                          {% endif %}
+                          <span class="tag tag-neutral" title="Blocos confirmados / total nas seções deste autor">
+                            {{ c.total_blocos_bloqueados }}/{{ c.total_blocos }} blocos confirmados
+                          </span>
+                        </div>
+                      </div>
+                      <div class="vr-autor-dock-body">
+                        {% if c.motivo_reprovacao %}
+                          <div class="vr-reprovacao">
+                            <strong class="vr-reprovacao-tit">Última devolução ao autor</strong>
+                            <p class="vr-reprovacao-data">
+                              em {{ c.data_reprovacao.strftime("%d/%m/%Y %H:%M") if c.data_reprovacao else '—' }}
+                            </p>
+                            <p class="vr-reprovacao-msg">{{ c.motivo_reprovacao }}</p>
+                          </div>
+                        {% endif %}
+
+                        {% if not c.secoes %}
+                          <p class="vr-sem-secoes">
+                            Este autor não tem nenhuma seção atribuída no relatório atual. Atribua responsabilidade em
+                            <a href="/relatorios/{{ rel.id }}">Sumário do relatório</a> antes de aprovar.
+                          </p>
+                        {% else %}
+                          <table class="vr-secoes vr-secoes--dock">
+                            <thead>
+                              <tr>
+                                <th>Seção</th>
+                                <th>Responsável</th>
+                                <th>Blocos</th>
+                                <th>Checagens</th>
+                                <th>Abrir</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for s in c.secoes %}
+                                <tr class="vr-secao
+                                           {% if s.tem_erro %}vr-secao--erro
+                                           {% elif s.tem_aviso %}vr-secao--aviso{% endif %}">
+                                  <td>
+                                    <strong>{{ s.secao_numero }}</strong>
+                                    <span class="vr-secao-titulo">{{ s.secao_titulo }}</span>
+                                  </td>
+                                  <td>
+                                    {% if s.responsavel_nome %}
+                                      <span class="vr-secao-autor">{{ s.responsavel_nome }}</span>
+                                    {% else %}
+                                      <span class="vr-secao-autor vr-secao-autor--missing">— sem responsável —</span>
+                                    {% endif %}
+                                  </td>
+                                  <td>{{ s.blocos_bloqueados }}/{{ s.blocos_total }}</td>
+                                  <td>
+                                    {% if s.achados %}
+                                      <ul class="vr-achados">
+                                        {% for a in s.achados %}
+                                          <li class="vr-achado vr-achado--{{ a.severidade }}">
+                                            <span class="vr-achado-sev tag tag-{{ 'err' if a.severidade == 'erro' else ('warn' if a.severidade == 'aviso' else 'neutral') }}">
+                                              {{ a.severidade }}
+                                            </span>
+                                            <span class="vr-achado-msg">{{ a.rotulo }}</span>
+                                          </li>
+                                        {% endfor %}
+                                      </ul>
+                                    {% else %}
+                                      <span class="muted-dash" title="Nenhum problema estrutural detectado">— sem ressalvas —</span>
+                                    {% endif %}
+                                  </td>
+                                  <td>
+                                    <a class="vr-abrir-btn"
+                                       href="{{ s.link_upload }}"
+                                       title="Abrir página de edição/visualização da seção">Abrir</a>
+                                  </td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        {% endif %}
+
+                        <div class="vr-acoes">
+                          {% if c.status == 'validado' %}
+                            <span class="vr-acoes-info">
+                              Entrega já <strong>aprovada (validado)</strong>. Para reabrir, use o menu ⋮ na
+                              <a href="/relatorios/{{ rel.id }}/entregas">Lista de entregas</a> e devolva o status para
+                              <em>aguardando_envio</em>.
+                            </span>
+                          {% else %}
+                            <form method="post"
+                                  action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/status"
+                                  class="vr-form vr-form-aprovar"
+                                  onsubmit="return confirm('Confirma APROVAR esta parcial?\n\nEntrega vai para status validado e o autor para de receber lembretes do ciclo.');">
+                              <input type="hidden" name="novo_status" value="validado">
+                              <input type="hidden"
+                                     name="redirect_to"
+                                     value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
+                              <button type="submit"
+                                      class="vr-btn vr-btn-aprovar"
+                                      {% if not c.pronta_para_aprovar %}
+                                        title="Há erros estruturais ou seções sem bloco confirmado. Você ainda pode aprovar mesmo assim."
+                                      {% endif %}>
+                                Aprovar parcial
+                              </button>
+                            </form>
+
+                            <details class="vr-reprovar-pop">
+                              <summary class="vr-btn vr-btn-reprovar">Reprovar com justificativa</summary>
+                              <form method="post"
+                                    action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/reprovar"
+                                    class="vr-form vr-form-reprovar">
+                                <input type="hidden"
+                                       name="redirect_to"
+                                       value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
+                                <label class="vr-label" for="vr-mot-dock-{{ c.entrega_id }}">
+                                  Justificativa (será mostrada ao autor)
+                                </label>
+                                <textarea id="vr-mot-dock-{{ c.entrega_id }}"
+                                          name="motivo"
+                                          rows="3"
+                                          required
+                                          minlength="10"
+                                          maxlength="2000"
+                                          placeholder="Explique objetivamente o que precisa ser ajustado, citando seção e bloco quando aplicável."></textarea>
+                                <button type="submit" class="vr-btn vr-btn-reprovar-confirmar">
+                                  Devolver ao autor (status volta para aguardando_envio)
+                                </button>
+                              </form>
+                            </details>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+            <div id="vr-val-notes-wrap" class="vr-val-notes-wrap vr-val-notes--disabled">
+              <div id="vr-val-notes-ctx" class="vr-val-notes-ctx" hidden></div>
+              <h4 class="vr-val-notes-h">Comentários do coordenador (nota interna)</h4>
+              <p class="vr-val-notes-hint muted-dash">
+                Não entra no PDF. Para alterar o texto entregue, use o editor de conteúdo da seção.
+              </p>
+              <form id="vr-val-notes-form"
+                    method="post"
+                    action=""
+                    class="vr-val-notes-form">
+                <input type="hidden"
+                       name="redirect_to"
+                       value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
+                <label class="vr-label" for="vr-val-notes-ta">Notas sobre a seção selecionada</label>
+                <textarea id="vr-val-notes-ta"
+                          name="observacao"
+                          rows="5"
+                          maxlength="8000"
+                          placeholder="Ex.: conferir tabela 3.2 — alinhar com a planilha de medição."></textarea>
+                <div class="vr-val-notes-actions">
+                  <button type="submit" class="vr-btn vr-btn-aprovar">Guardar nota</button>
+                  <a id="vr-val-editor-link" class="vr-abrir-btn" href="#">Abrir no editor de conteúdo</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endif %}
 
       {% if not checagens %}
         <p class="empty-section">
-          Nenhuma entrega registrada para este relatório. As entregas são criadas pelo serviço de abertura mensal (dia 01, 03:00 BRT) ou pela ação manual «Abrir período» do coordenador.
+          Nenhuma entrega registrada para este relatório. As entregas são criadas pelo serviço de abertura mensal (dia 01, 03:00 BRT) ou pela ação manual «Abrir período» do coordenador. Pode usar a árvore acima para rever o documento completo; quando houver entregas, a aprovação por autor aparece no painel sob a pré-visualização.
         </p>
-      {% else %}
-        <div class="vr-autores">
-          {% for c in checagens %}
-            <details class="vr-autor"
-                     {% if c.total_erros > 0 or c.status != 'validado' %}open{% endif %}>
-              <summary class="vr-autor-hdr">
-                <span class="vr-autor-nome">
-                  <strong>{{ c.user_nome }}</strong>
-                  <span class="vr-autor-email">{{ c.user_email }}</span>
-                </span>
-                <span class="vr-autor-status">
-                  <span class="tag tag-status-{{ c.status }}">{{ c.status | replace('_', ' ') }}</span>
-                  {% if c.total_erros %}
-                    <span class="tag tag-err" title="Erros estruturais detectados">{{ c.total_erros }} erro{{ '' if c.total_erros == 1 else 's' }}</span>
-                  {% endif %}
-                  {% if c.total_avisos %}
-                    <span class="tag tag-warn" title="Avisos (não bloqueiam)">{{ c.total_avisos }} aviso{{ '' if c.total_avisos == 1 else 's' }}</span>
-                  {% endif %}
-                  <span class="tag tag-neutral" title="Blocos confirmados / total nas seções deste autor">
-                    {{ c.total_blocos_bloqueados }}/{{ c.total_blocos }} blocos confirmados
-                  </span>
-                </span>
-              </summary>
-
-              <div class="vr-autor-body">
-                {% if c.motivo_reprovacao %}
-                  <div class="vr-reprovacao">
-                    <strong class="vr-reprovacao-tit">Última devolução ao autor</strong>
-                    <p class="vr-reprovacao-data">
-                      em {{ c.data_reprovacao.strftime("%d/%m/%Y %H:%M") if c.data_reprovacao else '—' }}
-                    </p>
-                    <p class="vr-reprovacao-msg">{{ c.motivo_reprovacao }}</p>
-                  </div>
-                {% endif %}
-
-                {% if not c.secoes %}
-                  <p class="vr-sem-secoes">
-                    Este autor não tem nenhuma seção atribuída no relatório atual. Atribua responsabilidade em <a href="/relatorios/{{ rel.id }}">Sumário do relatório</a> antes de aprovar.
-                  </p>
-                {% else %}
-                  <table class="vr-secoes">
-                    <thead>
-                      <tr>
-                        <th>Seção</th>
-                        <th>Blocos</th>
-                        <th>Checagens automáticas</th>
-                        <th>Abrir</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for s in c.secoes %}
-                        <tr class="vr-secao
-                                   {% if s.tem_erro %}vr-secao--erro
-                                   {% elif s.tem_aviso %}vr-secao--aviso{% endif %}">
-                          <td>
-                            <strong>{{ s.secao_numero }}</strong>
-                            <span class="vr-secao-titulo">{{ s.secao_titulo }}</span>
-                          </td>
-                          <td>{{ s.blocos_bloqueados }}/{{ s.blocos_total }}</td>
-                          <td>
-                            {% if s.achados %}
-                              <ul class="vr-achados">
-                                {% for a in s.achados %}
-                                  <li class="vr-achado vr-achado--{{ a.severidade }}">
-                                    <span class="vr-achado-sev tag tag-{{ 'err' if a.severidade == 'erro' else ('warn' if a.severidade == 'aviso' else 'neutral') }}">
-                                      {{ a.severidade }}
-                                    </span>
-                                    <span class="vr-achado-msg">{{ a.rotulo }}</span>
-                                  </li>
-                                {% endfor %}
-                              </ul>
-                            {% else %}
-                              <span class="muted-dash" title="Nenhum problema estrutural detectado">— sem ressalvas —</span>
-                            {% endif %}
-                          </td>
-                          <td>
-                            <a class="vr-abrir-btn"
-                               href="{{ s.link_upload }}"
-                               title="Abrir página de edição/visualização da seção">Abrir</a>
-                          </td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                {% endif %}
-
-                <div class="vr-acoes">
-                  {% if c.status == 'validado' %}
-                    <span class="vr-acoes-info">
-                      Entrega já <strong>aprovada (validado)</strong>. Para reabrir, use o menu ⋮ na <a href="/relatorios/{{ rel.id }}/entregas">Lista de entregas</a> e devolva o status para <em>aguardando_envio</em>.
-                    </span>
-                  {% else %}
-                    <form method="post"
-                          action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/status"
-                          class="vr-form vr-form-aprovar"
-                          onsubmit="return confirm('Confirma APROVAR esta parcial?\n\nEntrega vai para status validado e o autor para de receber lembretes do ciclo.');">
-                      <input type="hidden" name="novo_status" value="validado">
-                      <input type="hidden"
-                             name="redirect_to"
-                             value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
-                      <button type="submit"
-                              class="vr-btn vr-btn-aprovar"
-                              {% if not c.pronta_para_aprovar %}
-                                title="Há erros estruturais ou seções sem bloco confirmado. Você ainda pode aprovar mesmo assim."
-                              {% endif %}>
-                        Aprovar parcial
-                      </button>
-                    </form>
-
-                    <details class="vr-reprovar-pop">
-                      <summary class="vr-btn vr-btn-reprovar">Reprovar com justificativa</summary>
-                      <form method="post"
-                            action="/relatorios/{{ rel.id }}/entregas/{{ c.entrega_id }}/reprovar"
-                            class="vr-form vr-form-reprovar">
-                        <input type="hidden"
-                               name="redirect_to"
-                               value="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao">
-                        <label class="vr-label" for="vr-mot-{{ c.entrega_id }}">
-                          Justificativa (será mostrada ao autor)
-                        </label>
-                        <textarea id="vr-mot-{{ c.entrega_id }}"
-                                  name="motivo"
-                                  rows="3"
-                                  required
-                                  minlength="10"
-                                  maxlength="2000"
-                                  placeholder="Explique objetivamente o que precisa ser ajustado, citando seção e bloco quando aplicável."></textarea>
-                        <button type="submit" class="vr-btn vr-btn-reprovar-confirmar">
-                          Devolver ao autor (status volta para aguardando_envio)
-                        </button>
-                      </form>
-                    </details>
-                  {% endif %}
-                </div>
-              </div>
-            </details>
-          {% endfor %}
-        </div>
       {% endif %}
 
       <details class="vr-lista-entregas">
@@ -193,17 +335,196 @@
     <div class="ss-hdr">
       <span class="sn">02</span>
       <span class="st">Revisão — documento como um todo</span>
-      <span class="sbadge">checagens globais · finalização · exportação</span>
+      <span class="sbadge">árvore · pré-visualização · editor · linguística · fechamento</span>
     </div>
     <div class="sb2">
       <p class="sdesc">
-        Esta seção concentra a revisão final do <strong>documento inteiro</strong>: checagens estruturais agregadas, ferramentas linguísticas (ortografia/gramática), e os botões de fechamento — <strong>Aprovar e finalizar</strong> e <strong>Exportar para assinatura</strong>.
+        O mesmo <strong>layout da Validação (01)</strong>: à esquerda, sumário com <strong>responsável</strong> e
+        <strong>cores</strong> por situação dos blocos; à direita, alterne entre <strong>pré-visualização</strong>
+        (HTML do PDF, documento inteiro) e <strong>editor de blocos</strong> (a mesma página de edição do relatório,
+        incorporada — estrutura de documento com texto, listas, figuras e importação Word). Por baixo do painel:
+        <strong>análise linguística</strong> no relatório e <strong>notas internas</strong>. Mais abaixo: mapa de
+        responsáveis, números agregados, checagens estruturais por categoria e fechamento.
       </p>
+
+      {% if not rel.secoes %}
+        <p class="empty-section">Este relatório ainda não tem seções.</p>
+      {% else %}
+        <script type="application/json" id="vr-arvore-revisao-json">{{ arvore_revisao_navegacao | tojson }}</script>
+        <div class="vr-val-workspace vr-rev-workspace">
+          <details class="vr-val-tree-collapsible" open>
+            <summary class="vr-val-tree-collapsible-sum">
+              <span class="vr-val-tree-sum-tit">Seções · responsável / situação dos blocos</span>
+              <span class="vr-val-tree-sum-hint muted-dash">clique para recolher</span>
+            </summary>
+            <nav class="vr-val-tree" aria-label="Seções do relatório para revisão">
+              <ul class="vr-val-tree-list" role="list">
+                {% for node in arvore_revisao_navegacao %}
+                  <li class="vr-val-tree-li vr-val-tree-lvl-{{ node.nivel }}
+                             {% if node.tem_erro %} vr-val-tree-li--err
+                             {% elif node.tem_aviso %} vr-val-tree-li--aviso{% endif %}">
+                    <button type="button"
+                            class="vr-tree-node vr-tree-node--rev {% if loop.first %}is-default{% endif %}"
+                            data-sec-id="{{ node.secao_id if node.secao_id is not none else '' }}"
+                            data-sec-numero="{{ node.numero }}"
+                            data-sec-titulo="{{ node.titulo | e }}"
+                            data-anchor="{{ node.anchor_id }}"
+                            data-responsavel-user-id="{{ node.responsavel_user_id if node.responsavel_user_id is not none else '' }}"
+                            data-responsavel-nome="{{ node.responsavel_rotulo | e }}"
+                            data-editor-url="{{ node.editor_url }}"
+                            data-blocos-txt="{{ node.blocos_txt | e }}">
+                      <span class="vr-tree-num">{% if node.numero %}{{ node.numero }}{% else %}★{% endif %}</span>
+                      <span class="vr-tree-body">
+                        <span class="vr-tree-tit">{{ node.titulo }}</span>
+                        {% if node.nivel > 0 %}
+                          {% if node.sem_responsavel %}
+                            <span class="vr-tree-auth vr-tree-auth--missing">Sem responsável atribuído</span>
+                          {% else %}
+                            <span class="vr-tree-auth vr-tree-auth--ok">{{ node.responsavel_rotulo }}</span>
+                          {% endif %}
+                          <span class="vr-tree-blocos-hint muted-dash">{{ node.blocos_txt }}</span>
+                        {% endif %}
+                      </span>
+                    </button>
+                  </li>
+                {% endfor %}
+              </ul>
+            </nav>
+          </details>
+          <div class="vr-val-panel vr-rev-panel">
+            <div class="vr-rev-ribbon" role="toolbar" aria-label="Modo de visualização">
+              <div class="vr-rev-ribbon-modes" role="group" aria-label="Pré-visualização ou editor">
+                <button type="button" id="vr-rev-mode-preview" class="vr-rev-mode-btn is-active" aria-pressed="true">
+                  Pré-visualização
+                </button>
+                <button type="button" id="vr-rev-mode-editor" class="vr-rev-mode-btn" aria-pressed="false">
+                  Editor de blocos
+                </button>
+              </div>
+              <div class="vr-rev-ribbon-tools">
+                <button type="button" id="vr-rev-salvar-todos" class="vr-btn vr-btn-salvar-todos">
+                  Salvar tudo
+                </button>
+                <button type="button" id="vr-rev-reload" class="vr-btn vr-btn-quiet">Recarregar painel</button>
+                <a id="vr-rev-open-editor-tab"
+                   class="vr-abrir-btn"
+                   href="#"
+                   target="_blank"
+                   rel="noopener">Abrir editor em nova aba</a>
+                <a class="vr-abrir-btn"
+                   href="/relatorios/{{ rel.id }}/pdf"
+                   target="_blank"
+                   rel="noopener">PDF completo</a>
+              </div>
+            </div>
+            <p class="vr-rev-ribbon-hint muted-dash">
+              Fluxo estilo documento: use <strong>Pré-visualização</strong> para ler o PDF-formato;
+              <strong>Editor de blocos</strong> abre o gerenciador completo da secção.
+              Com o editor visível: <strong>Salvar tudo</strong> envia ao servidor todos os <em>rascunhos locais</em>
+              pendentes (após «Carregar blocos» na página incorporada).
+            </p>
+            <div class="vr-val-viewer vr-rev-viewer">
+              <iframe id="vr-rev-frame"
+                      class="vr-val-frame vr-rev-frame"
+                      title="Pré-visualização ou editor da seção"></iframe>
+              <div id="vr-rev-dock" class="vr-val-autor-dock vr-rev-dock" aria-live="polite">
+                <div id="vr-rev-dock-ctx" class="vr-val-dock-ctx" hidden></div>
+                <div class="vr-rev-dock-section">
+                  <h4 class="vr-rev-dock-h">Revisão linguística (relatório inteiro)</h4>
+                  <p class="vr-categoria-desc vr-rev-ling-short">
+                    Análise sob demanda dos blocos <em>texto</em>, <em>lista</em> e legendas/fontes.
+                    Com <code>language_tool_python</code> e <strong>Java 8+</strong>: gramática, estilo e ortografia;
+                    sem JVM: só ortografia (<em>pyspellchecker</em>).
+                  </p>
+                  <button type="button"
+                          id="vr-rodar-ling-btn"
+                          class="vr-btn vr-btn-ling"
+                          data-rel-id="{{ rel.id }}">
+                    Rodar análise linguística
+                  </button>
+                  <div id="vr-ling-status" class="vr-ling-status muted-dash">— ainda não executada nesta sessão —</div>
+                  <div id="vr-ling-resultado" class="vr-ling-resultado" hidden></div>
+                </div>
+                <div id="vr-rev-notes-wrap" class="vr-val-notes-wrap vr-val-notes--disabled">
+                  <div id="vr-rev-notes-ctx" class="vr-val-notes-ctx" hidden></div>
+                  <h4 class="vr-val-notes-h">Notas do coordenador (internas)</h4>
+                  <p class="vr-val-notes-hint muted-dash">Não entram no PDF.</p>
+                  <form id="vr-rev-notes-form"
+                        method="post"
+                        action=""
+                        class="vr-val-notes-form">
+                    <input type="hidden"
+                           name="redirect_to"
+                           value="/relatorios/{{ rel.id }}/validacao-revisao#ss-revisao">
+                    <label class="vr-label" for="vr-rev-notes-ta">Notas sobre a seção selecionada</label>
+                    <textarea id="vr-rev-notes-ta"
+                              name="observacao"
+                              rows="4"
+                              maxlength="8000"
+                              placeholder="Notas internas de revisão."></textarea>
+                    <div class="vr-val-notes-actions">
+                      <button type="submit" class="vr-btn vr-btn-aprovar">Guardar nota</button>
+                      <a id="vr-rev-editor-link" class="vr-abrir-btn" href="#">Abrir editor em página cheia</a>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if mapa_secao_autores %}
+        <div class="vr-mapa-autores" role="region" aria-labelledby="vr-mapa-autores-h">
+          <h3 id="vr-mapa-autores-h" class="vr-h3">Mapa seção ↔ responsável (autor)</h3>
+          <p class="vr-mapa-autores-hint muted-dash">
+            Referência explícita: cada linha liga numeração e título da seção ao cadastro do responsável. Corrija no sumário do relatório o que estiver vazio ou incorreto.
+          </p>
+          <div class="vr-mapa-autores-scroll">
+            <table class="vr-mapa-autores-tbl">
+              <thead>
+                <tr>
+                  <th scope="col">Seção</th>
+                  <th scope="col">Título</th>
+                  <th scope="col">Responsável / autor</th>
+                  <th scope="col">E-mail</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in mapa_secao_autores %}
+                  <tr class="{% if row.sem_responsavel %}vr-mapa-row--missing{% endif %}">
+                    <td><strong>{{ row.numero }}</strong></td>
+                    <td>{{ row.titulo }}</td>
+                    <td>
+                      {% if row.sem_responsavel %}
+                        <span class="vr-mapa-missing">Sem responsável atribuído</span>
+                      {% else %}
+                        {{ row.autor_nome or '—' }}
+                      {% endif %}
+                    </td>
+                    <td class="vr-mapa-email">{% if row.autor_email %}{{ row.autor_email }}{% else %}<span class="muted-dash">—</span>{% endif %}</td>
+                    <td>
+                      <a class="vr-abrir-btn" href="{{ row.link_sumario }}">Sumário</a>
+                      ·
+                      <a class="vr-abrir-btn" href="{{ row.link_upload }}">Editor</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
 
       <div class="vr-resumo-global">
         <div class="vr-resumo-cell">
           <div class="vr-resumo-num">{{ resumo_global.secoes }}</div>
           <div class="vr-resumo-lbl">seções</div>
+        </div>
+        <div class="vr-resumo-cell {% if resumo_global.secoes_sem_responsavel %}vr-resumo--erro{% endif %}">
+          <div class="vr-resumo-num">{{ resumo_global.secoes_sem_responsavel }}</div>
+          <div class="vr-resumo-lbl">sem responsável</div>
         </div>
         <div class="vr-resumo-cell">
           <div class="vr-resumo-num">{{ resumo_global.blocos_total }}</div>
@@ -231,7 +552,17 @@
         </div>
       </div>
 
-      <h3 class="vr-h3">2.1 Checagens estruturais do relatório</h3>
+      <h3 class="vr-h3">2.1 Checagens estruturais (por categoria)</h3>
+      {% if rel.secoes %}
+        <p class="vr-rev-tree-intro">
+          A <strong>árvore colorida</strong> com responsáveis está no painel acima. Aqui, o detalhe por tipo de
+          regra estrutural. Legenda:
+          <span class="vr-rev-leg vr-rev-leg--erro"><span class="vr-rev-leg-swatch"></span> erro</span>
+          <span class="vr-rev-leg vr-rev-leg--aviso"><span class="vr-rev-leg-swatch"></span> aviso</span>
+          <span class="vr-rev-leg vr-rev-leg--ok"><span class="vr-rev-leg-swatch"></span> em ordem</span>
+        </p>
+        <h4 class="vr-h4 vr-categorias-de-h">Itens por categoria</h4>
+      {% endif %}
       <div class="vr-categorias">
         {% for cat in categorias_globais %}
           <details class="vr-categoria vr-categoria--{{ cat.severidade }}"
@@ -251,11 +582,19 @@
               {% if cat.itens %}
                 <ul class="vr-categoria-itens">
                   {% for it in cat.itens %}
-                    <li>
-                      {% if it.link %}
-                        <a href="{{ it.link }}">{{ it.rotulo }}</a>
-                      {% else %}
-                        {{ it.rotulo }}
+                    <li class="vr-cat-item">
+                      <div class="vr-cat-item-main">
+                        {% if it.link %}
+                          <a href="{{ it.link }}">{{ it.rotulo }}</a>
+                        {% else %}
+                          {{ it.rotulo }}
+                        {% endif %}
+                      </div>
+                      {% if it.autor_rotulo %}
+                        <div class="vr-cat-item-autor">
+                          <span class="vr-cat-item-autor-lbl">Responsável / autor:</span>
+                          <strong>{{ it.autor_rotulo }}</strong>
+                        </div>
                       {% endif %}
                     </li>
                   {% endfor %}
@@ -266,22 +605,7 @@
         {% endfor %}
       </div>
 
-      <h3 class="vr-h3">2.2 Revisão linguística (ortografia e gramática)</h3>
-      <div class="vr-revisao-ling" id="vr-revisao-ling">
-        <p class="vr-categoria-desc">
-          Análise sob demanda — pode levar de poucos segundos a alguns minutos dependendo do tamanho do relatório. O sistema usa LanguageTool (gramática + ortografia, exige Java) se disponível e cai automaticamente para pyspellchecker PT-BR (só ortografia, offline) caso contrário. Roda sobre blocos do tipo <em>texto</em>, <em>lista</em> e legendas/fontes.
-        </p>
-        <button type="button"
-                id="vr-rodar-ling-btn"
-                class="vr-btn vr-btn-ling"
-                data-rel-id="{{ rel.id }}">
-          Rodar análise linguística
-        </button>
-        <div id="vr-ling-status" class="vr-ling-status muted-dash">— ainda não executada nesta sessão —</div>
-        <div id="vr-ling-resultado" class="vr-ling-resultado" hidden></div>
-      </div>
-
-      <h3 class="vr-h3">2.3 Fechamento do relatório</h3>
+      <h3 class="vr-h3">2.2 Fechamento do relatório</h3>
       <div class="vr-fechamento">
         <div class="vr-fechamento-acao">
           <h4>Exportar para assinatura</h4>
@@ -336,6 +660,451 @@
   </section>
 
   <script>
+  (function () {
+    var secVal = document.getElementById('ss-validacao');
+    if (!secVal) { return; }
+    var relId = {{ rel.id | tojson }};
+    var iframe = document.getElementById('vr-val-frame');
+    var wrap = document.getElementById('vr-val-notes-wrap');
+    var form = document.getElementById('vr-val-notes-form');
+    var ta = document.getElementById('vr-val-notes-ta');
+    var editorLink = document.getElementById('vr-val-editor-link');
+    var reloadBtn = document.getElementById('vr-val-reload');
+    var dockDefault = document.getElementById('vr-autor-dock-default');
+    var dockSemResp = document.getElementById('vr-autor-dock-sem-resp');
+    var dockSemEntrega = document.getElementById('vr-autor-dock-sem-entrega');
+    var dockCtx = document.getElementById('vr-val-dock-ctx');
+    var notesCtx = document.getElementById('vr-val-notes-ctx');
+    if (!iframe || !form || !ta || !wrap || !editorLink) { return; }
+    var fullPreview = '/relatorios/' + relId + '/preview';
+    var pendingAnchor = null;
+    var obsPorSec = {};
+    try {
+      var j = document.getElementById('vr-arvore-json');
+      if (j && j.textContent) {
+        JSON.parse(j.textContent).forEach(function (n) {
+          if (n.secao_id != null) {
+            obsPorSec[n.secao_id] = n.observacao || '';
+          }
+        });
+      }
+    } catch (e1) {
+      /* ignore */
+    }
+    form.addEventListener('submit', function (ev) {
+      var act = form.getAttribute('action');
+      if (!act || act === '#') {
+        ev.preventDefault();
+      }
+    });
+    function escUrl(u) {
+      if (!u) {
+        return '';
+      }
+      return u + (u.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
+    }
+    function htmlEsc(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+    function updateSecContext(btn, sidRaw) {
+      if (!dockCtx || !notesCtx) {
+        return;
+      }
+      if (sidRaw === '') {
+        dockCtx.hidden = true;
+        dockCtx.innerHTML = '';
+        notesCtx.hidden = true;
+        notesCtx.innerHTML = '';
+        return;
+      }
+      var num = btn.getAttribute('data-sec-numero') || '';
+      var tit = btn.getAttribute('data-sec-titulo') || '';
+      var respNome = btn.getAttribute('data-responsavel-nome') || '';
+      var respLine = respNome
+        ? ('<strong>Responsável / autor:</strong> ' + htmlEsc(respNome))
+        : '<strong>Responsável / autor:</strong> <span class="vr-missing">Sem responsável atribuído</span>';
+      var bloc = btn.getAttribute('data-blocos-txt') || '';
+      var blocLine = bloc
+        ? ('<p class="vr-ctx-line"><strong>Blocos:</strong> ' + htmlEsc(bloc) + '</p>')
+        : '';
+      var block = (
+        '<p class="vr-ctx-line"><strong>Seção em foco:</strong> ' + htmlEsc(num) + ' — ' + htmlEsc(tit) + '</p>' +
+        '<p class="vr-ctx-line">' + respLine + '</p>' + blocLine
+      );
+      dockCtx.innerHTML = block;
+      dockCtx.hidden = false;
+      notesCtx.innerHTML = block;
+      notesCtx.hidden = false;
+    }
+    function isFullDocumentPreview(src) {
+      if (!src || src.indexOf(fullPreview) < 0) {
+        return false;
+      }
+      return src.indexOf('secao_ids=') < 0;
+    }
+    function applyPendingAnchor() {
+      var a = pendingAnchor;
+      pendingAnchor = null;
+      try {
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!a) {
+          doc.documentElement.scrollTop = 0;
+          doc.body.scrollTop = 0;
+          return;
+        }
+        var el = doc.getElementById(a);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (e2) {
+        /* missing document (cross-origin) */
+      }
+    }
+    function ensureIframeThenScroll(anchor) {
+      pendingAnchor = anchor || '';
+      var cur = iframe.getAttribute('src') || '';
+      var needLoad = !cur || !isFullDocumentPreview(cur);
+      if (needLoad) {
+        iframe.onload = function () {
+          iframe.onload = null;
+          applyPendingAnchor();
+        };
+        iframe.src = escUrl(fullPreview);
+      } else {
+        applyPendingAnchor();
+      }
+    }
+    function hideAllDockPanes() {
+      if (dockDefault) { dockDefault.hidden = true; }
+      if (dockSemResp) { dockSemResp.hidden = true; }
+      if (dockSemEntrega) { dockSemEntrega.hidden = true; }
+      secVal.querySelectorAll('.vr-autor-dock-pane--full').forEach(function (p) {
+        p.hidden = true;
+      });
+    }
+    function showAutorDock(sidRaw, respUid) {
+      hideAllDockPanes();
+      if (sidRaw === '') {
+        if (dockDefault) { dockDefault.hidden = false; }
+        return;
+      }
+      if (!respUid) {
+        if (dockSemResp) { dockSemResp.hidden = false; }
+        return;
+      }
+      var pane = secVal.querySelector(
+        '.vr-autor-dock-pane--full[data-entrega-user-id="' + respUid + '"]'
+      );
+      if (pane) {
+        pane.hidden = false;
+      } else if (dockSemEntrega) {
+        dockSemEntrega.hidden = false;
+      }
+    }
+    function selectNode(btn) {
+      var anchor = btn.getAttribute('data-anchor') || '';
+      var sidRaw = btn.getAttribute('data-sec-id') || '';
+      var respUid = btn.getAttribute('data-responsavel-user-id') || '';
+      var nodes = secVal.querySelectorAll('.vr-tree-node--val');
+      nodes.forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+      btn.classList.add('is-active');
+      ensureIframeThenScroll(anchor);
+      showAutorDock(sidRaw, respUid);
+      updateSecContext(btn, sidRaw);
+      if (sidRaw === '') {
+        wrap.classList.add('vr-val-notes--disabled');
+        form.setAttribute('action', '');
+        ta.value = '';
+        editorLink.setAttribute('href', '#');
+      } else {
+        var sid = parseInt(sidRaw, 10);
+        wrap.classList.remove('vr-val-notes--disabled');
+        form.setAttribute(
+          'action',
+          '/relatorios/' + relId + '/secoes/' + sid + '/observacao-validacao'
+        );
+        ta.value = obsPorSec[sid] || '';
+        editorLink.setAttribute('href', btn.getAttribute('data-editor-url') || '#');
+      }
+    }
+    secVal.querySelectorAll('.vr-tree-node--val').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectNode(btn);
+      });
+    });
+    var def = secVal.querySelector('.vr-tree-node--val.is-default');
+    if (def) {
+      selectNode(def);
+    }
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', function () {
+        var curBtn = secVal.querySelector('.vr-tree-node--val.is-active');
+        if (!curBtn) {
+          iframe.src = escUrl(fullPreview);
+          return;
+        }
+        var anchor = curBtn.getAttribute('data-anchor') || '';
+        pendingAnchor = anchor;
+        iframe.onload = function () {
+          iframe.onload = null;
+          applyPendingAnchor();
+        };
+        iframe.src = escUrl(fullPreview);
+      });
+    }
+  })();
+  </script>
+  <script>
+  (function () {
+    var secRev = document.getElementById('ss-revisao');
+    if (!secRev) { return; }
+    var iframe = document.getElementById('vr-rev-frame');
+    var btnPreview = document.getElementById('vr-rev-mode-preview');
+    var btnEditor = document.getElementById('vr-rev-mode-editor');
+    var reloadBtn = document.getElementById('vr-rev-reload');
+    var openTab = document.getElementById('vr-rev-open-editor-tab');
+    var wrap = document.getElementById('vr-rev-notes-wrap');
+    var form = document.getElementById('vr-rev-notes-form');
+    var ta = document.getElementById('vr-rev-notes-ta');
+    var editorLink = document.getElementById('vr-rev-editor-link');
+    var dockCtx = document.getElementById('vr-rev-dock-ctx');
+    var notesCtx = document.getElementById('vr-rev-notes-ctx');
+    if (!iframe || !btnPreview || !btnEditor) { return; }
+    var relId = {{ rel.id | tojson }};
+    var fullPreview = '/relatorios/' + relId + '/preview';
+    var modeIsPreview = true;
+    var pendingAnchor = null;
+    var obsPorSec = {};
+    try {
+      var jr = document.getElementById('vr-arvore-revisao-json');
+      if (jr && jr.textContent) {
+        JSON.parse(jr.textContent).forEach(function (n) {
+          if (n.secao_id != null) {
+            obsPorSec[n.secao_id] = n.observacao || '';
+          }
+        });
+      }
+    } catch (er) {
+      /* ignore */
+    }
+    if (form && ta) {
+      form.addEventListener('submit', function (ev) {
+        var act = form.getAttribute('action');
+        if (!act || act === '#') {
+          ev.preventDefault();
+        }
+      });
+    }
+    function escUrl(u) {
+      if (!u) {
+        return '';
+      }
+      return u + (u.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
+    }
+    function htmlEsc(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+    function updateRevContext(btn, sidRaw) {
+      if (!dockCtx || !notesCtx) {
+        return;
+      }
+      if (sidRaw === '') {
+        dockCtx.hidden = true;
+        dockCtx.innerHTML = '';
+        notesCtx.hidden = true;
+        notesCtx.innerHTML = '';
+        return;
+      }
+      var num = btn.getAttribute('data-sec-numero') || '';
+      var tit = btn.getAttribute('data-sec-titulo') || '';
+      var respNome = btn.getAttribute('data-responsavel-nome') || '';
+      var bloc = btn.getAttribute('data-blocos-txt') || '';
+      var respLine = respNome
+        ? ('<strong>Responsável / autor:</strong> ' + htmlEsc(respNome))
+        : '<strong>Responsável / autor:</strong> <span class="vr-missing">Sem responsável atribuído</span>';
+      var blocLine = bloc
+        ? ('<p class="vr-ctx-line"><strong>Blocos:</strong> ' + htmlEsc(bloc) + '</p>')
+        : '';
+      var block = (
+        '<p class="vr-ctx-line"><strong>Seção em foco:</strong> ' + htmlEsc(num) + ' — ' + htmlEsc(tit) + '</p>' +
+        '<p class="vr-ctx-line">' + respLine + '</p>' + blocLine
+      );
+      dockCtx.innerHTML = block;
+      dockCtx.hidden = false;
+      notesCtx.innerHTML = block;
+      notesCtx.hidden = false;
+    }
+    function isFullDocumentPreview(src) {
+      if (!src || src.indexOf(fullPreview) < 0) {
+        return false;
+      }
+      return src.indexOf('secao_ids=') < 0;
+    }
+    function applyPendingAnchorRev() {
+      var a = pendingAnchor;
+      pendingAnchor = null;
+      try {
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!a) {
+          doc.documentElement.scrollTop = 0;
+          doc.body.scrollTop = 0;
+          return;
+        }
+        var el = doc.getElementById(a);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (e1) {
+        /* missing document */
+      }
+    }
+    function loadPreviewWithAnchor(anchor) {
+      pendingAnchor = anchor || '';
+      var cur = iframe.getAttribute('src') || '';
+      var needLoad = !cur || !isFullDocumentPreview(cur);
+      if (needLoad) {
+        iframe.onload = function () {
+          iframe.onload = null;
+          applyPendingAnchorRev();
+        };
+        iframe.src = escUrl(fullPreview);
+      } else {
+        applyPendingAnchorRev();
+      }
+    }
+    function loadEditorUrl(url) {
+      pendingAnchor = null;
+      iframe.onload = null;
+      if (!url) {
+        iframe.removeAttribute('src');
+        return;
+      }
+      iframe.src = escUrl(url);
+    }
+    function applyModeForActive() {
+      var cur = secRev.querySelector('.vr-tree-node--rev.is-active');
+      if (!cur) {
+        return;
+      }
+      var anchor = cur.getAttribute('data-anchor') || '';
+      if (modeIsPreview) {
+        loadPreviewWithAnchor(anchor);
+      } else {
+        loadEditorUrl(cur.getAttribute('data-editor-url') || '');
+      }
+    }
+    function setMode(preview) {
+      modeIsPreview = preview;
+      btnPreview.classList.toggle('is-active', preview);
+      btnPreview.setAttribute('aria-pressed', preview ? 'true' : 'false');
+      btnEditor.classList.toggle('is-active', !preview);
+      btnEditor.setAttribute('aria-pressed', preview ? 'false' : 'true');
+      applyModeForActive();
+    }
+    btnPreview.addEventListener('click', function () {
+      setMode(true);
+    });
+    btnEditor.addEventListener('click', function () {
+      setMode(false);
+    });
+    function selectNodeRev(btn) {
+      var anchor = btn.getAttribute('data-anchor') || '';
+      var sidRaw = btn.getAttribute('data-sec-id') || '';
+      secRev.querySelectorAll('.vr-tree-node--rev').forEach(function (b) {
+        b.classList.remove('is-active');
+      });
+      btn.classList.add('is-active');
+      if (modeIsPreview) {
+        loadPreviewWithAnchor(anchor);
+      } else {
+        loadEditorUrl(btn.getAttribute('data-editor-url') || '');
+      }
+      updateRevContext(btn, sidRaw);
+      var edUrl = btn.getAttribute('data-editor-url') || '#';
+      if (openTab) {
+        openTab.setAttribute('href', edUrl);
+      }
+      if (wrap && form && ta && editorLink) {
+        if (sidRaw === '') {
+          wrap.classList.add('vr-val-notes--disabled');
+          form.setAttribute('action', '');
+          ta.value = '';
+          editorLink.setAttribute('href', '#');
+        } else {
+          var sid = parseInt(sidRaw, 10);
+          wrap.classList.remove('vr-val-notes--disabled');
+          form.setAttribute(
+            'action',
+            '/relatorios/' + relId + '/secoes/' + sid + '/observacao-validacao'
+          );
+          ta.value = obsPorSec[sid] || '';
+          editorLink.setAttribute('href', edUrl);
+        }
+      }
+    }
+    secRev.querySelectorAll('.vr-tree-node--rev').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectNodeRev(btn);
+      });
+    });
+    var defR = secRev.querySelector('.vr-tree-node--rev.is-default');
+    if (defR) {
+      selectNodeRev(defR);
+    }
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', function () {
+        if (modeIsPreview) {
+          var curBtn = secRev.querySelector('.vr-tree-node--rev.is-active');
+          if (!curBtn) {
+            iframe.src = escUrl(fullPreview);
+            return;
+          }
+          pendingAnchor = curBtn.getAttribute('data-anchor') || '';
+          iframe.onload = function () {
+            iframe.onload = null;
+            applyPendingAnchorRev();
+          };
+          iframe.src = escUrl(fullPreview);
+          return;
+        }
+        var curE = secRev.querySelector('.vr-tree-node--rev.is-active');
+        if (curE) {
+          loadEditorUrl(curE.getAttribute('data-editor-url') || '');
+        }
+      });
+    }
+    var btnSalvarTodos = document.getElementById('vr-rev-salvar-todos');
+    if (btnSalvarTodos) {
+      btnSalvarTodos.addEventListener('click', function () {
+        var f = document.getElementById('vr-rev-frame');
+        if (!f) {
+          return;
+        }
+        try {
+          var w = f.contentWindow;
+          if (!w || typeof w.SRA_salvarTodosRascunhos !== 'function') {
+            window.alert(
+              'Abra «Editor de blocos», aguarde a página incorporada e toque em «Carregar blocos» na ferramenta antes de Salvar tudo.'
+            );
+            return;
+          }
+          Promise.resolve(w.SRA_salvarTodosRascunhos()).catch(function (err) {
+            window.alert('Falha ao salvar: ' + (err && err.message ? err.message : String(err)));
+          });
+        } catch (err2) {
+          window.alert('Falha ao salvar: ' + err2.message);
+        }
+      });
+    }
+  })();
+  </script>
+  <script>
   /* Análise linguística sob demanda — POST /relatorios/{id}/revisao-linguistica
      devolve JSON { motor, total_avisos, secoes: [{ secao_numero, titulo, achados: [...] }], aviso_motor }. */
   (function () {
@@ -370,9 +1139,18 @@
           partes.push('<p class="muted-dash">Nenhum achado linguístico — texto considerado limpo pela ferramenta.</p>');
         } else {
           data.secoes.forEach(function (sec) {
+            function he(s) {
+              var d = document.createElement('div');
+              d.textContent = s == null ? '' : String(s);
+              return d.innerHTML;
+            }
             partes.push('<details class="vr-ling-secao" open>');
-            partes.push('<summary><strong>' + sec.secao_numero + '</strong> ' + sec.secao_titulo +
+            partes.push('<summary><strong>' + he(sec.secao_numero) + '</strong> ' + he(sec.secao_titulo) +
                         ' <span class="tag tag-warn">' + sec.achados.length + '</span></summary>');
+            partes.push(
+              '<p class="vr-ling-secao-autor"><strong>Responsável / autor:</strong> ' +
+              he(sec.responsavel_rotulo || '') + '</p>'
+            );
             partes.push('<ul>');
             sec.achados.forEach(function (a) {
               var trecho = a.trecho ? ('<code>' + a.trecho + '</code>') : '';

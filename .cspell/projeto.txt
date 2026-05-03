@@ -4,6 +4,11 @@
 
 # === Dominio do projeto ===
 abstracoes
+Syncfusion
+syncfusion
+richtexteditor
+WYSIWYG
+EJ2
 acao
 acentuacao
 acesso
@@ -245,6 +250,7 @@ mutacoes
 mutam
 mutar
 mutavel
+navegacao
 nao
 necessarias
 necessario
@@ -323,6 +329,8 @@ raiz
 raizes
 recomendacao
 recompoe
+recolhivel
+recolhível
 reconheca
 reconhecivel
 recuperavel
@@ -704,6 +712,7 @@ visao
 Visao
 
 # === Validacao linguistica (pyspellchecker / LanguageTool) ===
+language_tool_python
 ACMR
 Codgi
 DAEE

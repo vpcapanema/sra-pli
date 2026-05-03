@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from .models import Relatorio, Figura
 from . import ref_resolve
+from . import sra_rich_html as srh
+from .html_sanitize import sanitize_pdf_html_fragment as _sanitize_pdf_html_fragment
 from .list_lines import split_markdown_pipe_row_cells
 
 
@@ -91,32 +93,6 @@ _RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]
 
 def _esc(s: str) -> str:
     return _html.escape(s or "", quote=False)
-
-
-def _sanitize_pdf_html_fragment(fragment: str) -> str:
-    """Remove formatação inline típica de Word/HTML colado para o PDF seguir só o CSS oficial.
-
-    Atributos ``style``, ``class`` e ``align`` sobrepõem ``.bloco p`` (justificado,
-    margens uniformes) no WeasyPrint; sem isto, trechos ficam desalinhados e com
-    margens inconsistentes após «aprovar» blocos (o conteúdo já estava gravado assim).
-    """
-    if not (fragment or "").strip():
-        return fragment or ""
-    s = fragment
-    for _ in range(8):
-        antes = s
-        s = re.sub(r'\sstyle\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
-        s = re.sub(r"\sstyle\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
-        if s == antes:
-            break
-    s = re.sub(r'\sclass\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
-    s = re.sub(r"\sclass\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
-    s = re.sub(r'\salign\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
-    s = re.sub(r"\salign\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
-    for attr in ("face", "color", "size", "bgcolor"):
-        s = re.sub(rf'\s{attr}\s*=\s*"[^"]*"', "", s, flags=re.IGNORECASE)
-        s = re.sub(rf"\s{attr}\s*=\s*'[^']*'", "", s, flags=re.IGNORECASE)
-    return s
 
 
 def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "S") -> str:
@@ -215,15 +191,8 @@ def _label_secao(sec_top: str, n: int) -> str:
 
 
 def _idx_efetivo(idx_raw: str, derivado: str) -> str:
-    """Resolve ``idx`` armazenado em ``[[FIGURA/TABELA:idx|...]]``.
-
-    Valor com ``.`` (ex.: ``4.1``) e descartado em favor do contador atual
-    (modo "por secao"); valor numerico puro e preservado (modo "sequencial
-    global"). Vazio cai no contador local.
-    """
-    if idx_raw and "." not in idx_raw:
-        return idx_raw
-    return derivado
+    """Delega a ``ref_resolve.idx_efetivo_marcador`` (ver docstring lá)."""
+    return ref_resolve.idx_efetivo_marcador(idx_raw, derivado)
 
 
 def _safe_int(valor: str | None) -> int:
@@ -281,12 +250,9 @@ def _render_texto_html(  # pylint: disable=too-many-locals
     Retorna ``(html, fig_counter, tab_counter)`` atualizados.
 
     Convencao de numeracao em ``[[FIGURA:idx|...]]`` / ``[[TABELA:idx|...]]``:
-      - ``idx`` contendo ``.`` (ex.: ``4.1``): modo "por secao" -- valor
-        armazenado e descartado e o numero e derivado do contador atual da
-        secao, garantindo coerencia apos renumeracoes.
-      - ``idx`` puramente numerico (ex.: ``5``): modo "sequencial global" --
-        valor armazenado e respeitado (e a intencao explicita do autor).
-      - ``idx`` vazio (legado): contador local.
+      - ``idx`` formado so por algarismos (ex.: ``5``): sequencial global -- preservado.
+      - qualquer outro (vazio, ``4.1``, ``4-1``, ...): numero derivado
+        ``capitulo.sequencia`` pelo contador da secao (``idx_efetivo_marcador``).
 
     Marcadores ``[[REF:..]]`` sao resolvidos antes do processamento usando
     os mapas estaveis em ``ctx.mapas``.
@@ -297,18 +263,26 @@ def _render_texto_html(  # pylint: disable=too-many-locals
     if not ctx.mapas.vazio():
         conteudo = ref_resolve.resolver_referencias(conteudo, ctx.mapas)
 
+    rich = srh.is_rich_html_storage(conteudo)
+    conteudo_corpo = srh.storage_body(conteudo) if rich else conteudo
+
+    def _text_chunk_para_html(chunk: str) -> str:
+        if rich:
+            return srh.sanitize_rich_html_for_pdf(chunk)
+        return _render_paragrafos_e_listas(chunk)
+
     sec_top = (sec_numero or "").split(".")[0]
 
     parts: list = []
     last = 0
-    for m in _RE_TABELA.finditer(conteudo):
-        parts.append(("texto", conteudo[last:m.start()]))
+    for m in _RE_TABELA.finditer(conteudo_corpo):
+        parts.append(("texto", conteudo_corpo[last:m.start()]))
         idx_raw, posicao, legenda, corpo = _parse_tabela_marker(m)
         tab_counter += 1
         numero = _idx_efetivo(idx_raw, _label_secao(sec_top, tab_counter))
         parts.append(("html", _render_tabela_html(corpo, legenda, numero, posicao)))
         last = m.end()
-    parts.append(("texto", conteudo[last:]))
+    parts.append(("texto", conteudo_corpo[last:]))
 
     out_html: list[str] = []
     for kind, chunk in parts:
@@ -317,13 +291,13 @@ def _render_texto_html(  # pylint: disable=too-many-locals
             continue
         sub_last = 0
         for mf in _RE_FIGURA.finditer(chunk):
-            out_html.append(_render_paragrafos_e_listas(chunk[sub_last:mf.start()]))
+            out_html.append(_text_chunk_para_html(chunk[sub_last:mf.start()]))
             idx_raw, fid, posicao, legenda = _parse_figura_marker(mf)
             fig_counter += 1
             numero = _idx_efetivo(idx_raw, _label_secao(sec_top, fig_counter))
             out_html.append(_render_figura_html(ctx.figuras_by_id, fid, legenda, numero, posicao))
             sub_last = mf.end()
-        out_html.append(_render_paragrafos_e_listas(chunk[sub_last:]))
+        out_html.append(_text_chunk_para_html(chunk[sub_last:]))
 
     return "".join(out_html), fig_counter, tab_counter
 
@@ -368,7 +342,10 @@ def _render_bloco_item(
         from .list_lines import list_text_to_html
 
         bruto = ref_resolve.resolver_referencias(bloco.conteudo or "", ctx.mapas)
-        item["lista_html"] = _sanitize_pdf_html_fragment(list_text_to_html(bruto) or "")
+        if srh.is_rich_html_storage(bruto):
+            item["lista_html"] = srh.sanitize_rich_html_for_pdf(srh.storage_body(bruto))
+        else:
+            item["lista_html"] = _sanitize_pdf_html_fragment(list_text_to_html(bruto) or "")
     else:
         html_render, contadores["fig"], contadores["tab"] = _render_texto_html(
             ctx,
@@ -377,8 +354,28 @@ def _render_bloco_item(
             contadores["tab"],
             sec_numero,
         )
-        item["html"] = _sanitize_pdf_html_fragment(html_render)
+        if srh.is_rich_html_storage(bloco.conteudo or ""):
+            item["html"] = html_render
+        else:
+            item["html"] = _sanitize_pdf_html_fragment(html_render)
     return item
+
+
+def _preview_sheet_groups(secoes: list[dict]) -> list[list[dict]]:
+    """Agrupa seções para folhas na pré-visualização em ecrã (nível 1 = nova folha)."""
+    groups: list[list[dict]] = []
+    current: list[dict] = []
+    for sec in secoes:
+        num = sec.get("numero") or ""
+        nivel = num.count(".") + 1
+        if nivel == 1 and current:
+            groups.append(current)
+            current = [sec]
+        else:
+            current.append(sec)
+    if current:
+        groups.append(current)
+    return groups
 
 
 def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):  # pylint: disable=too-many-locals
@@ -439,6 +436,7 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
     return {
         "rel": rel,
         "secoes": secoes,
+        "secoes_preview_grupos": _preview_sheet_groups(secoes),
         "sumario_html": sumario_html,
         "hoje": date.today(),
         "medicao": medicao,

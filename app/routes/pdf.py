@@ -80,14 +80,25 @@ def gerar_pdf(
 
 
 @router.get("/relatorios/{rel_id}/preview", response_class=HTMLResponse)
-def preview_html(rel_id: int, request: Request, db: Session = Depends(get_db)):
+def preview_html(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    secao_ids: list[int] = Query(default=[]),
+):
     user = current_user(request, db)
     if not user:
         return response_login(request)
     rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         return response_dashboard(request, db)
-    html = render_html(db, rel)
+    section_filter: set[int] | None = None
+    if secao_ids:
+        ids_rel = {sec.id for sec in rel.secoes}
+        chosen = {sid for sid in secao_ids if sid in ids_rel}
+        if chosen:
+            section_filter = chosen
+    html = render_html(db, rel, section_filter)
     return HTMLResponse(html)
 
 

@@ -118,7 +118,12 @@ async def sra_hub_sidebar_context(request: Request, call_next):
 # Depois de todos os @app.middleware("http"): insert(0) empurra para o início de user_middleware;
 # assim SessionMiddleware e SraAutor ficam mais externos que os BaseHTTPMiddleware acima.
 app.add_middleware(SraAutorRouteGuardMiddleware)
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY, same_site="lax", https_only=False)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    same_site="lax",
+    https_only=settings.SESSION_COOKIE_SECURE,
+)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 

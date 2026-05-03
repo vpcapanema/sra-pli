@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session, selectinload
 
 from ...models import EntregaRelatorio, Figura, Relatorio, Secao
+from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
 
 
 _REF_RE = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
@@ -22,6 +23,7 @@ class ItemGlobal:
     """Um item problemático específico (uma seção, um bloco, um autor)."""
     rotulo: str
     link: str = ""
+    autor_rotulo: str = ""
 
 
 @dataclass(slots=True)
@@ -73,6 +75,22 @@ def _link_secao_no_sumario(rel_id: int, sec: Secao) -> str:
     return f"/relatorios/{rel_id}#sec-{sec.id}"
 
 
+def autor_rotulo_secao(sec: Secao) -> str:
+    """Rótulo explícito do responsável pela seção (para UI de validação/revisão)."""
+    if sec.responsavel_id is None:
+        return "Sem responsável atribuído"
+    user = sec.responsavel
+    if user is None:
+        return f"Responsável ID {sec.responsavel_id} (detalhe não carregado)"
+    nome = (user.nome or "").strip()
+    if nome:
+        return nome
+    email = (user.email or "").strip()
+    if email:
+        return email
+    return f"Usuário #{user.id}"
+
+
 def _categoria_secoes_sem_responsavel(rel: Relatorio) -> CategoriaGlobal:
     cat = CategoriaGlobal(
         chave="secoes_sem_responsavel",
@@ -89,6 +107,7 @@ def _categoria_secoes_sem_responsavel(rel: Relatorio) -> CategoriaGlobal:
                 ItemGlobal(
                     rotulo=f"{sec.numero} — {sec.titulo}",
                     link=_link_secao_no_sumario(rel.id, sec),
+                    autor_rotulo=autor_rotulo_secao(sec),
                 )
             )
     return cat
@@ -110,6 +129,7 @@ def _categoria_secoes_sem_blocos(rel: Relatorio) -> CategoriaGlobal:
                 ItemGlobal(
                     rotulo=f"{sec.numero} — {sec.titulo}",
                     link=_link_secao_upload(rel.id, sec),
+                    autor_rotulo=autor_rotulo_secao(sec),
                 )
             )
     return cat
@@ -135,6 +155,7 @@ def _categoria_blocos_nao_confirmados(rel: Relatorio) -> CategoriaGlobal:
                         f"{len(nao_conf)} bloco(s) não confirmado(s)"
                     ),
                     link=_link_secao_upload(rel.id, sec),
+                    autor_rotulo=autor_rotulo_secao(sec),
                 )
             )
     return cat
@@ -157,6 +178,7 @@ def _categoria_textos_vazios(rel: Relatorio) -> CategoriaGlobal:
                     ItemGlobal(
                         rotulo=f"{sec.numero} — bloco #{b.id} ({b.tipo})",
                         link=_link_secao_upload(rel.id, sec),
+                        autor_rotulo=autor_rotulo_secao(sec),
                     )
                 )
     return cat
@@ -181,6 +203,7 @@ def _categoria_figuras_quebradas(rel: Relatorio, figs_validas: set[int]) -> Cate
                     ItemGlobal(
                         rotulo=f"{sec.numero} — bloco #{b.id} sem imagem anexada",
                         link=_link_secao_upload(rel.id, sec),
+                        autor_rotulo=autor_rotulo_secao(sec),
                     )
                 )
             elif b.figura_id not in figs_validas:
@@ -191,6 +214,7 @@ def _categoria_figuras_quebradas(rel: Relatorio, figs_validas: set[int]) -> Cate
                             f"Figura {b.figura_id} ausente"
                         ),
                         link=_link_secao_upload(rel.id, sec),
+                        autor_rotulo=autor_rotulo_secao(sec),
                     )
                 )
     return cat
@@ -222,6 +246,7 @@ def _categoria_refs_quebradas(rel: Relatorio) -> CategoriaGlobal:
                                 f"[[REF:{tipo}|{alvo}]]"
                             ),
                             link=_link_secao_upload(rel.id, sec),
+                            autor_rotulo=autor_rotulo_secao(sec),
                         )
                     )
     return cat
@@ -240,10 +265,14 @@ def _categoria_entregas_pendentes(entregas: list[EntregaRelatorio]) -> Categoria
     for e in sorted(entregas, key=lambda x: (x.user.nome if x.user else "")):
         if e.status != "validado":
             nome = e.user.nome if e.user else "(sem usuário)"
+            email = (e.user.email or "").strip() if e.user else ""
             cat.itens.append(
                 ItemGlobal(
                     rotulo=f"{nome} — status: {e.status.replace('_', ' ')}",
                     link=f"/relatorios/{e.relatorio_id}/validacao-revisao#ss-validacao",
+                    autor_rotulo=(
+                        f"E-mail: {email}" if email else "(sem e-mail no cadastro do usuário)"
+                    ),
                 )
             )
     return cat
@@ -266,12 +295,7 @@ def montar_checagens_globais(
     para que o template renderize um '✓ ok' ao lado do título — facilita ler
     em uma passada o que já está limpo.
     """
-    rel_full = (  # pylint: disable=duplicate-code
-        db.query(Relatorio)
-        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
-        .filter(Relatorio.id == rel.id)
-        .one()
-    )
+    rel_full = load_relatorio_secoes_blocos_responsavel(db, rel.id)
     entregas = (
         db.query(EntregaRelatorio)
         .options(selectinload(EntregaRelatorio.user))

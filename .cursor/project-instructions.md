@@ -32,7 +32,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/pdf_render.py`: monta contexto e converte blocos para HTML/PDF.
 - `app/list_lines.py`: detecção/renderização de listas em texto bruto (parágrafos + listas; HTML para PDF e ramo de bloco `lista`).
 - `app/templates/complementos/*.html`: páginas Jinja servidas pelas rotas. `base.html` permanece em `app/templates/`. PDF (`pdf/`) e e-mail (`notificacoes/templates/`) mantêm caminhos próprios.
-- `app/templates/complementos/secao_edit_conteudo_upload.html`: única UI de edição/gestão por seção — coordenação (responsável/status), importação assistida com revisão, tabela de blocos com aprovação em lote, editor e pré-visualização PDF. Ao escolher uma seção como alvo, **blocos, contagens de figura/tabela, iframe de PDF e caixas da exportação** incluem **toda a subárvore PLI** (âncora + descendentes `N.*`, ver `secao_ids_na_subarvore` em `app/numeracao.py`).
+- `app/templates/complementos/secao_edit_conteudo_upload.html`: única UI de edição/gestão por seção — coordenação (responsável/status), importação assistida com revisão, tabela de blocos com aprovação em lote, **editor WYSIWYG Quill 2** (CDN jsDelivr, BSD — sem conta nem chave), barra com cabeçalhos H2–H6, ênfase, citação, listas, sobrescrito/subscrito, indentação, alinhamento, link e imagem; sincronização para `<textarea>` oculto com prefixo `<!--SRA_RICH-->`; sem CDN cai em `<textarea>` visível. Pré-visualização PDF. Ao escolher uma seção como alvo, **blocos, contagens de figura/tabela, iframe de PDF e caixas da exportação** incluem **toda a subárvore PLI** (âncora + descendentes `N.*`, ver `secao_ids_na_subarvore` em `app/numeracao.py`).
 - `app/routes/mapa_aplicacao.py` + `app/templates/mapa_aplicacao.html`: `GET /mapa-aplicacao` (sessão obrigatória) lista cartões de ficheiros em `complementos/` com rota de exemplo, restrição e "em uso". Metadados em `app/mapa_aplicacao_catalog.py`; `mapa_da_aplicacao.html` na raiz é cópia estática para consulta offline.
 
 ### Mapa De Rotas
@@ -46,10 +46,10 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/routes/importacao.py`: análise e confirmação da importação assistida de TXT/DOCX (limite por pedido na análise: `IMPORTACAO_ANALISAR_MAX_BYTES` em `app/config.py`, padrão 20 MiB).
 - `app/routes/pdf.py`: PDF final, preview HTML, exportação por escopo (`/relatorios/{id}/exportar?formato=pdf|docx&escopo=...`) e **pacote para assinatura** (`/relatorios/{id}/exportar-assinatura`, ZIP com PDF + DOCX no escopo inteiro + LEIA-ME identificando código/versão/data — restrito a admin/coord).
 - `app/routes/notificacoes.py`: toggle do opt-out (`notificacoes_ativas`), painel de entregas (`/relatorios/{id}/entregas`), ações do coord (status / reenvio manual / **reprovação com motivo**) e download autenticado dos modelos `.dotx`. As rotas POST de status/reenviar/reprovar aceitam `redirect_to` opcional para Post-Redirect-Get vindo da governança ou da página de Validação e Revisão (alinhado ao padrão de fato da governança; ver nota em **Convenções De Código**).
-- `app/routes/validacao_revisao.py`: `GET /relatorios/{id}/validacao-revisao` (admin/coord) — página única com Seção 1 «Validação» (parciais por autor, checagens estruturais e botões Aprovar/Reprovar) e Seção 2 «Revisão» (checagens estruturais agregadas globais, painel de revisão linguística sob demanda via `POST /relatorios/{id}/revisao-linguistica`, botão «Aprovar e finalizar» que dispara `POST /relatorios/{id}/status` com `finalizado` e botão «Exportar para assinatura» que aciona `GET /relatorios/{id}/exportar-assinatura`).
+- `app/routes/validacao_revisao.py`: `GET /relatorios/{id}/validacao-revisao` (admin/coord) — seletor de relatório; **Seção 1**: sumário **recolhível**; árvore com responsáveis e cores (checagens de parciais); iframe pré-visualização inteira; dock aprovar/reprovar; notas internas. **Seção 2**: **mesmo workspace** (árvore à esquerda com cores por blocos/checagens globais); painel direito com fita **Pré-visualização | Editor de blocos** (iframe para `/preview` ou `…/upload-conteudo`), dock com **revisão linguística** + notas; abaixo: mapa seção ↔ responsável, resumo, categorias **2.1**, fechamento **2.2**; `POST /relatorios/{id}/revisao-linguistica`. Funções auxiliares: `_arvore_revisao_navegacao`, `_dict_navegacao_revisao_secao`. Serviços: `relatorio_secoes_load.py`, `autor_rotulo_secao`, `checagens_globais`.
 - `app/routes/cron_admin.py`: endpoints `POST /admin/cron/...` token-protegidos (`X-Cron-Token`); equivalentes HTTP dos jobs CLI.
 - `app/notificacoes/`: orquestração do ciclo mensal — `service.py` (`abrir_periodo`, `notificar_autores_abertura`, `enviar_lembretes`, `retry_falhas`, `recompute_status_enviado`, `alterar_status_entrega`, `reenviar_manual`, `reprovar_entrega`), `email_sender.py`, `modelos.py`, `templates/email_notificacao.{html,txt}`.
-- `app/services/validacao/`: checagens estruturais por entrega (`checagens_entrega.py:montar_checagens_validacao`), checagens estruturais agregadas globais (`checagens_globais.py:montar_checagens_globais`) e revisão linguística sob demanda (`revisao_linguistica.py:analisar_relatorio`). A revisão linguística detecta automaticamente o melhor motor disponível: `language_tool_python` (gramática + ortografia, requer Java) → `pyspellchecker` PT-BR (somente ortografia, offline, default em `requirements.txt`) → modo "desligado" (devolve aviso indicando como ligar). Vocabulário do projeto extra mora em `_VOCAB_PROJETO`; cresce conforme falsos positivos recorrentes aparecerem.
+- `app/services/validacao/`: checagens estruturais por entrega (`checagens_entrega.py:montar_checagens_validacao`), checagens estruturais agregadas globais (`checagens_globais.py:montar_checagens_globais`) e revisão linguística sob demanda (`revisao_linguistica.py:analisar_relatorio`). **Revisão linguística:** `language_tool_python` está em `requirements.txt`; com **Java 8+** no PATH o serviço usa LanguageTool (gramática, estilo e ortografia). Sem Java (ou se o LT falhar ao subir), permanece **só ortografia** (`pyspellchecker`). A resposta JSON e a página 2.2 indicam o modo. Modo "desligado" só se nenhum pacote estiver importável. Vocabulário extra em `_VOCAB_PROJETO`.
 - `app/services/entregas/lista_painel.py`: fonte única da «Lista de entregas» renderizada por `_lista_entregas_partial.html` em `/relatorios/{id}/entregas`, na governança (Tabela 1) e no rodapé da Validação. Mudança de regra/coluna reflete nos três lugares.
 - `app/cron/`: pontos de entrada CLI dos jobs (`abrir_periodo`, `enviar_lembretes`, `retry_falhas`) — `python -m app.cron.NOME_DO_JOB` no Render Cron ou cron externo.
 - `app/sumario_extractor.py`: extração de sumário a partir de PDFs entregues/disponíveis.
@@ -91,7 +91,7 @@ Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra
 
 `Relatorio`: D20 mensal, código tipo `D20-15`, período, mês de referência, medição, versão `R00/R01/...`, status.
 
-`Secao`: `numero` (`String(16)`, `UniqueConstraint(relatorio_id, numero)`) e `ordem` (DFS) definem hierarquia. Numeração é semântica (não decoração): direciona ordenação, importação, sumário, contadores e referências. Mutação estrutural exige `consolidar_referencias` ANTES e `renumerar_relatorio` DEPOIS, em transação explícita (`tx_session`). Top-level (`4`, `5`, ...) é preservado; só subníveis reescritos em sequência 1..N por DFS.
+`Secao`: `numero` (`String(16)`, `UniqueConstraint(relatorio_id, numero)`) e `ordem` (DFS) definem hierarquia. Campo opcional `observacao_validacao` (texto) guarda nota interna do coordenador na página Validação e Revisão (não entra no PDF). Numeração é semântica (não decoração): direciona ordenação, importação, sumário, contadores e referências. Mutação estrutural exige `consolidar_referencias` ANTES e `renumerar_relatorio` DEPOIS, em transação explícita (`tx_session`). Top-level (`4`, `5`, ...) é preservado; só subníveis reescritos em sequência 1..N por DFS.
 
 `Bloco` (em ordem dentro da seção):
 
@@ -213,7 +213,7 @@ Cron (Track 5):
 - Teste prático: `scripts/teste_http_cron_notificacao.py` (`--http`/`--in-process`; `--no-force` imita produção; `--cadeia-atribuir` atribui seção e notifica). E2E completo: `scripts/_e2e_notificacoes.py`.
 - Schedules externos espelham dias/horários guardados (`/governanca-relatorio` e `app/cron/*.py`).
 
-Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `SENDGRID_EVENT_WEBHOOK_TOKEN`, `CRON_TOKEN`; opcionais para status do cron externo: `CRONJOB_ORG_API_KEY` (`sync: false` no Render, valor só no ambiente) e `CRONJOB_ORG_JOB_*`.
+Variáveis de ambiente (`.env.example` / `render.yaml`): `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`, `APP_BASE_URL`, `NOTIFICAR_HABILITADO`, `NOTIFICAR_SANDBOX`, `SENDGRID_EVENT_WEBHOOK_TOKEN`, `CRON_TOKEN`; `SESSION_COOKIE_SECURE` (produção HTTPS: cookie de sessão com `Secure`; `render.yaml` define `true`). Opcionais para status do cron externo: `CRONJOB_ORG_API_KEY` (`sync: false` no Render, valor só no ambiente) e `CRONJOB_ORG_JOB_*`.
 
 Fonte única do nome `.dotx` em `app/notificacoes/modelos.py` (`slug_titulo`, `filename_para`, `caminho_para`); `scripts/build_canonical_upload_dotx.py` importa daqui.
 
@@ -221,11 +221,11 @@ E2E manual: `scripts/_e2e_notificacoes.py` (usuários `@notif-test.local`, exerc
 
 ### PDF Final
 
-`app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`.
+`app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`. O contexto inclui `secoes_preview_grupos` (agrupamento por seção de nível 1) para desenhar, no navegador, folhas A4 separadas com cabeçalho/rodapé e número de página coerentes com a ordem do documento; em `@media print` os wrappers usam `display: contents` para o WeasyPrint manter o fluxo e as regras `@page` do PDF.
 
-`app/docx_render.py` produz a versão DOCX usando `python-docx`; ele acompanha o template do PDF e tenta manter alinhamento visual (Verdana 10pt no corpo, headings azul-marinho, captions 9pt bold com 'Fonte:' 8.5pt, `bloco.titulo` como Heading 2 12pt, listas com indent 1.27cm, tabelas com cabeçalho 8.8pt bold). Se mudar regras de tipografia em `app/templates/pdf/relatorio.html` (`.bloco p`, `.figura .cap`, `.tabela th`, etc.), espelhe em `_format_body_paragraph`/`_format_caption`/`_format_caption_fonte`/`_set_runs_font` para que PDF e DOCX continuem visualmente equivalentes.
+`app/docx_render.py` produz a versão DOCX usando `python-docx`; ele acompanha o template do PDF e tenta manter alinhamento visual (Verdana 10pt no corpo, parágrafos e **itens de lista** justificados como no PDF, headings azul-marinho, captions 9pt bold com 'Fonte:' 8.5pt, `bloco.titulo` como Heading 2 12pt, listas com indent 1.27cm, tabelas com cabeçalho 8.8pt bold). Se mudar regras de tipografia em `app/templates/pdf/relatorio.html` (`.bloco p`, `.bloco ul`/`ol`, `.figura .cap`, `.tabela th`, etc.), espelhe em `_format_body_paragraph`/`_format_list_paragraph`/`_format_caption`/`_format_caption_fonte`/`_set_runs_font` para que PDF e DOCX continuem visualmente equivalentes.
 
-`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` (opcional `secao_ids` na query para limitar escopo em iframes), `GET /relatorios/{id}/preview` (HTML), `GET /relatorios/{id}/exportar` (`pdf`/`docx`, escopo `inteiro`, `selecionadas` ou `importadas`) e `GET /relatorios/{id}/exportar-assinatura` (ZIP com PDF + DOCX inteiros + LEIA-ME, restrito a coord/admin).
+`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` (opcional `secao_ids` na query para limitar escopo em iframes), `GET /relatorios/{id}/preview` (HTML; opcional `secao_ids` como no PDF, para pré-visualizar só o ramo), `GET /relatorios/{id}/exportar` (`pdf`/`docx`, escopo `inteiro`, `selecionadas` ou `importadas`) e `GET /relatorios/{id}/exportar-assinatura` (ZIP com PDF + DOCX inteiros + LEIA-ME, restrito a coord/admin).
 
 Cuidados:
 
@@ -243,6 +243,8 @@ Cuidados:
   ```
 
 ### Numeração Hierárquica E Referências Estáveis
+
+Exibição de índice em PDF/DOCX e texto resolvido a partir de `[[REF:…]]`: **`capítulo.sequência`** com **ponto** (ex.: `4.1`, `3.2`), não traço — função `label_numero_pli` em `app/ref_resolve.py`.
 
 `app/numeracao.py`:
 

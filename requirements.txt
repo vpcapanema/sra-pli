@@ -16,9 +16,10 @@ python-docx==1.1.2
 sendgrid==6.11.0
 tzdata==2024.2
 # Revisão linguística (página /relatorios/{id}/validacao-revisao, Seção 2):
-# pyspellchecker é puro Python, ~7MB instalado, dicionário PT-BR offline com
-# 416k palavras. Sem dependência de Java, sem chamadas externas.
-# Se language_tool_python estiver instalado adicionalmente E Java disponível,
-# o serviço prefere LT pela qualidade (gramática + estilo, não só ortografia);
-# instalação é opcional e deixada para o operador conforme política do ambiente.
+# pyspellchecker é puro Python, ~7MB, PT-BR offline — cobre só ORTOGRAFIA.
+# Gramática e estilo: exige Java 8+ no PATH em tempo de execução. Pacote Python:
+language_tool_python==3.3.0
+# O código prefere LanguageTool quando o import e a JVM funcionam; senão cai para pyspellchecker.
 pyspellchecker==0.8.1
+bleach==6.2.0
+beautifulsoup4==4.12.3

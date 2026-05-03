@@ -139,6 +139,12 @@ def init_db() -> None:
                     "REFERENCES users(id);"
                 )
             )
+            conn.execute(
+                text(
+                    "ALTER TABLE secoes "
+                    "ADD COLUMN IF NOT EXISTS observacao_validacao TEXT;"
+                )
+            )
     with SessionLocal() as db:
         ensure_admin(db)
         ensure_parametros_ciclo_notificacao(db)
