@@ -9,8 +9,14 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/css/app.css" />
     {% block head_extra %}{% endblock %} {% if user %}
+    <meta
+      name="sra-console-verbose"
+      content="{{ sra_console_verbose|lower }}"
+    />
     <script>
-      window.__SRA_CONSOLE_VERBOSE__ = {{ 'true' if sra_console_verbose else 'false' }};
+      window.__SRA_CONSOLE_VERBOSE__ =
+        document.querySelector('meta[name="sra-console-verbose"]').content ===
+        "true";
     </script>
     <script src="/static/js/sra_log.js"></script>
     <script src="/static/js/sra_auth_fetch.js"></script>
@@ -35,20 +41,20 @@
         {% set _path = request.url.path %} {% set _parts_hub =
         _path.strip('/').split('/') %} {% set _relatorio_sumario = (_parts_hub |
         length == 2 and _parts_hub[0] == 'relatorios' and
-        _parts_hub[1].isdigit()) %} {% set _on_rel = _path == '/dashboard' or
-        _relatorio_sumario or _path.endswith('/entregas') %} {% set _on_upload =
-        _path == '/painel-upload' or _path.endswith('/upload-conteudo') or
-        _path.startswith('/modelos-word-importacao') %} {% set _on_usu =
-        _path.startswith('/usuarios') %} {% set _on_crt =
+        _parts_hub[1].isdigit()) %} {% set _on_gestao = _path == '/dashboard' or
+        _path.endswith('/entregas') or _path.endswith('/revisao-edicao') %} {%
+        set _on_relatorio = _relatorio_sumario or
+        _path.endswith('/upload-conteudo') or
+        _path.startswith('/modelos-word-importacao') or _path ==
+        '/painel-upload' %} {% set _on_admin = _path.startswith('/usuarios') or
         _path.startswith('/governanca-relatorio') %} {% set _on_suporte =
         _path.startswith('/mapa-aplicacao') or _path.startswith('/dev/') %} {%
-        set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %} {% set
-        _open_rel = 'open' if _on_rel else '' %} {% set _cls_upload = 'ni-grp
-        ni-grp-active' if _on_upload else 'ni-grp' %} {% set _open_upload =
-        'open' if _on_upload else '' %} {% set _cls_usu = 'ni-grp ni-grp-active'
-        if _on_usu else 'ni-grp' %} {% set _open_usu = 'open' if _on_usu else ''
-        %} {% set _cls_crt = 'ni-grp ni-grp-active' if _on_crt else 'ni-grp' %}
-        {% set _open_crt = 'open' if _on_crt else '' %} {% set _cls_suporte =
+        set _cls_gestao = 'ni-grp ni-grp-active' if _on_gestao else 'ni-grp' %}
+        {% set _open_gestao = 'open' if _on_gestao else '' %} {% set
+        _cls_relatorio = 'ni-grp ni-grp-active' if _on_relatorio else 'ni-grp'
+        %} {% set _open_relatorio = 'open' if _on_relatorio else '' %} {% set
+        _cls_admin = 'ni-grp ni-grp-active' if _on_admin else 'ni-grp' %} {% set
+        _open_admin = 'open' if _on_admin else '' %} {% set _cls_suporte =
         'ni-grp ni-grp-active' if _on_suporte else 'ni-grp' %} {% set
         _open_suporte = 'open' if _on_suporte else '' %} {% set _hub_rid =
         rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
@@ -59,50 +65,34 @@
         else none) %} {% else %} {% set _hub_sid =
         request.state.sra_hub_primeira_secao_id %} {% endif %} {% set
         _url_sumario_hub = ("/relatorios/" ~ _hub_rid) if _hub_rid else
-        "/painel-upload" %} {% set _url_upload_hub = ( "/relatorios/" ~ _hub_rid
-        ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo" ) if (_hub_rid and
-        _hub_sid) else "/painel-upload" %} {% set _url_entregas_hub =
-        ("/relatorios/" ~ _hub_rid ~ "/entregas") if _hub_rid else
-        "/painel-upload" %} {% set _url_validacao_hub = ("/relatorios/" ~
-        _hub_rid ~ "/validacao-revisao") if _hub_rid else "/painel-upload" %} {%
-        set _url_revisao_edicao_hub = ("/relatorios/" ~ _hub_rid ~
-        "/revisao-edicao") if _hub_rid else "/painel-upload" %} {% set _on_val =
-        _path.endswith('/validacao-revisao') %} {% set _on_rev_edicao =
-        _path.endswith('/revisao-edicao') %} {% if _on_val or _on_rev_edicao %}
-        {% set _cls_rel = 'ni-grp ni-grp-active' %} {% set _open_rel = 'open' %}
-        {% endif %} {% if user.role in ['admin','coordenador'] %}
-        <details class="{{ _cls_rel }}" {{ _open_rel }}>
+        "/painel-upload" %} {% set _url_upload_hub = ("/relatorios/" ~ _hub_rid
+        ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo") if (_hub_rid and _hub_sid)
+        else "/painel-upload" %} {% set _url_entregas_hub = ("/relatorios/" ~
+        _hub_rid ~ "/entregas") if _hub_rid else "/painel-upload" %} {% set
+        _url_revisao_edicao_hub = ("/relatorios/" ~ _hub_rid ~
+        "/revisao-edicao") if _hub_rid else "/painel-upload" %} {% if user.role
+        in ['admin','coordenador'] %}
+        <details class="{{ _cls_gestao }}" {{ _open_gestao }}>
           <summary class="ni ni-toggle">
-            <span class="num">01</span><span class="nlbl">Relatórios</span>
+            <span class="num">01</span><span class="nlbl">Painel e Gestão</span>
             <span class="ni-caret" aria-hidden="true">▾</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
-            <a class="ni-sub-link" href="{{ _url_sumario_hub }}"
-              >Sumário do relatório</a
-            >
-            <a class="ni-sub-link" href="{{ _url_entregas_hub }}"
-              >Entregas do relatório</a
-            >
-            <a class="ni-sub-link" href="{{ _url_validacao_hub }}"
-              >Validação e Revisão</a
-            >
+            <a class="ni-sub-link" href="{{ _url_entregas_hub }}">Entregas</a>
             <a class="ni-sub-link" href="{{ _url_revisao_edicao_hub }}"
               >Revisão editorial</a
             >
           </div>
         </details>
         {% endif %}
-        <details class="{{ _cls_upload }}" {{ _open_upload }}>
+        <details class="{{ _cls_relatorio }}" {{ _open_relatorio }}>
           <summary class="ni ni-toggle">
-            <span class="num">02</span
-            ><span class="nlbl">Conteúdo e importação</span>
+            <span class="num">02</span><span class="nlbl">Relatório</span>
             <span class="ni-caret" aria-hidden="true">▾</span>
           </summary>
           <div class="ni-sub">
-            <a class="ni-sub-link" href="{{ _url_sumario_hub }}"
-              >Sumário do relatório</a
-            >
+            <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário</a>
             <a class="ni-sub-link" href="{{ _url_upload_hub }}"
               >Editor de conteúdo</a
             >
@@ -112,22 +102,13 @@
           </div>
         </details>
         {% if user.role in ['admin','coordenador'] %}
-        <details class="{{ _cls_usu }}" {{ _open_usu }}>
+        <details class="{{ _cls_admin }}" {{ _open_admin }}>
           <summary class="ni ni-toggle">
-            <span class="num">03</span
-            ><span class="nlbl">Pessoas e permissões</span>
+            <span class="num">03</span><span class="nlbl">Administração</span>
             <span class="ni-caret" aria-hidden="true">▾</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
-          </div>
-        </details>
-        <details class="{{ _cls_crt }}" {{ _open_crt }}>
-          <summary class="ni ni-toggle">
-            <span class="num">04</span><span class="nlbl">Governança</span>
-            <span class="ni-caret" aria-hidden="true">▾</span>
-          </summary>
-          <div class="ni-sub">
             <a class="ni-sub-link" href="/governanca-relatorio"
               >Governança do relatório</a
             >
@@ -135,8 +116,8 @@
         </details>
         <details class="{{ _cls_suporte }}" {{ _open_suporte }}>
           <summary class="ni ni-toggle">
-            <span class="num">05</span
-            ><span class="nlbl">Suporte e diagnóstico</span>
+            <span class="num">04</span
+            ><span class="nlbl">Suporte e Diagnóstico</span>
             <span class="ni-caret" aria-hidden="true">▾</span>
           </summary>
           <div class="ni-sub">

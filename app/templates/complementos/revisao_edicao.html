@@ -11,6 +11,42 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
   data-rel-id="{{ rel.id }}"
   data-editavel="{{ '1' if relatorio_editavel else '0' }}"
 >
+  <!-- Seletor de relatório -->
+  <div
+    class="rev-rel-selector"
+    style="
+      padding: 8px 16px;
+      background: #f3f6fa;
+      border-bottom: 1px solid #d0d8e4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    "
+  >
+    <label
+      for="rev-rel-select"
+      style="font-size: 13px; color: #4a5568; font-weight: 600"
+      >Relatório:</label
+    >
+    <select
+      id="rev-rel-select"
+      onchange="if (this.value) location.href = this.value;"
+      style="
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #cbd5e0;
+        background: #fff;
+        min-width: 280px;
+        max-width: 100%;
+      "
+    >
+      {% for r in relatorios_opcao %}
+      <option value="/relatorios/{{ r.id }}/revisao-edicao"{% if r.id == rel.id %} selected{% endif %}>{{ r.codigo }} — {{ r.mes_referencia or r.titulo }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
   <!-- Ribbon estilo Word (barra de menus em largura total) -->
   <div class="rev-ribbon">
     <!-- Barra de menus -->

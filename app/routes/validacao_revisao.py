@@ -440,6 +440,7 @@ def revisao_edicao_page(
     contexto_pdf = _montar_contexto_pdf(db, rel)
     resumo_global, categorias_globais = montar_checagens_globais(db, rel)
     arvore_revisao = _arvore_revisao_navegacao(rel, categorias_globais, [])
+    relatorios_opcao = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
 
     contexto = {
         "user": user,
@@ -460,6 +461,7 @@ def revisao_edicao_page(
         # Em ``em_revisao`` o coordenador é dono do conteúdo e a trava deve
         # sumir da UI (o campo ``bloqueado`` permanece intacto no DB).
         "bloqueio_visivel": rel.status == "aberto",
+        "relatorios_opcao": relatorios_opcao,
     }
     return templates.TemplateResponse(
         request,
