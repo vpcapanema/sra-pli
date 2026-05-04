@@ -40,9 +40,7 @@ def _require_bloco_na_subarvore(db: Session, rel_id: int, anc: Secao, bloco_id: 
     return b
 
 
-def _blocos_selecionados_escopo(
-    db: Session, rel_id: int, anc_sec: Secao, bloco_ids: list[int]
-) -> list[Bloco]:
+def _blocos_selecionados_escopo(db: Session, rel_id: int, anc_sec: Secao, bloco_ids: list[int]) -> list[Bloco]:
     ids = list(dict.fromkeys(bloco_ids))
     if not ids:
         raise HTTPException(400, detail="Selecione ao menos um bloco.")
@@ -82,9 +80,7 @@ def _pode_editar_status(user: User, rel: Relatorio) -> tuple[bool, str]:
     return False, f"Status do relatorio '{status}' nao permite edicao."
 
 
-def _check(
-    request, db, rel_id, sec_id, *, exigir_editavel: bool = False
-) -> tuple[User, Secao] | Response:
+def _check(request, db, rel_id, sec_id, *, exigir_editavel: bool = False) -> tuple[User, Secao] | Response:
     """Valida login, posse da secao e (opcional) permissao de edicao.
 
     ``exigir_editavel=True`` aplica ``_pode_editar_status``: bloqueia autor em
@@ -195,10 +191,7 @@ def listar_blocos_json(rel_id: int, sec_id: int, request: Request, db: Session =
                 "secao_numero": (b.secao.numero if b.secao else "") or "",
                 "bloqueado": bool(b.bloqueado),
                 "pode_editar": pode_status
-                and (
-                    not bool(b.bloqueado)
-                    or pode_mutar_apesar_de_bloqueado(request, user, rel_id)
-                ),
+                and (not bool(b.bloqueado) or pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel.status)),
             }
             for b in blocos_raw
         ],
@@ -290,10 +283,10 @@ def excluir_blocos_lote(
     if isinstance(chk, Response):
         return chk
     user, anc_sec = chk
+    rel_status = anc_sec.relatorio.status if anc_sec.relatorio is not None else None
     blocos = _blocos_selecionados_escopo(db, rel_id, anc_sec, bloco_ids)
     if any(
-        getattr(bloco, "bloqueado", False)
-        and not pode_mutar_apesar_de_bloqueado(request, user, rel_id)
+        getattr(bloco, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel_status)
         for bloco in blocos
     ):
         raise HTTPException(403, detail="Blocos bloqueados não podem ser excluídos.")
@@ -323,10 +316,9 @@ def editar_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argu
     if isinstance(chk, Response):
         return chk
     user, anc_sec = chk
+    rel_status = anc_sec.relatorio.status if anc_sec.relatorio is not None else None
     b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
-    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
-        request, user, rel_id
-    ):
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel_status):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser editado.")
 
     b.titulo = titulo.strip() or None
@@ -346,10 +338,9 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
     if isinstance(chk, Response):
         return chk
     user, anc_sec = chk
+    rel_status = anc_sec.relatorio.status if anc_sec.relatorio is not None else None
     b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
-    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
-        request, user, rel_id
-    ):
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel_status):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser excluído.")
     afeta_numeracao = _impacta_numeracao(b.tipo, b.conteudo)
     with tx_session() as txdb:
@@ -389,10 +380,9 @@ def mover_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argum
     if isinstance(chk, Response):
         return chk
     user, anc_sec = chk
+    rel_status = anc_sec.relatorio.status if anc_sec.relatorio is not None else None
     b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
-    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(
-        request, user, rel_id
-    ):
+    if getattr(b, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel_status):
         raise HTTPException(403, detail="Bloco está bloqueado e não pode ser movido.")
 
     sid_real = b.secao_id
@@ -409,10 +399,6 @@ def mover_bloco(  # pylint: disable=too-many-arguments,too-many-positional-argum
                 blocos[swap].tipo, blocos[swap].conteudo
             ):
                 consolidar_referencias(txdb, rel_id)
-            txdb.query(Bloco).filter(Bloco.id == a_id).update(
-                {Bloco.ordem: b_ord}, synchronize_session=False
-            )
-            txdb.query(Bloco).filter(Bloco.id == b_id).update(
-                {Bloco.ordem: a_ord}, synchronize_session=False
-            )
+            txdb.query(Bloco).filter(Bloco.id == a_id).update({Bloco.ordem: b_ord}, synchronize_session=False)
+            txdb.query(Bloco).filter(Bloco.id == b_id).update({Bloco.ordem: a_ord}, synchronize_session=False)
     return response_conteudo_upload(request, db, rel_id, sec_id)

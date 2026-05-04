@@ -1,0 +1,1470 @@
+/* Revisão editorial — layout 3 colunas + folhas A4 simuladas
+   ============================================================
+   Reusa as classes .preview-sheet, .secao, .bloco, .figura, .tabela do
+   template de PDF para preservar tipografia e proporções.
+   Esta folha cuida só do *shell* da página de revisão. */
+
+.page-revisao-edicao #content {
+  max-width: none;
+  width: 100%;
+  padding: 0;
+  background: #dfe5ec;
+}
+
+/* Trava o root na altura disponível abaixo do header global (#dh, sticky no
+   topo do #main, altura definida em --hh). overflow:hidden faz com que o
+   scroll só aconteça dentro de .rev-doc__scroll — árvore e dock ficam
+   verticalmente fixas. */
+#rev-edit-root {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--hh, 56px));
+  overflow: hidden;
+  background: #dfe5ec;
+}
+#rev-edit-root > .rev-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- Banner de status ---------- */
+.rev-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #11294d;
+  color: #fff;
+  border-bottom: 1px solid #0c1d3a;
+}
+.rev-banner--warn {
+  background: #b45309;
+  border-bottom-color: #d97706;
+}
+.rev-banner__meta,
+.rev-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #1e4482;
+  border: 1px solid #2c5ca6;
+  color: #e3ecf9;
+  white-space: nowrap;
+}
+.rev-chip--strong {
+  background: #2b6cb0;
+  border-color: #4a90d9;
+  color: #fff;
+  font-weight: 600;
+}
+.rev-chip--counter {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+}
+.rev-chip--save {
+  background: #1e7e34;
+  border-color: #1e7e34;
+  color: #fff;
+}
+.rev-chip--save.rev-chip--saving {
+  background: #b45309;
+  border-color: #b45309;
+}
+.rev-chip--save.rev-chip--error {
+  background: #c62828;
+  border-color: #c62828;
+}
+.rev-chip--status-aberto {
+  background: #2b6cb0;
+  border-color: #4a90d9;
+}
+.rev-chip--status-em_revisao {
+  background: #b45309;
+  border-color: #d97706;
+}
+.rev-chip--status-finalizado {
+  background: #4a5568;
+  border-color: #6b7280;
+}
+
+.rev-btn {
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.rev-btn--primary {
+  background: #2b6cb0;
+  color: #fff;
+  border-color: #2b6cb0;
+}
+.rev-btn--primary:hover {
+  background: #1f4e9c;
+}
+.rev-btn--ghost {
+  background: transparent;
+  color: #cdd7e6;
+  border-color: #4a6fa5;
+}
+.rev-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.rev-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- Ribbon estilo Word ---------- */
+.rev-ribbon {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #f3f4f6;
+  border-bottom: 1px solid #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.rev-ribbon__menus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: #e5e7eb;
+  border-bottom: 1px solid #d1d5db;
+  min-height: 32px;
+}
+.rev-ribbon-btn--menu {
+  background: none;
+  border: none;
+  color: #1e3a5f;
+  font-weight: bold;
+  font-size: 13px;
+  font-family: Arial, sans-serif;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.rev-ribbon-btn--menu:hover {
+  background: #d1d5db;
+}
+.rev-ribbon-btn--menu[aria-expanded="true"] {
+  background: #d1d5db;
+}
+.rev-ribbon__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  background: #f3f4f6;
+}
+.rev-ribbon__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 1px solid #d1d5db;
+}
+
+/* ---------- Cards da toolbar ---------- */
+.rev-toolbar-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+  min-height: 80px;
+  max-width: 80px;
+  max-height: 80px;
+  background: #d1d5db;
+  border: 1px solid #0d1f33;
+  border-radius: 4px;
+  padding: 4px;
+  gap: 2px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.rev-toolbar-card__header {
+  display: block;
+  font-size: 9px;
+  font-weight: bold;
+  color: #1e3a5f;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.rev-toolbar-card__grid {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+.rev-toolbar-card__grid--2x2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.rev-toolbar-card__grid--2x1 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+.rev-toolbar-card--action {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.rev-toolbar-card--action .rev-toolbar-btn {
+  flex-direction: column;
+  gap: 2px;
+}
+.rev-toolbar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #0d1f33;
+  border-radius: 3px;
+  background: #6b7280;
+  color: #1e3a5f;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: bold;
+  transition: all 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  height: 100%;
+}
+.rev-toolbar-btn:hover {
+  background: #9ca3af;
+  border-color: #1e3a5f;
+}
+.rev-toolbar-btn--icon-only {
+  border: none;
+  background: none;
+  padding: 4px;
+}
+.rev-toolbar-btn--icon-only:hover {
+  background: #9ca3af;
+}
+.rev-toolbar-btn--action.rev-toolbar-btn--icon-only svg {
+  stroke: #1e3a5f;
+}
+.rev-toolbar-btn--action.rev-toolbar-btn--icon-only span {
+  color: #1e3a5f;
+}
+.rev-toolbar-btn span {
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 1px;
+  color: #1e3a5f;
+}
+.rev-toolbar-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: #1e3a5f;
+  flex-shrink: 0;
+}
+.rev-toolbar-btn--action {
+  font-size: 10px;
+  font-weight: bold;
+  color: #1e3a5f;
+  background: none;
+}
+.rev-toolbar-btn--action:hover {
+  background: #9ca3af;
+}
+.rev-toolbar-btn--action span {
+  color: #1e3a5f;
+}
+.rev-toolbar-btn--action svg {
+  stroke: #1e3a5f;
+}
+
+/* ---------- Dropdown menus ---------- */
+.rev-ribbon__menus {
+  position: relative;
+}
+.rev-ribbon-btn--menu {
+  position: relative;
+}
+.rev-ribbon-dropdown__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid #0d1f33;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+.rev-ribbon-dropdown__submenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid #0d1f33;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 101;
+  padding: 4px 0;
+  margin-left: 4px;
+}
+.rev-dropdown-item--has-submenu {
+  position: relative;
+}
+.rev-dropdown-item--has-submenu::after {
+  content: "▶";
+  float: right;
+  margin-left: 10px;
+  font-size: 10px;
+}
+.rev-dropdown-group {
+  padding: 4px 8px;
+}
+.rev-dropdown-group__title {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  color: #1e3a5f;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.rev-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: #1e3a5f;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.rev-dropdown-item:hover {
+  background: #e8f0fe;
+}
+
+/* Responsividade dos cards */
+@media (max-width: 1200px) {
+  .rev-toolbar-card {
+    min-width: 70px;
+    min-height: 70px;
+    max-width: 70px;
+    max-height: 70px;
+  }
+  .rev-toolbar-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .rev-toolbar-btn span {
+    font-size: 7px;
+  }
+}
+@media (max-width: 768px) {
+  .rev-toolbar-card {
+    min-width: 60px;
+    min-height: 60px;
+    max-width: 60px;
+    max-height: 60px;
+  }
+  .rev-toolbar-btn span {
+    font-size: 6px;
+  }
+  .rev-toolbar-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+.rev-ribbon-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 8px;
+  border-right: 1px solid #e5e7eb;
+}
+.rev-ribbon-group:last-child {
+  border-right: none;
+}
+.rev-ribbon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  color: #374151;
+  transition: all 0.15s ease;
+  min-width: 48px;
+  min-height: 44px;
+}
+.rev-ribbon-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+.rev-ribbon-btn:active,
+.rev-ribbon-btn[aria-expanded="true"] {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+.rev-ribbon-btn--menu {
+  flex-direction: row;
+  min-width: auto;
+  padding: 6px 12px;
+}
+.rev-ribbon-btn--action {
+  flex-direction: row;
+  min-width: auto;
+  padding: 6px 16px;
+  font-weight: 600;
+}
+.rev-ribbon-btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.rev-ribbon-btn--primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+.rev-ribbon-btn--tool {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rev-ribbon-btn__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.rev-ribbon-btn__text {
+  font-size: 10px;
+  line-height: 1.1;
+}
+.rev-ribbon-btn__arrow {
+  font-size: 9px;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
+/* Dropdown do ribbon */
+.rev-ribbon-dropdown {
+  position: relative;
+}
+.rev-ribbon-dropdown__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 20;
+  padding: 4px 0;
+  margin-top: 2px;
+}
+.rev-ribbon-dropdown__item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+}
+.rev-ribbon-dropdown__item:hover {
+  background: #f3f4f6;
+}
+.rev-ribbon-dropdown__sep {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 4px 0;
+}
+
+/* ---------- Workspace 3 colunas ---------- */
+.rev-workspace {
+  display: grid;
+  grid-template-columns: 240px 1fr 320px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  background: #dfe5ec;
+}
+.rev-workspace.rev-workspace--no-tree {
+  grid-template-columns: 0 1fr 320px;
+}
+.rev-workspace.rev-workspace--no-dock {
+  grid-template-columns: 240px 1fr 0;
+}
+.rev-workspace.rev-workspace--no-tree.rev-workspace--no-dock {
+  grid-template-columns: 0 1fr 0;
+}
+
+.rev-tree,
+.rev-dock {
+  background: #fbfcfe;
+  border-right: 1px solid #c8ced6;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.rev-dock {
+  border-right: none;
+  border-left: 1px solid #c8ced6;
+}
+
+.rev-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d8dee6;
+  background: #eef2f7;
+}
+.rev-pane-header h3 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #55627a;
+}
+.rev-pane-sub {
+  color: #7b8699;
+  font-weight: 400;
+  text-transform: none;
+}
+.rev-collapse {
+  border: 1px solid #c8ced6;
+  background: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #55627a;
+}
+
+/* ---------- Árvore ---------- */
+.rev-tree__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 4px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.rev-tree__item {
+  padding: 0;
+}
+.rev-tree__link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  color: #1a2430;
+  text-decoration: none;
+  line-height: 1.25;
+}
+.rev-tree__link:hover {
+  background: #e3ecf9;
+}
+.rev-tree__item.rev-active > .rev-tree__link {
+  background: #d3e1f5;
+  color: #143a6b;
+  font-weight: 600;
+}
+.rev-tree__num {
+  color: #55627a;
+  min-width: 32px;
+  font-variant-numeric: tabular-nums;
+}
+.rev-tree__ttl {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rev-tree__badge {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fdecec;
+  color: #c62828;
+  border: 1px solid #c62828;
+  font-weight: 600;
+}
+.rev-tree__item--lvl-1 .rev-tree__link {
+  font-weight: 600;
+}
+.rev-tree__item--lvl-2 {
+  padding-left: 14px;
+}
+.rev-tree__item--lvl-3 {
+  padding-left: 26px;
+}
+.rev-tree__item--lvl-4 {
+  padding-left: 38px;
+}
+.rev-tree__item--lvl-5 {
+  padding-left: 48px;
+}
+.rev-has-erro > .rev-tree__link {
+  color: #c62828;
+}
+.rev-has-aviso > .rev-tree__link {
+  color: #b45309;
+}
+
+/* ---------- Documento (folhas A4) ----------
+   Reaproveita CSS do PDF: classes .preview-sheet, .secao, .bloco vêm do
+   pipeline do pdf_render. Aqui só ajustamos o scroll e overlays. */
+.rev-doc {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rev-doc__scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 20px clamp(12px, 3vw, 32px);
+  background: #dfe5ec;
+}
+.rev-preview-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.rev-sheet {
+  position: relative;
+  width: min(210mm, 100%);
+  max-width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  border: 1px solid #c8ced6;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 22.2mm 20mm 25mm 20mm;
+  box-sizing: border-box;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.15;
+  color: #141414;
+}
+.rev-sheet--capa {
+  padding: 0;
+  overflow: hidden;
+}
+.rev-sheet__hdr,
+.rev-sheet__ftr {
+  position: absolute;
+  left: 20mm;
+  right: 20mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.6pt;
+  color: #8a94a3;
+}
+.rev-sheet__hdr {
+  top: 8mm;
+  border-bottom: 0.6pt dotted #d4d8de;
+  padding-bottom: 2mm;
+}
+.rev-sheet__ftr {
+  bottom: 8mm;
+  border-top: 0.6pt dotted #d4d8de;
+  padding-top: 2mm;
+}
+.rev-sheet__pg {
+  font-weight: 600;
+  color: #6b7280;
+}
+.rev-sheet__body {
+  min-height: 100%;
+}
+
+/* ---------- Status bar monocromática ---------- */
+.rev-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #e5e7eb;
+  border-top: 1px solid #d1d5db;
+  font-size: 11px;
+  color: #4b5563;
+  flex-wrap: wrap;
+}
+.rev-statusbar__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 2px;
+  font-size: 10.5px;
+  color: #374151;
+  white-space: nowrap;
+}
+.rev-statusbar__chip[hidden] {
+  display: none;
+}
+
+/* Reaproveita a tipografia das classes .secao/.bloco do PDF, mas reseta
+   `text-align` para esquerda em headings (PDF usa center; aqui é revisão). */
+.rev-sheet .secao h1 {
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 13pt;
+  color: #102246;
+  margin: 14pt 0 8pt;
+  font-weight: 800;
+  border-bottom: 1.2pt solid #102246;
+  padding-bottom: 4pt;
+  display: flex;
+  gap: 8px;
+}
+.rev-sheet .secao h1 .num {
+  color: #2b6cb0;
+  min-width: 20mm;
+}
+.rev-sheet .secao.lvl-2 h1 {
+  font-size: 12pt;
+  border-bottom-width: 0.8pt;
+}
+.rev-sheet .secao.lvl-3 h1 {
+  font-size: 11pt;
+  border-bottom: none;
+  color: #143a6b;
+}
+.rev-sheet .secao.lvl-4 h1,
+.rev-sheet .secao.lvl-5 h1,
+.rev-sheet .secao.lvl-6 h1 {
+  font-size: 10.5pt;
+  border-bottom: none;
+  color: #143a6b;
+  font-style: italic;
+}
+
+.rev-sheet .bloco {
+  margin: 0 0 6pt;
+}
+.rev-sheet .bloco h3 {
+  font-size: 11pt;
+  color: #102246;
+  margin: 6pt 0;
+  font-weight: 700;
+}
+.rev-sheet .bloco p {
+  font-size: 10pt;
+  line-height: 1.25;
+  text-align: justify;
+  margin: 0 0 8pt;
+}
+.rev-sheet .bloco ul,
+.rev-sheet .bloco ol {
+  font-size: 10pt;
+  line-height: 1.25;
+  padding-left: 18pt;
+  margin: 0 0 6pt;
+  text-align: justify;
+}
+.rev-sheet .bloco li {
+  margin: 0 0 4pt;
+}
+.rev-sheet .figura {
+  text-align: center;
+  margin: 8pt 0 12pt;
+}
+.rev-sheet .figura img {
+  max-width: 100%;
+  max-height: 110mm;
+}
+.rev-sheet .figura .cap,
+.rev-sheet .tabela .cap {
+  font-size: 9pt;
+  color: #1a2430;
+  margin: 4pt 0;
+  font-weight: 600;
+}
+.rev-sheet .figura .src,
+.rev-sheet .tabela .src {
+  font-size: 8.5pt;
+  color: #55627a;
+}
+.rev-sheet .tabela table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 8pt;
+  font-size: 9.5pt;
+}
+.rev-sheet .tabela th,
+.rev-sheet .tabela td {
+  border: 0.6pt solid #c8ced6;
+  padding: 3pt 5pt;
+  vertical-align: top;
+}
+.rev-sheet .tabela th {
+  background: #eef2f7;
+  color: #102246;
+}
+
+/* ---------- Bloco editável ---------- */
+.rev-block {
+  position: relative;
+  padding: 4px 6px 4px 10px;
+  border-radius: 4px;
+  border-left: 2px solid transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.rev-block:hover {
+  background: rgba(43, 108, 176, 0.04);
+}
+.rev-block:focus,
+.rev-block:focus-within {
+  background: rgba(43, 108, 176, 0.07);
+  border-left-color: #2b6cb0;
+  outline: none;
+}
+.rev-block--locked {
+  border-left-color: #b45309;
+}
+.rev-block--locked:focus,
+.rev-block--locked:focus-within {
+  border-left-color: #b45309;
+}
+
+.rev-block__bar {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #fff;
+}
+.rev-block:focus-within > .rev-block__bar {
+  display: inline-flex;
+}
+.rev-block__tag {
+  background: #11294d;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.rev-block__lock {
+  background: #b45309;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.rev-block__warn {
+  background: #c62828;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #fff;
+}
+.rev-block__btn {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+.rev-block__btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.rev-block__hint {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #fff7e6;
+  border: 1px solid #f0c987;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #80561b;
+}
+.rev-block__hint a {
+  color: #80561b;
+  text-decoration: underline;
+}
+.rev-block--complexo {
+  border-left-color: #c62828;
+  background: rgba(198, 40, 40, 0.03);
+}
+.rev-block--complexo:hover,
+.rev-block--complexo:focus,
+.rev-block--complexo:focus-within {
+  background: rgba(198, 40, 40, 0.05);
+  border-left-color: #c62828;
+}
+
+.rev-banner {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid transparent;
+}
+.rev-banner--warn {
+  background: #fff7e6;
+  color: #80561b;
+  border-bottom-color: #f0c987;
+}
+.rev-block__save-state {
+  color: #1e7e34;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+.rev-block__save-state[data-state="saving"] {
+  color: #b45309;
+}
+.rev-block__save-state[data-state="error"] {
+  color: #c62828;
+}
+
+.rev-placeholder {
+  color: #9aa4b2;
+  font-style: italic;
+}
+
+[data-edit-field][data-edit-mode="plain"][contenteditable="true"] {
+  outline: 1px dashed #2b6cb0;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Estilos do PDF (capa, ficha, sumário, assinaturas) ---------- */
+.capa {
+  height: 297mm;
+  width: 210mm;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #fff;
+  position: relative;
+}
+.capa-bg {
+  position: absolute;
+  inset: 0;
+  width: 210mm;
+  height: 297mm;
+  object-fit: cover;
+}
+.capa .subt {
+  position: absolute;
+  top: 127.5mm;
+  left: 37.6mm;
+  right: 38mm;
+  font-size: 11pt;
+  color: #fff;
+  line-height: 1.8;
+  font-weight: 700;
+}
+.capa .subt span {
+  display: block;
+}
+
+.ficha {
+  padding-top: 2mm;
+}
+.ficha h2 {
+  color: #111;
+  font-size: 15pt;
+  font-weight: 800;
+  margin: 0 0 3mm 2mm;
+  text-transform: uppercase;
+}
+.ficha table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5pt;
+  border-top: 1.7pt solid #111;
+}
+.ficha td {
+  padding: 1.3mm 2mm 2mm;
+  border-bottom: 1.4pt solid #111;
+  vertical-align: top;
+}
+.ficha td:first-child {
+  width: 42mm;
+  font-weight: 800;
+  color: #111;
+  text-transform: uppercase;
+  padding-bottom: 0.2mm;
+}
+.ficha .valor {
+  display: block;
+  font-weight: 400;
+  text-transform: none;
+  margin-top: 0.8mm;
+}
+.versoes {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 36mm;
+  font-size: 10.5pt;
+}
+.versoes th,
+.versoes td {
+  border-top: 0.7pt solid #111;
+  border-bottom: 0.7pt solid #111;
+  padding: 2mm 3mm;
+  text-align: center;
+}
+.versoes th {
+  font-weight: 800;
+}
+.versoes td:first-child,
+.versoes th:first-child {
+  width: 22mm;
+}
+.versoes td:nth-child(2),
+.versoes th:nth-child(2) {
+  width: 32mm;
+}
+
+.sumario {
+  padding-top: 0;
+}
+.sumario h2 {
+  color: #0f1e3d;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 13.5pt;
+  font-weight: 800;
+  text-align: center;
+  margin: 0 0 8mm;
+  text-transform: uppercase;
+}
+.sumario ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: item;
+  font-family: Arial, Verdana, Helvetica, sans-serif;
+}
+.sumario li {
+  font-size: 10.5pt;
+  line-height: 12pt;
+  margin: 0 0 4.23mm;
+}
+.sumario li a {
+  color: #111;
+  text-decoration: none;
+  display: block;
+}
+.sumario li .num {
+  display: inline;
+  margin-right: 2.4mm;
+  text-align: left;
+  vertical-align: top;
+}
+.sumario li .ttl {
+  display: inline;
+}
+.sumario li.lvl-1 {
+  padding-left: 0;
+  text-indent: 0;
+  text-transform: uppercase;
+}
+.sumario li.lvl-2 {
+  padding-left: 3.88mm;
+  text-indent: 0;
+}
+.sumario li.lvl-3 {
+  padding-left: 7.76mm;
+  text-indent: 0;
+}
+
+.assinaturas {
+  padding-top: 10mm;
+}
+.assinaturas h2 {
+  color: #1c3d59;
+  font-size: 14pt;
+  border-bottom: 2pt solid #3ec26e;
+  padding-bottom: 4pt;
+  margin-bottom: 18pt;
+}
+.assinaturas .sig-row {
+  margin-top: 30pt;
+}
+.assinaturas .linha {
+  border-top: 1pt solid #1c3d59;
+  width: 80mm;
+  margin-top: 35pt;
+  padding-top: 4pt;
+  font-size: 9.5pt;
+}
+.assinaturas .nota {
+  margin-top: 30pt;
+  font-size: 8.5pt;
+  color: #4f5d6e;
+  line-height: 1.6;
+}
+
+/* Quill: toolbar customizada integrada no ribbon */
+.rev-block__quill {
+  border: 1px solid #c8ced6;
+  border-radius: 4px;
+  background: #fff;
+}
+.rev-block__quill .ql-editor {
+  min-height: 60px;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.15;
+}
+.rev-block__quill .ql-toolbar {
+  display: none; /* Escondida, usa o ribbon */
+}
+.rev-block__quill .ql-container {
+  border: none;
+}
+
+/* ---------- Modais ---------- */
+.rev-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rev-modal[hidden] {
+  display: none;
+}
+.rev-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+.rev-modal__dialog {
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+}
+.rev-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.rev-modal__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+.rev-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+.rev-modal__close:hover {
+  color: #111827;
+}
+.rev-modal__body {
+  padding: 20px;
+}
+.rev-modal__body label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+.rev-modal__body input,
+.rev-modal__body select,
+.rev-modal__body textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.rev-modal__body input:focus,
+.rev-modal__body select:focus,
+.rev-modal__body textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.rev-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.rev-modal__actions .rev-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* ---------- Lista de seções nos modais ---------- */
+.rev-secoes-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 16px;
+}
+.rev-secao-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.rev-secao-item:hover {
+  background: #f3f4f6;
+}
+.rev-secao-item input[type="checkbox"] {
+  flex-shrink: 0;
+}
+.rev-secao-item span {
+  font-size: 13px;
+  color: #374151;
+}
+
+/* ---------- Sublinhados de revisão (overlay no texto) ---------- */
+.rev-mark {
+  cursor: pointer;
+  padding-bottom: 1px;
+}
+.rev-mark--ortografia {
+  border-bottom: 2px dotted #c62828;
+  background: rgba(198, 40, 40, 0.05);
+}
+.rev-mark--gramatica {
+  border-bottom: 2px dotted #b45309;
+  background: rgba(180, 83, 9, 0.05);
+}
+.rev-mark--estilo {
+  border-bottom: 2px dotted #1f4e9c;
+  background: rgba(31, 78, 156, 0.05);
+}
+.rev-mark--active {
+  background-color: #fff4d6 !important;
+}
+
+/* ---------- Dock de revisão ---------- */
+.rev-dock__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d8dee6;
+  background: #fff;
+}
+.rev-filter {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #c8ced6;
+  background: #fff;
+  cursor: pointer;
+  color: #55627a;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rev-filter--on {
+  background: #e3ecf9;
+  border-color: #7aa2d6;
+  color: #143a6b;
+  font-weight: 600;
+}
+.rev-filter__c {
+  background: #eef2f7;
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 10.5px;
+}
+.rev-filter--on .rev-filter__c {
+  background: #fff;
+}
+
+.rev-dock__hint {
+  padding: 14px 12px;
+  color: #55627a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.rev-dock__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.rev-issue {
+  border: 1px solid #c8ced6;
+  border-left-width: 3px;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.rev-issue:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.rev-issue--ortografia {
+  border-left-color: #c62828;
+}
+.rev-issue--gramatica {
+  border-left-color: #b45309;
+}
+.rev-issue--estilo {
+  border-left-color: #1f4e9c;
+}
+.rev-issue--active {
+  background: #f7faff;
+  border-color: #2b6cb0;
+}
+.rev-issue__tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7b8699;
+  margin-bottom: 3px;
+}
+.rev-issue__q {
+  color: #1a2430;
+  margin: 0 0 4px;
+  line-height: 1.35;
+}
+.rev-issue__q .rev-issue__bad {
+  background: #fdecec;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.rev-issue__sug {
+  color: #55627a;
+  margin: 0 0 6px;
+}
+.rev-issue__sug b {
+  color: #1e7e34;
+}
+.rev-issue__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rev-block__btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+  color: #374151;
+}
+.rev-block__btn:hover {
+  background: #f3f4f6;
+}
+.rev-block__btn--danger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+.rev-block__btn--danger:hover {
+  background: #fef2f2;
+}
+.rev-issue__btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid #c8ced6;
+  background: #fff;
+  cursor: pointer;
+  color: #55627a;
+}
+.rev-issue__btn--primary {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: #fff;
+}
+.rev-issue__btn--primary:hover {
+  background: #1f4e9c;
+}
+
+/* ---------- Responsivo simples ---------- */
+@media (max-width: 1180px) {
+  .rev-workspace {
+    grid-template-columns: 200px 1fr 280px;
+  }
+}
+@media (max-width: 980px) {
+  .rev-workspace {
+    grid-template-columns: 1fr;
+  }
+  .rev-tree,
+  .rev-dock {
+    display: none;
+  }
+}

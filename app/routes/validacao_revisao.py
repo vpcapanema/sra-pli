@@ -8,9 +8,12 @@ Seção 2 — Revisão: mesmo **workspace** que a Validação (árvore à esquer
 direita com pré-visualização ou editor de blocos por iframe); checagens globais,
 revisão linguística no painel, exportar e finalizar.
 """
+
 from __future__ import annotations
 
 import re
+
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -18,12 +21,14 @@ from sqlalchemy.orm import Session, selectinload
 from starlette.responses import RedirectResponse
 
 from ..db import get_db
-from ..models import EntregaRelatorio, Relatorio, Secao
+from ..models import Bloco, EntregaRelatorio, Relatorio, Secao
 from ..numeracao import chave_numero
+from ..pdf_render import _montar_contexto as _montar_contexto_pdf
 from ..services.entregas.lista_painel import montar_lista_entregas
 from ..services.validacao.checagens_entrega import montar_checagens_validacao
 from ..services.validacao.checagens_globais import autor_rotulo_secao, montar_checagens_globais
 from ..services.validacao.revisao_linguistica import (
+    adicionar_termo_vocabulario,
     analisar_relatorio,
     resultado_para_dict,
 )
@@ -217,10 +222,7 @@ def _arvore_node_secao(
         "blocos_txt": (
             "sem blocos"
             if not sec.blocos
-            else (
-                f"{sum(1 for b in sec.blocos if b.bloqueado)}/"
-                f"{len(sec.blocos)} blocos confirmados"
-            )
+            else (f"{sum(1 for b in sec.blocos if b.bloqueado)}/{len(sec.blocos)} blocos confirmados")
         ),
     }
 
@@ -286,9 +288,7 @@ def validacao_revisao_page(
     if not rel:
         raise HTTPException(404, detail="Relatório não encontrado.")
 
-    relatorios_opcao = (
-        db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
-    )
+    relatorios_opcao = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
 
     entregas = (
         db.query(EntregaRelatorio)
@@ -306,31 +306,17 @@ def validacao_revisao_page(
     total_entregas = len(checagens)
     aprovadas = sum(1 for c in checagens if c.status == "validado")
     com_erros = sum(1 for c in checagens if c.total_erros > 0)
-    prontas_para_aprovar = sum(
-        1
-        for c in checagens
-        if c.status != "validado" and c.pronta_para_aprovar
-    )
+    prontas_para_aprovar = sum(1 for c in checagens if c.status != "validado" and c.pronta_para_aprovar)
 
     linhas_lista, pode_acoes = montar_lista_entregas(db, rel, user)
 
     resumo_global, categorias_globais = montar_checagens_globais(db, rel)
-    erros_globais = sum(
-        c.total for c in categorias_globais if c.severidade == "erro"
-    )
-    avisos_globais = sum(
-        c.total for c in categorias_globais if c.severidade == "aviso"
-    )
-    pode_finalizar = (
-        rel.status != "finalizado"
-        and erros_globais == 0
-        and resumo_global.todas_validadas
-    )
+    erros_globais = sum(c.total for c in categorias_globais if c.severidade == "erro")
+    avisos_globais = sum(c.total for c in categorias_globais if c.severidade == "aviso")
+    pode_finalizar = rel.status != "finalizado" and erros_globais == 0 and resumo_global.todas_validadas
 
     arvore_validacao = _arvore_validacao(rel, checagens)
-    arvore_revisao_navegacao = _arvore_revisao_navegacao(
-        rel, categorias_globais, checagens
-    )
+    arvore_revisao_navegacao = _arvore_revisao_navegacao(rel, categorias_globais, checagens)
 
     contexto = {
         "user": user,
@@ -387,9 +373,7 @@ def salvar_observacao_validacao_secao(
     sec.observacao_validacao = body or None
     db.add(sec)
     db.commit()
-    dest = (redirect_to or "").strip() or (
-        f"/relatorios/{rel_id}/validacao-revisao#ss-validacao"
-    )
+    dest = (redirect_to or "").strip() or (f"/relatorios/{rel_id}/validacao-revisao#ss-validacao")
     return RedirectResponse(url=dest, status_code=303)
 
 
@@ -416,3 +400,226 @@ def revisao_linguistica_rodar(
         raise HTTPException(404, detail="Relatório não encontrado.")
     resultado = analisar_relatorio(db, rel)
     return JSONResponse(resultado_para_dict(resultado))
+
+
+# ---------------------------------------------------------------------------
+# Revisão editorial — página dedicada de edição inline com revisor PT-BR
+# ---------------------------------------------------------------------------
+@router.get("/relatorios/{rel_id}/revisao-edicao")
+# pylint: disable=too-many-locals
+def revisao_edicao_page(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Workspace de revisão editorial. Reusa o pipeline do PDF para paginar o
+    relatório por folhas A4 e expõe `bloco_id` em cada bloco para edição
+    inline. Restrito a admin/coordenador.
+    """
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return p
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
+
+    rel = (
+        db.query(Relatorio)
+        .options(
+            selectinload(Relatorio.secoes).options(
+                selectinload(Secao.responsavel),
+                selectinload(Secao.blocos),
+            ),
+        )
+        .filter(Relatorio.id == rel_id)
+        .one_or_none()
+    )
+    if not rel:
+        raise HTTPException(404, detail="Relatório não encontrado.")
+
+    contexto_pdf = _montar_contexto_pdf(db, rel)
+    resumo_global, categorias_globais = montar_checagens_globais(db, rel)
+    arvore_revisao = _arvore_revisao_navegacao(rel, categorias_globais, [])
+
+    contexto = {
+        "user": user,
+        "rel": rel,
+        "secoes_preview_grupos": contexto_pdf["secoes_preview_grupos"],
+        "sumario_html": contexto_pdf["sumario_html"],
+        "medicao": contexto_pdf["medicao"],
+        "cover_bg_src": contexto_pdf["cover_bg_src"],
+        "cover_produto": contexto_pdf["cover_produto"],
+        "header_logos_src": contexto_pdf["header_logos_src"],
+        "pli_line_src": contexto_pdf["pli_line_src"],
+        "arvore_revisao": arvore_revisao,
+        "resumo_global": resumo_global,
+        "relatorio_editavel": rel.status != "finalizado",
+        "hoje": date.today(),
+        # Conceito de "bloqueio visível": o cadeado por bloco só faz sentido
+        # enquanto a coleta está aberta — ali ele protege contra outros autores.
+        # Em ``em_revisao`` o coordenador é dono do conteúdo e a trava deve
+        # sumir da UI (o campo ``bloqueado`` permanece intacto no DB).
+        "bloqueio_visivel": rel.status == "aberto",
+    }
+    return templates.TemplateResponse(
+        request,
+        "complementos/revisao_edicao.html",
+        contexto,
+    )
+
+
+@router.post("/relatorios/{rel_id}/blocos/{bloco_id}/revisao-salvar")
+# pylint: disable=too-many-return-statements
+async def revisao_salvar_bloco(
+    rel_id: int,
+    bloco_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Auto-save de bloco a partir da página de revisão editorial.
+
+    Recebe JSON com ``conteudo``, ``legenda``, ``fonte`` (todos opcionais).
+    Preserva ``bloqueado`` (admin/coord pode editar mesmo confirmado, sem
+    desbloquear). Recusa em relatórios ``finalizado``. Retorna JSON.
+    """
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
+    if rel.status == "finalizado":
+        return JSONResponse(
+            {"detail": "Relatório finalizado: reverta o status antes de editar."},
+            status_code=409,
+        )
+
+    bloco = db.get(Bloco, bloco_id)
+    sec = db.get(Secao, bloco.secao_id) if bloco else None
+    if not bloco or sec is None or sec.relatorio_id != rel_id:
+        return JSONResponse({"detail": "Bloco não encontrado."}, status_code=404)
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse({"detail": "Payload inválido."}, status_code=400)
+
+    # Defesa em profundidade: se o conteúdo bruto contém marcadores
+    # estruturais ([[FIGURA:..]], [[TABELA..]], [[REF:..]]), a edição inline
+    # destruiria a integridade. O frontend já bloqueia a UI, mas o backend
+    # também recusa explicitamente.
+    bruto_atual = bloco.conteudo or ""
+    tem_marcador = "[[FIGURA:" in bruto_atual or "[[TABELA" in bruto_atual or "[[REF:" in bruto_atual
+    if "conteudo" in payload and tem_marcador:
+        return JSONResponse(
+            {
+                "detail": (
+                    "Bloco contém marcadores de figura/tabela/referência. Edite no Editor de Conteúdo da seção."
+                ),
+            },
+            status_code=409,
+        )
+
+    # Edição parcial: só os campos presentes no JSON são atualizados. Isso
+    # permite ao frontend salvar só legenda/fonte (figura/tabela) sem mexer
+    # em ``conteudo``.
+    if "conteudo" in payload:
+        bloco.conteudo = payload.get("conteudo") or ""
+    if "legenda" in payload:
+        leg = (payload.get("legenda") or "").strip()
+        bloco.legenda = leg or None
+    if "fonte" in payload:
+        fonte = (payload.get("fonte") or "").strip()
+        bloco.fonte = fonte or None
+
+    bloco.updated_at = datetime.utcnow()
+    db.commit()
+    return JSONResponse(
+        {
+            "ok": True,
+            "bloco_id": bloco.id,
+            "updated_at": bloco.updated_at.isoformat(),
+            "bloqueado": bool(bloco.bloqueado),
+        }
+    )
+
+
+@router.post("/relatorios/{rel_id}/blocos/{bloco_id}/revisao-desconfirmar")
+# pylint: disable=too-many-return-statements
+def revisao_desconfirmar_bloco(
+    rel_id: int,
+    bloco_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Reabre um bloco confirmado (`bloqueado=False`) a partir da página de
+    revisão editorial. Exclusivo de admin/coordenador. Idempotente."""
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    rel = db.get(Relatorio, rel_id)
+    if not rel:
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
+    if rel.status == "finalizado":
+        return JSONResponse(
+            {"detail": "Relatório finalizado: reverta o status antes."},
+            status_code=409,
+        )
+
+    bloco = db.get(Bloco, bloco_id)
+    sec = db.get(Secao, bloco.secao_id) if bloco else None
+    if not bloco or sec is None or sec.relatorio_id != rel_id:
+        return JSONResponse({"detail": "Bloco não encontrado."}, status_code=404)
+
+    bloco.bloqueado = False
+    bloco.updated_at = datetime.utcnow()
+    db.commit()
+    return JSONResponse({"ok": True, "bloco_id": bloco.id, "bloqueado": False})
+
+
+@router.post("/relatorios/{rel_id}/revisao-linguistica/vocabulario")
+# pylint: disable=too-many-return-statements
+async def revisao_vocabulario_adicionar(
+    rel_id: int,  # pylint: disable=unused-argument
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Adiciona um termo ao vocabulário do projeto (escopo global, não por
+    relatório — o ``rel_id`` na URL serve apenas como contexto da chamada).
+
+    Body JSON: ``{"termo": "Concremat"}``. Idempotente — termo já existente
+    devolve 200 com ``criado=false``. Restrito a admin/coordenador.
+    """
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse({"detail": "Payload inválido."}, status_code=400)
+    termo = (payload.get("termo") or "").strip()
+    if not termo:
+        return JSONResponse({"detail": "Termo vazio."}, status_code=400)
+
+    try:
+        registro, criado = adicionar_termo_vocabulario(db, termo, user.id)
+    except ValueError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=400)
+    return JSONResponse(
+        {
+            "ok": True,
+            "criado": criado,
+            "termo": registro.termo,
+            "id": registro.id,
+        }
+    )

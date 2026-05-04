@@ -1,7 +1,16 @@
 from datetime import datetime
 from sqlalchemy import (
-    Boolean, Column, Index, Integer, String, Text, DateTime, Date, ForeignKey,
-    LargeBinary, UniqueConstraint,
+    Boolean,
+    Column,
+    Index,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    Date,
+    ForeignKey,
+    LargeBinary,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from .db import Base
@@ -30,7 +39,7 @@ class Relatorio(Base):
     id = Column(Integer, primary_key=True)
     codigo = Column(String(64), nullable=False, unique=True)  # ex: D20-13
     titulo = Column(String(255), nullable=False)
-    mes_referencia = Column(String(32), nullable=False)       # ex: "Abril/2026"
+    mes_referencia = Column(String(32), nullable=False)  # ex: "Abril/2026"
     periodo_inicio = Column(Date, nullable=False)
     periodo_fim = Column(Date, nullable=False)
     numero_medicao = Column(Integer, nullable=True)
@@ -77,7 +86,7 @@ class Secao(Base):
     __tablename__ = "secoes"
     id = Column(Integer, primary_key=True)
     relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
-    numero = Column(String(16), nullable=False)   # 1, 2, 4.1, 4.4...
+    numero = Column(String(16), nullable=False)  # 1, 2, 4.1, 4.4...
     titulo = Column(String(255), nullable=False)
     ordem = Column(Integer, nullable=False, default=0)
     responsavel_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -99,7 +108,7 @@ class Bloco(Base):
     tipo = Column(String(32), nullable=False)  # texto, figura, tabela, lista
     ordem = Column(Integer, nullable=False, default=0)
     titulo = Column(String(255), nullable=True)
-    conteudo = Column(Text, nullable=True)        # markdown / html / json
+    conteudo = Column(Text, nullable=True)  # markdown / html / json
     legenda = Column(String(512), nullable=True)
     fonte = Column(String(255), nullable=True)
     figura_id = Column(Integer, ForeignKey("figuras.id"), nullable=True)
@@ -156,9 +165,7 @@ NOTIFICACAO_TIPOS_VALIDOS = (
 class EntregaRelatorio(Base):
     __tablename__ = "entrega_relatorio"
     id = Column(Integer, primary_key=True)
-    relatorio_id = Column(
-        Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False
-    )
+    relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     status = Column(String(32), nullable=False, default="notificado", server_default="notificado")
     data_envio = Column(DateTime, nullable=True)
@@ -187,17 +194,13 @@ class EntregaRelatorio(Base):
         order_by="NotificacaoEnvio.enviada_em",
     )
 
-    __table_args__ = (
-        UniqueConstraint("relatorio_id", "user_id", name="uq_entrega_rel_user"),
-    )
+    __table_args__ = (UniqueConstraint("relatorio_id", "user_id", name="uq_entrega_rel_user"),)
 
 
 class NotificacaoEnvio(Base):
     __tablename__ = "notificacao_envio"
     id = Column(Integer, primary_key=True)
-    entrega_id = Column(
-        Integer, ForeignKey("entrega_relatorio.id", ondelete="CASCADE"), nullable=False
-    )
+    entrega_id = Column(Integer, ForeignKey("entrega_relatorio.id", ondelete="CASCADE"), nullable=False)
     tipo = Column(String(32), nullable=False)
     enviada_em = Column(DateTime, nullable=False, default=datetime.utcnow)
     sucesso = Column(Boolean, nullable=False, default=False)
@@ -213,9 +216,7 @@ class NotificacaoEnvio(Base):
 
     entrega = relationship("EntregaRelatorio", back_populates="notificacoes")
 
-    __table_args__ = (
-        Index("ix_notif_entrega_data", "entrega_id", "enviada_em"),
-    )
+    __table_args__ = (Index("ix_notif_entrega_data", "entrega_id", "enviada_em"),)
 
 
 class ParametrosCicloNotificacao(Base):
@@ -236,3 +237,22 @@ class ParametrosCicloNotificacao(Base):
     hora_retry_brt_hhmm = Column(String(5), nullable=False, default="12:00")
     observacoes_internas = Column(Text, nullable=True)
     atualizado_em = Column(DateTime, nullable=True)
+
+
+class VocabularioRevisao(Base):
+    """Termos próprios do projeto que o revisor linguístico deve aceitar
+    como ortograficamente corretos (siglas, nomes próprios, jargão técnico).
+
+    Escopo é global ao contrato — não vinculado a um relatório — para que o
+    aprendizado feito numa medição valha nas seguintes. Idempotência: o
+    termo (lowercased) é único.
+    """
+
+    __tablename__ = "vocabulario_revisao"
+
+    id = Column(Integer, primary_key=True)
+    termo = Column(String(128), nullable=False, unique=True)
+    criado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    criado_por = relationship("User")

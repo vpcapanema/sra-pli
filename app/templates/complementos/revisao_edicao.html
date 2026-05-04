@@ -1,0 +1,1320 @@
+{% extends "base.html" %} {% block body_class %}page-revisao-edicao{% endblock
+%} {% block title %}Revisão Editorial · {{ rel.codigo }}{% endblock %} {% block
+header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_extra
+%}
+<link rel="stylesheet" href="/static/css/revisao_edicao.css" />
+<link rel="stylesheet" href="/static/vendor/quill/quill.snow.css" />
+<script src="/static/vendor/quill/quill.js"></script>
+{% endblock %} {% block content %}
+<div
+  id="rev-edit-root"
+  data-rel-id="{{ rel.id }}"
+  data-editavel="{{ '1' if relatorio_editavel else '0' }}"
+>
+  <!-- Ribbon estilo Word (barra de menus em largura total) -->
+  <div class="rev-ribbon">
+    <!-- Barra de menus -->
+    <div class="rev-ribbon__menus">
+      <button
+        type="button"
+        class="rev-ribbon-btn--menu"
+        aria-expanded="false"
+        data-dropdown="arquivo"
+      >
+        Arquivo
+      </button>
+      <div class="rev-ribbon-dropdown__menu" hidden id="dropdown-arquivo">
+        <div class="rev-dropdown-group">
+          <span class="rev-dropdown-group__title">Exportar PDF</span>
+          <button
+            type="button"
+            class="rev-dropdown-item"
+            data-action="export-pdf-todo"
+          >
+            Exportar relatório completo
+          </button>
+          <button
+            type="button"
+            class="rev-dropdown-item"
+            data-action="export-pdf-secoes"
+          >
+            Exportar seções selecionadas
+          </button>
+        </div>
+        <div class="rev-dropdown-group">
+          <span class="rev-dropdown-group__title">Exportar DOCX</span>
+          <button
+            type="button"
+            class="rev-dropdown-item"
+            data-action="export-docx-todo"
+          >
+            Exportar relatório completo
+          </button>
+          <button
+            type="button"
+            class="rev-dropdown-item"
+            data-action="export-docx-secoes"
+          >
+            Exportar seções selecionadas
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="rev-ribbon-btn--menu"
+        aria-expanded="false"
+        data-dropdown="editar"
+      >
+        Editar
+      </button>
+      <div class="rev-ribbon-dropdown__menu" hidden id="dropdown-editar">
+        <button type="button" class="rev-dropdown-item" data-action="salvar">
+          Salvar tudo
+        </button>
+        <button type="button" class="rev-dropdown-item" data-action="desfazer">
+          Desfazer
+        </button>
+        <button type="button" class="rev-dropdown-item" data-action="refazer">
+          Refazer
+        </button>
+        <button
+          type="button"
+          class="rev-dropdown-item rev-dropdown-item--has-submenu"
+          data-submenu="sumario"
+        >
+          Sumário ▶
+        </button>
+        <div class="rev-ribbon-dropdown__submenu" hidden id="submenu-sumario">
+          <button
+            type="button"
+            class="rev-dropdown-item rev-dropdown-item--has-submenu"
+            data-submenu="atualizar-sumario"
+          >
+            Atualizar sumário ▶
+          </button>
+          <div
+            class="rev-ribbon-dropdown__submenu"
+            hidden
+            id="submenu-atualizar-sumario"
+          >
+            <button
+              type="button"
+              class="rev-dropdown-item"
+              data-action="atualizar-sumario-inteiro"
+            >
+              Atualizar sumário inteiro
+            </button>
+            <button
+              type="button"
+              class="rev-dropdown-item"
+              data-action="atualizar-apenas-indices"
+            >
+              Atualizar apenas índices
+            </button>
+            <button
+              type="button"
+              class="rev-dropdown-item"
+              data-action="atualizar-titulos"
+            >
+              Atualizar títulos
+            </button>
+            <button
+              type="button"
+              class="rev-dropdown-item"
+              data-action="atualizar-numero-pagina"
+            >
+              Atualizar número de página
+            </button>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="rev-ribbon-btn--menu"
+        aria-expanded="false"
+        data-dropdown="exibir"
+      >
+        Exibir
+      </button>
+      <div class="rev-ribbon-dropdown__menu" hidden id="dropdown-exibir">
+        <button
+          type="button"
+          class="rev-dropdown-item"
+          data-action="toggle-tree"
+        >
+          Árvore de seções
+        </button>
+        <button
+          type="button"
+          class="rev-dropdown-item"
+          data-action="toggle-dock"
+        >
+          Painel de revisão
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de ferramentas com cards -->
+    <div class="rev-ribbon__toolbar">
+      <!-- Card 1: Estilo -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Estilo</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x2">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="header"
+            data-value="1"
+            title="Título 1"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <text x="4" y="18" font-size="14" font-weight="bold">H1</text>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="header"
+            data-value="2"
+            title="Título 2"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <text x="4" y="18" font-size="12" font-weight="bold">H2</text>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="header"
+            data-value="3"
+            title="Título 3"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <text x="4" y="18" font-size="10" font-weight="bold">H3</text>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="header"
+            data-value="4"
+            title="Título 4"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <text x="4" y="18" font-size="8" font-weight="bold">H4</text>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 2: Fonte -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Fonte</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x2">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="bold"
+            title="Negrito"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+              <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="italic"
+            title="Itálico"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="19" y1="4" x2="10" y2="4"></line>
+              <line x1="14" y1="20" x2="5" y2="20"></line>
+              <line x1="15" y1="4" x2="9" y2="20"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="underline"
+            title="Sublinhado"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path>
+              <line x1="4" y1="21" x2="20" y2="21"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="strike"
+            title="Tachado"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M5 12h14"></path>
+              <path d="M4 12a8 8 0 0 1 8-8 8 8 0 0 1 8 8"></path>
+              <path d="M4 12a8 8 0 0 0 8 8 8 8 0 0 0 8-8"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 3: Lista -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Lista</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x1">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="list"
+            data-value="bullet"
+            title="Lista não ordenada"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <circle cx="4" cy="6" r="1"></circle>
+              <circle cx="4" cy="12" r="1"></circle>
+              <circle cx="4" cy="18" r="1"></circle>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="list"
+            data-value="ordered"
+            title="Lista ordenada"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="10" y1="6" x2="21" y2="6"></line>
+              <line x1="10" y1="12" x2="21" y2="12"></line>
+              <line x1="10" y1="18" x2="21" y2="18"></line>
+              <text x="4" y="8" font-size="6">1</text>
+              <text x="4" y="14" font-size="6">2</text>
+              <text x="4" y="20" font-size="6">3</text>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 4: Alinhamento -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Alinhamento</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x2">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="align"
+            data-value=""
+            title="Alinhar à esquerda"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="17" y1="10" x2="3" y2="10"></line>
+              <line x1="21" y1="6" x2="3" y2="6"></line>
+              <line x1="21" y1="14" x2="3" y2="14"></line>
+              <line x1="21" y1="18" x2="3" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="align"
+            data-value="center"
+            title="Centralizar"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="10" x2="6" y2="10"></line>
+              <line x1="21" y1="6" x2="3" y2="6"></line>
+              <line x1="21" y1="14" x2="3" y2="14"></line>
+              <line x1="21" y1="18" x2="3" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="align"
+            data-value="right"
+            title="Alinhar à direita"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="21" y1="10" x2="7" y2="10"></line>
+              <line x1="21" y1="6" x2="3" y2="6"></line>
+              <line x1="21" y1="14" x2="3" y2="14"></line>
+              <line x1="21" y1="18" x2="3" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="align"
+            data-value="justify"
+            title="Justificar"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="21" y1="10" x2="3" y2="10"></line>
+              <line x1="21" y1="6" x2="3" y2="6"></line>
+              <line x1="21" y1="14" x2="3" y2="14"></line>
+              <line x1="21" y1="18" x2="3" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 5: Inserir -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Inserir</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x2">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-action="add-secao"
+            title="Adicionar seção"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              ></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-action="add-figura"
+            title="Adicionar figura"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-action="add-tabela"
+            title="Adicionar tabela"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+              <line x1="15" y1="3" x2="15" y2="21"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-action="add-bloco"
+            title="Adicionar bloco"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              ></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card Geral -->
+      <div class="rev-toolbar-card">
+        <div class="rev-toolbar-card__header">Geral</div>
+        <div class="rev-toolbar-card__grid rev-toolbar-card__grid--2x1">
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="link"
+            title="Inserir link"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+              ></path>
+              <path
+                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="rev-toolbar-btn rev-toolbar-btn--icon-only"
+            data-quill="clean"
+            title="Limpar formatação"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              ></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botões-card de ação -->
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-salvar"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="salvar"
+          title="Salvar tudo"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+            ></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span>Salvar</span>
+        </button>
+      </div>
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-revisar"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="revisar"
+          title="Revisar texto"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <span>Revisar</span>
+        </button>
+      </div>
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-exportar-pdf"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="export-pdf-todo"
+          title="Exportar PDF"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            ></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <text x="8" y="18" font-size="6" font-weight="bold">PDF</text>
+          </svg>
+          <span>PDF</span>
+        </button>
+      </div>
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-exportar-docx"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="export-docx-todo"
+          title="Exportar DOCX"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            ></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <text x="6" y="18" font-size="5" font-weight="bold">DOCX</text>
+          </svg>
+          <span>DOCX</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workspace 3 colunas -->
+  <div class="rev-workspace" id="rev-workspace">
+    <!-- Árvore de seções (fixa verticalmente) -->
+    <nav class="rev-tree" id="rev-tree">
+      <div class="rev-pane-header">
+        <h3>Seções</h3>
+        <button
+          type="button"
+          class="rev-collapse"
+          data-target="rev-tree"
+          title="Recolher árvore"
+        >
+          ‹
+        </button>
+      </div>
+      <ul class="rev-tree__list">
+        {% for node in arvore_revisao %}
+        <li
+          class="rev-tree__item rev-tree__item--lvl-{{ node.nivel }}{% if node.tem_erro %} rev-has-erro{% elif node.tem_aviso %} rev-has-aviso{% endif %}{% if loop.first %} rev-active{% endif %}"
+        >
+          <a
+            href="#sec-{{ node.numero|replace('.', '-') }}"
+            class="rev-tree__link"
+          >
+            <span class="rev-tree__num"
+              >{{ node.numero if node.numero else '★' }}</span
+            >
+            <span class="rev-tree__ttl">{{ node.titulo }}</span>
+            {% if node.nivel > 0 %}
+            <span
+              class="rev-tree__badge"
+              data-secao-badge="{{ node.numero }}"
+              hidden
+              >0</span
+            >
+            {% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <!-- Documento (scrollável) -->
+    <main class="rev-doc">
+      <div class="rev-doc__scroll">
+        <div class="rev-preview-root">
+          <!-- CAPA -->
+          <div class="rev-sheet rev-sheet--capa">
+            <section class="capa">
+              <img src="{{ cover_bg_src }}" class="capa-bg" alt="" />
+              <div class="subt">
+                <span
+                  >RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or ''
+                  }}</span
+                >
+                <span>Produto {{ cover_produto }}</span>
+              </div>
+            </section>
+          </div>
+
+          <!-- FICHA TÉCNICA -->
+          <div class="rev-sheet">
+            <div class="rev-sheet__hdr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">2</span>
+            </div>
+            <div class="rev-sheet__body">
+              <section class="ficha">
+                <h2>Relatório Mensal {{ rel.codigo }}</h2>
+                <table>
+                  <tr>
+                    <td>
+                      Código do documento<span class="valor"
+                        >{{ rel.codigo }}</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Título<span class="valor">RELATÓRIO MENSAL</span></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Elaboração<span class="valor"
+                        >Consórcio Concremat / Transplan</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Contrato<span class="valor">Contrato Nº 22.607-5</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Contratação<span class="valor"
+                        >Secretaria de Meio Ambiente, Infraestrutura e Logística
+                        – SEMIL – Governo do Estado de São Paulo</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Financiamento<span class="valor"
+                        >Banco Interamericano de Desenvolvimento (BID)</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Observações<span class="valor"
+                        >Este Relatório corresponde ao entregável {{ rel.codigo
+                        }}.</span
+                      >
+                    </td>
+                  </tr>
+                </table>
+                <table class="versoes">
+                  <thead>
+                    <tr>
+                      <th>Versão</th>
+                      <th>Data</th>
+                      <th>Conteúdo das modificações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>&nbsp;</td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                    <tr>
+                      <td>&nbsp;</td>
+                      <td></td>
+                      <td></td>
+                    </tr>
+                    <tr>
+                      <td>{{ rel.versao }}</td>
+                      <td>{{ hoje.strftime("%d/%m/%Y") if hoje else '' }}</td>
+                      <td>Versão inicial</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+            </div>
+            <div class="rev-sheet__ftr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">2</span>
+            </div>
+          </div>
+
+          <!-- SUMÁRIO -->
+          <div class="rev-sheet">
+            <div class="rev-sheet__hdr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">3</span>
+            </div>
+            <div class="rev-sheet__body">
+              <section class="sumario">
+                <h2>Sumário</h2>
+                {{ sumario_html|safe }}
+              </section>
+            </div>
+            <div class="rev-sheet__ftr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">3</span>
+            </div>
+          </div>
+
+          <!-- SEÇÕES -->
+          {% for grupo in secoes_preview_grupos %}
+          <div class="rev-sheet">
+            <div class="rev-sheet__hdr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">{{ 3 + loop.index }}</span>
+            </div>
+            <div class="rev-sheet__body">
+              {% for s in grupo %} {% set nivel = s.numero.count('.') + 1 %}
+              <section
+                id="sec-{{ s.numero|replace('.', '-') }}"
+                class="secao lvl-{{ nivel }}"
+              >
+                <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
+                {% if s.blocos %} {% for b in s.blocos %} {% include
+                "complementos/_revisao_edicao_bloco.html" %} {% endfor %} {%
+                else %}
+                <p class="empty-section">— sem conteúdo nesta seção —</p>
+                {% endif %}
+              </section>
+              {% endfor %}
+            </div>
+            <div class="rev-sheet__ftr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg">{{ 3 + loop.index }}</span>
+            </div>
+          </div>
+          {% endfor %}
+
+          <!-- ASSINATURAS -->
+          <div class="rev-sheet">
+            <div class="rev-sheet__hdr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg"
+                >{{ 3 + (secoes_preview_grupos|length) + 1 }}</span
+              >
+            </div>
+            <div class="rev-sheet__body">
+              <section class="assinaturas">
+                <h2>Página de assinaturas</h2>
+                <p>
+                  Este documento foi compilado automaticamente pelo SRA —
+                  Sistema de Relatórios de Atividades — em {{
+                  hoje.strftime("%d/%m/%Y") if hoje else '' }}, e está pronto
+                  para assinatura eletrônica via plataforma D4Sign.
+                </p>
+                <div class="sig-row">
+                  <div class="linha">
+                    Coordenação Técnica — Consórcio Concremat–Transplan
+                  </div>
+                </div>
+                <div class="sig-row">
+                  <div class="linha">Fiscalização — SEMIL/DER-SP</div>
+                </div>
+                <div class="nota">
+                  Documento gerado a partir das submissões individuais da equipe
+                  multidisciplinar, consolidado pelo editor responsável. Versão
+                  {{ rel.versao }} · Código de referência: {{ rel.codigo }} ·
+                  Status: {{ rel.status }}.
+                </div>
+              </section>
+            </div>
+            <div class="rev-sheet__ftr">
+              <span
+                >Plano de Logística e Investimentos do Estado de SP | PLI
+                2050</span
+              >
+              <span class="rev-sheet__pg"
+                >{{ 3 + (secoes_preview_grupos|length) + 1 }}</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Status bar monocromática no rodapé do scroll -->
+        <div class="rev-statusbar">
+          <span class="rev-statusbar__chip" id="rev-chip-save" hidden
+            >Salvo</span
+          >
+          <span class="rev-statusbar__chip" id="rev-chip-ocorrencias" hidden
+            >0 ocorrências</span
+          >
+          <span class="rev-statusbar__chip" id="rev-chip-motor"
+            >Revisor: —</span
+          >
+          <span class="rev-statusbar__chip">{{ rel.codigo }}</span>
+          <span class="rev-statusbar__chip">{{ rel.mes_referencia }}</span>
+          <span class="rev-statusbar__chip"
+            >{{ secoes_preview_grupos|length }} páginas</span
+          >
+        </div>
+      </div>
+    </main>
+
+    <!-- Dock de revisão linguística (fixo verticalmente) -->
+    <aside class="rev-dock" id="rev-dock">
+      <div class="rev-pane-header">
+        <h3>Revisão Linguística</h3>
+        <button
+          type="button"
+          class="rev-collapse"
+          data-target="rev-dock"
+          title="Recolher dock"
+        >
+          ›
+        </button>
+      </div>
+      <div class="rev-dock__filters">
+        <button
+          type="button"
+          class="rev-filter rev-filter--on"
+          data-filter="todas"
+        >
+          Todas <span class="rev-filter__c" data-count="todas">0</span>
+        </button>
+        <button type="button" class="rev-filter" data-filter="ortografia">
+          Ortografia
+          <span class="rev-filter__c" data-count="ortografia">0</span>
+        </button>
+        <button type="button" class="rev-filter" data-filter="gramatica">
+          Gramática <span class="rev-filter__c" data-count="gramatica">0</span>
+        </button>
+        <button type="button" class="rev-filter" data-filter="estilo">
+          Estilo <span class="rev-filter__c" data-count="estilo">0</span>
+        </button>
+      </div>
+      <p class="rev-dock__hint" id="rev-dock-hint">
+        Clique em "Revisar texto" para analisar ortografia, gramática e estilo
+        do relatório inteiro.
+      </p>
+      <p class="rev-dock__hint" id="rev-dock-motor-sub" hidden></p>
+      <ul class="rev-dock__list" id="rev-dock-list" hidden></ul>
+    </aside>
+  </div>
+
+  <!-- Banner de status do relatório (parte inferior) -->
+  <div
+    class="rev-banner{% if rel.status == 'aberto' %} rev-banner--warn{% endif %}"
+  >
+    <div class="rev-banner__meta">
+      <span class="rev-chip rev-chip--status-{{ rel.status }}"
+        >{{ rel.status | replace('_', ' ') }}</span
+      >
+      <span class="rev-chip">{{ rel.codigo }}</span>
+      <span class="rev-chip">{{ rel.mes_referencia }}</span>
+    </div>
+    <div class="rev-banner__actions">
+      <a
+        href="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao"
+        class="rev-btn rev-btn--ghost"
+        >Voltar para Validação</a
+      >
+    </div>
+  </div>
+</div>
+
+<!-- Modal para adicionar seção -->
+<div id="modal-add-secao" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog">
+    <div class="rev-modal__header">
+      <h3>Adicionar Seção</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-add-secao" class="rev-modal__body">
+      <label for="add-secao-titulo">Título da seção</label>
+      <input
+        type="text"
+        id="add-secao-titulo"
+        name="titulo"
+        required
+        placeholder="Ex.: 4.4 Atividades de padronização"
+      />
+
+      <label for="add-secao-pai">Seção pai (opcional)</label>
+      <select id="add-secao-pai" name="secao_pai_id">
+        <option value="">-- Seção raiz --</option>
+        {% for s in rel.secoes %}
+        <option value="{{ s.id }}">{{ s.numero }} - {{ s.titulo }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Criar seção
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para adicionar figura -->
+<div id="modal-add-figura" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog">
+    <div class="rev-modal__header">
+      <h3>Adicionar Figura</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-add-figura" class="rev-modal__body">
+      <label for="add-figura-secao">Seção</label>
+      <select id="add-figura-secao" name="secao_id" required>
+        {% for s in rel.secoes %}
+        <option value="{{ s.id }}">{{ s.numero }} - {{ s.titulo }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="add-figura-legenda">Legenda</label>
+      <input
+        type="text"
+        id="add-figura-legenda"
+        name="legenda"
+        placeholder="Ex.: Figura 4.1 - Fluxo do processo"
+      />
+
+      <label for="add-figura-fonte">Fonte</label>
+      <input
+        type="text"
+        id="add-figura-fonte"
+        name="fonte"
+        placeholder="Ex.: Dados da empresa"
+      />
+
+      <label for="add-figura-arquivo">Arquivo de imagem</label>
+      <input
+        type="file"
+        id="add-figura-arquivo"
+        name="arquivo"
+        accept="image/*"
+      />
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Adicionar figura
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para adicionar tabela -->
+<div id="modal-add-tabela" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog">
+    <div class="rev-modal__header">
+      <h3>Adicionar Tabela</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-add-tabela" class="rev-modal__body">
+      <label for="add-tabela-secao">Seção</label>
+      <select id="add-tabela-secao" name="secao_id" required>
+        {% for s in rel.secoes %}
+        <option value="{{ s.id }}">{{ s.numero }} - {{ s.titulo }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="add-tabela-legenda">Legenda</label>
+      <input
+        type="text"
+        id="add-tabela-legenda"
+        name="legenda"
+        placeholder="Ex.: Tabela 4.1 - Métricas do mês"
+      />
+
+      <label for="add-tabela-fonte">Fonte</label>
+      <input
+        type="text"
+        id="add-tabela-fonte"
+        name="fonte"
+        placeholder="Ex.: Dados da empresa"
+      />
+
+      <label for="add-tabela-conteudo">Conteúdo HTML da tabela</label>
+      <textarea
+        id="add-tabela-conteudo"
+        name="conteudo"
+        rows="10"
+        placeholder="<table>...</table>"
+      ></textarea>
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Adicionar tabela
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para adicionar bloco de texto -->
+<div id="modal-add-bloco" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog">
+    <div class="rev-modal__header">
+      <h3>Adicionar Bloco de Texto</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-add-bloco" class="rev-modal__body">
+      <label for="add-bloco-secao">Seção</label>
+      <select id="add-bloco-secao" name="secao_id" required>
+        {% for s in rel.secoes %}
+        <option value="{{ s.id }}">{{ s.numero }} - {{ s.titulo }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="add-bloco-tipo">Tipo</label>
+      <select id="add-bloco-tipo" name="tipo" required>
+        <option value="texto">Texto</option>
+        <option value="lista">Lista</option>
+      </select>
+
+      <label for="add-bloco-titulo">Título (opcional)</label>
+      <input
+        type="text"
+        id="add-bloco-titulo"
+        name="titulo"
+        placeholder="Ex.: 4.4.1 Descrição do processo"
+      />
+
+      <label for="add-bloco-conteudo">Conteúdo</label>
+      <textarea
+        id="add-bloco-conteudo"
+        name="conteudo"
+        rows="10"
+        required
+        placeholder="Digite o conteúdo do bloco..."
+      ></textarea>
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Adicionar bloco
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para exportar PDF - seções selecionadas -->
+<div id="modal-export-pdf-secoes" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog" style="max-width: 600px">
+    <div class="rev-modal__header">
+      <h3>Exportar PDF - Seções Selecionadas</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-export-pdf-secoes" class="rev-modal__body">
+      <label>Selecione as seções para exportar:</label>
+      <div class="rev-secoes-list">
+        {% for s in rel.secoes %}
+        <label class="rev-secao-item">
+          <input type="checkbox" name="secoes" value="{{ s.id }}" checked />
+          <span>{{ s.numero }} - {{ s.titulo }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Exportar PDF
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para exportar DOCX - seções selecionadas -->
+<div id="modal-export-docx-secoes" class="rev-modal" hidden>
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog" style="max-width: 600px">
+    <div class="rev-modal__header">
+      <h3>Exportar DOCX - Seções Selecionadas</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <form id="form-export-docx-secoes" class="rev-modal__body">
+      <label>Selecione as seções para exportar:</label>
+      <div class="rev-secoes-list">
+        {% for s in rel.secoes %}
+        <label class="rev-secao-item">
+          <input type="checkbox" name="secoes" value="{{ s.id }}" checked />
+          <span>{{ s.numero }} - {{ s.titulo }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="rev-modal__actions">
+        <button type="button" class="rev-btn" data-action="close-modal">
+          Cancelar
+        </button>
+        <button type="submit" class="rev-btn rev-btn--primary">
+          Exportar DOCX
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', path='js/revisao_edicao.js') }}"></script>
+{% endblock %}

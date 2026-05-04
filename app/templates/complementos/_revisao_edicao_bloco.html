@@ -1,0 +1,116 @@
+{# Partial: render de um único bloco na página de Revisão editorial. Variáveis
+no escopo: `b` (item do pdf_render), `s` (seção dict), `rel`,
+`bloqueio_visivel`. O cadeado por bloco só é UX-relevante enquanto o relatório
+está em ``aberto``; em ``em_revisao`` a trava é inerte (o campo ``bloqueado``
+permanece intacto no DB, sem efeito de UI). #} {% set _body_attrs =
+'data-edit-field="conteudo" data-edit-mode="rich"' if b.editavel_inline else
+'data-readonly="marcadores"' %}
+<div
+  id="bloco-{{ b.bloco_id }}"
+  class="bloco rev-block{% if bloqueio_visivel and b.bloqueado %} rev-block--locked{% endif %}{% if not b.editavel_inline %} rev-block--complexo{% endif %}"
+  data-bloco-id="{{ b.bloco_id }}"
+  data-bloco-tipo="{{ b.tipo }}"
+  data-bloqueado="{{ '1' if b.bloqueado else '0' }}"
+  data-bloqueio-visivel="{{ '1' if bloqueio_visivel else '0' }}"
+  data-editavel-inline="{{ '1' if b.editavel_inline else '0' }}"
+  data-secao-id="sec-{{ s.numero|replace('.', '-') }}"
+  tabindex="0"
+>
+  <div class="rev-block__bar" aria-hidden="true">
+    <span class="rev-block__tag">#{{ b.bloco_id }} · {{ b.tipo }}</span>
+    {% if bloqueio_visivel and b.bloqueado %}
+    <span class="rev-block__lock" title="Bloco confirmado pelo autor"
+      >🔒 confirmado</span
+    >
+    <button
+      type="button"
+      class="rev-block__btn"
+      data-action="desconfirmar"
+      title="Reabrir bloco"
+    >
+      Desconfirmar
+    </button>
+    {% endif %} {% if not b.editavel_inline and b.tipo in ('texto', 'lista') %}
+    <span
+      class="rev-block__warn"
+      title="Conteúdo com marcadores [[FIGURA/TABELA/REF]]"
+      >⚠ marcadores</span
+    >
+    {% endif %}
+    <button
+      type="button"
+      class="rev-block__btn rev-block__btn--danger"
+      data-action="delete-bloco"
+      data-bloco-id="{{ b.bloco_id }}"
+      data-secao-id="{{ s.id }}"
+      title="Excluir bloco"
+    >
+      🗑️
+    </button>
+    <span class="rev-block__save-state" data-save-state></span>
+  </div>
+  {% if b.titulo %}
+  <h3 class="rev-block__h3">{{ b.titulo }}</h3>
+  {% endif %} {% if b.tipo == 'texto' %}
+  <div class="rev-block__body" {{ _body_attrs|safe }}>{{ b.html|safe }}</div>
+  {% if not b.editavel_inline %}
+  <div class="rev-block__hint">
+    Bloco com marcadores estruturais.
+    <a href="/relatorios/{{ rel.id }}#sec-{{ s.numero|replace('.', '-') }}"
+      >Abrir no Editor de Conteúdo</a
+    >.
+  </div>
+  {% endif %} {% elif b.tipo == 'lista' %}
+  <div class="rev-block__body" {{ _body_attrs|safe }}>
+    {{ b.lista_html|safe }}
+  </div>
+  {% if not b.editavel_inline %}
+  <div class="rev-block__hint">
+    Bloco com marcadores estruturais.
+    <a href="/relatorios/{{ rel.id }}#sec-{{ s.numero|replace('.', '-') }}"
+      >Abrir no Editor de Conteúdo</a
+    >.
+  </div>
+  {% endif %} {% elif b.tipo == 'figura' %}
+  <div class="figura">
+    {% if b.src %}
+    <img src="{{ b.src }}" alt="" />
+    {% else %}
+    <p class="empty-section">[Figura importada sem imagem vinculada]</p>
+    {% endif %}
+    <div class="cap" data-edit-field="legenda" data-edit-mode="plain">
+      Figura {{ b.numero }} —
+      <span data-legenda-text
+        >{% if b.legenda %}{{ b.legenda }}{% else %}<span
+          class="rev-placeholder"
+          >(legenda)</span
+        >{% endif %}</span
+      >
+    </div>
+    <div class="src" data-edit-field="fonte" data-edit-mode="plain">
+      Fonte:
+      <span data-fonte-text
+        >{% if b.fonte %}{{ b.fonte }}{% else %}<span class="rev-placeholder"
+          >(fonte)</span
+        >{% endif %}</span
+      >
+    </div>
+  </div>
+  {% elif b.tipo == 'tabela' %}
+  <div class="tabela">
+    {% if b.tabela_html %} {{ b.tabela_html|safe }} {% else %}
+    <div class="cap">
+      Tabela {{ b.numero }}{% if b.legenda %} — {{ b.legenda }}{% endif %}
+    </div>
+    {% endif %}
+    <div class="src" data-edit-field="fonte" data-edit-mode="plain">
+      Fonte:
+      <span data-fonte-text
+        >{% if b.fonte %}{{ b.fonte }}{% else %}<span class="rev-placeholder"
+          >(fonte)</span
+        >{% endif %}</span
+      >
+    </div>
+  </div>
+  {% endif %}
+</div>

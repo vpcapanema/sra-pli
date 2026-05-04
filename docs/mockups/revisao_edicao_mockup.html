@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Revisão editorial</title>
+<style>
+  @page { size: A4 landscape; margin: 14mm; }
+  :root{
+    --c-bg:#f4f5f7; --c-line:#c8ced6; --c-line2:#9aa4b2;
+    --c-ink:#1a2430; --c-ink2:#55627a; --c-muted:#7b8699;
+    --c-accent:#143a6b; --c-accent2:#2b6cb0;
+    --c-red:#c62828; --c-amber:#b45309; --c-blue:#1f4e9c;
+    --c-warn:#fff4d6; --c-warn-b:#e0b400;
+    --c-ok:#e6f4ea; --c-ok-b:#1e7e34;
+    --c-soft:#eef2f7;
+  }
+  *{box-sizing:border-box}
+  html,body{font-family:"Segoe UI", Arial, sans-serif; color:var(--c-ink); margin:0; padding:0; font-size:10.5pt}
+  .page{page-break-after:always; display:flex; flex-direction:column; height:100%}
+  .page:last-child{page-break-after:auto}
+  h1{font-size:15pt; margin:0 0 2mm; color:var(--c-accent)}
+  h2{font-size:11.5pt; margin:0 0 1.5mm; color:var(--c-accent)}
+  .caption{font-size:9pt; color:var(--c-muted); margin:0 0 3mm}
+  .legend{display:flex; gap:6mm; flex-wrap:wrap; font-size:8.5pt; color:var(--c-ink2); margin-top:2mm}
+  .legend .sw{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; border:1px solid var(--c-line2)}
+
+  /* ------- Frame do app ------- */
+  .app{flex:1; display:flex; flex-direction:column; border:1px solid var(--c-line2); border-radius:6px; overflow:hidden; background:#fff}
+  .topbar{display:flex; align-items:center; gap:6mm; padding:2.5mm 4mm; background:#11294d; color:#fff; font-size:9pt}
+  .topbar .brand{font-weight:600}
+  .topbar .meta{color:#cdd7e6}
+  .topbar .spacer{flex:1}
+  .topbar .chip{background:#1e4482; border:1px solid #2c5ca6; padding:1mm 2.5mm; border-radius:999px; font-size:8.5pt}
+  .topbar .btn{background:#2b6cb0; border:none; color:#fff; padding:1.2mm 3mm; border-radius:4px; font-size:8.5pt}
+  .topbar .btn.ghost{background:transparent; border:1px solid #4a6fa5}
+
+  .body{flex:1; display:flex; min-height:0}
+  .col{border-right:1px solid var(--c-line); min-height:0; display:flex; flex-direction:column}
+  .col:last-child{border-right:none}
+  .col h3{margin:0; padding:2mm 3mm; font-size:9pt; color:var(--c-ink2); background:var(--c-soft); border-bottom:1px solid var(--c-line); text-transform:uppercase; letter-spacing:.04em}
+
+  /* ------- Árvore esquerda ------- */
+  .tree{width:58mm; background:#fbfcfe}
+  .tree ul{list-style:none; margin:0; padding:1.5mm 2mm 2mm}
+  .tree li{font-size:8.8pt; padding:1mm 2mm; border-radius:3px; display:flex; align-items:center; gap:2mm; color:var(--c-ink)}
+  .tree li.active{background:#e3ecf9; color:var(--c-accent)}
+  .tree li .n{color:var(--c-muted); min-width:10mm}
+  .tree li .badge{margin-left:auto; font-size:7.5pt; padding:.4mm 1.5mm; border-radius:999px; border:1px solid}
+  .b-red{color:var(--c-red); border-color:var(--c-red); background:#fdecec}
+  .b-amb{color:var(--c-amber); border-color:var(--c-amber); background:#fff4d6}
+  .b-blu{color:var(--c-blue); border-color:var(--c-blue); background:#e4ecfa}
+  .b-ok {color:var(--c-ok-b); border-color:var(--c-ok-b); background:var(--c-ok)}
+  .tree li.child{padding-left:8mm}
+  .tree li.child2{padding-left:14mm}
+
+  /* ------- Documento central ------- */
+  .doc{flex:1; background:var(--c-bg); padding:3mm; overflow:hidden; position:relative}
+  .sheet{background:#fff; border:1px solid var(--c-line2); box-shadow:0 1px 2px rgba(0,0,0,.04); margin:0 auto 3mm; padding:8mm 9mm; position:relative}
+  .sheet .hdr{font-size:7.8pt; color:var(--c-muted); border-bottom:1px solid var(--c-line); padding-bottom:1.5mm; display:flex; justify-content:space-between}
+  .sheet .ftr{font-size:7.8pt; color:var(--c-muted); border-top:1px solid var(--c-line); padding-top:1.5mm; display:flex; justify-content:space-between; margin-top:3mm}
+  .sheet h4{font-size:10.5pt; color:var(--c-accent); margin:3mm 0 1.5mm}
+  .sheet h5{font-size:9.8pt; color:var(--c-accent); margin:2.5mm 0 1mm}
+  .sheet p{font-size:8.8pt; line-height:1.45; margin:0 0 1.8mm; text-align:justify}
+  .sheet ul{font-size:8.8pt; line-height:1.45; margin:0 0 2mm 5mm}
+  .sheet .fig{border:1px dashed var(--c-line2); background:#fafbfd; height:22mm; display:flex; align-items:center; justify-content:center; color:var(--c-muted); font-size:8pt; margin:1mm 0}
+  .sheet .cap{font-size:7.8pt; color:var(--c-ink2); text-align:center; margin:0 0 2mm}
+
+  /* Destaques de revisão */
+  .mark-orto{border-bottom:2px dotted var(--c-red)}
+  .mark-gram{border-bottom:2px dotted var(--c-amber)}
+  .mark-est {border-bottom:2px dotted var(--c-blue)}
+
+  /* Afordância de edição (bloco em foco) */
+  .block-focus{outline:2px solid #2b6cb0; outline-offset:2px; position:relative}
+  .toolbar{position:absolute; top:-7mm; left:0; background:#11294d; color:#fff; font-size:7.5pt; padding:1mm 2mm; border-radius:4px; display:flex; gap:2mm}
+  .toolbar span{padding:.3mm 1.2mm; border-radius:2px; background:#1e4482}
+  .saved{position:absolute; top:-7mm; right:0; font-size:7.2pt; color:var(--c-ok-b); background:var(--c-ok); border:1px solid var(--c-ok-b); padding:.4mm 2mm; border-radius:3px}
+
+  /* Marcador REF não editável */
+  .ref-chip{display:inline-block; font-size:7.8pt; padding:0 1mm; border-radius:3px; background:#eef4ff; color:var(--c-accent); border:1px solid #b6c9e6}
+
+  /* ------- Dock direito ------- */
+  .dock{width:78mm; background:#fff}
+  .dock .filters{display:flex; gap:2mm; padding:2mm 3mm; border-bottom:1px solid var(--c-line); font-size:8pt}
+  .dock .filters .f{padding:.6mm 2mm; border:1px solid var(--c-line2); border-radius:999px; color:var(--c-ink2)}
+  .dock .filters .f.on{background:#e3ecf9; color:var(--c-accent); border-color:#7aa2d6}
+  .dock .list{padding:2mm 3mm; overflow:hidden}
+  .item{border:1px solid var(--c-line); border-left:3px solid var(--c-red); border-radius:4px; padding:2mm; margin-bottom:2mm; font-size:8.3pt}
+  .item.gram{border-left-color:var(--c-amber)}
+  .item.est {border-left-color:var(--c-blue)}
+  .item .tag{font-size:7.2pt; color:var(--c-muted); text-transform:uppercase; letter-spacing:.04em}
+  .item .q{color:var(--c-ink); margin:.8mm 0}
+  .item .q .bad{background:#fdecec; padding:0 1mm; border-radius:2px}
+  .item .sug{color:var(--c-ink2)}
+  .item .sug b{color:var(--c-ok-b)}
+  .item .actions{display:flex; gap:1.5mm; margin-top:1.2mm}
+  .item .actions span{font-size:7.4pt; padding:.5mm 1.8mm; border:1px solid var(--c-line2); border-radius:3px; color:var(--c-ink2)}
+  .item .actions .primary{background:#2b6cb0; color:#fff; border-color:#2b6cb0}
+
+  /* ------- Notas/anotações ------- */
+  .note{position:absolute; background:#fff7d6; border:1px solid var(--c-warn-b); padding:2mm 2.5mm; font-size:8pt; color:#5a4200; border-radius:4px; max-width:68mm; box-shadow:0 2px 3px rgba(0,0,0,.05)}
+  .note b{display:block; color:#a07300; font-size:8.2pt; margin-bottom:.8mm}
+  .arrow{position:absolute; border-top:1.2px dashed #a07300}
+
+  /* Full section titles for mockup pages */
+  .section-title{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2mm}
+  .section-title small{color:var(--c-muted); font-size:8.5pt}
+</style>
+</head>
+<body>
+
+<!-- =================== PÁGINA 1 — Visão geral do layout =================== -->
+<section class="page">
+  <div class="section-title">
+    <h1>Revisão editorial — visão geral do layout</h1>
+    <small>SRA · PLI-SP · mockup estático (não é a UI final)</small>
+  </div>
+  <p class="caption">Página nova <b>revisao_edicao.html</b>, rota proposta <b>/relatorios/{id}/revisao-edicao</b> (admin/coord). Coexiste com <i>validacao_revisao.html</i>; o fluxo de aprovar/reprovar entregas continua na página de validação.</p>
+
+  <div class="app">
+    <!-- Topbar -->
+    <div class="topbar">
+      <span class="brand">SRA</span>
+      <span class="meta">D20-15 · R02 · mai/2026</span>
+      <span class="chip">Revisor: LT + pyspell (PT-BR)</span>
+      <span class="chip">12 ocorrências</span>
+      <span class="spacer"></span>
+      <span class="btn ghost">Voltar</span>
+      <span class="btn">Revisar</span>
+      <span class="btn ghost">Exportar PDF</span>
+    </div>
+
+    <div class="body">
+      <!-- Árvore -->
+      <div class="col tree">
+        <h3>Árvore do relatório</h3>
+        <ul>
+          <li><span class="n">1</span> Apresentação <span class="badge b-ok">ok</span></li>
+          <li><span class="n">2</span> Equipe <span class="badge b-amb">2</span></li>
+          <li class="active"><span class="n">4</span> Atividades do período <span class="badge b-red">5</span></li>
+          <li class="child"><span class="n">4.1</span> Planejamento <span class="badge b-blu">1</span></li>
+          <li class="child active"><span class="n">4.2</span> Execução <span class="badge b-red">3</span></li>
+          <li class="child2"><span class="n">4.2.1</span> Fiscalização</li>
+          <li class="child2"><span class="n">4.2.2</span> Medições</li>
+          <li class="child"><span class="n">4.3</span> Ocorrências <span class="badge b-amb">1</span></li>
+          <li><span class="n">5</span> Considerações finais</li>
+          <li><span class="n">6</span> Anexos</li>
+        </ul>
+      </div>
+
+      <!-- Documento paginado (preview reduzido) -->
+      <div class="col doc">
+        <h3 style="position:absolute; top:0; left:0; right:0; z-index:2">Documento · folhas A4 empilhadas · scroll vertical</h3>
+        <div style="height:6mm"></div>
+        <div class="sheet" style="width:105mm; min-height:140mm">
+          <div class="hdr"><span>SRA · D20-15 · R02</span><span>mai/2026</span></div>
+          <h4>4. Atividades do período</h4>
+          <p>No mês de referência foram executadas as atividades de <span class="mark-gram">fiscalização</span> e acompanhamento das frentes de serviço, conforme cronograma contratual.</p>
+          <h5>4.2 Execução</h5>
+          <p>A equipe registrou avanço físico de <b>37,4%</b> no <span class="mark-orto">trexo</span> urbano. Vide <span class="ref-chip">Figura 4.1</span> e <span class="ref-chip">Tabela 4.2</span>.</p>
+          <div class="fig">[ Figura 4.1 — foto da frente de obra ]</div>
+          <p class="cap">Figura 4.1 — Frente de serviço km 12+300. Fonte: equipe de campo.</p>
+          <p>A produtividade <span class="mark-est">foi realizada de maneira satisfatória</span>, conforme indicadores do contrato.</p>
+          <div class="ftr"><span>Concremat-Transplan</span><span>pág. 7</span></div>
+        </div>
+        <div class="sheet" style="width:105mm; min-height:40mm">
+          <div class="hdr"><span>SRA · D20-15 · R02</span><span>mai/2026</span></div>
+          <h5>4.2.1 Fiscalização</h5>
+          <p>As inspeções diárias foram conduzidas pela equipe técnica…</p>
+          <div class="ftr"><span>Concremat-Transplan</span><span>pág. 8</span></div>
+        </div>
+      </div>
+
+      <!-- Dock -->
+      <div class="col dock">
+        <h3>Revisão linguística · PT-BR</h3>
+        <div class="filters">
+          <span class="f on">Todas (12)</span>
+          <span class="f">Ortografia · 6</span>
+          <span class="f">Gramática · 4</span>
+          <span class="f">Estilo · 2</span>
+        </div>
+        <div class="list">
+          <div class="item">
+            <div class="tag">Ortografia · Seção 4.2 · bloco 184</div>
+            <div class="q">"… avanço físico no <span class="bad">trexo</span> urbano …"</div>
+            <div class="sug">Sugestão: <b>trecho</b></div>
+            <div class="actions"><span class="primary">Aceitar</span><span>Ignorar</span><span>Add. vocabulário</span></div>
+          </div>
+          <div class="item gram">
+            <div class="tag">Gramática · Seção 4 · bloco 180</div>
+            <div class="q">"… atividades de fiscalização e acompanhamento …"</div>
+            <div class="sug">Concordância: verificar sujeito composto.</div>
+            <div class="actions"><span class="primary">Ver contexto</span><span>Ignorar</span></div>
+          </div>
+          <div class="item est">
+            <div class="tag">Estilo · Seção 4.2 · bloco 185</div>
+            <div class="q">"… <span class="bad">foi realizada de maneira satisfatória</span> …"</div>
+            <div class="sug">Prolixo; considere: <b>ocorreu conforme previsto</b>.</div>
+            <div class="actions"><span class="primary">Aceitar</span><span>Ignorar</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:#fdecec;border-color:#c62828"></span>Ortografia</span>
+    <span><span class="sw" style="background:#fff4d6;border-color:#b45309"></span>Gramática</span>
+    <span><span class="sw" style="background:#e4ecfa;border-color:#1f4e9c"></span>Estilo</span>
+    <span><span class="sw" style="background:#eef4ff;border-color:#b6c9e6"></span>Marcador REF (não editável)</span>
+    <span><span class="sw" style="background:#e3ecf9;border-color:#7aa2d6"></span>Item selecionado</span>
+  </div>
+</section>
+
+<!-- =================== PÁGINA 2 — Edição inline em foco =================== -->
+<section class="page">
+  <div class="section-title">
+    <h1>Edição inline — Quill por bloco (lazy)</h1>
+    <small>Toolbar flutuante · auto-save · marcadores preservados</small>
+  </div>
+  <p class="caption">Ao focar um bloco, o Quill é instanciado sob demanda; ao sair de foco, o HTML é serializado (mantendo <code>&lt;!--SRA_RICH--&gt;</code>) e o editor é destruído. Marcadores <b>[[REF:]]</b>, <b>[[FIGURA:]]</b> e <b>[[TABELA:]]</b> entram no DOM como <i>chips</i> não-editáveis.</p>
+
+  <div class="app">
+    <div class="topbar">
+      <span class="brand">SRA</span>
+      <span class="meta">D20-15 · R02 · Seção 4.2 Execução</span>
+      <span class="chip">Auto-save: on · debounce 1s</span>
+      <span class="spacer"></span>
+      <span class="btn ghost">Descartar alterações</span>
+      <span class="btn">Salvar agora</span>
+    </div>
+
+    <div class="body">
+      <div class="col tree">
+        <h3>Árvore</h3>
+        <ul>
+          <li><span class="n">4</span> Atividades do período</li>
+          <li class="child active"><span class="n">4.2</span> Execução</li>
+          <li class="child2"><span class="n">4.2.1</span> Fiscalização</li>
+          <li class="child2"><span class="n">4.2.2</span> Medições</li>
+        </ul>
+      </div>
+
+      <div class="col doc" style="flex:1">
+        <h3 style="position:absolute; top:0; left:0; right:0; z-index:2">Documento · bloco em foco</h3>
+        <div style="height:6mm"></div>
+
+        <div class="sheet" style="width:165mm; min-height:165mm; position:relative">
+          <div class="hdr"><span>SRA · D20-15 · R02</span><span>mai/2026</span></div>
+          <h4>4.2 Execução</h4>
+
+          <p>A equipe de fiscalização acompanhou diariamente as frentes ativas, registrando ocorrências no diário de obra.</p>
+
+          <!-- Bloco em edição -->
+          <div class="block-focus" style="padding:2mm">
+            <div class="toolbar">
+              <span>B</span><span><i>I</i></span><span>U</span>
+              <span>H2</span><span>H3</span>
+              <span>• Lista</span><span>1. Lista</span>
+              <span>Link</span><span>⌫ Limpar</span>
+            </div>
+            <div class="saved">● Salvo 2s atrás</div>
+            <p>A produtividade ocorreu conforme previsto, com avanço físico de <b>37,4%</b> no trecho urbano, conforme <span class="ref-chip">Figura 4.1</span> e <span class="ref-chip">Tabela 4.2</span>.</p>
+            <p>As medições parciais foram consolidadas no sistema e encaminhadas à coordenação.</p>
+          </div>
+
+          <h5>4.2.1 Fiscalização</h5>
+          <div class="fig">[ Figura 4.2 — inspeção de armadura ]</div>
+          <p class="cap">Figura 4.2 — Inspeção de armadura. <b style="color:var(--c-blue)">Legenda e fonte editáveis</b>. Fonte: equipe de campo.</p>
+
+          <p>Foram emitidas 3 notificações técnicas à construtora, todas respondidas dentro do prazo contratual.</p>
+
+          <div class="ftr"><span>Concremat-Transplan</span><span>pág. 9</span></div>
+
+          <!-- Anotações -->
+          <div class="note" style="top:70mm; right:-60mm; width:58mm">
+            <b>Quill sob demanda</b>
+            Uma instância por bloco focado. Em blocos distantes, o DOM é HTML puro — zero custo.
+          </div>
+          <div class="note" style="top:115mm; right:-60mm; width:58mm">
+            <b>Figura</b>
+            Apenas <i>legenda</i> e <i>fonte</i> são editáveis aqui. Imagem e estrutura seguem em <i>secao_edit_conteudo_upload</i>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== PÁGINA 3 — Dock de revisão em ação =================== -->
+<section class="page">
+  <div class="section-title">
+    <h1>Dock de revisão linguística — interação</h1>
+    <small>Clique em sublinhado → card no dock · Aceitar aplica patch no bloco</small>
+  </div>
+  <p class="caption">O dock consome o endpoint existente <b>POST /relatorios/{id}/revisao-linguistica</b> (LanguageTool + pyspellchecker + vocabulário do projeto). Ocorrências ficam cacheadas por hash de conteúdo do bloco; reanálise incremental ao salvar.</p>
+
+  <div class="app">
+    <div class="topbar">
+      <span class="brand">SRA</span>
+      <span class="meta">D20-15 · R02</span>
+      <span class="chip">Revisor: LT + pyspell</span>
+      <span class="chip">Última análise: há 14s</span>
+      <span class="spacer"></span>
+      <span class="btn ghost">Revisar só seção 4.2</span>
+      <span class="btn">Revisar tudo</span>
+    </div>
+
+    <div class="body">
+      <div class="col tree" style="width:48mm">
+        <h3>Seções</h3>
+        <ul>
+          <li><span class="n">1</span> Apresentação <span class="badge b-ok">ok</span></li>
+          <li class="active"><span class="n">4.2</span> Execução <span class="badge b-red">3</span></li>
+          <li><span class="n">4.3</span> Ocorrências <span class="badge b-amb">1</span></li>
+        </ul>
+      </div>
+
+      <div class="col doc">
+        <h3 style="position:absolute; top:0; left:0; right:0; z-index:2">Documento</h3>
+        <div style="height:6mm"></div>
+        <div class="sheet" style="width:120mm; min-height:150mm">
+          <div class="hdr"><span>SRA · D20-15 · R02</span><span>mai/2026</span></div>
+          <h4>4.2 Execução</h4>
+          <p>A equipe registrou avanço físico de <b>37,4%</b> no <span class="mark-orto">trexo</span> urbano.</p>
+          <p>A produtividade <span class="mark-est">foi realizada de maneira satisfatória</span>, conforme indicadores.</p>
+          <p>As atividades de fiscalização <span class="mark-gram">ocorreu</span> em regime integral.</p>
+          <div class="ftr"><span>Concremat-Transplan</span><span>pág. 9</span></div>
+        </div>
+      </div>
+
+      <div class="col dock" style="width:95mm">
+        <h3>Ocorrências · 3 nesta seção</h3>
+        <div class="filters">
+          <span class="f on">Todas</span><span class="f">Ortografia</span><span class="f">Gramática</span><span class="f">Estilo</span>
+          <span class="f" style="margin-left:auto">Seção atual</span>
+        </div>
+        <div class="list">
+          <div class="item">
+            <div class="tag">Ortografia · bloco 184</div>
+            <div class="q">"… físico de 37,4% no <span class="bad">trexo</span> urbano."</div>
+            <div class="sug">Sugestões: <b>trecho</b>, trecho (mais provável)</div>
+            <div class="actions"><span class="primary">Aceitar "trecho"</span><span>Ignorar sessão</span><span>Add. vocabulário</span></div>
+          </div>
+          <div class="item est">
+            <div class="tag">Estilo · bloco 185</div>
+            <div class="q">"A produtividade <span class="bad">foi realizada de maneira satisfatória</span>, conforme…"</div>
+            <div class="sug">Prolixo. Alternativas: <b>ocorreu conforme previsto</b> · atendeu ao previsto</div>
+            <div class="actions"><span class="primary">Aceitar</span><span>Outras sugestões</span><span>Ignorar</span></div>
+          </div>
+          <div class="item gram">
+            <div class="tag">Gramática · bloco 186</div>
+            <div class="q">"As atividades de fiscalização <span class="bad">ocorreu</span> em regime…"</div>
+            <div class="sug">Concordância verbal. Sugestão: <b>ocorreram</b></div>
+            <div class="actions"><span class="primary">Aceitar "ocorreram"</span><span>Ignorar</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="caption" style="margin-top:3mm">
+    <b>Modo degradado:</b> sem Java no servidor, o chip do topo exibe "Revisor: pyspell (só ortografia)"; o fluxo da UI permanece idêntico, só desaparecem ocorrências de gramática/estilo.
+    <b>Read-only:</b> relatório com status <i>finalizado</i> abre sem Quill, apenas com o dock ativo para navegação histórica.
+  </p>
+</section>
+
+</body>
+</html>

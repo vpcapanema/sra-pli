@@ -1,4 +1,5 @@
 """Coordenador pode ativar 'modo edição' por relatório para mutar blocos já bloqueados."""
+
 from __future__ import annotations
 
 from starlette.requests import Request
@@ -21,11 +22,31 @@ def modo_edicao_coordenador_rel(request: Request, user: User, rel_id: int) -> bo
         return False
 
 
-def pode_mutar_apesar_de_bloqueado(request: Request, user: User, rel_id: int) -> bool:
-    """Administrador sempre; coordenador só com modo edição ligado neste relatório."""
+def pode_mutar_apesar_de_bloqueado(
+    request: Request,
+    user: User,
+    rel_id: int,
+    rel_status: str | None = None,
+) -> bool:
+    """Decide se um bloco com ``bloqueado=True`` ainda pode ser mutado.
+
+    Matriz por status do relatório (consulte ``project-instructions.md``):
+
+    - ``rel_status == "aberto"``: ``bloqueado`` é trava **cooperativa** entre
+      autores; admin sempre passa, coordenador precisa ligar o **modo edição**
+      explícito para esta sessão.
+    - ``rel_status == "em_revisao"``: a coleta encerrou e o coord é dono do
+      conteúdo — coordenador e admin passam **sem** modo edição.
+    - ``rel_status`` ``None`` (legado): mantém comportamento conservador
+      (apenas admin + modo edição coord), idêntico à versão anterior.
+    """
     if user.role == "admin":
         return True
-    return modo_edicao_coordenador_rel(request, user, rel_id)
+    if user.role == "coordenador":
+        if rel_status == "em_revisao":
+            return True
+        return modo_edicao_coordenador_rel(request, user, rel_id)
+    return False
 
 
 def definir_modo_edicao_coordenador(request: Request, rel_id: int | None) -> None:

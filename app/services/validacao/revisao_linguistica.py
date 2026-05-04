@@ -9,6 +9,7 @@ A análise corre apenas sobre texto plano de blocos `texto`, `lista` e sobre
 legenda/fonte de blocos `figura`/`tabela`. HTML/JSON é despido com regex
 simples — bom o suficiente para o nosso conteúdo.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -19,7 +20,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ...models import Bloco, Relatorio, Secao
+from ...models import Bloco, Relatorio, Secao, VocabularioRevisao
 from .checagens_globais import autor_rotulo_secao
 from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
 
@@ -123,6 +124,7 @@ def _lt_instance() -> Any:
     global _LT_INSTANCE  # pylint: disable=global-statement
     if _LT_INSTANCE is None:
         import language_tool_python  # type: ignore  # pylint: disable=import-outside-toplevel,import-error
+
         _LT_INSTANCE = language_tool_python.LanguageTool("pt-BR")
     return _LT_INSTANCE
 
@@ -131,7 +133,7 @@ def _analisar_lt(texto: str) -> list[AchadoLing]:
     tool = _lt_instance()
     out: list[AchadoLing] = []
     for m in tool.check(texto):
-        trecho = texto[m.offset:m.offset + m.errorLength] if m.errorLength else ""
+        trecho = texto[m.offset : m.offset + m.errorLength] if m.errorLength else ""
         out.append(
             AchadoLing(
                 regra=m.ruleId,
@@ -147,17 +149,58 @@ def _analisar_lt(texto: str) -> list[AchadoLing]:
 # Backend: pyspellchecker (só ortografia; default sempre disponível)
 # ---------------------------------------------------------------------------
 _SP_INSTANCE: Any = None
+_SP_VOCAB_DB: tuple[str, ...] = ()
 
 
 def _sp_instance() -> Any:
-    """Singleton do SpellChecker em PT, com vocabulário do projeto carregado."""
+    """Singleton do SpellChecker em PT, com vocabulário do projeto carregado.
+
+    O vocabulário combina ``_VOCAB_PROJETO`` (constantes hardcoded) com
+    ``_SP_VOCAB_DB`` (termos persistidos via UI). Quando
+    ``invalidar_vocabulario_db`` é chamado, o singleton é descartado para
+    recarregar com a nova lista.
+    """
     global _SP_INSTANCE  # pylint: disable=global-statement
     if _SP_INSTANCE is None:
         from spellchecker import SpellChecker  # pylint: disable=import-outside-toplevel,import-error
+
         sp = SpellChecker(language="pt", distance=1)
-        sp.word_frequency.load_words([t.lower() for t in _VOCAB_PROJETO])
+        termos = [t.lower() for t in _VOCAB_PROJETO] + list(_SP_VOCAB_DB)
+        sp.word_frequency.load_words(termos)
         _SP_INSTANCE = sp
     return _SP_INSTANCE
+
+
+def carregar_vocabulario_db(db: Session) -> None:
+    """Lê os termos persistidos e atualiza ``_SP_VOCAB_DB``. Recria o
+    singleton do SpellChecker se já existir, para refletir os novos termos
+    na próxima análise."""
+    global _SP_VOCAB_DB, _SP_INSTANCE  # pylint: disable=global-statement
+    rows = db.query(VocabularioRevisao.termo).all()
+    _SP_VOCAB_DB = tuple(r[0].lower() for r in rows if r[0])
+    _SP_INSTANCE = None
+
+
+def adicionar_termo_vocabulario(db: Session, termo: str, user_id: int | None) -> tuple[VocabularioRevisao, bool]:
+    """Adiciona um termo ao vocabulário (idempotente — match case-insensitive).
+
+    Retorna ``(registro, criado_agora)``. Recarrega o vocabulário em memória
+    para que a próxima análise já reconheça o termo.
+    """
+    chave = (termo or "").strip()
+    if not chave:
+        raise ValueError("Termo vazio.")
+    if len(chave) > 128:
+        raise ValueError("Termo excede 128 caracteres.")
+    existente = db.query(VocabularioRevisao).filter(VocabularioRevisao.termo == chave.lower()).one_or_none()
+    if existente is not None:
+        return existente, False
+    novo = VocabularioRevisao(termo=chave.lower(), criado_por_id=user_id)
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    carregar_vocabulario_db(db)
+    return novo, True
 
 
 def _analisar_sp(texto: str) -> list[AchadoLing]:
@@ -213,6 +256,15 @@ def analisar_relatorio(db: Session, rel: Relatorio) -> ResultadoLing:
     """
     rel_full = load_relatorio_secoes_blocos_responsavel(db, rel.id)
     motor = _detectar_motor()
+    # Garante que o vocabulário persistido está carregado antes da análise
+    # (idempotente; barato — uma query). Necessário para refletir termos
+    # adicionados pela UI sem precisar reiniciar o processo.
+    if motor in ("pyspellchecker", "languagetool"):
+        try:
+            if _SP_INSTANCE is None:
+                carregar_vocabulario_db(db)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Falha ao carregar vocabulário do DB: %s", exc)
     if motor == "desligado":
         return ResultadoLing(
             motor=motor,
@@ -225,10 +277,7 @@ def analisar_relatorio(db: Session, rel: Relatorio) -> ResultadoLing:
         return ResultadoLing(
             motor=motor,
             motor_rotulo=_ROTULOS[motor],
-            aviso_motor=(
-                _AVISO_MOTOR[motor]
-                or "Sem texto utilizável no relatório (apenas figuras/tabelas)."
-            ),
+            aviso_motor=(_AVISO_MOTOR[motor] or "Sem texto utilizável no relatório (apenas figuras/tabelas)."),
         )
 
     secoes_resultado: list[SecaoLing] = []

@@ -55,7 +55,8 @@ async def sra_http_audit_log(request: Request, call_next):
         path.startswith("/relatorios")
         or path.startswith("/usuarios")
         or path.endswith("/upload-conteudo")
-        or ("/importar/" in path) or ("/relatorios/" in path)
+        or ("/importar/" in path)
+        or ("/relatorios/" in path)
     )
     if not instrumentar or path.startswith("/static/"):
         return await call_next(request)
@@ -84,11 +85,7 @@ async def sra_hub_sidebar_context(request: Request, call_next):
     request.state.sra_hub_rel_id = None
     request.state.sra_hub_primeira_secao_id = None
     path = request.url.path
-    if (
-        request.method == "GET"
-        and request.session.get("user_id")
-        and not path.startswith("/static")
-    ):
+    if request.method == "GET" and request.session.get("user_id") and not path.startswith("/static"):
         db = SessionLocal()
         try:
             row = db.execute(
@@ -146,14 +143,21 @@ def favicon_ico():
     )
 
 
+@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+def chrome_devtools_config():
+    """Retorna configuração para Chrome DevTools Remote Debugging."""
+    return {
+        "port": 9222,
+        "version": "1.0",
+    }
+
+
 app.include_router(auth_routes.router)
 app.include_router(governanca_relatorio_routes.router)
 app.include_router(page_routes.router)
 app.include_router(mapa_aplicacao_routes.router)
 app.include_router(rel_routes.router)
-app.include_router(
-    relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"]
-)
+app.include_router(relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"])
 app.include_router(bloco_routes.router)
 app.include_router(cron_admin_routes.router)
 app.include_router(sendgrid_events_routes.router)

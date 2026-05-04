@@ -25,6 +25,7 @@ class _RenderCtx:
     de um relatorio: cache de figuras (carregado uma vez) e mapas de
     referencias estaveis. Mantem assinaturas das funcoes de render curtas.
     """
+
     figuras_by_id: dict[int, "Figura"] = field(default_factory=dict)
     mapas: ref_resolve.MapasRef = field(default_factory=ref_resolve.MapasRef)
 
@@ -88,7 +89,9 @@ def _produto_codigo_capa(codigo: str | None) -> str:
 
 
 _RE_FIGURA = re.compile(r"\[\[FIGURA:([^\|\]]+)(?:\|([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\]")
-_RE_TABELA = re.compile(r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL)
+_RE_TABELA = re.compile(
+    r"\[\[TABELA(?::([^\|\]]+))?(?:\|([^\|\]]+))?(?:\|([^\]]*))?\]\](.*?)\[\[/TABELA\]\]", re.DOTALL
+)
 
 
 def _esc(s: str) -> str:
@@ -276,7 +279,7 @@ def _render_texto_html(  # pylint: disable=too-many-locals
     parts: list = []
     last = 0
     for m in _RE_TABELA.finditer(conteudo_corpo):
-        parts.append(("texto", conteudo_corpo[last:m.start()]))
+        parts.append(("texto", conteudo_corpo[last : m.start()]))
         idx_raw, posicao, legenda, corpo = _parse_tabela_marker(m)
         tab_counter += 1
         numero = _idx_efetivo(idx_raw, _label_secao(sec_top, tab_counter))
@@ -291,7 +294,7 @@ def _render_texto_html(  # pylint: disable=too-many-locals
             continue
         sub_last = 0
         for mf in _RE_FIGURA.finditer(chunk):
-            out_html.append(_text_chunk_para_html(chunk[sub_last:mf.start()]))
+            out_html.append(_text_chunk_para_html(chunk[sub_last : mf.start()]))
             idx_raw, fid, posicao, legenda = _parse_figura_marker(mf)
             fig_counter += 1
             numero = _idx_efetivo(idx_raw, _label_secao(sec_top, fig_counter))
@@ -313,15 +316,25 @@ def _render_bloco_item(
     ``contadores`` (chaves ``"fig"``/``"tab"``) in-place. Centraliza a logica
     para manter ``_montar_contexto`` enxuto e legivel.
     """
-    legenda = (
-        ref_resolve.resolver_referencias(bloco.legenda, ctx.mapas) if bloco.legenda else bloco.legenda
-    )
+    legenda = ref_resolve.resolver_referencias(bloco.legenda, ctx.mapas) if bloco.legenda else bloco.legenda
+    # Marcadores estruturais ([[FIGURA:..]], [[TABELA..]], [[REF:..]]) são
+    # *consumidos* no render — editar inline o HTML resolvido e salvar de
+    # volta destruiria a relação com figuras/tabelas/referências. A página
+    # de Revisão editorial usa esta flag para vetar Quill nesses blocos e
+    # apontar o usuário para o Editor de Conteúdo.
+    bruto = bloco.conteudo or ""
+    tem_marcador_estrutural = "[[FIGURA:" in bruto or "[[TABELA" in bruto or "[[REF:" in bruto
+    editavel_inline = bloco.tipo in ("texto", "lista") and not tem_marcador_estrutural
     item: dict = {
+        "bloco_id": bloco.id,
         "tipo": bloco.tipo,
         "titulo": bloco.titulo,
-        "conteudo": bloco.conteudo or "",
+        "conteudo": bruto,
         "legenda": legenda,
         "fonte": bloco.fonte,
+        "bloqueado": bool(getattr(bloco, "bloqueado", False)),
+        "editavel_inline": editavel_inline,
+        "tem_marcador_estrutural": tem_marcador_estrutural,
     }
 
     def _label(n: int) -> str:
@@ -335,9 +348,7 @@ def _render_bloco_item(
     elif bloco.tipo == "tabela":
         contadores["tab"] += 1
         item["numero"] = _label(contadores["tab"])
-        item["tabela_html"] = _render_tabela_inner_html(
-            bloco.conteudo or "", legenda or "", item["numero"], "S"
-        )
+        item["tabela_html"] = _render_tabela_inner_html(bloco.conteudo or "", legenda or "", item["numero"], "S")
     elif bloco.tipo == "lista":
         from .list_lines import list_text_to_html
 
@@ -386,9 +397,9 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
             if b.figura_id:
                 figura_ids.add(b.figura_id)
             figura_ids.update(_figura_ids_no_texto(b.conteudo or ""))
-    figuras_by_id = {
-        fig.id: fig for fig in db.query(Figura).filter(Figura.id.in_(figura_ids)).all()
-    } if figura_ids else {}
+    figuras_by_id = (
+        {fig.id: fig for fig in db.query(Figura).filter(Figura.id.in_(figura_ids)).all()} if figura_ids else {}
+    )
 
     ctx = _RenderCtx(
         figuras_by_id=figuras_by_id,
@@ -406,17 +417,16 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
             "fig": fig_by_top.get(sec_top, 0),
             "tab": tab_by_top.get(sec_top, 0),
         }
-        blocos_render = [
-            _render_bloco_item(b, ctx, contadores, sec_top, sec.numero)
-            for b in sec.blocos
-        ]
+        blocos_render = [_render_bloco_item(b, ctx, contadores, sec_top, sec.numero) for b in sec.blocos]
         fig_by_top[sec_top] = contadores["fig"]
         tab_by_top[sec_top] = contadores["tab"]
-        secoes.append({
-            "numero": sec.numero,
-            "titulo": sec.titulo,
-            "blocos": blocos_render,
-        })
+        secoes.append(
+            {
+                "numero": sec.numero,
+                "titulo": sec.titulo,
+                "blocos": blocos_render,
+            }
+        )
     sumario_items = []
     for s in secoes:
         nivel_real = s["numero"].count(".") + 1

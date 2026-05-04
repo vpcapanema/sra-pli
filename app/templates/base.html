@@ -1,289 +1,356 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
-      {% block title %}{{ user and user.nome or 'SRA' }}{% endblock %}
-    · SRA</title>
+      {% block title %}{{ user and user.nome or 'SRA' }}{% endblock %} · SRA
+    </title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/css/app.css" />
-    {% block head_extra %}{% endblock %}
-    {% if user %}
-      <script>
-        window.__SRA_CONSOLE_VERBOSE__ = {{ 'true' if sra_console_verbose else 'false' }};
-      </script>
-      <script src="/static/js/sra_log.js"></script>
-      <script src="/static/js/sra_auth_fetch.js"></script>
-      <script src="/static/js/sra_process_ui.js"></script>
+    {% block head_extra %}{% endblock %} {% if user %}
+    <script>
+      window.__SRA_CONSOLE_VERBOSE__ = {{ 'true' if sra_console_verbose else 'false' }};
+    </script>
+    <script src="/static/js/sra_log.js"></script>
+    <script src="/static/js/sra_auth_fetch.js"></script>
+    <script src="/static/js/sra_process_ui.js"></script>
     {% endif %}
   </head>
-  <body class="{% if user %}sra-app {% endif %}{% block body_class %}{% endblock %}">
+  <body
+    class="{% if user %}sra-app {% endif %}{% block body_class %}{% endblock %}"
+  >
     {% if user %}
-      <aside id="sb">
-        <div id="sb-hdr">
-          <h1>SRA · PLI-SP</h1>
-          <p>
-            Sistema de Relatórios de Atividades
-            <br>
-            Concremat–Transplan
-          </p>
-        </div>
-        <nav aria-label="Navegação principal">
-          <span class="sb-sep">Navegação</span>
-          {% set _path = request.url.path %}
-          {% set _parts_hub = _path.strip('/').split('/') %}
-          {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
-          {% set _on_rel = _path == '/dashboard' or _relatorio_sumario or _path.endswith('/entregas') %}
-          {% set _on_upload = _path == '/painel-upload' or _path.endswith('/upload-conteudo') or _path.startswith('/modelos-word-importacao') %}
-          {% set _on_usu = _path.startswith('/usuarios') %}
-          {% set _on_crt = _path.startswith('/governanca-relatorio') %}
-          {% set _on_suporte = _path.startswith('/mapa-aplicacao') or _path.startswith('/dev/') %}
-          {% set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %}
-          {% set _open_rel = 'open' if _on_rel else '' %}
-          {% set _cls_upload = 'ni-grp ni-grp-active' if _on_upload else 'ni-grp' %}
-          {% set _open_upload = 'open' if _on_upload else '' %}
-          {% set _cls_usu = 'ni-grp ni-grp-active' if _on_usu else 'ni-grp' %}
-          {% set _open_usu = 'open' if _on_usu else '' %}
-          {% set _cls_crt = 'ni-grp ni-grp-active' if _on_crt else 'ni-grp' %}
-          {% set _open_crt = 'open' if _on_crt else '' %}
-          {% set _cls_suporte = 'ni-grp ni-grp-active' if _on_suporte else 'ni-grp' %}
-          {% set _open_suporte = 'open' if _on_suporte else '' %}
-          {% set _hub_rid = rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
-          {% set _hub_sid = none %}
-          {% if sec is defined and sec %}
-            {% set _hub_sid = sec.id %}
-          {% elif rel is defined and rel %}
-            {% set _sorted_hub_sec = (rel.secoes | sort(attribute='ordem')) if rel.secoes else [] %}
-            {% set _hub_sid = (_sorted_hub_sec[0].id if _sorted_hub_sec else none) %}
-          {% else %}
-            {% set _hub_sid = request.state.sra_hub_primeira_secao_id %}
-          {% endif %}
-          {% set _url_sumario_hub = ("/relatorios/" ~ _hub_rid) if _hub_rid else "/painel-upload" %}
-          {% set _url_upload_hub = (
-            "/relatorios/" ~ _hub_rid ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo"
-          ) if (_hub_rid and _hub_sid) else "/painel-upload" %}
-          {% set _url_entregas_hub = ("/relatorios/" ~ _hub_rid ~ "/entregas") if _hub_rid else "/painel-upload" %}
-          {% set _url_validacao_hub = ("/relatorios/" ~ _hub_rid ~ "/validacao-revisao") if _hub_rid else "/painel-upload" %}
-          {% set _on_val = _path.endswith('/validacao-revisao') %}
-          {% if _on_val %}
-            {% set _cls_rel = 'ni-grp ni-grp-active' %}
-            {% set _open_rel = 'open' %}
-          {% endif %}
-          {% if user.role in ['admin','coordenador'] %}
-            <details class="{{ _cls_rel }}" {{ _open_rel }}>
-              <summary class="ni ni-toggle">
-                <span class="num">01</span><span class="nlbl">Relatórios</span>
-                <span class="ni-caret" aria-hidden="true">▾</span>
-              </summary>
-              <div class="ni-sub">
-                <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
-                <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário do relatório</a>
-                <a class="ni-sub-link" href="{{ _url_entregas_hub }}">Entregas do relatório</a>
-                <a class="ni-sub-link" href="{{ _url_validacao_hub }}">Validação e Revisão</a>
-              </div>
-            </details>
-          {% endif %}
-          <details class="{{ _cls_upload }}" {{ _open_upload }}>
-            <summary class="ni ni-toggle">
-              <span class="num">02</span><span class="nlbl">Conteúdo e importação</span>
-              <span class="ni-caret" aria-hidden="true">▾</span>
-            </summary>
-            <div class="ni-sub">
-              <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário do relatório</a>
-              <a class="ni-sub-link" href="{{ _url_upload_hub }}">Editor de conteúdo</a>
-              <a class="ni-sub-link" href="/modelos-word-importacao">Modelos Word (.dotx)</a>
-            </div>
-          </details>
-          {% if user.role in ['admin','coordenador'] %}
-            <details class="{{ _cls_usu }}" {{ _open_usu }}>
-              <summary class="ni ni-toggle">
-                <span class="num">03</span><span class="nlbl">Pessoas e permissões</span>
-                <span class="ni-caret" aria-hidden="true">▾</span>
-              </summary>
-              <div class="ni-sub">
-                <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
-              </div>
-            </details>
-            <details class="{{ _cls_crt }}" {{ _open_crt }}>
-              <summary class="ni ni-toggle">
-                <span class="num">04</span><span class="nlbl">Governança</span>
-                <span class="ni-caret" aria-hidden="true">▾</span>
-              </summary>
-              <div class="ni-sub">
-                <a class="ni-sub-link" href="/governanca-relatorio">Governança do relatório</a>
-              </div>
-            </details>
-            <details class="{{ _cls_suporte }}" {{ _open_suporte }}>
-              <summary class="ni ni-toggle">
-                <span class="num">05</span><span class="nlbl">Suporte e diagnóstico</span>
-                <span class="ni-caret" aria-hidden="true">▾</span>
-              </summary>
-              <div class="ni-sub">
-                <a class="ni-sub-link" href="/mapa-aplicacao">Mapa da aplicação</a>
-                {% if request.state.sra_modais_preview_allowed %}
-                  <a class="ni-sub-link" href="/dev/modais">Prévia de modais</a>
-                  <a class="ni-sub-link" href="/dev/preview-emails-notificacao">Prévia de e-mails</a>
-                {% endif %}
-              </div>
-            </details>
-          {% endif %}
-        </nav>
-        <div id="sb-foot">
-          {{ user.nome }}
-          <br>
-          <span class="sb-role">{{ user.role }}</span>
-          <br>
-          <a href="/logout" class="sb-logout">Sair</a>
-        </div>
-      </aside>
-      <div id="sb-resizer" class="sb-resizer" role="separator" aria-orientation="vertical" aria-label="Redimensionar barra lateral" aria-controls="sb" aria-valuemin="260" aria-valuemax="520" aria-valuenow="260" tabindex="0"></div>
-      <div id="main">
-        <header id="dh">
-          <h2>
-            {% block header %}{% endblock %}
-          </h2>
-          <div class="session-bar" title="Sessão atual">
-            <span class="sf"><span class="sf-lbl">Nome</span><span class="sf-val">{{ user.nome }}</span></span>
-            <span class="sf"><span class="sf-lbl">E-mail</span><span class="sf-val">{{ user.email }}</span></span>
-            <span class="sf"><span class="sf-lbl">Perfil</span><span class="sf-val sf-role">{{ user.role }}</span></span>
+    <aside id="sb">
+      <div id="sb-hdr">
+        <h1>SRA · PLI-SP</h1>
+        <p>
+          Sistema de Relatórios de Atividades
+          <br />
+          Concremat–Transplan
+        </p>
+      </div>
+      <nav aria-label="Navegação principal">
+        <span class="sb-sep">Navegação</span>
+        {% set _path = request.url.path %} {% set _parts_hub =
+        _path.strip('/').split('/') %} {% set _relatorio_sumario = (_parts_hub |
+        length == 2 and _parts_hub[0] == 'relatorios' and
+        _parts_hub[1].isdigit()) %} {% set _on_rel = _path == '/dashboard' or
+        _relatorio_sumario or _path.endswith('/entregas') %} {% set _on_upload =
+        _path == '/painel-upload' or _path.endswith('/upload-conteudo') or
+        _path.startswith('/modelos-word-importacao') %} {% set _on_usu =
+        _path.startswith('/usuarios') %} {% set _on_crt =
+        _path.startswith('/governanca-relatorio') %} {% set _on_suporte =
+        _path.startswith('/mapa-aplicacao') or _path.startswith('/dev/') %} {%
+        set _cls_rel = 'ni-grp ni-grp-active' if _on_rel else 'ni-grp' %} {% set
+        _open_rel = 'open' if _on_rel else '' %} {% set _cls_upload = 'ni-grp
+        ni-grp-active' if _on_upload else 'ni-grp' %} {% set _open_upload =
+        'open' if _on_upload else '' %} {% set _cls_usu = 'ni-grp ni-grp-active'
+        if _on_usu else 'ni-grp' %} {% set _open_usu = 'open' if _on_usu else ''
+        %} {% set _cls_crt = 'ni-grp ni-grp-active' if _on_crt else 'ni-grp' %}
+        {% set _open_crt = 'open' if _on_crt else '' %} {% set _cls_suporte =
+        'ni-grp ni-grp-active' if _on_suporte else 'ni-grp' %} {% set
+        _open_suporte = 'open' if _on_suporte else '' %} {% set _hub_rid =
+        rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
+        {% set _hub_sid = none %} {% if sec is defined and sec %} {% set
+        _hub_sid = sec.id %} {% elif rel is defined and rel %} {% set
+        _sorted_hub_sec = (rel.secoes | sort(attribute='ordem')) if rel.secoes
+        else [] %} {% set _hub_sid = (_sorted_hub_sec[0].id if _sorted_hub_sec
+        else none) %} {% else %} {% set _hub_sid =
+        request.state.sra_hub_primeira_secao_id %} {% endif %} {% set
+        _url_sumario_hub = ("/relatorios/" ~ _hub_rid) if _hub_rid else
+        "/painel-upload" %} {% set _url_upload_hub = ( "/relatorios/" ~ _hub_rid
+        ~ "/secoes/" ~ _hub_sid ~ "/upload-conteudo" ) if (_hub_rid and
+        _hub_sid) else "/painel-upload" %} {% set _url_entregas_hub =
+        ("/relatorios/" ~ _hub_rid ~ "/entregas") if _hub_rid else
+        "/painel-upload" %} {% set _url_validacao_hub = ("/relatorios/" ~
+        _hub_rid ~ "/validacao-revisao") if _hub_rid else "/painel-upload" %} {%
+        set _url_revisao_edicao_hub = ("/relatorios/" ~ _hub_rid ~
+        "/revisao-edicao") if _hub_rid else "/painel-upload" %} {% set _on_val =
+        _path.endswith('/validacao-revisao') %} {% set _on_rev_edicao =
+        _path.endswith('/revisao-edicao') %} {% if _on_val or _on_rev_edicao %}
+        {% set _cls_rel = 'ni-grp ni-grp-active' %} {% set _open_rel = 'open' %}
+        {% endif %} {% if user.role in ['admin','coordenador'] %}
+        <details class="{{ _cls_rel }}" {{ _open_rel }}>
+          <summary class="ni ni-toggle">
+            <span class="num">01</span><span class="nlbl">Relatórios</span>
+            <span class="ni-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ni-sub">
+            <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
+            <a class="ni-sub-link" href="{{ _url_sumario_hub }}"
+              >Sumário do relatório</a
+            >
+            <a class="ni-sub-link" href="{{ _url_entregas_hub }}"
+              >Entregas do relatório</a
+            >
+            <a class="ni-sub-link" href="{{ _url_validacao_hub }}"
+              >Validação e Revisão</a
+            >
+            <a class="ni-sub-link" href="{{ _url_revisao_edicao_hub }}"
+              >Revisão editorial</a
+            >
           </div>
-          <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
-        </header>
-        <div id="content">
-          {% block content %}{% endblock %}
+        </details>
+        {% endif %}
+        <details class="{{ _cls_upload }}" {{ _open_upload }}>
+          <summary class="ni ni-toggle">
+            <span class="num">02</span
+            ><span class="nlbl">Conteúdo e importação</span>
+            <span class="ni-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ni-sub">
+            <a class="ni-sub-link" href="{{ _url_sumario_hub }}"
+              >Sumário do relatório</a
+            >
+            <a class="ni-sub-link" href="{{ _url_upload_hub }}"
+              >Editor de conteúdo</a
+            >
+            <a class="ni-sub-link" href="/modelos-word-importacao"
+              >Modelos Word (.dotx)</a
+            >
+          </div>
+        </details>
+        {% if user.role in ['admin','coordenador'] %}
+        <details class="{{ _cls_usu }}" {{ _open_usu }}>
+          <summary class="ni ni-toggle">
+            <span class="num">03</span
+            ><span class="nlbl">Pessoas e permissões</span>
+            <span class="ni-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ni-sub">
+            <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
+          </div>
+        </details>
+        <details class="{{ _cls_crt }}" {{ _open_crt }}>
+          <summary class="ni ni-toggle">
+            <span class="num">04</span><span class="nlbl">Governança</span>
+            <span class="ni-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ni-sub">
+            <a class="ni-sub-link" href="/governanca-relatorio"
+              >Governança do relatório</a
+            >
+          </div>
+        </details>
+        <details class="{{ _cls_suporte }}" {{ _open_suporte }}>
+          <summary class="ni ni-toggle">
+            <span class="num">05</span
+            ><span class="nlbl">Suporte e diagnóstico</span>
+            <span class="ni-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ni-sub">
+            <a class="ni-sub-link" href="/mapa-aplicacao">Mapa da aplicação</a>
+            {% if request.state.sra_modais_preview_allowed %}
+            <a class="ni-sub-link" href="/dev/modais">Prévia de modais</a>
+            <a class="ni-sub-link" href="/dev/preview-emails-notificacao"
+              >Prévia de e-mails</a
+            >
+            {% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </nav>
+      <div id="sb-foot">
+        {{ user.nome }}
+        <br />
+        <span class="sb-role">{{ user.role }}</span>
+        <br />
+        <a href="/logout" class="sb-logout">Sair</a>
+      </div>
+    </aside>
+    <div
+      id="sb-resizer"
+      class="sb-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Redimensionar barra lateral"
+      aria-controls="sb"
+      aria-valuemin="260"
+      aria-valuemax="520"
+      aria-valuenow="260"
+      tabindex="0"
+    ></div>
+    <div id="main">
+      <header id="dh">
+        <h2>{% block header %}{% endblock %}</h2>
+        <div class="session-bar" title="Sessão atual">
+          <span class="sf"
+            ><span class="sf-lbl">Nome</span
+            ><span class="sf-val">{{ user.nome }}</span></span
+          >
+          <span class="sf"
+            ><span class="sf-lbl">E-mail</span
+            ><span class="sf-val">{{ user.email }}</span></span
+          >
+          <span class="sf"
+            ><span class="sf-lbl">Perfil</span
+            ><span class="sf-val sf-role">{{ user.role }}</span></span
+          >
         </div>
-      </div>
+        <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
+      </header>
+      <div id="content">{% block content %}{% endblock %}</div>
+    </div>
     {% else %}
-      <div id="auth-wrap">
-        {% block auth %}{% endblock %}
-      </div>
-    {% endif %}
-    {% if user %}
-      <script>
-(function(){
-  function initExportTree(container) {
-    const nodes = Array.from(container.querySelectorAll('[data-section-node]'));
-    if (!nodes.length || container.dataset.treeReady === '1') return;
-    container.dataset.treeReady = '1';
+    <div id="auth-wrap">{% block auth %}{% endblock %}</div>
+    {% endif %} {% if user %}
+    <script>
+      (function () {
+        function initExportTree(container) {
+          const nodes = Array.from(
+            container.querySelectorAll("[data-section-node]"),
+          );
+          if (!nodes.length || container.dataset.treeReady === "1") return;
+          container.dataset.treeReady = "1";
 
-    function level(node) {
-      return Number(node.dataset.sectionLevel || '1');
-    }
-
-    function updateVisibility() {
-      let collapsedLevels = [];
-      nodes.forEach((node) => {
-        const currentLevel = level(node);
-        collapsedLevels = collapsedLevels.filter((item) => item < currentLevel);
-        node.classList.toggle('is-hidden', collapsedLevels.length > 0);
-        if (node.classList.contains('is-collapsed')) collapsedLevels.push(currentLevel);
-      });
-    }
-
-    nodes.forEach((node, index) => {
-      const button = node.querySelector('.export-tree-toggle');
-      const checkbox = node.querySelector('input[type="checkbox"][name="secao_ids"]');
-      const hasChildren = index + 1 < nodes.length && level(nodes[index + 1]) > level(node);
-      if (checkbox) {
-        checkbox.addEventListener('change', () => {
-          const currentLevel = level(node);
-          for (let i = index + 1; i < nodes.length && level(nodes[i]) > currentLevel; i += 1) {
-            const child = nodes[i].querySelector('input[type="checkbox"][name="secao_ids"]');
-            if (child) child.checked = checkbox.checked;
+          function level(node) {
+            return Number(node.dataset.sectionLevel || "1");
           }
-        });
-      }
-      if (!button || !hasChildren) {
-        node.classList.add('is-leaf');
-        if (button) {
-          button.textContent = '';
-          button.setAttribute('aria-hidden', 'true');
-          button.tabIndex = -1;
+
+          function updateVisibility() {
+            let collapsedLevels = [];
+            nodes.forEach((node) => {
+              const currentLevel = level(node);
+              collapsedLevels = collapsedLevels.filter(
+                (item) => item < currentLevel,
+              );
+              node.classList.toggle("is-hidden", collapsedLevels.length > 0);
+              if (node.classList.contains("is-collapsed"))
+                collapsedLevels.push(currentLevel);
+            });
+          }
+
+          nodes.forEach((node, index) => {
+            const button = node.querySelector(".export-tree-toggle");
+            const checkbox = node.querySelector(
+              'input[type="checkbox"][name="secao_ids"]',
+            );
+            const hasChildren =
+              index + 1 < nodes.length && level(nodes[index + 1]) > level(node);
+            if (checkbox) {
+              checkbox.addEventListener("change", () => {
+                const currentLevel = level(node);
+                for (
+                  let i = index + 1;
+                  i < nodes.length && level(nodes[i]) > currentLevel;
+                  i += 1
+                ) {
+                  const child = nodes[i].querySelector(
+                    'input[type="checkbox"][name="secao_ids"]',
+                  );
+                  if (child) child.checked = checkbox.checked;
+                }
+              });
+            }
+            if (!button || !hasChildren) {
+              node.classList.add("is-leaf");
+              if (button) {
+                button.textContent = "";
+                button.setAttribute("aria-hidden", "true");
+                button.tabIndex = -1;
+              }
+              return;
+            }
+            button.textContent = "▾";
+            button.addEventListener("click", () => {
+              const collapsed = node.classList.toggle("is-collapsed");
+              button.textContent = collapsed ? "▸" : "▾";
+              button.setAttribute(
+                "aria-expanded",
+                collapsed ? "false" : "true",
+              );
+              button.setAttribute(
+                "aria-label",
+                (collapsed ? "Expandir seção " : "Recolher seção ") +
+                  (node.dataset.sectionNumber || ""),
+              );
+              updateVisibility();
+            });
+          });
+
+          updateVisibility();
         }
-        return;
-      }
-      button.textContent = '▾';
-      button.addEventListener('click', () => {
-        const collapsed = node.classList.toggle('is-collapsed');
-        button.textContent = collapsed ? '▸' : '▾';
-        button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-        button.setAttribute('aria-label', (collapsed ? 'Expandir seção ' : 'Recolher seção ') + (node.dataset.sectionNumber || ''));
-        updateVisibility();
-      });
-    });
 
-    updateVisibility();
-  }
+        document.querySelectorAll(".export-sections").forEach(initExportTree);
 
-  document.querySelectorAll('.export-sections').forEach(initExportTree);
-
-  function initSidebarResizer() {
-    var handle = document.getElementById('sb-resizer');
-    if (!handle) return;
-    var root = document.documentElement;
-    var styles = getComputedStyle(root);
-    var minW = parseInt(styles.getPropertyValue('--sw-min'), 10) || 260;
-    var maxW = parseInt(styles.getPropertyValue('--sw-max'), 10) || 520;
-    var stored = parseInt(window.localStorage.getItem('sra:sidebar-w') || '', 10);
-    if (!isNaN(stored) && stored >= minW && stored <= maxW) {
-      root.style.setProperty('--sw', stored + 'px');
-    }
-    var dragging = false;
-    function clamp(v) { return Math.max(minW, Math.min(maxW, v)); }
-    function applyWidth(w) {
-      root.style.setProperty('--sw', w + 'px');
-      handle.setAttribute('aria-valuenow', String(w));
-    }
-    if (!isNaN(stored) && stored >= minW && stored <= maxW) {
-      handle.setAttribute('aria-valuenow', String(stored));
-    }
-    function onMove(ev) {
-      if (!dragging) return;
-      var x = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      applyWidth(clamp(Math.round(x)));
-    }
-    function onUp() {
-      if (!dragging) return;
-      dragging = false;
-      handle.classList.remove('is-dragging');
-      document.body.classList.remove('sb-resizing');
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onUp);
-      var current = parseInt(getComputedStyle(root).getPropertyValue('--sw'), 10);
-      if (!isNaN(current)) window.localStorage.setItem('sra:sidebar-w', String(current));
-    }
-    function onDown(ev) {
-      ev.preventDefault();
-      dragging = true;
-      handle.classList.add('is-dragging');
-      document.body.classList.add('sb-resizing');
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onUp);
-    }
-    handle.addEventListener('mousedown', onDown);
-    handle.addEventListener('touchstart', onDown, { passive: false });
-    handle.addEventListener('dblclick', function () {
-      applyWidth(minW);
-      window.localStorage.setItem('sra:sidebar-w', String(minW));
-    });
-    handle.addEventListener('keydown', function (ev) {
-      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
-      ev.preventDefault();
-      var current = parseInt(getComputedStyle(root).getPropertyValue('--sw'), 10) || minW;
-      var step = ev.shiftKey ? 32 : 8;
-      var w = clamp(current + (ev.key === 'ArrowRight' ? step : -step));
-      applyWidth(w);
-      window.localStorage.setItem('sra:sidebar-w', String(w));
-    });
-  }
-  initSidebarResizer();
-})();
-      </script>
+        function initSidebarResizer() {
+          var handle = document.getElementById("sb-resizer");
+          if (!handle) return;
+          var root = document.documentElement;
+          var styles = getComputedStyle(root);
+          var minW = parseInt(styles.getPropertyValue("--sw-min"), 10) || 260;
+          var maxW = parseInt(styles.getPropertyValue("--sw-max"), 10) || 520;
+          var stored = parseInt(
+            window.localStorage.getItem("sra:sidebar-w") || "",
+            10,
+          );
+          if (!isNaN(stored) && stored >= minW && stored <= maxW) {
+            root.style.setProperty("--sw", stored + "px");
+          }
+          var dragging = false;
+          function clamp(v) {
+            return Math.max(minW, Math.min(maxW, v));
+          }
+          function applyWidth(w) {
+            root.style.setProperty("--sw", w + "px");
+            handle.setAttribute("aria-valuenow", String(w));
+          }
+          if (!isNaN(stored) && stored >= minW && stored <= maxW) {
+            handle.setAttribute("aria-valuenow", String(stored));
+          }
+          function onMove(ev) {
+            if (!dragging) return;
+            var x = ev.touches ? ev.touches[0].clientX : ev.clientX;
+            applyWidth(clamp(Math.round(x)));
+          }
+          function onUp() {
+            if (!dragging) return;
+            dragging = false;
+            handle.classList.remove("is-dragging");
+            document.body.classList.remove("sb-resizing");
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            document.removeEventListener("touchmove", onMove);
+            document.removeEventListener("touchend", onUp);
+            var current = parseInt(
+              getComputedStyle(root).getPropertyValue("--sw"),
+              10,
+            );
+            if (!isNaN(current))
+              window.localStorage.setItem("sra:sidebar-w", String(current));
+          }
+          function onDown(ev) {
+            ev.preventDefault();
+            dragging = true;
+            handle.classList.add("is-dragging");
+            document.body.classList.add("sb-resizing");
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+            document.addEventListener("touchmove", onMove, { passive: false });
+            document.addEventListener("touchend", onUp);
+          }
+          handle.addEventListener("mousedown", onDown);
+          handle.addEventListener("touchstart", onDown, { passive: false });
+          handle.addEventListener("dblclick", function () {
+            applyWidth(minW);
+            window.localStorage.setItem("sra:sidebar-w", String(minW));
+          });
+          handle.addEventListener("keydown", function (ev) {
+            if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+            ev.preventDefault();
+            var current =
+              parseInt(getComputedStyle(root).getPropertyValue("--sw"), 10) ||
+              minW;
+            var step = ev.shiftKey ? 32 : 8;
+            var w = clamp(current + (ev.key === "ArrowRight" ? step : -step));
+            applyWidth(w);
+            window.localStorage.setItem("sra:sidebar-w", String(w));
+          });
+        }
+        initSidebarResizer();
+      })();
+    </script>
     {% endif %}
   </body>
 </html>

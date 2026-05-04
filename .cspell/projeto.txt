@@ -729,3 +729,5 @@ serao
 sincronizacao
 tconn
 tname
+vocabulario
+Vocabulario
