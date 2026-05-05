@@ -86,12 +86,29 @@ def login_submit(
             status_code=400,
         )
     email_norm = email.strip().lower()
+    t0 = time.perf_counter()
+    _log.info("login_submit inicio role=%s email=%s", perfil, email_norm)
     user = (
         db.query(User)
         .filter(User.email == email_norm, User.role == perfil)
         .one_or_none()
     )
-    if not user or not verify_password(password, user.password_hash):
+    t_user = time.perf_counter()
+    _log.info(
+        "login_submit consulta_usuario_ms=%.1f encontrado=%s role=%s",
+        (t_user - t0) * 1000,
+        bool(user),
+        perfil,
+    )
+    senha_ok = bool(user) and verify_password(password, user.password_hash)
+    t_pwd = time.perf_counter()
+    _log.info(
+        "login_submit verifica_senha_ms=%.1f ok=%s role=%s",
+        (t_pwd - t_user) * 1000,
+        senha_ok,
+        perfil,
+    )
+    if not senha_ok:
         return response_login(
             request,
             error="E-mail, perfil ou senha inválidos.",
@@ -105,6 +122,15 @@ def login_submit(
     if user.role == "autor":
         hub = url_hub_autor(db)
         destino = hub if hub else "/painel-upload"
+    t_destino = time.perf_counter()
+    _log.info(
+        "login_submit destino_ms=%.1f total_ms=%.1f user_id=%s role=%s destino=%s",
+        (t_destino - t_pwd) * 1000,
+        (t_destino - t0) * 1000,
+        user.id,
+        user.role,
+        destino,
+    )
     return response_client_goto(destino)
 
 
