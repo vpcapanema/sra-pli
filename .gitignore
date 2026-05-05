@@ -41,3 +41,6 @@ artifacts/_*.py
 artifacts/_*.png
 artifacts/route-audit-summary.txt
 artifacts/route-inventory.md
+
+# Senhas em plain text (temporario para envio por email)
+docs/senhas_autores.txt

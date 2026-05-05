@@ -10,14 +10,22 @@ class Settings(BaseSettings):
     APP_NAME: str = "SRA - Sistema de Relatórios de Atividades"
     APP_ENV: str = "development"
 
-    # ----- Notificações mensais (SendGrid) -----
+    # ----- Notificações mensais (SendGrid + SMTP fallback) -----
     # Sem chave o módulo opera em sandbox: monta o payload, valida, mas não
     # entrega de fato. Útil em dev/test sem custo nem risco de spam.
     SENDGRID_API_KEY: str = ""
-    SENDGRID_FROM_EMAIL: str = "no-reply@concremat.local"
+    SENDGRID_FROM_EMAIL: str = "no-reply@vpc-websistemas.com.br"
     SENDGRID_FROM_NAME: str = "SRA · PLI-SP"
+    # Fallback SMTP para domínios DMARC p=reject (gmail.com, outlook.com, etc).
+    # Quando o remetente é desses domínios, o SendGrid não pode enviar em nome
+    # deles (será dropado por filtros corporativos). Nestes casos usamos SMTP
+    # direto do provedor. Preencha se usar remetente @outlook.com / @gmail.com.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""  # ex: relatorio.atividades.pli@outlook.com
+    SMTP_PASSWORD: str = ""  # App Password do Outlook/Gmail
     # URL base usada nos links dos emails. Em produção: domínio do Render.
-    APP_BASE_URL: str = "http://127.0.0.1:8001"
+    APP_BASE_URL: str = "https://sra-pli-starter.onrender.com"
     # Limite para analise de TXT/DOCX na importacao assistida (antes da confirmacao).
     IMPORTACAO_ANALISAR_MAX_BYTES: int = 20 * 1024 * 1024
     # Kill switch global. False = nada é enviado nem registrado em

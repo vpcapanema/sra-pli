@@ -717,6 +717,8 @@ ACMR
 Codgi
 DAEE
 dckfvc
+DMARC
+dmarc
 Gmail
 linguistica
 linguisticas
@@ -724,6 +726,7 @@ ortografia
 PMSP
 pyspellchecker
 Resetando
+scrollável
 sconn
 serao
 sincronizacao

@@ -14,11 +14,15 @@ Modos de operação:
 A escolha entre Real/Sandbox/Desligado é determinada por ``modo_atual()`` para
 a UI poder exibir o status sem replicar a lógica.
 """
+
 from __future__ import annotations
 
 import logging
+import smtplib
 import uuid
 from dataclasses import dataclass
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +31,6 @@ from sendgrid.helpers.mail import (
     ClickTracking,
     Content,
     Email,
-    Header,
     Mail,
     OpenTracking,
     TrackingSettings,
@@ -37,6 +40,44 @@ from sendgrid.helpers.mail import (
 from ..config import settings
 
 log = logging.getLogger(__name__)
+
+
+# Domínios de e-mail gratuito com DMARC p=reject — não podem ser usados como
+# remetente via ESP (SendGrid, Mailgun, etc.) sem ser dropado por filtros
+# corporativos (Exchange/Microsoft Defender, Gmail enterprise).
+# Solução definitiva: autenticar um domínio próprio no SendGrid.
+_DMARC_STRICT_DOMAINS: set[str] = {
+    "gmail.com",
+    "googlemail.com",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "msn.com",
+}
+
+
+def _remetente_dmarc_risk() -> str | None:
+    """Avisa se o remetente usa domínio com DMARC p=reject.
+
+    SendGrid (ou qualquer ESP) não pode enviar em nome desses domínios;
+    filtros corporativos (Exchange/Defender) rejeitam silenciosamente.
+
+    Para @outlook.com / @hotmail.com: mesmo com Single Sender Verification
+    ativada no SendGrid, o DMARC do domínio de destino (Concremat) pode
+    ainda bloquear. A solução 100% é autenticar um domínio próprio.
+    """
+    from_email = (settings.SENDGRID_FROM_EMAIL or "").strip().lower()
+    if "@" not in from_email:
+        return None
+    domain = from_email.split("@", 1)[1]
+    if domain in _DMARC_STRICT_DOMAINS:
+        return (
+            f"DMARC_RISK: {settings.SENDGRID_FROM_EMAIL} usa domínio com p=reject. "
+            f"Emails serão dropados por filtros corporativos (Exchange/Defender). "
+            f"Autentique um domínio próprio no SendGrid (Settings → Sender Authentication)."
+        )
+    return None
+
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _env = Environment(
@@ -124,9 +165,7 @@ def _criar_mail_sendgrid(payload: dict[str, str]) -> Mail:
     )
     msg.add_content(Content("text/plain", payload["texto"]))
     msg.add_content(Content("text/html", payload["html"]))
-    msg.add_header(Header("Importance", "high"))
-    msg.add_header(Header("X-Priority", "1"))
-    msg.add_header(Header("X-MSMail-Priority", "High"))
+    # Headers de alta prioridade removidos - gateway da Concremat bloqueia
     if payload["tipo"] in ("abertura", "lembrete", "ultima_chamada"):
         msg.tracking_settings = TrackingSettings()
         msg.tracking_settings.open_tracking = OpenTracking(True)
@@ -139,6 +178,52 @@ def _message_id_resposta(resp: Any) -> str | None:
         return resp.headers.get("X-Message-Id")
     except Exception:  # noqa: BLE001
         return None
+
+
+def _enviar_smtp(
+    *,
+    destinatario_email: str,
+    destinatario_nome: str,
+    assunto: str,
+    html: str,
+    texto: str,
+) -> ResultadoEnvio:
+    """Envia direto via SMTP do provedor (Outlook/Gmail).
+
+    Usado como fallback quando o remetente é de domínio DMARC p=reject
+    (gmail.com, outlook.com, etc.) — nestes casos o SendGrid seria dropado.
+    """
+    host = settings.SMTP_HOST
+    port = settings.SMTP_PORT
+    user = settings.SMTP_USER
+    password = settings.SMTP_PASSWORD
+    if not all([host, user, password]):
+        return ResultadoEnvio(
+            False,
+            None,
+            "smtp_nao_configurado: definir SMTP_HOST, SMTP_USER e SMTP_PASSWORD",
+            "smtp",
+        )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = assunto
+    msg["From"] = f"{settings.SENDGRID_FROM_NAME} <{settings.SENDGRID_FROM_EMAIL}>"
+    msg["To"] = f"{destinatario_nome} <{destinatario_email}>"
+    msg["Importance"] = "high"
+    msg["X-Priority"] = "1"
+    msg["X-MSMail-Priority"] = "High"
+
+    msg.attach(MIMEText(texto, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(host, port) as server:
+            server.starttls()
+            server.login(user, password)
+            server.send_message(msg)
+        return ResultadoEnvio(True, None, None, "smtp")
+    except Exception as exc:  # noqa: BLE001
+        return ResultadoEnvio(False, None, f"smtp_exception: {exc}", "smtp")
 
 
 def _enviar_real(payload: dict[str, str]) -> ResultadoEnvio:
@@ -172,9 +257,10 @@ def enviar_notificacao(
     nunca levanta — chamador decide o que fazer com erro.
     """
     if tipo not in _ASSUNTOS:
-        return ResultadoEnvio(
-            False, None, f"tipo_invalido: {tipo}", modo_atual()
-        )
+        return ResultadoEnvio(False, None, f"tipo_invalido: {tipo}", modo_atual())
+    aviso_dmarc = _remetente_dmarc_risk()
+    if aviso_dmarc:
+        log.warning("[notif] %s", aviso_dmarc)
     modo = modo_atual()
     if modo == "desligado":
         return ResultadoEnvio(False, None, "kill_switch_off", modo)
@@ -190,9 +276,30 @@ def enviar_notificacao(
         message_id = f"sandbox-{uuid.uuid4()}"
         log.info(
             "[notif/sandbox] %s -> %s | %s | %d chars html",
-            tipo, destinatario_email, assunto, len(html),
+            tipo,
+            destinatario_email,
+            assunto,
+            len(html),
         )
         return ResultadoEnvio(True, message_id, None, "sandbox")
+
+    # Fallback SMTP para domínios DMARC strict — o SendGrid não pode enviar em
+    # nome de gmail.com/outlook.com sem ser dropado por filtros corporativos.
+    if _remetente_dmarc_risk():
+        log.info(
+            "[notif/smtp] %s -> %s | %s | remetente=%s",
+            tipo,
+            destinatario_email,
+            assunto,
+            settings.SENDGRID_FROM_EMAIL,
+        )
+        return _enviar_smtp(
+            destinatario_email=destinatario_email,
+            destinatario_nome=destinatario_nome,
+            assunto=assunto,
+            html=html,
+            texto=texto,
+        )
 
     return _enviar_real(
         {
