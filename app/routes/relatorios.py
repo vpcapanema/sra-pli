@@ -1,4 +1,6 @@
 import re
+import threading
+from pathlib import Path
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from sqlalchemy.exc import IntegrityError, DataError
 from fastapi.responses import JSONResponse
@@ -7,7 +9,7 @@ from starlette.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session, selectinload
 from dateutil import parser as dateparser
 
-from ..db import get_db, tx_session
+from ..db import get_db, tx_session, SessionLocal
 from ..models import Bloco, Relatorio, Secao, User
 from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status, campos_json_bloco_transversal
 from ..bootstrap import criar_secoes_padrao
@@ -19,7 +21,12 @@ from ..sumario_extractor import (
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
 )
-from ..docx_clone_extractor import extrair_relatorio_docx_disponivel
+from ..docx_clone_extractor import (
+    PASTA_RELATORIOS,
+    extrair_relatorio_docx,
+    extrair_relatorio_docx_disponivel,
+)
+from .. import progress_jobs
 
 from .pages import (
     response_conteudo_upload,
@@ -206,35 +213,56 @@ def post_modo_edicao_blocos(
     return RedirectResponse(url=alvo, status_code=303)
 
 
-@router.post("")
-async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches
-    request: Request,
-    codigo: str = Form(...),
-    titulo: str = Form(...),
-    mes_referencia: str = Form(...),
-    periodo_inicio: str = Form(...),
-    periodo_fim: str = Form(...),
-    numero_medicao: str = Form(""),
-    fonte_secoes: str = Form("clone_relatorio"),
-    pdf_disponivel: str = Form(""),
-    docx_disponivel: str = Form(""),
-    pdf_upload: "UploadFile | None" = File(None),
-    base_relatorio_id: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    u, p = _admin_coord_ou_login(request, db)
-    if p is not None:
-        return p
-    assert u is not None
-    if db.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
-        raise HTTPException(400, detail="Código já existe")
+@router.get("/novo/progresso/{token}")
+async def progresso_criar_relatorio(token: str) -> JSONResponse:
+    """Consulta o progresso de uma criação assíncrona de relatório."""
+    estado = progress_jobs.get_job(token)
+    if not estado:
+        return JSONResponse({"erro": "token_desconhecido"}, status_code=404)
+    return JSONResponse(estado)
 
-    # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
+
+def _criar_relatorio_core(
+    token: str | None,
+    codigo: str,
+    titulo: str,
+    mes_referencia: str,
+    periodo_inicio: str,
+    periodo_fim: str,
+    numero_medicao: str,
+    fonte: str,
+    pdf_disponivel: str,
+    docx_disponivel: str,
+    pdf_bytes: bytes | None,
+    pdf_filename: str | None,
+    docx_bytes: bytes | None,
+    docx_filename: str | None,
+    base_relatorio_id: str,
+) -> int:
+    """Cria o relatório (com seções/blocos) reportando progresso ao token.
+
+    Retorna o ID do relatório criado. Levanta ``HTTPException`` em caso de
+    validação falha. Usa sua própria ``Session`` do ``SessionLocal`` (não
+    depende de request scope) para poder rodar em background.
+    """
+
+    def _p(pct: int, etapa: str) -> None:
+        if token:
+            progress_jobs.set_progress(token, pct, etapa)
+
+    _p(2, "Validando parâmetros")
     secoes_explicitas: "list[tuple[str, str]] | None" = None
     secoes_com_conteudo: "list[dict] | None" = None
     origem_blocos: str = "pdf_import"
     base_rel_id: int | None = None
-    fonte = (fonte_secoes or "clone_relatorio").strip().lower()
+
+    db_check = SessionLocal()
+    try:
+        if db_check.query(Relatorio).filter(Relatorio.codigo == codigo.strip()).first():
+            raise HTTPException(400, detail="Código já existe")
+    finally:
+        db_check.close()
+
     if fonte == "clone_relatorio":
         base_id_str = (base_relatorio_id or "").strip()
         if not base_id_str:
@@ -243,13 +271,19 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
             base_rel_id = int(base_id_str)
         except ValueError:
             raise HTTPException(400, detail="ID do relatório base inválido.")
-        base = db.get(Relatorio, base_rel_id)
-        if not base:
-            raise HTTPException(400, detail="Relatório base não encontrado.")
+        db_check = SessionLocal()
+        try:
+            base = db_check.get(Relatorio, base_rel_id)
+            if not base:
+                raise HTTPException(400, detail="Relatório base não encontrado.")
+        finally:
+            db_check.close()
+        _p(20, "Preparando clonagem")
     elif fonte == "docx_disponivel":
         nome = (docx_disponivel or "").strip()
         if not nome:
             raise HTTPException(400, detail="Selecione o DOCX disponível.")
+        _p(15, "Lendo DOCX do acervo")
         try:
             secoes_com_conteudo = extrair_relatorio_docx_disponivel(nome)
         except ValueError as exc:
@@ -259,11 +293,12 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         if not secoes_com_conteudo:
             raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
         origem_blocos = "docx_import"
+        _p(45, "DOCX processado; gravando seções")
     elif fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
             raise HTTPException(400, detail="Selecione o PDF disponível.")
-        # Extrai seções + blocos completos (texto, tabela, figura) do PDF
+        _p(15, "Lendo PDF do acervo")
         try:
             secoes_com_conteudo = extrair_completo_pdf_disponivel(nome)
         except ValueError as exc:
@@ -272,22 +307,50 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
             raise HTTPException(500, detail=f"Erro ao processar PDF: {exc}")
         if not secoes_com_conteudo:
             raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
-    elif fonte == "upload":
-        if pdf_upload is None or not pdf_upload.filename:
-            raise HTTPException(400, detail="Envie um arquivo PDF.")
-        if not pdf_upload.filename.lower().endswith(".pdf"):
-            raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
-        dados = await pdf_upload.read()
-        if not dados:
-            raise HTTPException(400, detail="Arquivo PDF vazio.")
+        _p(45, "PDF processado; gravando seções")
+    elif fonte == "docx_upload":
+        if not docx_bytes or not docx_filename:
+            raise HTTPException(400, detail="Envie um arquivo DOCX.")
+        nome_arquivo = Path(docx_filename).name.strip()
+        if not nome_arquivo.lower().endswith(".docx"):
+            raise HTTPException(400, detail="O arquivo enviado não é um DOCX.")
+        if nome_arquivo.startswith("~$"):
+            raise HTTPException(400, detail="Arquivo temporário do Word não é aceito.")
+        if not docx_bytes:
+            raise HTTPException(400, detail="Arquivo DOCX vazio.")
+        _p(10, "Salvando DOCX enviado")
         try:
-            secoes_explicitas = extrair_sumario(dados)
+            PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
+            destino = PASTA_RELATORIOS / nome_arquivo
+            destino.write_bytes(docx_bytes)
+        except OSError as exc:
+            raise HTTPException(500, detail=f"Falha ao salvar DOCX: {exc}")
+        _p(20, "Extraindo seções do DOCX")
+        try:
+            secoes_com_conteudo = extrair_relatorio_docx(docx_bytes)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(400, detail=f"Falha ao ler o DOCX: {exc}")
+        if not secoes_com_conteudo:
+            raise HTTPException(400, detail="Não foi possível extrair conteúdo do DOCX enviado.")
+        origem_blocos = "docx_import"
+        _p(55, "DOCX processado; gravando seções")
+    elif fonte == "upload":
+        if not pdf_bytes or not pdf_filename:
+            raise HTTPException(400, detail="Envie um arquivo PDF.")
+        if not pdf_filename.lower().endswith(".pdf"):
+            raise HTTPException(400, detail="O arquivo enviado não é um PDF.")
+        if not pdf_bytes:
+            raise HTTPException(400, detail="Arquivo PDF vazio.")
+        _p(20, "Extraindo sumário do PDF")
+        try:
+            secoes_explicitas = extrair_sumario(pdf_bytes)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(400, detail=f"Falha ao ler o PDF: {exc}")
         if not secoes_explicitas:
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
+        _p(50, "PDF processado; gravando seções")
     else:
-        raise HTTPException(400, detail="Selecione um relatório base, um relatório entregue ou envie um PDF.")
+        raise HTTPException(400, detail="Selecione um relatório base, um relatório entregue ou envie um arquivo.")
 
     rel = Relatorio(
         codigo=codigo.strip(),
@@ -297,14 +360,12 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         periodo_fim=dateparser.parse(periodo_fim).date(),
         numero_medicao=int(numero_medicao) if numero_medicao.strip() else None,
     )
-    # Criar relatório + seções em uma única transação (multi-statement).
     try:
         with tx_session() as txdb:
             txdb.add(rel)
             txdb.flush()
             rel_id_novo = rel.id
             if base_rel_id:
-                # Clona seções e blocos do relatório base (igual ao processo automático)
                 from app.notificacoes.service import (
                     _clonar_estrutura_e_conteudo,
                     _substituir_referencias_periodo,
@@ -312,20 +373,16 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
 
                 base = txdb.get(Relatorio, base_rel_id)
                 if base:
+                    _p(55, "Clonando seções e blocos")
                     _clonar_estrutura_e_conteudo(txdb, base, rel)
-                    # Substitui referências de período no conteúdo clonado
                     secoes = txdb.query(Secao).filter(Secao.relatorio_id == rel.id).all()
                     for sec in secoes:
                         sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
                     txdb.commit()
+                    _p(90, "Clonagem concluída")
             elif secoes_com_conteudo:
-                # PDF disponível: cria seções + blocos extraídos do PDF (texto, tabela, figura)
                 from ..models import Figura
 
-                # Dedup defensivo: garante apenas um registro por numero de seção
-                # dentro do mesmo relatório (respeita UniqueConstraint uq_secao_rel_num).
-                # O extrator pode retornar a mesma seção múltiplas vezes se o PDF
-                # tiver o número tanto no corpo quanto no sumário em formatos diferentes.
                 _vistos_nums: set[str] = set()
                 _secoes_unicas: list[dict] = []
                 for _sd in secoes_com_conteudo:
@@ -335,6 +392,9 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
                     _vistos_nums.add(_num)
                     _secoes_unicas.append(_sd)
 
+                total = max(1, len(_secoes_unicas))
+                pct_inicio = 60
+                pct_fim = 92
                 for ordem, sec_data in enumerate(_secoes_unicas, start=1):
                     nova_sec = Secao(
                         relatorio_id=rel_id_novo,
@@ -350,7 +410,6 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
                         tipo = bloco_data.get("tipo", "texto")
                         fig_id = None
                         if tipo == "figura" and bloco_data.get("dados_imagem"):
-                            # Salva imagem na tabela Figura
                             fig = Figura(
                                 relatorio_id=rel_id_novo,
                                 nome=f"fig_{nova_sec.numero}_{bloco_ordem}",
@@ -370,11 +429,98 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
                                 origem=origem_blocos,
                             )
                         )
+                    pct = pct_inicio + int((pct_fim - pct_inicio) * ordem / total)
+                    _p(pct, f"Gravando seção {ordem}/{total}")
             else:
-                # Cria seções padrão baseadas no PDF (comportamento original)
+                _p(70, "Criando seções padrão")
                 criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
     except (IntegrityError, DataError) as exc:
         raise HTTPException(400, detail=f"Erro ao gravar seções: {exc.orig}")
+
+    _p(98, "Finalizando")
+    return rel_id_novo
+
+
+def _job_criar_relatorio(token: str, **kwargs: object) -> None:
+    """Executa ``_criar_relatorio_core`` em thread, atualizando o job."""
+    try:
+        rel_id_novo = _criar_relatorio_core(token=token, **kwargs)  # type: ignore[arg-type]
+        progress_jobs.set_done(token, f"/relatorios/{rel_id_novo}")
+    except HTTPException as exc:
+        progress_jobs.set_error(token, str(exc.detail))
+    except Exception as exc:  # noqa: BLE001
+        progress_jobs.set_error(token, f"Erro inesperado: {exc}")
+
+
+@router.post("")
+async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches
+    request: Request,
+    codigo: str = Form(...),
+    titulo: str = Form(...),
+    mes_referencia: str = Form(...),
+    periodo_inicio: str = Form(...),
+    periodo_fim: str = Form(...),
+    numero_medicao: str = Form(""),
+    fonte_secoes: str = Form("clone_relatorio"),
+    pdf_disponivel: str = Form(""),
+    docx_disponivel: str = Form(""),
+    pdf_upload: "UploadFile | None" = File(None),
+    docx_upload: "UploadFile | None" = File(None),
+    base_relatorio_id: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    u, p = _admin_coord_ou_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+
+    fonte = (fonte_secoes or "clone_relatorio").strip().lower()
+    pdf_bytes: bytes | None = None
+    pdf_filename: str | None = None
+    if pdf_upload is not None and pdf_upload.filename:
+        pdf_bytes = await pdf_upload.read()
+        pdf_filename = pdf_upload.filename
+    docx_bytes: bytes | None = None
+    docx_filename: str | None = None
+    if docx_upload is not None and docx_upload.filename:
+        docx_bytes = await docx_upload.read()
+        docx_filename = docx_upload.filename
+
+    kwargs = dict(
+        codigo=codigo,
+        titulo=titulo,
+        mes_referencia=mes_referencia,
+        periodo_inicio=periodo_inicio,
+        periodo_fim=periodo_fim,
+        numero_medicao=numero_medicao,
+        fonte=fonte,
+        pdf_disponivel=pdf_disponivel,
+        docx_disponivel=docx_disponivel,
+        pdf_bytes=pdf_bytes,
+        pdf_filename=pdf_filename,
+        docx_bytes=docx_bytes,
+        docx_filename=docx_filename,
+        base_relatorio_id=base_relatorio_id,
+    )
+
+    accept = (request.headers.get("accept") or "").lower()
+    wants_json = "application/json" in accept
+    if wants_json:
+        token = progress_jobs.criar_job()
+        progress_jobs.set_progress(token, 1, "Recebido")
+        t = threading.Thread(
+            target=_job_criar_relatorio,
+            args=(token,),
+            kwargs=kwargs,
+            daemon=True,
+        )
+        t.start()
+        return JSONResponse({"token": token}, status_code=202)
+
+    try:
+        rel_id_novo = _criar_relatorio_core(token=None, **kwargs)  # type: ignore[arg-type]
+    except HTTPException:
+        raise
     return response_relatorio_detail(request, db, rel_id_novo)
 
 

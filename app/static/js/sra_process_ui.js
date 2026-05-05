@@ -182,6 +182,11 @@
     if (!r) {
       return "";
     }
+    if (r.value === "docx_upload") {
+      var finDoc = form.querySelector('input[name="docx_upload"]');
+      var fDoc = finDoc && finDoc.files && finDoc.files[0];
+      return fDoc ? fDoc.name : "Nenhum arquivo DOCX selecionado";
+    }
     if (r.value === "upload") {
       var fin = form.querySelector('input[name="pdf_upload"]');
       var f = fin && fin.files && fin.files[0];

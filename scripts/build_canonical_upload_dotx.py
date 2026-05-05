@@ -48,9 +48,17 @@ for prefix, uri in {
     "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",
     "v": "urn:schemas-microsoft-com:vml",
     "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+    "wp14": "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing",
     "w10": "urn:schemas-microsoft-com:office:word",
     "w14": "http://schemas.microsoft.com/office/word/2010/wordml",
     "w15": "http://schemas.microsoft.com/office/word/2012/wordml",
+    "w16": "http://schemas.microsoft.com/office/word/2018/wordml",
+    "w16cex": "http://schemas.microsoft.com/office/word/2018/wordml/cex",
+    "w16cid": "http://schemas.microsoft.com/office/word/2016/wordml/cid",
+    "w16se": "http://schemas.microsoft.com/office/word/2015/wordml/symex",
+    "w16sdtdh": "http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash",
+    "w16sdtfl": "http://schemas.microsoft.com/office/word/2024/wordml/sdtformatlock",
+    "w16du": "http://schemas.microsoft.com/office/word/2023/wordml/word16du",
     "wne": "http://schemas.microsoft.com/office/word/2006/wordml",
     "wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
     "wpg": "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup",
@@ -201,10 +209,244 @@ def _clean_children(children: list[ET.Element]) -> list[ET.Element]:
     return cleaned
 
 
+# abstractNumId do master associado aos styles Ttulo1..Ttulo9 (decimal %1.%2.%3)
+HEADING_ABSTRACT_NUM_ID = "4"
+
+
+def _num_id_para_secao(sec_numero: str) -> str:
+    """Gera numId unico e pequeno por secao, evitando IDs artificiais enormes."""
+    digits = "".join(f"{int(x):02d}" for x in sec_numero.split(".") if x.strip().isdigit())
+    return str(1000 + int(digits or "0"))
+
+
+def _ensure_ignorable_namespaces(xml_bytes: bytes) -> bytes:
+    """Garante que prefixos em mc:Ignorable estejam declarados no root.
+
+    O ElementTree descarta declaracoes nao usadas. O Word e rigido com
+    mc:Ignorable apontando para prefixos nao declarados; entao reinserimos
+    as declaracoes oficiais no elemento raiz quando necessario.
+    """
+    text = xml_bytes.decode("utf-8")
+    root_match = re.search(r"<w:[A-Za-z0-9_]+\b[^>]*>", text)
+    if not root_match:
+        return xml_bytes
+    root_tag = root_match.group(0)
+    ign_match = re.search(r'mc:Ignorable="([^"]*)"', root_tag)
+    if not ign_match:
+        return xml_bytes
+    declared = set(re.findall(r"xmlns:([A-Za-z0-9_]+)=", root_tag))
+    needed = set(ign_match.group(1).split()) - declared
+    ns_map = {
+        "w15": "http://schemas.microsoft.com/office/word/2012/wordml",
+        "w16": "http://schemas.microsoft.com/office/word/2018/wordml",
+        "w16cex": "http://schemas.microsoft.com/office/word/2018/wordml/cex",
+        "w16cid": "http://schemas.microsoft.com/office/word/2016/wordml/cid",
+        "w16du": "http://schemas.microsoft.com/office/word/2023/wordml/word16du",
+        "w16sdtdh": "http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash",
+        "w16sdtfl": "http://schemas.microsoft.com/office/word/2024/wordml/sdtformatlock",
+        "w16se": "http://schemas.microsoft.com/office/word/2015/wordml/symex",
+        "wp14": "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing",
+    }
+    additions = "".join(f' xmlns:{p}="{ns_map[p]}"' for p in sorted(needed) if p in ns_map)
+    if not additions:
+        return xml_bytes
+    new_root = root_tag[:-1] + additions + ">"
+    text = text[: root_match.start()] + new_root + text[root_match.end() :]
+    return text.encode("utf-8")
+
+
+def _make_caption_paragraph(label: str) -> ET.Element:
+    """Cria paragrafo de legenda com campos STYLEREF+SEQ do Word.
+
+    Padrao canonico do Word para legendas com numero de capitulo:
+    ``Figura { STYLEREF 1 \\s }.{ SEQ Figura \\* ARABIC \\s 1 } - descricao``
+
+    STYLEREF 1 \\s puxa o numero do heading numerado mais recente (ex.:
+    "4.3"). SEQ Figura incrementa a contagem da legenda dentro do documento.
+    Ao o autor duplicar e pressionar F9, o Word atualiza automaticamente.
+    """
+    p = ET.Element(f"{W}p")
+    pPr = ET.SubElement(p, f"{W}pPr")
+    pStyle = ET.SubElement(pPr, f"{W}pStyle")
+    pStyle.set(f"{W}val", "Legenda")
+
+    # Run 1: "<Label> "
+    r1 = ET.SubElement(p, f"{W}r")
+    t1 = ET.SubElement(r1, f"{W}t")
+    t1.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    t1.text = f"{label} "
+
+    # Campo STYLEREF 1 \s (puxa numero do heading numerado mais recente)
+    _append_field(p, " STYLEREF 1 \\s ", "0")
+
+    # Separador "."
+    r_dot = ET.SubElement(p, f"{W}r")
+    t_dot = ET.SubElement(r_dot, f"{W}t")
+    t_dot.text = "."
+
+    # Campo SEQ Label \* ARABIC (auto-numera a legenda)
+    _append_field(p, f" SEQ {label} \\* ARABIC ", "1")
+
+    # Run final: " - "
+    r3 = ET.SubElement(p, f"{W}r")
+    t3 = ET.SubElement(r3, f"{W}t")
+    t3.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    t3.text = " - "
+    return p
+
+
+def _append_field(p: ET.Element, instr_text: str, cached_value: str) -> None:
+    """Anexa um campo Word completo (begin/instrText/separate/result/end) ao paragrafo."""
+    r_begin = ET.SubElement(p, f"{W}r")
+    fld_begin = ET.SubElement(r_begin, f"{W}fldChar")
+    fld_begin.set(f"{W}fldCharType", "begin")
+
+    r_instr = ET.SubElement(p, f"{W}r")
+    instr = ET.SubElement(r_instr, f"{W}instrText")
+    instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    instr.text = instr_text
+
+    r_sep = ET.SubElement(p, f"{W}r")
+    fld_sep = ET.SubElement(r_sep, f"{W}fldChar")
+    fld_sep.set(f"{W}fldCharType", "separate")
+
+    r_val = ET.SubElement(p, f"{W}r")
+    t_val = ET.SubElement(r_val, f"{W}t")
+    t_val.text = cached_value
+
+    r_end = ET.SubElement(p, f"{W}r")
+    fld_end = ET.SubElement(r_end, f"{W}fldChar")
+    fld_end.set(f"{W}fldCharType", "end")
+
+
+def _apply_heading_numPr(p: ET.Element, ilvl: str, num_id: str) -> None:
+    """Injeta <w:numPr> no <w:pPr> do heading, apontando para o numId customizado.
+
+    Sobrescreve o numPr herdado do style. Como o numId customizado tem
+    lvlOverride/startOverride, o Word inicia a numeracao deste heading no
+    valor absoluto da secao (ex.: 4.3.1).
+    """
+    pPr = p.find(f"{W}pPr")
+    if pPr is None:
+        pPr = ET.Element(f"{W}pPr")
+        p.insert(0, pPr)
+    # Remove numPr existente (se houver)
+    existing = pPr.find(f"{W}numPr")
+    if existing is not None:
+        pPr.remove(existing)
+    # Adiciona numPr novo apos pStyle (se houver), mantendo ordem canonica
+    numPr = ET.Element(f"{W}numPr")
+    ilvl_el = ET.SubElement(numPr, f"{W}ilvl")
+    ilvl_el.set(f"{W}val", ilvl)
+    numId_el = ET.SubElement(numPr, f"{W}numId")
+    numId_el.set(f"{W}val", num_id)
+    # Ordem canônica de CT_PPr: pStyle vem antes de numPr, mas propriedades
+    # como keepNext/spacing/ind/jc vêm depois. Inserimos numPr imediatamente
+    # antes do primeiro elemento que deve vir depois dele.
+    after_numpr_tags = {
+        f"{W}suppressLineNumbers",
+        f"{W}pBdr",
+        f"{W}shd",
+        f"{W}tabs",
+        f"{W}suppressAutoHyphens",
+        f"{W}kinsoku",
+        f"{W}wordWrap",
+        f"{W}overflowPunct",
+        f"{W}topLinePunct",
+        f"{W}autoSpaceDE",
+        f"{W}autoSpaceDN",
+        f"{W}bidi",
+        f"{W}adjustRightInd",
+        f"{W}snapToGrid",
+        f"{W}spacing",
+        f"{W}ind",
+        f"{W}contextualSpacing",
+        f"{W}mirrorIndents",
+        f"{W}suppressOverlap",
+        f"{W}jc",
+        f"{W}textDirection",
+        f"{W}textAlignment",
+        f"{W}textboxTightWrap",
+        f"{W}outlineLvl",
+        f"{W}divId",
+        f"{W}cnfStyle",
+        f"{W}rPr",
+        f"{W}sectPr",
+        f"{W}pPrChange",
+    }
+    insert_idx = len(list(pPr))
+    for i, child in enumerate(list(pPr)):
+        if child.tag in after_numpr_tags:
+            insert_idx = i
+            break
+    pPr.insert(insert_idx, numPr)
+
+
+def _inject_num_override(numbering_xml_bytes: bytes, sec_numero: str, num_id: str) -> bytes:
+    """Adiciona um <w:num> novo em numbering.xml com startOverride por nivel.
+
+    Para sec_numero="4.3", gera (equivalente):
+        <w:num w:numId="2501">
+          <w:abstractNumId w:val="4"/>
+          <w:lvlOverride w:ilvl="0"><w:startOverride w:val="4"/></w:lvlOverride>
+          <w:lvlOverride w:ilvl="1"><w:startOverride w:val="3"/></w:lvlOverride>
+        </w:num>
+
+    Niveis acima do ultimo usado nao precisam de override (ficam em 1).
+    """
+    partes = [int(x) for x in sec_numero.split(".") if x.strip().isdigit()]
+    if not partes:
+        return numbering_xml_bytes
+
+    root = ET.fromstring(numbering_xml_bytes)
+    num = ET.Element(f"{W}num")
+    num.set(f"{W}numId", num_id)
+    an = ET.SubElement(num, f"{W}abstractNumId")
+    an.set(f"{W}val", HEADING_ABSTRACT_NUM_ID)
+    for ilvl, valor in enumerate(partes):
+        lvl_ov = ET.SubElement(num, f"{W}lvlOverride")
+        lvl_ov.set(f"{W}ilvl", str(ilvl))
+        start_ov = ET.SubElement(lvl_ov, f"{W}startOverride")
+        start_ov.set(f"{W}val", str(valor))
+
+    # Remove eventual <w:num> com o mesmo numId (idempotencia)
+    for existing in root.findall(f"{W}num"):
+        if existing.get(f"{W}numId") == num_id:
+            root.remove(existing)
+    # ECMA-376: a ordem dos filhos de <w:numbering> e rigida:
+    # numPicBullet* -> abstractNum* -> num* -> numIdMacAtCleanup?
+    # Portanto o novo <w:num> deve ser inserido APOS o ultimo <w:num>
+    # existente e ANTES de <w:numIdMacAtCleanup> (se houver). Caso
+    # contrario o Word 2010+ recusa o arquivo.
+    insert_idx = len(list(root))
+    last_num_idx = -1
+    mac_cleanup_idx = -1
+    for i, child in enumerate(list(root)):
+        if child.tag == f"{W}num":
+            last_num_idx = i
+        elif child.tag == f"{W}numIdMacAtCleanup":
+            mac_cleanup_idx = i
+    if last_num_idx >= 0:
+        insert_idx = last_num_idx + 1
+    elif mac_cleanup_idx >= 0:
+        insert_idx = mac_cleanup_idx
+    root.insert(insert_idx, num)
+
+    out = ET.tostring(root, encoding="UTF-8")
+    if not out.startswith(b"<?xml"):
+        out = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + out
+    return _ensure_ignorable_namespaces(out)
+
+
+def _make_empty_paragraph() -> ET.Element:
+    return ET.Element(f"{W}p")
+
+
 def _build_slice_for_section(
     body_children: list[ET.Element],
     sec_numero: str,
     sec_titulo: str,
+    num_id: str,
 ) -> list[ET.Element]:
     """Retorna os elementos XML da fatia da secao ``sec_numero`` do master.
 
@@ -217,6 +459,7 @@ def _build_slice_for_section(
     (o caller gera esqueleto minimo).
     """
     counters = [0] * 10
+    heading_pos: dict[str, tuple[int, int]] = {}
     start = -1
     start_level = 0
     end = len(body_children)
@@ -230,6 +473,7 @@ def _build_slice_for_section(
             counters[k] = 0
         counters[lvl] += 1
         numero = ".".join(str(counters[k]) for k in range(1, lvl + 1))
+        heading_pos[numero] = (i, lvl)
         if start < 0 and numero == sec_numero:
             start = i
             start_level = lvl
@@ -239,21 +483,77 @@ def _build_slice_for_section(
             break
     if start < 0:
         return []
-    return _clean_children(body_children[start:end])
+
+    # Word só renderiza 4.1 / 4.3.1 corretamente se os headings ancestrais
+    # existirem antes do heading filho usando a mesma instância de numeração.
+    # Portanto cada .dotx de subseção recebe os títulos pais como contexto:
+    # seção 4.3.1 => heading 4 + heading 4.3 + fatia 4.3.1.
+    partes_sec = [x for x in sec_numero.split(".") if x]
+    prefixos_ancestrais = [".".join(partes_sec[:i]) for i in range(1, len(partes_sec))]
+    context_children: list[ET.Element] = []
+    for prefixo in prefixos_ancestrais:
+        pos = heading_pos.get(prefixo)
+        if not pos:
+            continue
+        idx, lvl = pos
+        el2 = copy.deepcopy(body_children[idx])
+        _clear_paragraph_text(el2, is_heading=True)
+        _apply_heading_numPr(el2, str(max(0, lvl - 1)), num_id)
+        context_children.append(el2)
+
+    cleaned = context_children + _clean_children(body_children[start:end])
+    # Aplica o mesmo numId customizado a todos os headings da fatia, inclusive
+    # filhos inseridos dentro do modelo; assim o Word continua em 4.3.2,
+    # 4.3.3 etc., em vez de voltar para a numeração global do style.
+    for el in cleaned:
+        if el.tag == f"{W}p":
+            lvl = _heading_level(el)
+            if lvl > 0:
+                _apply_heading_numPr(el, str(max(0, lvl - 1)), num_id)
+    # Injeta placeholders de legenda de Figura e Tabela (STYLEREF+SEQ) ao
+    # final (antes de qualquer sectPr que possa estar na fatia).
+    insertion_idx = len(cleaned)
+    for idx in range(len(cleaned) - 1, -1, -1):
+        if cleaned[idx].tag == f"{W}sectPr":
+            insertion_idx = idx
+            break
+    extras = [
+        _make_empty_paragraph(),
+        _make_caption_paragraph("Figura"),
+        _make_empty_paragraph(),
+        _make_caption_paragraph("Tabela"),
+        _make_empty_paragraph(),
+    ]
+    for i, extra in enumerate(extras):
+        cleaned.insert(insertion_idx + i, extra)
+    return cleaned
 
 
-def _build_standalone_heading(sec_numero: str, sec_titulo: str, style_id: str) -> list[ET.Element]:
-    """Esqueleto minimo quando a secao nao existe no master."""
+def _build_standalone_heading(sec_numero: str, sec_titulo: str, style_id: str, num_id: str) -> list[ET.Element]:
+    """Esqueleto minimo quando a secao nao existe no master.
+
+    Heading com pStyle canonico + numPr apontando para o numId customizado
+    (startOverride por nivel) + placeholders de Figura e Tabela.
+    """
     p = ET.Element(f"{W}p")
     pPr = ET.SubElement(p, f"{W}pPr")
     ps = ET.SubElement(pPr, f"{W}pStyle")
     ps.set(f"{W}val", style_id)
+    partes_sec = [x for x in sec_numero.split(".") if x]
+    ilvl_alvo = str(max(0, len(partes_sec) - 1))
+    _apply_heading_numPr(p, ilvl_alvo, num_id)
     r = ET.SubElement(p, f"{W}r")
     t = ET.SubElement(r, f"{W}t")
     t.text = sec_titulo
     t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-    empty = ET.Element(f"{W}p")
-    return [p, empty]
+    return [
+        p,
+        _make_empty_paragraph(),
+        _make_caption_paragraph("Figura"),
+        _make_empty_paragraph(),
+        _make_caption_paragraph("Tabela"),
+        _make_empty_paragraph(),
+    ]
 
 
 def _level_to_style(level: int) -> str:
@@ -295,7 +595,7 @@ def _serialize_document_with_body(root: ET.Element, body_children: list[ET.Eleme
     body_xml = ET.tostring(new_root, encoding="UTF-8")
     if not body_xml.startswith(b"<?xml"):
         body_xml = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + body_xml
-    return body_xml
+    return _ensure_ignorable_namespaces(body_xml)
 
 
 def _convert_content_types(ct_bytes: bytes) -> bytes:
@@ -310,7 +610,12 @@ def _convert_rels_main(rels_bytes: bytes) -> bytes:
     return rels_bytes
 
 
-def _write_dotx(master_bytes: bytes, new_document_xml: bytes, out_path: Path) -> None:
+def _write_dotx(
+    master_bytes: bytes,
+    new_document_xml: bytes,
+    out_path: Path,
+    new_numbering_xml: bytes | None = None,
+) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(master_bytes)) as src, zipfile.ZipFile(
         out_path, "w", zipfile.ZIP_DEFLATED
@@ -322,6 +627,8 @@ def _write_dotx(master_bytes: bytes, new_document_xml: bytes, out_path: Path) ->
                 dst.writestr(CT_FILE, _convert_content_types(src.read(name)))
             elif name == RELS_MAIN:
                 dst.writestr(RELS_MAIN, _convert_rels_main(src.read(name)))
+            elif name == "word/numbering.xml" and new_numbering_xml is not None:
+                dst.writestr("word/numbering.xml", new_numbering_xml)
             else:
                 dst.writestr(name, src.read(name))
 
@@ -331,6 +638,13 @@ def main() -> int:
     print(f"[master] {master_path.name}")
     master_bytes = master_path.read_bytes()
     root, body_children, final_sectPr = _parse_document(master_bytes)
+
+    # Le numbering.xml base do master (usado como template para inject por secao)
+    with zipfile.ZipFile(io.BytesIO(master_bytes)) as z:
+        try:
+            numbering_base = z.read("word/numbering.xml")
+        except KeyError:
+            numbering_base = b""
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     # Remove dotx antigos
@@ -342,24 +656,35 @@ def main() -> int:
 
     gerados = 0
 
-    # 1) SRA_todas_secoes.dotx = master inteiro limpo
+    # 1) SRA_todas_secoes.dotx = master inteiro limpo (SEM override de numbering,
+    #    pois as secoes mantem suas numeracoes naturais do master).
     todos_limpos = _clean_children(body_children)
     all_xml = _serialize_document_with_body(root, todos_limpos, final_sectPr)
     _write_dotx(master_bytes, all_xml, OUT_DIR / "SRA_todas_secoes.dotx")
     gerados += 1
     print("[ok]  SRA_todas_secoes.dotx")
 
-    # 2) Um .dotx por secao do padrao
+    # 2) Um .dotx por secao do padrao, com numbering.xml modificado para
+    #    iniciar a numeracao no valor absoluto da secao (startOverride).
     nao_no_master: list[str] = []
     for numero, titulo in SECOES_PADRAO:
-        slice_children = _build_slice_for_section(body_children, numero, titulo)
+        num_id = _num_id_para_secao(numero)
+        slice_children = _build_slice_for_section(body_children, numero, titulo, num_id)
         used_style = _level_to_style(len([x for x in numero.split(".") if x]))
         if not slice_children:
-            slice_children = _build_standalone_heading(numero, titulo, used_style)
+            slice_children = _build_standalone_heading(numero, titulo, used_style, num_id)
             nao_no_master.append(numero)
         new_xml = _serialize_document_with_body(root, slice_children, final_sectPr)
+        new_numbering = (
+            _inject_num_override(numbering_base, numero, num_id) if numbering_base else None
+        )
         out_name = filename_para(numero, titulo)
-        _write_dotx(master_bytes, new_xml, OUT_DIR / out_name)
+        _write_dotx(
+            master_bytes,
+            new_xml,
+            OUT_DIR / out_name,
+            new_numbering_xml=new_numbering,
+        )
         gerados += 1
         print(f"[ok]  {out_name}")
 
