@@ -3,5 +3,4 @@
   "hints": {
     "no-inline-styles": "off"
   },
-  "_comment": "Inline styles sao obrigatorios em templates de email para compatibilidade com Gmail, Outlook e outros clientes que descartam folhas de estilo externas e blocos de estilo no head. Trade-off aceito porque o unico HTML inline-heavy do projeto e app/notificacoes/templates/email_notificacao.html."
 }

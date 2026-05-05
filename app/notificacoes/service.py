@@ -357,6 +357,7 @@ def _clonar_estrutura_e_conteudo(db: Session, base: Relatorio, novo: Relatorio) 
                 figura_id=fid_novo,
                 autor_id=ob.autor_id,
                 bloqueado=False,
+                origem="clonado",
             )
             db.add(nb)
             db.flush()

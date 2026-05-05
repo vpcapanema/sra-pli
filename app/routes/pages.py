@@ -16,6 +16,7 @@ from ..modo_edicao_blocos import modo_edicao_coordenador_rel
 from ..numeracao import chave_numero, secao_ids_na_subarvore
 from ..notificacoes.ciclo_params import obter_parametros_ciclo, periodo_referente_para_data
 from ..sumario_extractor import listar_pdfs_disponiveis
+from ..docx_clone_extractor import listar_docx_disponiveis
 from ..jinja_filters import registrar as _registrar_filtros_jinja
 from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 
@@ -70,12 +71,13 @@ def response_login(
     request: Request,
     error: str | None = None,
     notice: str | None = None,
+    role: str | None = None,
     status_code: int = 200,
 ) -> Response:
     return templates.TemplateResponse(
         request,
         "complementos/login.html",
-        {"error": error, "notice": notice},
+        {"error": error, "notice": notice, "role": role},
         status_code=status_code,
     )
 
@@ -124,6 +126,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
     sugestao = _sugestao_proximo_relatorio(db, relatorios)
     pdfs_disponiveis = listar_pdfs_disponiveis()
+    docxs_disponiveis = listar_docx_disponiveis()
     return templates.TemplateResponse(
         request,
         "complementos/dashboard.html",
@@ -132,6 +135,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
             "relatorios": relatorios,
             "sugestao": sugestao,
             "pdfs_disponiveis": pdfs_disponiveis,
+            "docxs_disponiveis": docxs_disponiveis,
         },
     )
 
@@ -285,6 +289,11 @@ def _response_secao_page(
     pdf_preview_url = f"/relatorios/{rel.id}/pdf?" + "&".join(
         f"secao_ids={sid}" for sid in sorted(sec_ids_escopo)
     )
+    # "Upado" = qualquer bloco cuja origem NÃO seja clone/importação do DOCX/PDF.
+    origens_clonadas = {"clonado", "docx_import", "pdf_import"}
+    sec_tem_upload = any(
+        (b.origem or "manual") not in origens_clonadas for b in blocos_escopo
+    )
     return templates.TemplateResponse(
         request,
         template_name,
@@ -300,6 +309,7 @@ def _response_secao_page(
             "blocos_escopo": blocos_escopo,
             "sec_ids_subarvore": sec_ids_escopo,
             "pdf_preview_url": pdf_preview_url,
+            "sec_tem_upload": sec_tem_upload,
         },
     )
 

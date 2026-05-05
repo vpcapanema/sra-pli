@@ -187,8 +187,8 @@
       var f = fin && fin.files && fin.files[0];
       return f ? f.name : "Nenhum arquivo de upload selecionado";
     }
-    if (r.value === "pdf_disponivel") {
-      var sel = form.querySelector('select[name="pdf_disponivel"]');
+    if (r.value === "docx_disponivel") {
+      var sel = form.querySelector('select[name="docx_disponivel"]');
       if (!sel) {
         return "";
       }
@@ -197,6 +197,17 @@
         return "Nenhum relatório entregue selecionado";
       }
       return (opt.text || opt.value).trim();
+    }
+    if (r.value === "pdf_disponivel") {
+      var selPdf = form.querySelector('select[name="pdf_disponivel"]');
+      if (!selPdf) {
+        return "";
+      }
+      var optPdf = selPdf.options[selPdf.selectedIndex];
+      if (!optPdf || !String(optPdf.value || "").trim()) {
+        return "Nenhum relatório entregue selecionado";
+      }
+      return (optPdf.text || optPdf.value).trim();
     }
     return "";
   }

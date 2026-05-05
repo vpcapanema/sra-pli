@@ -118,7 +118,7 @@
               <th>#</th>
               <th>Seção</th>
               <th>Responsável</th>
-              <th>Blocos</th>
+              <th title="Clonados / Inseridos pelo autor">Blocos (clonados / autor)</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -131,7 +131,19 @@
               </td>
               <td>{{ s.titulo }}</td>
               <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
-              <td>{{ s.blocos|length }}</td>
+              <td>
+                {% set ns_b = namespace(clonados=0, autorados=0) %}
+                {% for b in s.blocos %}
+                  {% if b.origem in ['docx_import','pdf_import','clonado'] %}
+                    {% set ns_b.clonados = ns_b.clonados + 1 %}
+                  {% else %}
+                    {% set ns_b.autorados = ns_b.autorados + 1 %}
+                  {% endif %}
+                {% endfor %}
+                <span title="Blocos clonados" style="color:#145214;font-weight:600">{{ ns_b.clonados }}</span>
+                <span aria-hidden="true" style="color:#9aa3af"> / </span>
+                <span title="Blocos inseridos pelo autor" style="color:#0b2a66;font-weight:600">{{ ns_b.autorados }}</span>
+              </td>
               <td>
                 {% if s.status == 'aprovada' %}
                 <span class="sbadge s-completo">aprovada</span>

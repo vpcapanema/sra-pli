@@ -151,19 +151,19 @@ header %}Relatórios mensais D20{% endblock %} {% block content %}
           </div>
           <div class="fonte-secoes-col" style="flex: 1; min-width: 200px">
             <label class="radio-line">
-              <input type="radio" name="fonte_secoes" value="pdf_disponivel" />
-              <span>Relatório entregue (PDF):</span>
+              <input type="radio" name="fonte_secoes" value="docx_disponivel" />
+              <span>Relatório entregue (DOCX):</span>
             </label>
             <div class="indent fonte-secoes-control">
-              <label for="rel-novo-pdf-disponivel">PDF do relatório base</label>
+              <label for="rel-novo-docx-disponivel">DOCX do relatório base</label>
               <select
-                id="rel-novo-pdf-disponivel"
-                name="pdf_disponivel"
-                title="PDF base"
+                id="rel-novo-docx-disponivel"
+                name="docx_disponivel"
+                title="DOCX base"
                 style="width: 100%"
               >
                 <option value="">— selecione —</option>
-                {% for nome in pdfs_disponiveis %}
+                {% for nome in docxs_disponiveis %}
                 <option value="{{ nome }}">{{ nome }}</option>
                 {% endfor %}
               </select>

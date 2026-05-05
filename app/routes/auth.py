@@ -82,6 +82,7 @@ def login_submit(
         return response_login(
             request,
             error="Selecione um perfil válido.",
+            role=perfil,
             status_code=400,
         )
     email_norm = email.strip().lower()
@@ -94,6 +95,7 @@ def login_submit(
         return response_login(
             request,
             error="E-mail, perfil ou senha inválidos.",
+            role=perfil,
             status_code=401,
         )
     _clear_pwd_reset_session(request)

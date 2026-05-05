@@ -154,14 +154,15 @@ def extrair_secoes_e_conteudo(
 
     # 4) Localiza posições dos cabeçalhos no corpo
     posicoes: List[Tuple[int, str, str]] = []  # (idx_linha, numero, titulo)
+    _nums_vistos: set[str] = set()
     for idx, ln in enumerate(linhas):
         m = _RE_CABECALHO_SECAO.match(ln)
         if m:
             num = m.group(1).strip()
             tit = m.group(2).strip()
-            if num in numeros_validos and len(tit) >= 2:
-                # Evita duplicatas — pega apenas primeira ocorrência no corpo
-                if not posicoes or posicoes[-1][1] != num:
+            if num in numeros_validos and len(tit) >= 2 and len(num) <= 16:
+                if num not in _nums_vistos:
+                    _nums_vistos.add(num)
                     posicoes.append((idx, num, tit))
 
     # 5) Extrai conteúdo entre cabeçalhos
@@ -191,12 +192,11 @@ def extrair_secoes_e_conteudo(
     # 6) Garante que todas as seções do sumário apareçam (mesmo sem conteúdo)
     nums_encontrados = {r[0] for r in resultado}
     for num, tit in sumario:
-        if num not in nums_encontrados:
+        if num not in nums_encontrados and len(num) <= 16:
             resultado.append((num, tit, ""))
 
-    # Ordena pelo número (lexicográfico com padding numérico)
     def _sort_key(item: Tuple[str, str, str]) -> List[int]:
-        return [int(x) for x in item[0].split(".")]
+        return [int(x) if x.isdigit() else 0 for x in item[0].split(".")]
 
     resultado.sort(key=_sort_key)
     return resultado
@@ -224,10 +224,13 @@ def _extrair_blocos_avancado(
         # Fallback: se PyMuPDF não estiver instalado, usa extração simples
         return []
 
-    if isinstance(fonte, bytes):
-        doc = fitz.open(stream=fonte, filetype="pdf")
-    else:
-        doc = fitz.open(str(fonte))
+    try:
+        if isinstance(fonte, bytes):
+            doc = fitz.open(stream=fonte, filetype="pdf")
+        else:
+            doc = fitz.open(str(fonte))
+    except Exception:  # noqa: BLE001
+        return []
 
     # 1) Extrair sumário usando pypdf (já funciona bem)
     if isinstance(fonte, (str, Path)):
@@ -311,13 +314,15 @@ def _extrair_blocos_avancado(
     # 4) Localizar seções e associar conteúdo
     linhas = texto_completo_linhas
     posicoes: List[Tuple[int, str, str]] = []
+    _nums_vistos_av: set[str] = set()
     for idx, ln in enumerate(linhas):
         m = _RE_CABECALHO_SECAO.match(ln)
         if m:
             num = m.group(1).strip()
             tit = m.group(2).strip()
-            if num in numeros_validos and len(tit) >= 2:
-                if not posicoes or posicoes[-1][1] != num:
+            if num in numeros_validos and len(tit) >= 2 and len(num) <= 16:
+                if num not in _nums_vistos_av:
+                    _nums_vistos_av.add(num)
                     posicoes.append((idx, num, tit))
 
     # 5) Montar resultado por seção
@@ -407,7 +412,7 @@ def _extrair_blocos_avancado(
     # 7) Garante que todas as seções do sumário apareçam
     nums_encontrados = {r["secao_numero"] for r in resultado}
     for num, tit in sumario:
-        if num not in nums_encontrados:
+        if num not in nums_encontrados and len(num) <= 16:
             resultado.append({
                 "secao_numero": num,
                 "secao_titulo": tit,
@@ -416,7 +421,7 @@ def _extrair_blocos_avancado(
 
     # Ordena
     def _sort_key(item: dict) -> List[int]:
-        return [int(x) for x in item["secao_numero"].split(".")]
+        return [int(x) if x.isdigit() else 0 for x in item["secao_numero"].split(".")]
 
     resultado.sort(key=_sort_key)
     doc.close()

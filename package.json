@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@cspell/dict-pt-br": "^1.0.0",
+    "baseline-browser-mapping": "^2.10.27",
     "cspell": "^9.2.0",
     "hint": "^7.1.13",
     "markdownlint-cli2": "^0.22.0"

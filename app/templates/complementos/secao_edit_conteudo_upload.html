@@ -63,14 +63,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             </select>
           </div>
           <div class="ucr-field ucr-coord-resp" id="ucr-wrap-resp">
-            <label for="sel-sec-responsavel">Responsável</label>
+            <label for="sel-sec-responsavel">
+              Responsável{% if sec_tem_upload %} <span aria-hidden="true" style="color:#b00020">*</span>{% endif %}
+            </label>
             <div class="ucr-input-wrap">
               <select
                 id="sel-sec-responsavel"
-                title="Responsável pela seção"
-                {% if user.role == 'autor' %}required{% endif %}
+                data-sec-tem-upload="{{ '1' if sec_tem_upload else '0' }}"
+                title="Responsável pela seção{% if sec_tem_upload %} (obrigatório quando há conteúdo inserido pelo autor){% endif %}"
+                {% if sec_tem_upload %}required{% endif %}
               >
-                {% if user.role in ['admin','coordenador'] %}
+                {% if not sec_tem_upload %}
                 <option value="">—</option>
                 {% endif %}
                 {% for a in autores %}
@@ -267,7 +270,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             {% elif b.tipo == 'tabela' %} {% set categoria_bloco = "tabela" %}
             {% else %} {% set categoria_bloco = "conteúdo" %} {% endif %}
             <tr
-              class="{% if b.bloqueado %}bloqueado-row{% endif %}"
+              class="{% if b.bloqueado %}bloqueado-row {% endif %}{% if b.origem in ['docx_import','pdf_import','clonado'] %}origem-clonado{% else %}origem-autor{% endif %}"
               id="bloco-row-{{ b.id }}"
             >
               <td class="select-col">
@@ -1143,8 +1146,12 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         return;
       }
       var secId = String(expect.pageSecId);
-      if (expect.userRole === "autor" && !String(respSel.value || "").trim()) {
-        window.alert("Selecione-se como responsável e confirme.");
+      var secTemUpload =
+        respSel && respSel.getAttribute("data-sec-tem-upload") === "1";
+      if (secTemUpload && !String(respSel.value || "").trim()) {
+        window.alert(
+          "Selecione um responsável: esta seção já tem conteúdo inserido pelo autor.",
+        );
         return;
       }
       btn.disabled = true;
@@ -3729,6 +3736,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   }
   .blocos-table tbody tr:last-child td {
     border-bottom: 0;
+  }
+  /* Diferenciação por origem do bloco (clonado x inserido pelo autor). */
+  .blocos-table tbody tr.origem-clonado td {
+    color: #145214;
+  }
+  .blocos-table tbody tr.origem-autor td {
+    color: #0b2a66;
+  }
+  .blocos-table tbody tr.origem-clonado td small,
+  .blocos-table tbody tr.origem-autor td small {
+    color: inherit;
   }
   .select-col {
     width: 34px;

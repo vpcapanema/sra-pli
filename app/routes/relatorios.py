@@ -1,5 +1,6 @@
 import re
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
+from sqlalchemy.exc import IntegrityError, DataError
 from fastapi.responses import JSONResponse
 
 from starlette.responses import RedirectResponse, Response
@@ -11,13 +12,14 @@ from ..models import Bloco, Relatorio, Secao, User
 from .blocos import _hook_recompute_entrega, _impacta_numeracao, _pode_editar_status, campos_json_bloco_transversal
 from ..bootstrap import criar_secoes_padrao
 from ..modo_edicao_blocos import definir_modo_edicao_coordenador
-from ..numeracao import consolidar_referencias, renumerar_relatorio
+from ..numeracao import consolidar_referencias, renumerar_relatorio, secao_ids_na_subarvore
 from .. import ref_resolve
 from ..sumario_extractor import (
     extrair_completo_pdf_disponivel,
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
 )
+from ..docx_clone_extractor import extrair_relatorio_docx_disponivel
 
 from .pages import (
     response_conteudo_upload,
@@ -215,6 +217,7 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
     numero_medicao: str = Form(""),
     fonte_secoes: str = Form("clone_relatorio"),
     pdf_disponivel: str = Form(""),
+    docx_disponivel: str = Form(""),
     pdf_upload: "UploadFile | None" = File(None),
     base_relatorio_id: str = Form(""),
     db: Session = Depends(get_db),
@@ -229,6 +232,7 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
     secoes_com_conteudo: "list[dict] | None" = None
+    origem_blocos: str = "pdf_import"
     base_rel_id: int | None = None
     fonte = (fonte_secoes or "clone_relatorio").strip().lower()
     if fonte == "clone_relatorio":
@@ -242,6 +246,19 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         base = db.get(Relatorio, base_rel_id)
         if not base:
             raise HTTPException(400, detail="Relatório base não encontrado.")
+    elif fonte == "docx_disponivel":
+        nome = (docx_disponivel or "").strip()
+        if not nome:
+            raise HTTPException(400, detail="Selecione o DOCX disponível.")
+        try:
+            secoes_com_conteudo = extrair_relatorio_docx_disponivel(nome)
+        except ValueError as exc:
+            raise HTTPException(400, detail=str(exc))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(500, detail=f"Erro ao processar DOCX: {exc}")
+        if not secoes_com_conteudo:
+            raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
+        origem_blocos = "docx_import"
     elif fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
@@ -251,6 +268,8 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
             secoes_com_conteudo = extrair_completo_pdf_disponivel(nome)
         except ValueError as exc:
             raise HTTPException(400, detail=str(exc))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(500, detail=f"Erro ao processar PDF: {exc}")
         if not secoes_com_conteudo:
             raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
     elif fonte == "upload":
@@ -279,67 +298,83 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         numero_medicao=int(numero_medicao) if numero_medicao.strip() else None,
     )
     # Criar relatório + seções em uma única transação (multi-statement).
-    with tx_session() as txdb:
-        txdb.add(rel)
-        txdb.flush()
-        rel_id_novo = rel.id
-        if base_rel_id:
-            # Clona seções e blocos do relatório base (igual ao processo automático)
-            from app.notificacoes.service import (
-                _clonar_estrutura_e_conteudo,
-                _substituir_referencias_periodo,
-            )
-
-            base = txdb.get(Relatorio, base_rel_id)
-            if base:
-                _clonar_estrutura_e_conteudo(txdb, base, rel)
-                # Substitui referências de período no conteúdo clonado
-                secoes = txdb.query(Secao).filter(Secao.relatorio_id == rel.id).all()
-                for sec in secoes:
-                    sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
-                txdb.commit()
-        elif secoes_com_conteudo:
-            # PDF disponível: cria seções + blocos extraídos do PDF (texto, tabela, figura)
-            from ..models import Figura
-
-            for ordem, sec_data in enumerate(secoes_com_conteudo, start=1):
-                nova_sec = Secao(
-                    relatorio_id=rel_id_novo,
-                    numero=sec_data["secao_numero"],
-                    titulo=sec_data["secao_titulo"],
-                    ordem=ordem,
-                    responsavel_id=None,
-                    status="pendente",
+    try:
+        with tx_session() as txdb:
+            txdb.add(rel)
+            txdb.flush()
+            rel_id_novo = rel.id
+            if base_rel_id:
+                # Clona seções e blocos do relatório base (igual ao processo automático)
+                from app.notificacoes.service import (
+                    _clonar_estrutura_e_conteudo,
+                    _substituir_referencias_periodo,
                 )
-                txdb.add(nova_sec)
-                txdb.flush()
-                for bloco_ordem, bloco_data in enumerate(sec_data.get("blocos", [])):
-                    tipo = bloco_data.get("tipo", "texto")
-                    fig_id = None
-                    if tipo == "figura" and bloco_data.get("dados_imagem"):
-                        # Salva imagem na tabela Figura
-                        fig = Figura(
-                            relatorio_id=rel_id_novo,
-                            nome=f"fig_{nova_sec.numero}_{bloco_ordem}",
-                            mime=bloco_data.get("mime", "image/png"),
-                            dados=bloco_data["dados_imagem"],
-                        )
-                        txdb.add(fig)
-                        txdb.flush()
-                        fig_id = fig.id
-                    txdb.add(
-                        Bloco(
-                            secao_id=nova_sec.id,
-                            tipo=tipo,
-                            ordem=bloco_ordem,
-                            conteudo=bloco_data.get("conteudo", ""),
-                            figura_id=fig_id,
-                            origem="pdf_import",
-                        )
+
+                base = txdb.get(Relatorio, base_rel_id)
+                if base:
+                    _clonar_estrutura_e_conteudo(txdb, base, rel)
+                    # Substitui referências de período no conteúdo clonado
+                    secoes = txdb.query(Secao).filter(Secao.relatorio_id == rel.id).all()
+                    for sec in secoes:
+                        sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
+                    txdb.commit()
+            elif secoes_com_conteudo:
+                # PDF disponível: cria seções + blocos extraídos do PDF (texto, tabela, figura)
+                from ..models import Figura
+
+                # Dedup defensivo: garante apenas um registro por numero de seção
+                # dentro do mesmo relatório (respeita UniqueConstraint uq_secao_rel_num).
+                # O extrator pode retornar a mesma seção múltiplas vezes se o PDF
+                # tiver o número tanto no corpo quanto no sumário em formatos diferentes.
+                _vistos_nums: set[str] = set()
+                _secoes_unicas: list[dict] = []
+                for _sd in secoes_com_conteudo:
+                    _num = (_sd.get("secao_numero") or "").strip()
+                    if not _num or _num in _vistos_nums or len(_num) > 16:
+                        continue
+                    _vistos_nums.add(_num)
+                    _secoes_unicas.append(_sd)
+
+                for ordem, sec_data in enumerate(_secoes_unicas, start=1):
+                    nova_sec = Secao(
+                        relatorio_id=rel_id_novo,
+                        numero=sec_data["secao_numero"],
+                        titulo=sec_data["secao_titulo"],
+                        ordem=ordem,
+                        responsavel_id=None,
+                        status="pendente",
                     )
-        else:
-            # Cria seções padrão baseadas no PDF (comportamento original)
-            criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+                    txdb.add(nova_sec)
+                    txdb.flush()
+                    for bloco_ordem, bloco_data in enumerate(sec_data.get("blocos", [])):
+                        tipo = bloco_data.get("tipo", "texto")
+                        fig_id = None
+                        if tipo == "figura" and bloco_data.get("dados_imagem"):
+                            # Salva imagem na tabela Figura
+                            fig = Figura(
+                                relatorio_id=rel_id_novo,
+                                nome=f"fig_{nova_sec.numero}_{bloco_ordem}",
+                                mime=bloco_data.get("mime", "image/png"),
+                                dados=bloco_data["dados_imagem"],
+                            )
+                            txdb.add(fig)
+                            txdb.flush()
+                            fig_id = fig.id
+                        txdb.add(
+                            Bloco(
+                                secao_id=nova_sec.id,
+                                tipo=tipo,
+                                ordem=bloco_ordem,
+                                conteudo=bloco_data.get("conteudo", ""),
+                                figura_id=fig_id,
+                                origem=origem_blocos,
+                            )
+                        )
+            else:
+                # Cria seções padrão baseadas no PDF (comportamento original)
+                criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+    except (IntegrityError, DataError) as exc:
+        raise HTTPException(400, detail=f"Erro ao gravar seções: {exc.orig}")
     return response_relatorio_detail(request, db, rel_id_novo)
 
 
@@ -551,17 +586,48 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    if user.role == "autor":
-        if not responsavel_id.strip():
-            raise HTTPException(400, detail="Selecione-se como responsável e confirme.")
-        rid = int(responsavel_id)
-        if rid != user.id:
+    # Regra: Responsável só é obrigatório quando a seção (subárvore) já tem
+    # algum bloco inserido/upado pelo autor — ou seja, algo cuja origem não
+    # seja o clone/importação (DOCX/PDF).
+    sec_ids_escopo = secao_ids_na_subarvore(sec.relatorio.secoes, sec.numero or "") if sec.relatorio else {sec.id}
+    if not sec_ids_escopo:
+        sec_ids_escopo = {sec.id}
+    origens_clonadas = {"clonado", "docx_import", "pdf_import"}
+    sec_tem_upload = (
+        db.query(Bloco)
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(Secao.id.in_(sec_ids_escopo))
+        .filter(~Bloco.origem.in_(origens_clonadas))
+        .first()
+        is not None
+    )
+    if not responsavel_id.strip():
+        if sec_tem_upload:
+            raise HTTPException(
+                400,
+                detail=(
+                    "Selecione um responsável: esta seção já tem conteúdo "
+                    "inserido pelo autor."
+                ),
+            )
+        if user.role == "autor":
             raise HTTPException(403, detail="Autor só pode atribuir a si próprio.")
-        sec.responsavel_id = rid
+        # Admin/coord podem limpar o responsável enquanto a seção só tiver
+        # conteúdo clonado.
+        sec.responsavel_id = None
     else:
-        if user.role not in ("admin", "coordenador"):
-            raise HTTPException(403)
-        sec.responsavel_id = int(responsavel_id) if responsavel_id else None
+        try:
+            rid = int(responsavel_id)
+        except ValueError:
+            raise HTTPException(400, detail="Responsável inválido.")
+        if user.role == "autor":
+            if rid != user.id:
+                raise HTTPException(403, detail="Autor só pode atribuir a si próprio.")
+            sec.responsavel_id = rid
+        else:
+            if user.role not in ("admin", "coordenador"):
+                raise HTTPException(403)
+            sec.responsavel_id = rid
     db.commit()
     if retorno == "upload":
         return response_conteudo_upload(request, db, rel_id, sec_id)
