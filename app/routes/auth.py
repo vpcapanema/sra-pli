@@ -88,50 +88,58 @@ def login_submit(
     email_norm = email.strip().lower()
     t0 = time.perf_counter()
     _log.info("login_submit inicio role=%s email=%s", perfil, email_norm)
-    user = (
-        db.query(User)
-        .filter(User.email == email_norm, User.role == perfil)
-        .one_or_none()
-    )
-    t_user = time.perf_counter()
-    _log.info(
-        "login_submit consulta_usuario_ms=%.1f encontrado=%s role=%s",
-        (t_user - t0) * 1000,
-        bool(user),
-        perfil,
-    )
-    senha_ok = bool(user) and verify_password(password, user.password_hash)
-    t_pwd = time.perf_counter()
-    _log.info(
-        "login_submit verifica_senha_ms=%.1f ok=%s role=%s",
-        (t_pwd - t_user) * 1000,
-        senha_ok,
-        perfil,
-    )
-    if not senha_ok:
+    try:
+        user = (
+            db.query(User)
+            .filter(User.email == email_norm, User.role == perfil)
+            .one_or_none()
+        )
+        t_user = time.perf_counter()
+        _log.info(
+            "login_submit consulta_usuario_ms=%.1f encontrado=%s role=%s",
+            (t_user - t0) * 1000,
+            bool(user),
+            perfil,
+        )
+        senha_ok = bool(user) and verify_password(password, user.password_hash)
+        t_pwd = time.perf_counter()
+        _log.info(
+            "login_submit verifica_senha_ms=%.1f ok=%s role=%s",
+            (t_pwd - t_user) * 1000,
+            senha_ok,
+            perfil,
+        )
+        if not senha_ok:
+            return response_login(
+                request,
+                error="E-mail, perfil ou senha inválidos.",
+                role=perfil,
+                status_code=401,
+            )
+        _clear_pwd_reset_session(request)
+        request.session["user_id"] = user.id
+        request.session["user_role"] = user.role
+        destino = "/dashboard"
+        if user.role == "autor":
+            destino = "/painel-upload"
+        t_destino = time.perf_counter()
+        _log.info(
+            "login_submit destino_ms=%.1f total_ms=%.1f user_id=%s role=%s destino=%s",
+            (t_destino - t_pwd) * 1000,
+            (t_destino - t0) * 1000,
+            user.id,
+            user.role,
+            destino,
+        )
+        return response_client_goto(destino)
+    except Exception:
+        _log.exception("login_submit erro inesperado role=%s email=%s", perfil, email_norm)
         return response_login(
             request,
-            error="E-mail, perfil ou senha inválidos.",
+            error="Falha temporária no login. Tente novamente em instantes.",
             role=perfil,
-            status_code=401,
+            status_code=500,
         )
-    _clear_pwd_reset_session(request)
-    request.session["user_id"] = user.id
-    request.session["user_role"] = user.role
-    destino = "/dashboard"
-    if user.role == "autor":
-        hub = url_hub_autor(db)
-        destino = hub if hub else "/painel-upload"
-    t_destino = time.perf_counter()
-    _log.info(
-        "login_submit destino_ms=%.1f total_ms=%.1f user_id=%s role=%s destino=%s",
-        (t_destino - t_pwd) * 1000,
-        (t_destino - t0) * 1000,
-        user.id,
-        user.role,
-        destino,
-    )
-    return response_client_goto(destino)
 
 
 @router.get("/logout")
