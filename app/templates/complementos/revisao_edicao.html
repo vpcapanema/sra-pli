@@ -61,23 +61,6 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       </button>
       <div class="rev-ribbon-dropdown__menu" hidden id="dropdown-arquivo">
         <div class="rev-dropdown-group">
-          <span class="rev-dropdown-group__title">Exportar PDF</span>
-          <button
-            type="button"
-            class="rev-dropdown-item"
-            data-action="export-pdf-todo"
-          >
-            Exportar relatório completo
-          </button>
-          <button
-            type="button"
-            class="rev-dropdown-item"
-            data-action="export-pdf-secoes"
-          >
-            Exportar seções selecionadas
-          </button>
-        </div>
-        <div class="rev-dropdown-group">
           <span class="rev-dropdown-group__title">Exportar DOCX</span>
           <button
             type="button"
@@ -690,31 +673,6 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       <div class="rev-toolbar-card rev-toolbar-card--action">
         <button
           type="button"
-          id="rev-btn-exportar-pdf"
-          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
-          data-action="export-pdf-todo"
-          title="Exportar PDF"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            ></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <text x="8" y="18" font-size="6" font-weight="bold">PDF</text>
-          </svg>
-          <span>PDF</span>
-        </button>
-      </div>
-      <div class="rev-toolbar-card rev-toolbar-card--action">
-        <button
-          type="button"
           id="rev-btn-exportar-docx"
           class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
           data-action="export-docx-todo"
@@ -1280,39 +1238,6 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
         </button>
         <button type="submit" class="rev-btn rev-btn--primary">
           Adicionar bloco
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal para exportar PDF - seções selecionadas -->
-<div id="modal-export-pdf-secoes" class="rev-modal" hidden>
-  <div class="rev-modal__overlay" data-action="close-modal"></div>
-  <div class="rev-modal__dialog" style="max-width: 600px">
-    <div class="rev-modal__header">
-      <h3>Exportar PDF - Seções Selecionadas</h3>
-      <button type="button" class="rev-modal__close" data-action="close-modal">
-        ×
-      </button>
-    </div>
-    <form id="form-export-pdf-secoes" class="rev-modal__body">
-      <label>Selecione as seções para exportar:</label>
-      <div class="rev-secoes-list">
-        {% for s in rel.secoes %}
-        <label class="rev-secao-item">
-          <input type="checkbox" name="secoes" value="{{ s.id }}" checked />
-          <span>{{ s.numero }} - {{ s.titulo }}</span>
-        </label>
-        {% endfor %}
-      </div>
-
-      <div class="rev-modal__actions">
-        <button type="button" class="rev-btn" data-action="close-modal">
-          Cancelar
-        </button>
-        <button type="submit" class="rev-btn rev-btn--primary">
-          Exportar PDF
         </button>
       </div>
     </form>

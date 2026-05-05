@@ -102,9 +102,6 @@
           >{% if user.role in ['admin','coordenador'] %}2{% else %}1{% endif
           %}</span
         ><span class="st">Sumário do relatório</span>
-        <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf"
-          >Gerar PDF</a
-        >
         {% if user.role in ['admin','coordenador'] %}
           <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
             >Entregas dos autores</a
@@ -226,7 +223,7 @@
   </div>
   <aside
     class="upload-preview"
-    aria-label="Pré-visualização do relatório em PDF"
+    aria-label="Pré-visualização do relatório"
   >
     <section class="ss active-tab upload-preview-inner" id="ss-preview">
       <div class="ss-hdr">
@@ -253,9 +250,6 @@
         <button type="button" class="btn-pdf" id="rel-sum-btn-preview-reload">
           Atualizar
         </button>
-        <a href="/relatorios/{{ rel.id }}/pdf" target="_blank" class="btn-pdf"
-          >Abrir PDF</a
-        >
       </div>
       <div class="sb2">
         <details class="export-menu">
@@ -347,9 +341,6 @@
               </div>
             </div>
             <div class="export-actions">
-              <button type="submit" name="formato" value="pdf">
-                Exportar PDF
-              </button>
               <button
                 type="submit"
                 name="formato"
@@ -365,10 +356,10 @@
           <div class="preview-zoom-inner" id="rel-sum-preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="/relatorios/{{ rel.id }}/pdf"
-              data-src="/relatorios/{{ rel.id }}/pdf"
+              src="/relatorios/{{ rel.id }}/preview"
+              data-src="/relatorios/{{ rel.id }}/preview"
               class="preview-frame"
-              title="Pré-visualização do relatório em PDF"
+              title="Pré-visualização do relatório"
             ></iframe>
           </div>
         </div>

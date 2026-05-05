@@ -31,7 +31,6 @@ _AUTOR_PATH_RES: tuple[re.Pattern[str], ...] = tuple(
         r"^/relatorios/\d+/secoes/\d+/blocos\.json$",
         r"^/relatorios/\d+/secoes/\d+/importar/analisar$",
         r"^/relatorios/\d+/secoes/\d+/importar/confirmar$",
-        r"^/relatorios/\d+/pdf$",
         r"^/relatorios/\d+/preview$",
         r"^/relatorios/\d+/exportar$",
         r"^/relatorios/\d+/secoes/\d+/blocos$",

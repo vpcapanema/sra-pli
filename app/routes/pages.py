@@ -286,7 +286,7 @@ def _response_secao_page(
             b.id,
         )
     )
-    pdf_preview_url = f"/relatorios/{rel.id}/pdf?" + "&".join(
+    preview_url = f"/relatorios/{rel.id}/preview?" + "&".join(
         f"secao_ids={sid}" for sid in sorted(sec_ids_escopo)
     )
     # "Upado" = qualquer bloco cuja origem NÃO seja clone/importação do DOCX/PDF.
@@ -308,7 +308,7 @@ def _response_secao_page(
             "mostrar_botao_modo_edicao": user.role == "coordenador",
             "blocos_escopo": blocos_escopo,
             "sec_ids_subarvore": sec_ids_escopo,
-            "pdf_preview_url": pdf_preview_url,
+            "preview_url": preview_url,
             "sec_tem_upload": sec_tem_upload,
         },
     )

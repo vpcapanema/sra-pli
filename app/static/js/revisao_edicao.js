@@ -928,8 +928,6 @@
 
     // Executa a ação
     if (action === "salvar-tudo") salvarTudo();
-    else if (action === "exportar-pdf")
-      window.location.href = "/relatorios/" + REL_ID + "/pdf";
     else if (action === "fechar")
       window.location.href =
         "/relatorios/" + REL_ID + "/validacao-revisao#ss-validacao";
@@ -986,11 +984,6 @@
 
     if (action === "salvar") salvarTudo();
     else if (action === "revisar") rodarRevisao();
-    else if (action === "export-pdf-todo")
-      window.location.href =
-        "/relatorios/" + REL_ID + "/exportar?formato=pdf&escopo=inteiro";
-    else if (action === "export-pdf-secoes")
-      openModal("modal-export-pdf-secoes");
     else if (action === "export-docx-todo")
       window.location.href =
         "/relatorios/" + REL_ID + "/exportar?formato=docx&escopo=inteiro";
@@ -1173,26 +1166,6 @@
     );
   }
 
-  function onExportPdfSecoesSubmit(ev) {
-    ev.preventDefault();
-    var form = ev.target;
-    var formData = new FormData(form);
-    var secoes = formData.getAll("secoes");
-
-    if (secoes.length === 0) {
-      alert("Selecione pelo menos uma seção para exportar.");
-      return;
-    }
-
-    var url =
-      "/relatorios/" +
-      REL_ID +
-      "/exportar?formato=pdf&escopo=selecionadas&secao_ids=" +
-      secoes.join(",");
-    window.open(url, "_blank");
-    closeModal("modal-export-pdf-secoes");
-  }
-
   function onExportDocxSecoesSubmit(ev) {
     ev.preventDefault();
     var form = ev.target;
@@ -1279,9 +1252,10 @@
     .getElementById("rev-btn-revisar")
     ?.addEventListener("click", rodarRevisao);
   document
-    .getElementById("rev-btn-exportar")
+    .getElementById("rev-btn-exportar-docx")
     ?.addEventListener("click", function () {
-      window.location.href = "/relatorios/" + REL_ID + "/pdf";
+      window.location.href =
+        "/relatorios/" + REL_ID + "/exportar?formato=docx&escopo=inteiro";
     });
 
   // Modais
@@ -1303,10 +1277,6 @@
   var formAddTabela = document.getElementById("form-add-tabela");
   if (formAddTabela)
     formAddTabela.addEventListener("submit", onAddTabelaSubmit);
-
-  var formExportPdfSecoes = document.getElementById("form-export-pdf-secoes");
-  if (formExportPdfSecoes)
-    formExportPdfSecoes.addEventListener("submit", onExportPdfSecoesSubmit);
 
   var formExportDocxSecoes = document.getElementById("form-export-docx-secoes");
   if (formExportDocxSecoes)

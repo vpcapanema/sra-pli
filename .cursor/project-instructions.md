@@ -8,7 +8,7 @@ Estrutura de `.cursor/`: `rules/*.mdc` (regras editor), `skills/*/SKILL.md` (wor
 
 ## O Que É Esta Aplicação
 
-SRA (Sistema de Relatórios de Atividades) do contrato PLI/SP-2050. Plataforma web interna para produção semi-automática dos Relatórios Mensais D20 do consórcio Concremat-Transplan, no contexto SEMIL/DER-SP. Autores preenchem suas seções com blocos estruturados; coordenadores e admins controlam relatórios, seções, responsáveis, revisão e geração do PDF final.
+SRA (Sistema de Relatórios de Atividades) do contrato PLI/SP-2050. Plataforma web interna para produção semi-automática dos Relatórios Mensais D20 do consórcio Concremat-Transplan, no contexto SEMIL/DER-SP. Autores preenchem suas seções com blocos estruturados; coordenadores e admins controlam relatórios, seções, responsáveis, revisão, pré-visualização HTML A4 e exportação DOCX.
 
 Modo de produção real: sem mocks, dados fictícios ou atalhos.
 
@@ -16,9 +16,9 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 
 - Backend: FastAPI; ORM: SQLAlchemy 2; Banco: PostgreSQL real (geralmente remoto no Render).
 - Templates: Jinja2 com HTML tradicional. Frontend: HTML/CSS/JS simples — **não migrar para React**.
-- PDF: WeasyPrint a partir de `app/templates/pdf/relatorio.html`.
+- PDF: desativado em produção; pré-visualização usa HTML A4 a partir de `app/templates/pdf/relatorio.html`, e a exportação disponível é DOCX.
 - Sessão assinada via `SessionMiddleware`; senha com `bcrypt`. Uploads de figura ficam no banco em `Figura.dados` (binário).
-- Deploy: Docker e Render. O `render.yaml` do repo fixa o web service em **plano Standard** (2 GB RAM); Free/Starter (512 MB) não chegam para PDF/WeasyPrint em produção.
+- Deploy: Docker e Render. Evite acionar WeasyPrint em produção; a pré-visualização HTML A4 substitui a geração de PDF para não consumir recursos do serviço.
 
 ### Arquivos Centrais
 
@@ -32,7 +32,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/pdf_render.py`: monta contexto e converte blocos para HTML/PDF.
 - `app/list_lines.py`: detecção/renderização de listas em texto bruto (parágrafos + listas; HTML para PDF e ramo de bloco `lista`).
 - `app/templates/complementos/*.html`: páginas Jinja servidas pelas rotas. `base.html` permanece em `app/templates/`. PDF (`pdf/`) e e-mail (`notificacoes/templates/`) mantêm caminhos próprios.
-- `app/templates/complementos/secao_edit_conteudo_upload.html`: única UI de edição/gestão por seção — coordenação (responsável/status), importação assistida com revisão, tabela de blocos com aprovação em lote, **editor WYSIWYG Quill 2** (CDN jsDelivr, BSD — sem conta nem chave), barra com cabeçalhos H2–H6, ênfase, citação, listas, sobrescrito/subscrito, indentação, alinhamento, link e imagem; sincronização para `<textarea>` oculto com prefixo `<!--SRA_RICH-->`; sem CDN cai em `<textarea>` visível. Pré-visualização PDF. Ao escolher uma seção como alvo, **blocos, contagens de figura/tabela, iframe de PDF e caixas da exportação** incluem **toda a subárvore PLI** (âncora + descendentes `N.*`, ver `secao_ids_na_subarvore` em `app/numeracao.py`).
+- `app/templates/complementos/secao_edit_conteudo_upload.html`: única UI de edição/gestão por seção — coordenação (responsável/status), importação assistida com revisão, tabela de blocos com aprovação em lote, **editor WYSIWYG Quill 2** (CDN jsDelivr, BSD — sem conta nem chave), barra com cabeçalhos H2–H6, ênfase, citação, listas, sobrescrito/subscrito, indentação, alinhamento, link e imagem; sincronização para `<textarea>` oculto com prefixo `<!--SRA_RICH-->`; sem CDN cai em `<textarea>` visível. Pré-visualização HTML A4. Ao escolher uma seção como alvo, **blocos, contagens de figura/tabela, iframe de pré-visualização e caixas da exportação** incluem **toda a subárvore PLI** (âncora + descendentes `N.*`, ver `secao_ids_na_subarvore` em `app/numeracao.py`).
 - `app/routes/mapa_aplicacao.py` + `app/templates/mapa_aplicacao.html`: `GET /mapa-aplicacao` (sessão obrigatória) lista cartões de ficheiros em `complementos/` com rota de exemplo, restrição e "em uso". Metadados em `app/mapa_aplicacao_catalog.py`; `mapa_da_aplicacao.html` na raiz é cópia estática para consulta offline.
 
 ### Mapa De Rotas
@@ -44,7 +44,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/routes/blocos.py`: criação, edição, confirmação/bloqueio, exclusão, movimentação e ações em lote; leitura JSON e mutações aceitam blocos de qualquer seção na **subárvore** da seção da URL (âncora).
 - `app/routes/figuras.py`: upload de figuras e entrega dos binários.
 - `app/routes/importacao.py`: análise e confirmação da importação assistida de TXT/DOCX (limite por pedido na análise: `IMPORTACAO_ANALISAR_MAX_BYTES` em `app/config.py`, padrão 20 MiB).
-- `app/routes/pdf.py`: PDF final, preview HTML, exportação por escopo (`/relatorios/{id}/exportar?formato=pdf|docx&escopo=...`) e **pacote para assinatura** (`/relatorios/{id}/exportar-assinatura`, ZIP com PDF + DOCX no escopo inteiro + LEIA-ME identificando código/versão/data — restrito a admin/coord).
+- `app/routes/pdf.py`: preview HTML A4 (`/relatorios/{id}/preview`) e exportação por escopo apenas em DOCX (`/relatorios/{id}/exportar?formato=docx&escopo=...`). Rotas legadas de PDF respondem 410 para evitar renderização WeasyPrint em produção.
 - `app/routes/notificacoes.py`: toggle do opt-out (`notificacoes_ativas`), painel de entregas (`/relatorios/{id}/entregas`), ações do coord (status / reenvio manual / **reprovação com motivo**) e download autenticado dos modelos `.dotx`. As rotas POST de status/reenviar/reprovar aceitam `redirect_to` opcional para Post-Redirect-Get vindo da governança ou da página de Validação e Revisão (alinhado ao padrão de fato da governança; ver nota em **Convenções De Código**).
 - `app/routes/validacao_revisao.py`: `GET /relatorios/{id}/validacao-revisao` (admin/coord) — seletor de relatório; **Seção 1**: sumário **recolhível**; árvore com responsáveis e cores (checagens de parciais); iframe pré-visualização inteira; dock aprovar/reprovar; notas internas. **Seção 2**: **mesmo workspace** (árvore à esquerda com cores por blocos/checagens globais); painel direito com fita **Pré-visualização | Editor de blocos** (iframe para `/preview` ou `…/upload-conteudo`), dock com **revisão linguística** + notas; abaixo: mapa seção ↔ responsável, resumo, categorias **2.1**, fechamento **2.2**; `POST /relatorios/{id}/revisao-linguistica`. Funções auxiliares: `_arvore_revisao_navegacao`, `_dict_navegacao_revisao_secao`. Serviços: `relatorio_secoes_load.py`, `autor_rotulo_secao`, `checagens_globais`. **Revisão editorial**: `GET /relatorios/{id}/revisao-edicao` (admin/coord) serve `complementos/revisao_edicao.html` — workspace dedicado de edição inline em folhas A4 simuladas (reusa `secoes_preview_grupos` de `pdf_render._montar_contexto`, com `bloco_id` e `bloqueado` expostos por bloco). Layout 3 colunas: árvore de seções, documento paginado editável e dock de revisão linguística PT-BR. Editor **Quill 2** (CDN jsDelivr) é instanciado **lazy por bloco** ao receber foco; serializa em HTML rich com prefixo `<!--SRA_RICH-->`. Auto-save por bloco em `POST /relatorios/{id}/blocos/{bid}/revisao-salvar` (JSON, debounce ~900 ms): aceita `conteudo`/`legenda`/`fonte` (parcial), preserva `bloqueado` (admin/coord pode editar bloco confirmado sem desbloquear), recusa em relatório `finalizado` (409). Não cria/move/exclui blocos nem seções. Botão **Revisar** dispara o mesmo `/revisao-linguistica`, sublinha trechos por categoria (ortografia/gramática/estilo) via overlay, dock permite **Aceitar sugestão** / **Ignorar (sessão)** / **Ver no documento**. Frontend: `app/static/css/revisao_edicao.css` + `app/static/js/revisao_edicao.js`. Sidebar: link "Revisão editorial" sob _Relatórios_ (active também quando path termina em `/revisao-edicao`).
 - `app/routes/cron_admin.py`: endpoints `POST /admin/cron/...` token-protegidos (`X-Cron-Token`); equivalentes HTTP dos jobs CLI.
@@ -54,7 +54,7 @@ Modo de produção real: sem mocks, dados fictícios ou atalhos.
 - `app/cron/`: pontos de entrada CLI dos jobs (`abrir_periodo`, `enviar_lembretes`, `retry_falhas`) — `python -m app.cron.NOME_DO_JOB` no Render Cron ou cron externo.
 - `app/sumario_extractor.py`: extração de sumário a partir de PDFs entregues/disponíveis.
 - `app/numeracao.py`: renumeração hierárquica (`renumerar_relatorio`), consolidação de referências para marcadores estáveis (`consolidar_referencias`) e `secao_ids_na_subarvore` (âncora + descendentes pelo número).
-- `app/templates/`: telas Jinja; `app/templates/pdf/relatorio.html` é o template do PDF final.
+- `app/templates/`: telas Jinja; `app/templates/pdf/relatorio.html` é o template visual reaproveitado pelo preview HTML A4.
 - `app/static/`: CSS e assets.
 
 Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra-app` no elemento raiz (`padding-left: var(--sw)` em `app/static/css/app.css` reserva a largura da sidebar fixa). Classes por página usam o bloco Jinja `body_class` (substitui o antigo `body_attrs`). A sidebar lista apenas páginas completas, agrupadas por semelhança em menus suspensos; não adicione links para âncoras internas (`#...`) nem árvore de seções no menu lateral.
@@ -146,10 +146,10 @@ Dashboard lista relatórios e sugere próximo D20 com base na última medição.
 
 ### Edição De Seção
 
-- `/relatorios/{id}` (`relatorio_detail.html`, `page-rel-com-preview`): layout 2 colunas igual ao `upload-conteudo` — sumário/ações à esquerda (botão `+` por linha cria subseção inline como última filha via `POST /relatorios/{rel_id}/secoes/{sec_id}/subsecao`; servidor decide o número via `_proximo_numero_filho` e roda `consolidar_referencias`+`renumerar_relatorio`); preview PDF à direita. Classe combinada: `page-conteudo-upload page-rel-com-preview`.
+- `/relatorios/{id}` (`relatorio_detail.html`, `page-rel-com-preview`): layout 2 colunas igual ao `upload-conteudo` — sumário/ações à esquerda (botão `+` por linha cria subseção inline como última filha via `POST /relatorios/{rel_id}/secoes/{sec_id}/subsecao`; servidor decide o número via `_proximo_numero_filho` e roda `consolidar_referencias`+`renumerar_relatorio`); preview HTML A4 à direita. Classe combinada: `page-conteudo-upload page-rel-com-preview`.
 - `GET /painel-upload`: redireciona `303` ao sumário `/relatorios/{id}` do mais recente.
 - `GET /relatorios/{id}/secoes/{sec_id}` redireciona `303` para `…/upload-conteudo`.
-- `GET /relatorios/{id}/secoes/{sec_id}/upload-conteudo`: serve `secao_edit_conteudo_upload.html` — gestão da seção (coordenação, importação assistida, tabela de blocos, editor) + preview PDF. Usa `_response_secao_page` e os mesmos `POST` de mutação.
+- `GET /relatorios/{id}/secoes/{sec_id}/upload-conteudo`: serve `secao_edit_conteudo_upload.html` — gestão da seção (coordenação, importação assistida, tabela de blocos, editor) + preview HTML A4.
 
 A tela permite: visualizar blocos em tabela; criar bloco manual; editar pelo container inferior; confirmar/bloquear; excluir; importar TXT/DOCX; anexar/usar figuras; manter contagem coerente.
 
@@ -231,17 +231,17 @@ Fonte única do nome `.dotx` em `app/notificacoes/modelos.py` (`slug_titulo`, `f
 
 E2E manual: `scripts/_e2e_notificacoes.py` (usuários `@notif-test.local`, exercita 4 entradas + ações coord, limpa estado). Idempotente. E2E com conteúdo real: `scripts/teste_real_ciclo_notificacao.py` (`--listar-secoes`, `--criar-periodo`/`--relatorio-id`, `--secoes`, preview via `email_sender.py`; envio efetivo exige `--usuario-email`, `--confirmar` e obedece `NOTIFICAR_*`/SendGrid).
 
-### PDF Final
+### Preview HTML A4 E DOCX
 
-`app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`. O contexto inclui `secoes_preview_grupos` (agrupamento por seção de nível 1) para desenhar, no navegador, folhas A4 separadas com cabeçalho/rodapé e número de página coerentes com a ordem do documento; em `@media print` os wrappers usam `display: contents` para o WeasyPrint manter o fluxo e as regras `@page` do PDF.
+`app/pdf_render.py` transforma blocos em estrutura para `app/templates/pdf/relatorio.html`. O contexto inclui `secoes_preview_grupos` (agrupamento por seção de nível 1) para desenhar, no navegador, folhas A4 separadas com cabeçalho/rodapé e número de página coerentes com a ordem do documento. A rota pública usada pelos pré-visualizadores é HTML, sem WeasyPrint.
 
-`app/docx_render.py` produz a versão DOCX usando `python-docx`; ele acompanha o template do PDF e tenta manter alinhamento visual (Verdana 10pt no corpo, parágrafos e **itens de lista** justificados como no PDF, headings azul-marinho, captions 9pt bold com 'Fonte:' 8.5pt, `bloco.titulo` como Heading 2 12pt, listas com indent 1.27cm, tabelas com cabeçalho 8.8pt bold). Se mudar regras de tipografia em `app/templates/pdf/relatorio.html` (`.bloco p`, `.bloco ul`/`ol`, `.figura .cap`, `.tabela th`, etc.), espelhe em `_format_body_paragraph`/`_format_list_paragraph`/`_format_caption`/`_format_caption_fonte`/`_set_runs_font` para que PDF e DOCX continuem visualmente equivalentes.
+`app/docx_render.py` produz a versão DOCX usando `python-docx`; ele acompanha o template visual e tenta manter alinhamento visual (Verdana 10pt no corpo, parágrafos e **itens de lista** justificados, headings azul-marinho, captions 9pt bold com 'Fonte:' 8.5pt, `bloco.titulo` como Heading 2 12pt, listas com indent 1.27cm, tabelas com cabeçalho 8.8pt bold). Se mudar regras de tipografia em `app/templates/pdf/relatorio.html` (`.bloco p`, `.bloco ul`/`ol`, `.figura .cap`, `.tabela th`, etc.), espelhe em `_format_body_paragraph`/`_format_list_paragraph`/`_format_caption`/`_format_caption_fonte`/`_set_runs_font` para que preview HTML e DOCX continuem visualmente equivalentes.
 
-`app/routes/pdf.py`: `GET /relatorios/{id}/pdf` (opcional `secao_ids` na query para limitar escopo em iframes), `GET /relatorios/{id}/preview` (HTML; opcional `secao_ids` como no PDF, para pré-visualizar só o ramo), `GET /relatorios/{id}/exportar` (`pdf`/`docx`, escopo `inteiro`, `selecionadas` ou `importadas`) e `GET /relatorios/{id}/exportar-assinatura` (ZIP com PDF + DOCX inteiros + LEIA-ME, restrito a coord/admin).
+`app/routes/pdf.py`: `GET /relatorios/{id}/preview` (HTML A4; opcional `secao_ids` para pré-visualizar só o ramo), `GET /relatorios/{id}/exportar` (`docx`, escopo `inteiro`, `selecionadas` ou `importadas`). `GET /relatorios/{id}/pdf`, `formato=pdf` e `GET /relatorios/{id}/exportar-assinatura` são legados desativados com 410.
 
 Cuidados:
 
-- PDF preserva sumário, numeração, legendas, fontes, figuras, tabelas, cabeçalho/rodapé e página de assinaturas.
+- Preview HTML A4 preserva sumário, numeração, legendas, fontes, figuras, tabelas, cabeçalho/rodapé e página de assinaturas.
 - Marcadores `[[FIGURA:...]]`/`[[TABELA...]]` ainda suportados por compatibilidade.
 - Bloco `figura` sem imagem renderiza placeholder; ideal é DOCX importar imagem real.
 - Contadores de figuras/tabelas seguem o primeiro nível da seção (`4.1`, `4.2`).
@@ -256,7 +256,7 @@ Cuidados:
 
 ### Numeração Hierárquica E Referências Estáveis
 
-Exibição de índice em PDF/DOCX e texto resolvido a partir de `[[REF:…]]`: **`capítulo.sequência`** com **ponto** (ex.: `4.1`, `3.2`), não traço — função `label_numero_pli` em `app/ref_resolve.py`.
+Exibição de índice em preview HTML/DOCX e texto resolvido a partir de `[[REF:…]]`: **`capítulo.sequência`** com **ponto** (ex.: `4.1`, `3.2`), não traço — função `label_numero_pli` em `app/ref_resolve.py`.
 
 `app/numeracao.py`:
 
