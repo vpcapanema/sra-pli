@@ -21,6 +21,7 @@ proprio DOCX.
 from __future__ import annotations
 
 import re
+import unicodedata
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple
@@ -28,6 +29,18 @@ from typing import List, Tuple
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+
+
+def _norm_text_(s: str) -> str:
+    """Normaliza texto para comparação: strip, lower, sem acentos, espaços colapsados."""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
 
 from .list_lines import block_is_homogeneous_list, line_is_list_item
 from .routes.importacao import (
@@ -204,6 +217,43 @@ def _append_tabela_para_secao(sec: dict, linhas: list, legenda: str, fonte: str)
     )
 
 
+# Frases de modelos legados (textos exemplo / meta) que devem ser
+# silenciosamente ignoradas pelo parser para nao virarem blocos de conteudo.
+# Comparacao sempre em _norm_text_ (strip + lower + sem acentos + espacos
+# colapsados). Manter apenas frases estaveis; evitar strings genericas.
+_RUIDO_MODELO_LEGADO = frozenset(
+    _norm_text_(s)
+    for s in (
+        "bloco: paragrafo (texto)",
+        "bloco: listas (nao e numeracao de secoes do relatorio)",
+        "bloco: figura (imagem + legenda + fonte)",
+        "bloco: tabela (grelha word + legenda + fonte)",
+        "clique aqui, depois insera a figura: inserir > imagens...",
+        "titulo ancestral (somente contexto neste modelo). escreva o texto na ultima subseccao.",
+        "modelo sra (importacao assistida). nao apague as linhas de exemplo antes de preencher.",
+        "relatorio de atividades (rascunho para importar no sra)",
+        "pli/sp-2050 - conteudo da secao indicada, sem alterar a estrutura.",
+        "escreva aqui textos corridos, subtitulos no padrao do word, listas e descricoes detalhadas.",
+        "item com marcador (lista real do word, nivel 1).",
+        "segundo item (mesmo estilo, nivel 1).",
+        "item numerado (lista real com numeros).",
+        "segundo item numerado.",
+        "figura x.y: descricao clara do que a imagem mostra.",
+        "fonte: nome e ano da fonte ou referencia.",
+        "tabela x.y: legenda com contexto (substitua x.y se quiser, o sistema ajusta).",
+        "fonte: origem dos dados (instituicao, planilha, data).",
+        "reserva de espaco: preencha o conteudo desta subseccao.",
+        "---",
+    )
+)
+
+
+def _eh_ruido_modelo(text: str) -> bool:
+    if not text:
+        return False
+    return _norm_text_(text) in _RUIDO_MODELO_LEGADO
+
+
 def _append_figura_para_secao(
     sec: dict,
     legenda: str,
@@ -298,6 +348,11 @@ def extrair_relatorio_docx(raw: bytes) -> List[dict]:  # noqa: C901
                     last_media_kind = "figura"
 
         text = (paragraph.text or "").strip()
+
+        # Filtra parágrafos cujo conteúdo é ruído de modelos legados
+        # (ex.: "Bloco: paragrafo (texto)", "Figura X.Y: ...", "---", etc.).
+        if text and _eh_ruido_modelo(text):
+            continue
 
         # Fonte solta apos figura/tabela
         if text.lower().startswith("fonte:") and current_sec is not None and last_media_idx is not None:
