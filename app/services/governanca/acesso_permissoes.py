@@ -5,7 +5,7 @@ from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ...models import User
-from ...routes.pages import user_or_login_page
+from ..pages import user_or_login_page
 
 
 def coordenador_admin_ou_login(

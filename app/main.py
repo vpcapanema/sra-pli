@@ -26,11 +26,12 @@ from .routes import modelos_word as modelos_word_routes
 from .routes import notificacoes as notif_routes
 from .routes import pdf as pdf_routes
 from .routes import dev_ui
+from .services import dev_ui as dev_ui_service
 from .routes import governanca_relatorio as governanca_relatorio_routes
 from .routes import sendgrid_events as sendgrid_events_routes
 from .routes import mapa_aplicacao as mapa_aplicacao_routes
 from .routes import validacao_revisao as validacao_revisao_routes
-from .routes.pages import response_home
+from .services.pages import response_home
 from .access_control import SraAutorRouteGuardMiddleware
 
 BASE_DIR = Path(__file__).parent
@@ -71,7 +72,7 @@ async def sra_http_audit_log(request: Request, call_next):
 @app.middleware("http")
 async def sra_dev_preview_nav_context(request: Request, call_next):
     """Expõe se rotas /dev de pré-visualização estão ativas (menu lateral)."""
-    request.state.sra_modais_preview_allowed = dev_ui.modais_preview_allowed()
+    request.state.sra_modais_preview_allowed = dev_ui_service.modais_preview_allowed()
     return await call_next(request)
 
 

@@ -43,7 +43,7 @@ def _norm_text_(s: str) -> str:
 
 
 from .list_lines import block_is_homogeneous_list, line_is_list_item
-from .routes.importacao import (
+from .services.importacao import (
     _FIGURA_PREFIX_RE,
     _FIGURA_RE,
     _FONTE_RE,

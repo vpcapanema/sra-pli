@@ -1,4 +1,4 @@
-"""Numeracao hierarquica e insercao de secoes (helpers das rotas de relatorios)."""
+"""Numeracao hierarquica e insercao de secoes (logica usada por rotas de relatorios)."""
 
 import re
 from sqlalchemy.orm import Session
@@ -70,8 +70,6 @@ def _inserir_secao_em_relatorio(
     prefixo_alvo = ".".join(partes_alvo[:-1]) + "." if nivel > 1 else ""
     raiz_em_conflito = nivel == 1 and any((s.numero or "") == numero for s in todas)
     if raiz_em_conflito:
-        # Renumerar preserva numeros de raiz; deslocamento entre raizes nao e
-        # suportado. Append: ordem maxima + 1, sem mexer nos existentes.
         nova_ordem = len(todas)
         ids_deslocar: list[int] = []
     else:

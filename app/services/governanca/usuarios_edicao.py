@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ...auth import formatar_nome_pessoa
 from ...models import User
-from ...routes.auth import normalizar_email_secundario_obrigatorio
+from ..auth import normalizar_email_secundario_obrigatorio
 from .acesso_permissoes import pode_editar_usuario_governanca
 
 

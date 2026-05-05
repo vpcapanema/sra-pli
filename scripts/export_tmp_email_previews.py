@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.notificacoes.email_sender import preview_corpo_notificacao  # noqa: E402
-from app.routes.dev_ui import contexto_email_sumario_padrao  # noqa: E402
+from app.services.dev_ui import contexto_email_sumario_padrao  # noqa: E402
 
 
 def main() -> None:
