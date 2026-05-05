@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Feedback</title>
+    <style>
+        .sra-submit-busy {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 9400;
+            padding: 12px 18px;
+            background: #1a3a52;
+            color: #e8f4fc;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 -4px 18px rgba(0,20,40,.22);
+        }
+        .sra-submit-busy.is-visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Feedback</h1>
+    
+    <!-- Formulário visível -->
+    <form method="post" action="#" data-sra-confirm="relatorio_criar" data-sra-iniciar-acompanhamento="1">
+        <input type="text" name="test" value="test">
+        <button type="submit">Enviar (visível)</button>
+    </form>
+    
+    <!-- Formulário oculto -->
+    <div id="hidden-form-container" style="display: none;">
+        <form method="post" action="#" data-sra-confirm="relatorio_criar" data-sra-iniciar-acompanhamento="1">
+            <input type="text" name="test" value="test">
+            <button type="submit">Enviar (oculto)</button>
+        </form>
+    </div>
+    
+    <button onclick="showHiddenForm()">Mostrar formulário oculto</button>
+    
+    <script src="/static/js/sra_process_ui.js"></script>
+    <script>
+        function showHiddenForm() {
+            document.getElementById('hidden-form-container').style.display = 'block';
+        }
+        
+        // Verificar se o script foi carregado
+        console.log("Test page loaded");
+        console.log("SRAComplementos available:", typeof window.SRAComplementos !== 'undefined');
+        
+        // Verificar formulários após carregamento
+        setTimeout(function() {
+            var forms = document.querySelectorAll("form[data-sra-confirm]");
+            console.log("Found forms:", forms.length);
+            forms.forEach(function(form, i) {
+                console.log("Form", i, "wired:", form.dataset.sraWired);
+            });
+        }, 1000);
+    </script>
+</body>
+</html>

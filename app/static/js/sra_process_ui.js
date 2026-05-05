@@ -31,22 +31,22 @@
       lead:
         "Os blocos selecionados serão inseridos no relatório em transação única, com eventuais ajustes de secções, " +
         "quando a estrutura o exigir.",
-      detail: "Operação de escrita: verifique a lista de revisão antes de continuar.",
+      detail:
+        "Operação de escrita: verifique a lista de revisão antes de continuar.",
       ask: "Gravar no relatório os blocos selecionados?",
       show_detail: true,
     },
     relatorio_criar: {
       title: "Confirmar criação do relatório",
-      lead:
-        "Será criado um novo D20 com as secções de acordo com a fonte de sumário indicada:",
-      detail: "Após a criação, o código não poderá ser alterado; a versão inicia em R00.",
+      lead: "Será criado um novo D20 com as secções de acordo com a fonte de sumário indicada:",
+      detail:
+        "Após a criação, o código não poderá ser alterado; a versão inicia em R00.",
       ask: "Criar o relatório com estes parâmetros?",
       show_detail: true,
     },
     exportar_relatorio: {
       title: "Confirmar exportação",
-      lead:
-        "Gera-se o ficheiro (PDF ou DOCX) a partir do conteúdo atual do relatório, segundo o âmbito escolhido.",
+      lead: "Gera-se o ficheiro (PDF ou DOCX) a partir do conteúdo atual do relatório, segundo o âmbito escolhido.",
       detail:
         "O processo pode levar de alguns segundos a minutos, conforme o volume. O download abre noutro separador.",
       ask: "Iniciar a exportação?",
@@ -54,8 +54,7 @@
     },
     relatorio_excluir: {
       title: "Confirmar exclusão do relatório",
-      lead:
-        "O relatório e os dados associados serão removidos de forma definitiva. Esta ação não pode ser desfeita.",
+      lead: "O relatório e os dados associados serão removidos de forma definitiva. Esta ação não pode ser desfeita.",
       detail: "",
       ask: "Excluir definitivamente este relatório?",
       show_detail: false,
@@ -94,24 +93,21 @@
     },
     secao_excluir: {
       title: "Confirmar exclusão da secção",
-      lead:
-        "A subsecção e todos os respetivos blocos serão removidos. Esta ação não se pode anular de forma simples no sistema.",
+      lead: "A subsecção e todos os respetivos blocos serão removidos. Esta ação não se pode anular de forma simples no sistema.",
       detail: "",
       ask: "Excluir definitivamente esta secção e o seu conteúdo?",
       show_detail: false,
     },
     bloco_confirmar: {
       title: "Confirmar e bloquear bloco",
-      lead:
-        "O bloco deixa de ser editável, passando a estado bloqueado para revisão, conforme o fluxo de coordenação.",
+      lead: "O bloco deixa de ser editável, passando a estado bloqueado para revisão, conforme o fluxo de coordenação.",
       detail: "",
       ask: "Bloquear este bloco para revisão?",
       show_detail: false,
     },
     bloco_excluir: {
       title: "Confirmar exclusão do bloco",
-      lead:
-        "O bloco será removido de forma definitiva. Contagens e numeração podem ser ajustadas automaticamente após a exclusão.",
+      lead: "O bloco será removido de forma definitiva. Contagens e numeração podem ser ajustadas automaticamente após a exclusão.",
       detail: "",
       ask: "Excluir permanentemente este bloco?",
       show_detail: false,
@@ -125,8 +121,7 @@
     },
     blocos_lote_aprovar: {
       title: "Confirmar aprovação em lote",
-      lead:
-        "Os blocos selecionados serão bloqueados para revisão, em sequência, uma única operação de escrita na base.",
+      lead: "Os blocos selecionados serão bloqueados para revisão, em sequência, uma única operação de escrita na base.",
       detail: "",
       ask: "Bloquear os blocos selecionados para revisão?",
       show_detail: false,
@@ -173,7 +168,10 @@
     }
     if (Object.prototype.hasOwnProperty.call(ov, "source_line")) {
       out.source_line = ov.source_line;
-    } else if (base && Object.prototype.hasOwnProperty.call(base, "source_line")) {
+    } else if (
+      base &&
+      Object.prototype.hasOwnProperty.call(base, "source_line")
+    ) {
       out.source_line = base.source_line;
     }
     return out;
@@ -209,7 +207,10 @@
       parts.push(p.title);
     }
     var lead = p.lead || "";
-    if (Object.prototype.hasOwnProperty.call(p, "source_line") && p.source_line) {
+    if (
+      Object.prototype.hasOwnProperty.call(p, "source_line") &&
+      p.source_line
+    ) {
       lead = lead + "\n\n" + p.source_line;
     }
     if (lead.trim()) {
@@ -228,14 +229,85 @@
 
   function confirmarComChave(chave, override) {
     var p = mergePayload(basePayload(chave), override || null);
+
+    if (typeof Swal !== "undefined") {
+      var html = "";
+      if (p.lead) {
+        html = html + "<p>" + p.lead + "</p>";
+      }
+      if (
+        Object.prototype.hasOwnProperty.call(p, "source_line") &&
+        p.source_line
+      ) {
+        html = `${html}<p style="font-size: 13px; color: #666; margin-top: 10px;"><em>${p.source_line}</em></p>`;
+      }
+      if (p.show_detail && (p.detail || "").trim()) {
+        html =
+          html +
+          '<p style="font-size: 13px; color: #666; margin-top: 10px;"><strong>Detalhe:</strong> ' +
+          String(p.detail).trim() +
+          "</p>";
+      }
+
+      return Swal.fire({
+        title: p.title || "Confirmar",
+        html: html || "Deseja continuar?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#27ae60",
+        cancelButtonColor: "#e74c3c",
+        confirmButtonText: p.ask || "Continuar?",
+        cancelButtonText: "Cancelar",
+      }).then((result) => {
+        return result.isConfirmed;
+      });
+    }
+
     return Promise.resolve(window.confirm(buildConfirmText(p)));
   }
 
   function abrirDireto(p) {
+    if (typeof Swal !== "undefined") {
+      var html = "";
+      if (p.lead) {
+        html = html + "<p>" + p.lead + "</p>";
+      }
+      if (p.show_detail && (p.detail || "").trim()) {
+        html =
+          html +
+          '<p style="font-size: 13px; color: #666; margin-top: 10px;"><strong>Detalhe:</strong> ' +
+          String(p.detail).trim() +
+          "</p>";
+      }
+
+      return Swal.fire({
+        title: p.title || "Confirmar",
+        html: html || "Deseja continuar?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#27ae60",
+        cancelButtonColor: "#e74c3c",
+        confirmButtonText: p.ask || "Continuar?",
+        cancelButtonText: "Cancelar",
+      }).then((result) => {
+        return result.isConfirmed;
+      });
+    }
+
     return Promise.resolve(window.confirm(buildConfirmText(p || {})));
   }
 
-  function fecharConfirm() {}
+  function fecharConfirm() {
+    if (typeof Swal !== "undefined") {
+      Swal.close();
+    }
+  }
+
+  function fecharLoading() {
+    if (typeof Swal !== "undefined" && Swal.isLoading()) {
+      Swal.close();
+    }
+  }
 
   /** Logs de etapa para a consola (acompanhar confirm → POST). */
   function stringifyFluxoExtra(obj) {
@@ -289,7 +361,7 @@
   }
 
   /**
-   * Feedback durante POST após confirmação: log na consola e faixa fixa.
+   * Feedback durante POST após confirmação: log na consola e SweetAlert2 loading.
    * Ativado por data-sra-iniciar-acompanhamento="1" no formulário.
    * Não desativa botões submit antes de requestSubmit(): botão desativado impede o envio.
    */
@@ -301,118 +373,153 @@
     var url = form.action || "";
     if (typeof window.SRA_LOG !== "undefined") {
       window.SRA_LOG.info(
-        "Submissão POST (aguardar servidor) | url=" + url + " | faixa=" + msg
+        "Submissão POST (aguardar servidor) | url=" + url + " | faixa=" + msg,
       );
       window.SRA_LOG.debug("[acompanhamento] " + msg);
     }
-    form.classList.add("sra-form-busy");
-    var bar = document.getElementById("sra-submit-busy");
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "sra-submit-busy";
-      bar.setAttribute("role", "status");
-      bar.setAttribute("aria-live", "polite");
-      bar.className = "sra-submit-busy";
-      document.body.appendChild(bar);
+
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        title: "Processando...",
+        text: msg,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+      form.dataset.sraSwalLoading = "1";
+    } else {
+      form.classList.add("sra-form-busy");
+      var bar = document.getElementById("sra-submit-busy");
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "sra-submit-busy";
+        bar.setAttribute("role", "status");
+        bar.setAttribute("aria-live", "polite");
+        bar.className = "sra-submit-busy";
+        document.body.appendChild(bar);
+      }
+      bar.textContent = msg;
+      bar.classList.add("is-visible");
     }
-    bar.textContent = msg;
-    bar.classList.add("is-visible");
   }
 
   function initDataConfirmForms() {
-    document.querySelectorAll("form[data-sra-confirm]").forEach(function (form) {
-      if (form.dataset.sraWired) {
-        return;
-      }
-      form.dataset.sraWired = "1";
-      form.addEventListener("submit", function (e) {
-        if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
-          form.removeAttribute(SKIP);
-          logFluxoConfirmar("5-post-nativo", "envio HTML normal (sem segundo confirm)", {
-            action: form.action || "",
-            chave: form.getAttribute("data-sra-confirm"),
-          });
+    document
+      .querySelectorAll("form[data-sra-confirm]")
+      .forEach(function (form) {
+        if (form.dataset.sraWired) {
           return;
         }
-        var ch = form.getAttribute("data-sra-confirm");
-        if (!ch) {
-          return;
-        }
-        var actionUrl = form.action || "";
-        var t0 =
-          typeof performance !== "undefined" && performance.now ? performance.now() : null;
-        logFluxoConfirmar("1-interceptado", "confirmação pendente", {
-          chave: ch,
-          action: actionUrl,
-          method: (form.method || "get").toLowerCase(),
-        });
-        e.preventDefault();
-        var ov = {
-          title: form.getAttribute("data-sra-title"),
-          lead: form.getAttribute("data-sra-lead"),
-          detail: form.getAttribute("data-sra-detail"),
-          ask: form.getAttribute("data-sra-ask"),
-        };
-        if (ch === "relatorio_criar") {
-          ov.source_line = relatorioCriarSourceLine(form);
-        }
-        Object.keys(ov).forEach(function (k) {
-          if (k === "source_line") {
+        form.dataset.sraWired = "1";
+        form.addEventListener("submit", function (e) {
+          if (
+            form.getAttribute(SKIP) === "1" ||
+            form.dataset.sraConfirmSkip === "1"
+          ) {
+            form.removeAttribute(SKIP);
+            logFluxoConfirmar(
+              "5-post-nativo",
+              "envio HTML normal (sem segundo confirm)",
+              {
+                action: form.action || "",
+                chave: form.getAttribute("data-sra-confirm"),
+              },
+            );
             return;
           }
-          if (ov[k] == null || ov[k] === "") {
-            delete ov[k];
-          }
-        });
-        confirmarComChave(ch, ov).then(function (sim) {
-          if (!sim) {
-            var cancelTxt =
-              "[fluxo confirm] cancelado — POST não enviado | " +
-              stringifyFluxoExtra({ chave: ch, action: actionUrl });
-            if (typeof window.SRA_LOG !== "undefined") {
-              window.SRA_LOG.warn(cancelTxt);
-            } else {
-              console.warn("[SRA]", cancelTxt);
-            }
+          var ch = form.getAttribute("data-sra-confirm");
+          if (!ch) {
             return;
           }
-          var dt =
-            t0 !== null && typeof performance !== "undefined" && performance.now
-              ? Math.round(performance.now() - t0)
+          var actionUrl = form.action || "";
+          var t0 =
+            typeof performance !== "undefined" && performance.now
+              ? performance.now()
               : null;
-          logFluxoConfirmar("2-confirmado", "utilizador aceitou — a preparar envio", {
+          logFluxoConfirmar("1-interceptado", "confirmação pendente", {
             chave: ch,
             action: actionUrl,
-            msAposInterceptar: dt,
+            method: (form.method || "get").toLowerCase(),
           });
-          // Liberta o ciclo atual antes da segunda submissão (SKIP): ajuda o browser a pintar a faixa «busy».
-          queueMicrotask(function () {
-            logFluxoConfirmar("3-microtask", "antes do envio após confirm", {
-              chave: ch,
-              segundaFaseValidacao: precisaSegundaFaseValidacao(ch),
-              temAcompanhamento: form.getAttribute("data-sra-iniciar-acompanhamento") === "1",
-            });
-            iniciarAcompanhamentoSubmit(form, ch);
-            if (precisaSegundaFaseValidacao(ch)) {
-              form.setAttribute(SKIP, "1");
-              if (form.requestSubmit) {
-                logFluxoConfirmar("4-requestSubmit", "segunda fase (SKIP+validação HTML5)");
-                form.requestSubmit();
+          e.preventDefault();
+          var ov = {
+            title: form.getAttribute("data-sra-title"),
+            lead: form.getAttribute("data-sra-lead"),
+            detail: form.getAttribute("data-sra-detail"),
+            ask: form.getAttribute("data-sra-ask"),
+          };
+          if (ch === "relatorio_criar") {
+            ov.source_line = relatorioCriarSourceLine(form);
+          }
+          Object.keys(ov).forEach(function (k) {
+            if (k === "source_line") {
+              return;
+            }
+            if (ov[k] == null || ov[k] === "") {
+              delete ov[k];
+            }
+          });
+          confirmarComChave(ch, ov).then(function (sim) {
+            if (!sim) {
+              var cancelTxt =
+                "[fluxo confirm] cancelado — POST não enviado | " +
+                stringifyFluxoExtra({ chave: ch, action: actionUrl });
+              if (typeof window.SRA_LOG !== "undefined") {
+                window.SRA_LOG.warn(cancelTxt);
               } else {
-                logFluxoConfirmar("4-submit", "fallback form.submit()");
+                console.warn("[SRA]", cancelTxt);
+              }
+              return;
+            }
+            var dt =
+              t0 !== null &&
+              typeof performance !== "undefined" &&
+              performance.now
+                ? Math.round(performance.now() - t0)
+                : null;
+            logFluxoConfirmar(
+              "2-confirmado",
+              "utilizador aceitou — a preparar envio",
+              {
+                chave: ch,
+                action: actionUrl,
+                msAposInterceptar: dt,
+              },
+            );
+            // Liberta o ciclo atual antes da segunda submissão (SKIP): ajuda o browser a pintar a faixa «busy».
+            queueMicrotask(function () {
+              logFluxoConfirmar("3-microtask", "antes do envio após confirm", {
+                chave: ch,
+                segundaFaseValidacao: precisaSegundaFaseValidacao(ch),
+                temAcompanhamento:
+                  form.getAttribute("data-sra-iniciar-acompanhamento") === "1",
+              });
+              iniciarAcompanhamentoSubmit(form, ch);
+              if (precisaSegundaFaseValidacao(ch)) {
+                form.setAttribute(SKIP, "1");
+                if (form.requestSubmit) {
+                  logFluxoConfirmar(
+                    "4-requestSubmit",
+                    "segunda fase (SKIP+validação HTML5)",
+                  );
+                  form.requestSubmit();
+                } else {
+                  logFluxoConfirmar("4-submit", "fallback form.submit()");
+                  form.submit();
+                }
+              } else {
+                logFluxoConfirmar(
+                  "4-submit-direto",
+                  "form.submit() — sem SKIP (evita requestSubmit bloqueado por CSS ou segunda fase)",
+                );
                 form.submit();
               }
-            } else {
-              logFluxoConfirmar(
-                "4-submit-direto",
-                "form.submit() — sem SKIP (evita requestSubmit bloqueado por CSS ou segunda fase)"
-              );
-              form.submit();
-            }
+            });
           });
         });
       });
-    });
   }
 
   function init() {
@@ -425,6 +532,7 @@
     confirmarComChave: confirmarComChave,
     abrirDireto: abrirDireto,
     fecharConfirm: fecharConfirm,
+    fecharLoading: fecharLoading,
     logFluxoConfirmar: logFluxoConfirmar,
   };
 

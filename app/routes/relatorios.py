@@ -14,6 +14,7 @@ from ..modo_edicao_blocos import definir_modo_edicao_coordenador
 from ..numeracao import consolidar_referencias, renumerar_relatorio
 from .. import ref_resolve
 from ..sumario_extractor import (
+    extrair_completo_pdf_disponivel,
     extrair_sumario,
     extrair_sumario_pdf_disponivel,
 )
@@ -227,6 +228,7 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
 
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
+    secoes_com_conteudo: "list[dict] | None" = None
     base_rel_id: int | None = None
     fonte = (fonte_secoes or "clone_relatorio").strip().lower()
     if fonte == "clone_relatorio":
@@ -244,12 +246,13 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         nome = (pdf_disponivel or "").strip()
         if not nome:
             raise HTTPException(400, detail="Selecione o PDF disponível.")
+        # Extrai seções + blocos completos (texto, tabela, figura) do PDF
         try:
-            secoes_explicitas = extrair_sumario_pdf_disponivel(nome)
+            secoes_com_conteudo = extrair_completo_pdf_disponivel(nome)
         except ValueError as exc:
             raise HTTPException(400, detail=str(exc))
-        if not secoes_explicitas:
-            raise HTTPException(400, detail=f"Não foi possível extrair o sumário de {nome}.")
+        if not secoes_com_conteudo:
+            raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
     elif fonte == "upload":
         if pdf_upload is None or not pdf_upload.filename:
             raise HTTPException(400, detail="Envie um arquivo PDF.")
@@ -280,7 +283,7 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         txdb.add(rel)
         txdb.flush()
         rel_id_novo = rel.id
-        if fonte == "clone_relatorio" and base_rel_id:
+        if base_rel_id:
             # Clona seções e blocos do relatório base (igual ao processo automático)
             from app.notificacoes.service import (
                 _clonar_estrutura_e_conteudo,
@@ -295,6 +298,45 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
                 for sec in secoes:
                     sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
                 txdb.commit()
+        elif secoes_com_conteudo:
+            # PDF disponível: cria seções + blocos extraídos do PDF (texto, tabela, figura)
+            from ..models import Figura
+
+            for ordem, sec_data in enumerate(secoes_com_conteudo, start=1):
+                nova_sec = Secao(
+                    relatorio_id=rel_id_novo,
+                    numero=sec_data["secao_numero"],
+                    titulo=sec_data["secao_titulo"],
+                    ordem=ordem,
+                    responsavel_id=None,
+                    status="pendente",
+                )
+                txdb.add(nova_sec)
+                txdb.flush()
+                for bloco_ordem, bloco_data in enumerate(sec_data.get("blocos", [])):
+                    tipo = bloco_data.get("tipo", "texto")
+                    fig_id = None
+                    if tipo == "figura" and bloco_data.get("dados_imagem"):
+                        # Salva imagem na tabela Figura
+                        fig = Figura(
+                            relatorio_id=rel_id_novo,
+                            nome=f"fig_{nova_sec.numero}_{bloco_ordem}",
+                            mime=bloco_data.get("mime", "image/png"),
+                            dados=bloco_data["dados_imagem"],
+                        )
+                        txdb.add(fig)
+                        txdb.flush()
+                        fig_id = fig.id
+                    txdb.add(
+                        Bloco(
+                            secao_id=nova_sec.id,
+                            tipo=tipo,
+                            ordem=bloco_ordem,
+                            conteudo=bloco_data.get("conteudo", ""),
+                            figura_id=fig_id,
+                            origem="pdf_import",
+                        )
+                    )
         else:
             # Cria seções padrão baseadas no PDF (comportamento original)
             criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)

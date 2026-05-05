@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Bibliotecas de Feedback</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .library-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .library-section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .library-section p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-error { background: #e74c3c; color: white; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-info { background: #3498db; color: white; }
+        .btn-primary { background: #2ecc71; color: white; }
+    </style>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Toastify -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    
+    <!-- Notyf -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    
+    <!-- PNotify -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@pnotify/core@5/dist/PNotify.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@pnotify/mobile@5/dist/PNotifyMobile.css" media="screen and (max-width:768px)">
+    <script src="https://cdn.jsdelivr.net/npm/@pnotify/core@5/dist/PNotify.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pnotify/mobile@5/dist/PNotifyMobile.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pnotify/bootstrap4@5/dist/PNotifyBootstrap4.js"></script>
+    
+    <!-- AlertifyJS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/themes/default.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
+    
+    <!-- Toastr -->
+    <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.js"></script>
+</head>
+<body>
+    <h1>🎨 Demo - Bibliotecas de Feedback/Notificação</h1>
+    
+    <!-- SweetAlert2 -->
+    <div class="library-section">
+        <h2>1. SweetAlert2</h2>
+        <p>Biblioteca de alertas/confirm bonitos e customizáveis. Substitui window.confirm nativo.</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="swalSuccess()">Sucesso</button>
+            <button class="btn-error" onclick="swalError()">Erro</button>
+            <button class="btn-warning" onclick="swalWarning()">Aviso</button>
+            <button class="btn-info" onclick="swalInfo()">Info</button>
+            <button class="btn-primary" onclick="swalConfirm()">Confirmação</button>
+        </div>
+    </div>
+    
+    <!-- Toastify -->
+    <div class="library-section">
+        <h2>2. Toastify.js</h2>
+        <p>Notificações toast leves e responsivas. Não intrusivas.</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="toastifySuccess()">Sucesso</button>
+            <button class="btn-error" onclick="toastifyError()">Erro</button>
+            <button class="btn-warning" onclick="toastifyWarning()">Aviso</button>
+            <button class="btn-info" onclick="toastifyInfo()">Info</button>
+        </div>
+    </div>
+    
+    <!-- Notyf -->
+    <div class="library-section">
+        <h2>3. Notyf</h2>
+        <p>Biblioteca de notificações toast simples e moderna. Muito leve (~4 KB).</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="notyfSuccess()">Sucesso</button>
+            <button class="btn-error" onclick="notyfError()">Erro</button>
+            <button class="btn-warning" onclick="notyfWarning()">Aviso</button>
+            <button class="btn-info" onclick="notyfInfo()">Info</button>
+        </div>
+    </div>
+    
+    <!-- PNotify -->
+    <div class="library-section">
+        <h2>4. PNotify</h2>
+        <p>Sistema de notificações completo com módulos. Altamente customizável.</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="pnotifySuccess()">Sucesso</button>
+            <button class="btn-error" onclick="pnotifyError()">Erro</button>
+            <button class="btn-warning" onclick="pnotifyWarning()">Aviso</button>
+            <button class="btn-info" onclick="pnotifyInfo()">Info</button>
+            <button class="btn-primary" onclick="pnotifyConfirm()">Confirmação</button>
+        </div>
+    </div>
+    
+    <!-- AlertifyJS -->
+    <div class="library-section">
+        <h2>5. AlertifyJS</h2>
+        <p>Framework de diálogos e alertas. Consistente entre browsers.</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="alertifySuccess()">Sucesso</button>
+            <button class="btn-error" onclick="alertifyError()">Erro</button>
+            <button class="btn-warning" onclick="alertifyWarning()">Aviso</button>
+            <button class="btn-info" onclick="alertifyInfo()">Info</button>
+            <button class="btn-primary" onclick="alertifyConfirm()">Confirmação</button>
+        </div>
+    </div>
+    
+    <!-- Toastr -->
+    <div class="library-section">
+        <h2>6. Toastr</h2>
+        <p>Biblioteca de notificações toast clássica. Estável e amplamente usada.</p>
+        <div class="buttons">
+            <button class="btn-success" onclick="toastrSuccess()">Sucesso</button>
+            <button class="btn-error" onclick="toastrError()">Erro</button>
+            <button class="btn-warning" onclick="toastrWarning()">Aviso</button>
+            <button class="btn-info" onclick="toastrInfo()">Info</button>
+        </div>
+    </div>
+    
+    <script>
+        // SweetAlert2
+        function swalSuccess() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: 'Operação realizada com sucesso.',
+                confirmButtonColor: '#27ae60'
+            });
+        }
+        function swalError() {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro na operação.',
+                confirmButtonColor: '#e74c3c'
+            });
+        }
+        function swalWarning() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Aviso!',
+                text: 'Atenção a esta informação.',
+                confirmButtonColor: '#f39c12'
+            });
+        }
+        function swalInfo() {
+            Swal.fire({
+                icon: 'info',
+                title: 'Informação',
+                text: 'Aqui está uma informação importante.',
+                confirmButtonColor: '#3498db'
+            });
+        }
+        function swalConfirm() {
+            Swal.fire({
+                title: 'Tem certeza?',
+                text: 'Esta ação não pode ser desfeita!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#27ae60',
+                cancelButtonColor: '#e74c3c',
+                confirmButtonText: 'Sim, confirmar!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire('Confirmado!', 'A operação foi realizada.', 'success');
+                }
+            });
+        }
+        
+        // Toastify
+        function toastifySuccess() {
+            Toastify({
+                text: "✅ Operação realizada com sucesso!",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                style: { background: "#27ae60" }
+            }).showToast();
+        }
+        function toastifyError() {
+            Toastify({
+                text: "❌ Ocorreu um erro na operação.",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                style: { background: "#e74c3c" }
+            }).showToast();
+        }
+        function toastifyWarning() {
+            Toastify({
+                text: "⚠️ Atenção a esta informação.",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                style: { background: "#f39c12" }
+            }).showToast();
+        }
+        function toastifyInfo() {
+            Toastify({
+                text: "ℹ️ Aqui está uma informação importante.",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                style: { background: "#3498db" }
+            }).showToast();
+        }
+        
+        // Notyf
+        const notyf = new Notyf();
+        function notyfSuccess() {
+            notyf.success('✅ Operação realizada com sucesso!');
+        }
+        function notyfError() {
+            notyf.error('❌ Ocorreu um erro na operação.');
+        }
+        function notyfWarning() {
+            notyf.error('⚠️ Atenção a esta informação.');
+        }
+        function notyfInfo() {
+            notyf.success('ℹ️ Aqui está uma informação importante.');
+        }
+        
+        // PNotify
+        function pnotifySuccess() {
+            PNotify.success({
+                title: 'Sucesso',
+                text: 'Operação realizada com sucesso.',
+                delay: 3000
+            });
+        }
+        function pnotifyError() {
+            PNotify.error({
+                title: 'Erro',
+                text: 'Ocorreu um erro na operação.',
+                delay: 3000
+            });
+        }
+        function pnotifyWarning() {
+            PNotify.notice({
+                title: 'Aviso',
+                text: 'Atenção a esta informação.',
+                delay: 3000
+            });
+        }
+        function pnotifyInfo() {
+            PNotify.info({
+                title: 'Informação',
+                text: 'Aqui está uma informação importante.',
+                delay: 3000
+            });
+        }
+        function pnotifyConfirm() {
+            PNotify.alert({
+                title: 'Confirmação',
+                text: 'Tem certeza que deseja continuar?',
+                confirm: true,
+                buttons: [
+                    {
+                        text: 'Sim',
+                        primary: true,
+                        click: (notice) => {
+                            notice.close();
+                            PNotify.success('Confirmado!');
+                        }
+                    },
+                    {
+                        text: 'Não',
+                        click: (notice) => {
+                            notice.close();
+                        }
+                    }
+                ]
+            });
+        }
+        
+        // AlertifyJS
+        function alertifySuccess() {
+            alertify.success('✅ Operação realizada com sucesso!');
+        }
+        function alertifyError() {
+            alertify.error('❌ Ocorreu um erro na operação.');
+        }
+        function alertifyWarning() {
+            alertify.warning('⚠️ Atenção a esta informação.');
+        }
+        function alertifyInfo() {
+            alertify.message('ℹ️ Aqui está uma informação importante.');
+        }
+        function alertifyConfirm() {
+            alertify.confirm('Tem certeza que deseja continuar?', 
+                () => alertify.success('Confirmado!'),
+                () => alertify.error('Cancelado')
+            );
+        }
+        
+        // Toastr
+        toastr.options = {
+            "closeButton": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "timeOut": "3000"
+        };
+        function toastrSuccess() {
+            toastr.success('✅ Operação realizada com sucesso!');
+        }
+        function toastrError() {
+            toastr.error('❌ Ocorreu um erro na operação.');
+        }
+        function toastrWarning() {
+            toastr.warning('⚠️ Atenção a esta informação.');
+        }
+        function toastrInfo() {
+            toastr.info('ℹ️ Aqui está uma informação importante.');
+        }
+    </script>
+</body>
+</html>
