@@ -286,13 +286,7 @@ header %}Relatórios mensais D20{% endblock %} {% block content %}
                     type="submit"
                     title="Colocar em revisão"
                     aria-label="Revisar"
-                    {%
-                    if
-                    r.status=""
-                    ="em_revisao"
-                    %}disabled{%
-                    endif
-                    %}
+                    {% if r.status == "em_revisao" %}disabled{% endif %}
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -318,13 +312,7 @@ header %}Relatórios mensais D20{% endblock %} {% block content %}
                     type="submit"
                     title="Finalizar relatório"
                     aria-label="Finalizar"
-                    {%
-                    if
-                    r.status=""
-                    ="finalizado"
-                    %}disabled{%
-                    endif
-                    %}
+                    {% if r.status == "finalizado" %}disabled{% endif %}
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -377,13 +365,7 @@ header %}Relatórios mensais D20{% endblock %} {% block content %}
                     type="submit"
                     title="Reverter para aberto"
                     aria-label="Reverter"
-                    {%
-                    if
-                    r.status
-                    !="finalizado"
-                    %}disabled{%
-                    endif
-                    %}
+                    {% if r.status != "finalizado" %}disabled{% endif %}
                   >
                     <svg
                       viewBox="0 0 24 24"
