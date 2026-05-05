@@ -40,12 +40,25 @@
           </div>
           <fieldset class="full fonte-secoes-fieldset">
             <legend>Sumário base</legend>
-            <p class="sdesc sdesc-tight">Selecione um relatório entregue para reaproveitar sua estrutura, ou envie um PDF próprio.</p>
+            <p class="sdesc sdesc-tight">Selecione um relatório entregue para reaproveitar sua estrutura, envie um PDF próprio, ou clone de um relatório existente (incluindo blocos).</p>
             <div class="fonte-secoes">
               <div class="fonte-secoes-col">
                 <label class="radio-line">
-                  <input type="radio" name="fonte_secoes" value="pdf_disponivel" checked>
-                  <span>Relatório entregue:</span>
+                  <input type="radio" name="fonte_secoes" value="clone_relatorio" checked>
+                  <span>Clonar de relatório (inclui blocos):</span>
+                </label>
+                <div class="indent fonte-secoes-control">
+                  <label for="rel-novo-base-relatorio">Relatório base</label>
+                  <select id="rel-novo-base-relatorio" name="base_relatorio_id" title="Relatório base para clonagem">
+                    <option value="">— selecione —</option>
+                    {% for r in relatorios %}<option value="{{ r.id }}">{{ r.codigo }} - {{ r.mes_referencia }} ({{ r.status }})</option>{% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div class="fonte-secoes-col">
+                <label class="radio-line">
+                  <input type="radio" name="fonte_secoes" value="pdf_disponivel">
+                  <span>Relatório entregue (PDF):</span>
                 </label>
                 <div class="indent fonte-secoes-control">
                   <label for="rel-novo-pdf-disponivel">PDF do relatório base</label>

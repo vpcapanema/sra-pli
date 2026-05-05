@@ -212,9 +212,10 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
     periodo_inicio: str = Form(...),
     periodo_fim: str = Form(...),
     numero_medicao: str = Form(""),
-    fonte_secoes: str = Form("pdf_disponivel"),
+    fonte_secoes: str = Form("clone_relatorio"),
     pdf_disponivel: str = Form(""),
     pdf_upload: "UploadFile | None" = File(None),
+    base_relatorio_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
     u, p = _admin_coord_ou_login(request, db)
@@ -226,8 +227,20 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
 
     # 1) Decide a fonte das seções ANTES de gravar (para falhar cedo).
     secoes_explicitas: "list[tuple[str, str]] | None" = None
-    fonte = (fonte_secoes or "pdf_disponivel").strip().lower()
-    if fonte == "pdf_disponivel":
+    base_rel_id: int | None = None
+    fonte = (fonte_secoes or "clone_relatorio").strip().lower()
+    if fonte == "clone_relatorio":
+        base_id_str = (base_relatorio_id or "").strip()
+        if not base_id_str:
+            raise HTTPException(400, detail="Selecione o relatório base para clonagem.")
+        try:
+            base_rel_id = int(base_id_str)
+        except ValueError:
+            raise HTTPException(400, detail="ID do relatório base inválido.")
+        base = db.get(Relatorio, base_rel_id)
+        if not base:
+            raise HTTPException(400, detail="Relatório base não encontrado.")
+    elif fonte == "pdf_disponivel":
         nome = (pdf_disponivel or "").strip()
         if not nome:
             raise HTTPException(400, detail="Selecione o PDF disponível.")
@@ -252,7 +265,7 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         if not secoes_explicitas:
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
     else:
-        raise HTTPException(400, detail="Selecione um relatório entregue ou envie um PDF.")
+        raise HTTPException(400, detail="Selecione um relatório base, um relatório entregue ou envie um PDF.")
 
     rel = Relatorio(
         codigo=codigo.strip(),
@@ -262,12 +275,29 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         periodo_fim=dateparser.parse(periodo_fim).date(),
         numero_medicao=int(numero_medicao) if numero_medicao.strip() else None,
     )
-    # Criar relatório + seções padrão em uma única transação (multi-statement).
+    # Criar relatório + seções em uma única transação (multi-statement).
     with tx_session() as txdb:
         txdb.add(rel)
         txdb.flush()
         rel_id_novo = rel.id
-        criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+        if fonte == "clone_relatorio" and base_rel_id:
+            # Clona seções e blocos do relatório base (igual ao processo automático)
+            from app.notificacoes.service import (
+                _clonar_estrutura_e_conteudo,
+                _substituir_referencias_periodo,
+            )
+
+            base = txdb.get(Relatorio, base_rel_id)
+            if base:
+                _clonar_estrutura_e_conteudo(txdb, base, rel)
+                # Substitui referências de período no conteúdo clonado
+                secoes = txdb.query(Secao).filter(Secao.relatorio_id == rel.id).all()
+                for sec in secoes:
+                    sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
+                txdb.commit()
+        else:
+            # Cria seções padrão baseadas no PDF (comportamento original)
+            criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
     return response_relatorio_detail(request, db, rel_id_novo)
 
 
@@ -512,9 +542,7 @@ def status_secao_get(
         raise HTTPException(404)
     if u.role == "autor":
         if sec.responsavel_id is not None and sec.responsavel_id != u.id:
-            raise HTTPException(
-                403, detail="Sem permissão para alterar o status desta seção."
-            )
+            raise HTTPException(403, detail="Sem permissão para alterar o status desta seção.")
         url = f"/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo"
     elif u.role in ("admin", "coordenador"):
         url = f"/relatorios/{rel_id}/secoes/{sec_id}/upload-conteudo"
