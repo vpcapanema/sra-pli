@@ -595,8 +595,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 <th class="th-filterable" data-col="sec">
                   <span class="th-label">Nº seção</span>
                   <button type="button" class="th-filter-btn" data-col="sec" title="Filtrar por nº seção">▾</button>
-                  <div class="th-filter-dropdown" id="th-drop-edit-sec">
-                    <ul class="th-filter-list" id="th-list-edit-sec"></ul>
+                  <div class="th-filter-dropdown" id="th-drop-sec">
+                    <ul class="th-filter-list" id="th-list-sec"></ul>
                   </div>
                 </th>
                 <th class="th-filterable" data-col="edit-tipo">
@@ -3144,7 +3144,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   (function () {
     const checks = Array.from(document.querySelectorAll(".bloco-select"));
     const enabledChecks = checks.filter((check) => !check.disabled);
-    const selectAll = document.getElementById("bulk-select-all");
+    const selectAll = document.getElementById("select-all-blocos");
     const count = document.getElementById("bulk-count");
     const buttons = Array.from(document.querySelectorAll("[data-bulk-submit]"));
     const forms = [
@@ -4492,10 +4492,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     overflow-wrap: anywhere;
   }
   .blocos-table th {
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
     border-color: #7890a5;
-    font-size: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.2;
     padding: 5px 3px;
+    text-overflow: clip;
   }
   .blocos-table th:last-child,
   .blocos-table td:last-child {
@@ -4541,7 +4546,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   .blocos-table col:nth-child(7) { width: 12%; }
   .blocos-table col:nth-child(8) { width: 10%; }
   .blocos-table col:nth-child(9) { width: 10%; }
-  .blocos-table col:nth-child(10) { width: 7%; }
+  .blocos-table col:nth-child(10) { width: 10%; }
   .edit-bloco-tabela tbody td {
     vertical-align: middle;
   }
@@ -4625,15 +4630,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     align-items: center;
     justify-content: center;
     gap: 3px;
-    flex-wrap: nowrap;
-    white-space: nowrap;
+    flex-wrap: wrap;
+    white-space: normal;
     vertical-align: middle;
   }
   .th-acoes,
   .blocos-table td:last-child,
   .edit-bloco-tabela td:last-child {
     vertical-align: middle;
-    white-space: nowrap;
     width: 1%;
   }
   .inline-form {
@@ -4689,6 +4693,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     padding: 6px 10px;
     text-align: left;
     font-size: 10.5px;
+    line-height: 1.2;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
