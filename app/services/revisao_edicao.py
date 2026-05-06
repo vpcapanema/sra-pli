@@ -1,13 +1,14 @@
-"""Lógica da página de Validação e Revisão (rotas em ``routes/validacao_revisao.py``).
+"""Lógica da página de Revisão e Edição (rotas em ``routes/revisao_edicao.py``).
 
-Seção 1 — Validação: árvore (filtro/navegação) sobre o relatório completo no
-iframe (mesmo HTML do preview); dock no painel com Aprovar/Reprovar da
-parcial do responsável pela seção escolhida; notas internas
-(``observacao_validacao``, POST dedicado).
+Workspace único do coordenador sobre o relatório completo:
 
-Seção 2 — Revisão: mesmo **workspace** que a Validação (árvore à esquerda,
-painel à direita com pré-visualização ou editor de blocos por iframe);
-checagens globais, revisão linguística no painel, exportar e finalizar.
+- Árvore de navegação à esquerda (todo o relatório + por seção) com
+  agregação de erros/avisos vindos das checagens globais.
+- Painel à direita com pré-visualização paginada (mesmo pipeline do PDF)
+  e edição inline de blocos (auto-save), revisão linguística sob demanda,
+  gestão de vocabulário do projeto e nota interna por seção.
+
+Restrito a admin/coordenador.
 """
 
 from __future__ import annotations
@@ -20,12 +21,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
 from starlette.responses import RedirectResponse
 
-from ..models import Bloco, EntregaRelatorio, Relatorio, Secao
+from ..models import Bloco, Relatorio, Secao
 from ..numeracao import chave_numero
 from ..pdf_render import _montar_contexto as _montar_contexto_pdf
-from .entregas.lista_painel import montar_lista_entregas
 from .pages import templates, user_or_login_page
-from .validacao.checagens_entrega import montar_checagens_validacao
 from .validacao.checagens_globais import (
     autor_rotulo_secao,
     montar_checagens_globais,
@@ -41,7 +40,7 @@ _SEC_LINK_RE = re.compile(r"/secoes/(\d+)/")
 
 
 # ---------------------------------------------------------------------------
-# Árvores de navegação e mapas de propagação (validação + revisão)
+# Árvores de navegação e mapas de propagação
 # ---------------------------------------------------------------------------
 
 
@@ -79,7 +78,7 @@ def _situacao_secao_revisao(
     tem_erro: bool,
     tem_aviso: bool,
 ) -> str:
-    """Cor da linha na árvore 2.1: erro > aviso > ok (conforme blocos e checagens)."""
+    """Cor da linha na árvore: erro > aviso > ok (conforme blocos e checagens)."""
     if sec.responsavel_id is None or tem_erro:
         return "erro"
     n_b = len(sec.blocos)
@@ -128,7 +127,7 @@ def _arvore_revisao_navegacao(
     categorias_globais,
     checagens,
 ) -> list[dict]:
-    """Árvore plana para o painel Revisão (mesmo contrato que ``arvore_validacao``)."""
+    """Árvore plana para o painel de Revisão e Edição."""
     mp = _merge_mapas_erro_aviso(
         _mapa_checagens_por_secao(checagens),
         _mapa_categorias_globais_por_secao(categorias_globais),
@@ -170,30 +169,6 @@ def _arvore_revisao_navegacao(
     return nos
 
 
-def _mapa_secao_autores(rel: Relatorio) -> list[dict]:
-    """Linhas para tabela seção ↔ responsável (Revisão — transparência obrigatória)."""
-    rows: list[dict] = []
-    for sec in sorted(
-        rel.secoes,
-        key=lambda s: (chave_numero(s.numero or ""), s.ordem or 0),
-    ):
-        user = sec.responsavel
-        rows.append(
-            {
-                "numero": sec.numero or "",
-                "titulo": sec.titulo or "",
-                "autor_nome": (user.nome or "").strip() if user else "",
-                "autor_email": (user.email or "").strip() if user else "",
-                "sem_responsavel": sec.responsavel_id is None,
-                "link_upload": (
-                    f"/relatorios/{rel.id}/secoes/{sec.id}/upload-conteudo"
-                ),
-                "link_sumario": f"/relatorios/{rel.id}#sec-{sec.id}",
-            }
-        )
-    return rows
-
-
 def _mapa_checagens_por_secao(checagens) -> dict[int, tuple[bool, bool]]:
     m: dict[int, tuple[bool, bool]] = {}
     for c in checagens:
@@ -203,180 +178,9 @@ def _mapa_checagens_por_secao(checagens) -> dict[int, tuple[bool, bool]]:
     return m
 
 
-def _arvore_node_secao(
-    rid: int,
-    preview_url: str,
-    sec: Secao,
-    mp: dict[int, tuple[bool, bool]],
-) -> dict:
-    num = sec.numero or ""
-    anchor = ("sec-" + num.replace(".", "-")) if num else ""
-    te, ta = mp.get(sec.id, (False, False))
-    sem = sec.responsavel_id is None
-    rotulo_resp = "" if sem else autor_rotulo_secao(sec)
-    return {
-        "secao_id": sec.id,
-        "numero": num,
-        "titulo": sec.titulo or "",
-        "nivel": num.count(".") + 1,
-        "sem_responsavel": sem,
-        "responsavel_rotulo": rotulo_resp,
-        "preview_url": preview_url,
-        "anchor_id": anchor,
-        "responsavel_user_id": sec.responsavel_id,
-        "editor_url": f"/relatorios/{rid}/secoes/{sec.id}/upload-conteudo",
-        "tem_erro": te,
-        "tem_aviso": ta,
-        "observacao": sec.observacao_validacao or "",
-        "blocos_txt": (
-            "sem blocos"
-            if not sec.blocos
-            else (
-                f"{sum(1 for b in sec.blocos if b.bloqueado)}/"
-                f"{len(sec.blocos)} blocos confirmados"
-            )
-        ),
-    }
-
-
-def _arvore_validacao(rel: Relatorio, checagens) -> list[dict]:
-    mp = _mapa_checagens_por_secao(checagens)
-    rid = rel.id
-    ag_erro = any(t[0] for t in mp.values())
-    ag_aviso = any(t[1] for t in mp.values())
-    preview_url = f"/relatorios/{rid}/preview"
-    root = {
-        "secao_id": None,
-        "numero": "",
-        "titulo": "Todo o relatório",
-        "nivel": 0,
-        "preview_url": preview_url,
-        "anchor_id": "",
-        "responsavel_user_id": None,
-        "sem_responsavel": False,
-        "responsavel_rotulo": "",
-        "editor_url": f"/relatorios/{rid}",
-        "tem_erro": ag_erro,
-        "tem_aviso": ag_aviso,
-        "observacao": "",
-        "blocos_txt": "",
-    }
-    nos: list[dict] = [root]
-    secoes_ord = sorted(
-        rel.secoes,
-        key=lambda s: (chave_numero(s.numero or ""), s.ordem or 0),
-    )
-    for s in secoes_ord:
-        nos.append(_arvore_node_secao(rid, preview_url, s, mp))
-    return nos
-
-
 # ---------------------------------------------------------------------------
 # Handlers
 # ---------------------------------------------------------------------------
-
-
-# pylint: disable=too-many-locals
-def validacao_revisao_page(
-    rel_id: int,
-    request: Request,
-    db: Session,
-):
-    """Página única com as duas seções. Exclusiva de admin/coordenador."""
-    user, p = user_or_login_page(request, db)
-    if p is not None:
-        return p
-    assert user is not None
-    if user.role not in ("admin", "coordenador"):
-        raise HTTPException(
-            403, detail="Acesso restrito a coordenador/admin."
-        )
-
-    rel = (
-        db.query(Relatorio)
-        .options(
-            selectinload(Relatorio.secoes).options(
-                selectinload(Secao.responsavel),
-                selectinload(Secao.blocos),
-            ),
-        )
-        .filter(Relatorio.id == rel_id)
-        .one_or_none()
-    )
-    if not rel:
-        raise HTTPException(404, detail="Relatório não encontrado.")
-
-    relatorios_opcao = (
-        db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
-    )
-
-    entregas = (
-        db.query(EntregaRelatorio)
-        .options(
-            selectinload(EntregaRelatorio.user),
-            selectinload(EntregaRelatorio.notificacoes),
-            selectinload(EntregaRelatorio.reprovado_por),
-            selectinload(EntregaRelatorio.validado_por),
-        )
-        .filter(EntregaRelatorio.relatorio_id == rel_id)
-        .all()
-    )
-    checagens = montar_checagens_validacao(db, rel, entregas)
-
-    total_entregas = len(checagens)
-    aprovadas = sum(1 for c in checagens if c.status == "validado")
-    com_erros = sum(1 for c in checagens if c.total_erros > 0)
-    prontas_para_aprovar = sum(
-        1
-        for c in checagens
-        if c.status != "validado" and c.pronta_para_aprovar
-    )
-
-    linhas_lista, pode_acoes = montar_lista_entregas(db, rel, user)
-
-    resumo_global, categorias_globais = montar_checagens_globais(db, rel)
-    erros_globais = sum(
-        c.total for c in categorias_globais if c.severidade == "erro"
-    )
-    avisos_globais = sum(
-        c.total for c in categorias_globais if c.severidade == "aviso"
-    )
-    pode_finalizar = (
-        rel.status != "finalizado"
-        and erros_globais == 0
-        and resumo_global.todas_validadas
-    )
-
-    arvore_validacao = _arvore_validacao(rel, checagens)
-    arvore_revisao_navegacao = _arvore_revisao_navegacao(
-        rel, categorias_globais, checagens
-    )
-
-    contexto = {
-        "user": user,
-        "rel": rel,
-        "checagens": checagens,
-        "lista_entregas_linhas": linhas_lista,
-        "lista_entregas_pode_acoes": pode_acoes,
-        "total_entregas": total_entregas,
-        "aprovadas": aprovadas,
-        "com_erros": com_erros,
-        "prontas_para_aprovar": prontas_para_aprovar,
-        "resumo_global": resumo_global,
-        "categorias_globais": categorias_globais,
-        "erros_globais": erros_globais,
-        "avisos_globais": avisos_globais,
-        "pode_finalizar": pode_finalizar,
-        "relatorios_opcao": relatorios_opcao,
-        "arvore_validacao": arvore_validacao,
-        "arvore_revisao_navegacao": arvore_revisao_navegacao,
-        "mapa_secao_autores": _mapa_secao_autores(rel),
-    }
-    return templates.TemplateResponse(
-        request,
-        "complementos/validacao_revisao.html",
-        contexto,
-    )
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -388,7 +192,7 @@ def salvar_observacao_validacao_secao(
     redirect_to: str,
     db: Session,
 ):
-    """Nota interna do coordenador na Validação (não entra no PDF)."""
+    """Nota interna do coordenador por seção (não entra no PDF)."""
     user, p = user_or_login_page(request, db)
     if p is not None:
         return p
@@ -407,7 +211,7 @@ def salvar_observacao_validacao_secao(
     db.add(sec)
     db.commit()
     dest = (redirect_to or "").strip() or (
-        f"/relatorios/{rel_id}/validacao-revisao#ss-validacao"
+        f"/relatorios/{rel_id}/revisao-edicao"
     )
     return RedirectResponse(url=dest, status_code=303)
 
@@ -417,7 +221,7 @@ def revisao_linguistica_rodar(
     request: Request,
     db: Session,
 ):
-    """Análise sob demanda — devolve JSON consumido por fetch() na Seção 2."""
+    """Análise sob demanda — devolve JSON consumido por fetch() no painel."""
     user, p = user_or_login_page(request, db)
     if p is not None:
         return JSONResponse(

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from .models import Relatorio, Secao
 
-_RE_REF = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
+RE_REF = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ def resolver_referencias(texto: str | None, mapas: MapasRef) -> str:
                 return f"Se\u00e7\u00e3o {numero}"
         return match.group(0)
 
-    return _RE_REF.sub(_sub, texto)
+    return RE_REF.sub(_sub, texto)
 
 
 def mapas_para_json(mapas: MapasRef) -> dict[str, dict[str, str]]:

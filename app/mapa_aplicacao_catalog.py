@@ -81,20 +81,6 @@ PAGINAS_COMPLEMENTOS: tuple[PaginaComplementoMeta, ...] = (
         "GET /relatorios/{rel_id}/entregas",
     ),
     PaginaComplementoMeta(
-        "validacao_revisao.html",
-        "Validação e Revisão",
-        "/relatorios/1/validacao-revisao",
-        "Sessão; admin e coordenador",
-        (
-            "GET /relatorios/{rel_id}/validacao-revisao · "
-            "POST …/entregas/{eid}/status (Aprovar) · "
-            "POST …/entregas/{eid}/reprovar (devolução com motivo) · "
-            "POST /relatorios/{rel_id}/revisao-linguistica (JSON sob demanda) · "
-            "POST /relatorios/{rel_id}/status (Finalizar) · "
-            "GET /relatorios/{rel_id}/exportar?formato=docx"
-        ),
-    ),
-    PaginaComplementoMeta(
         "recuperar_senha.html",
         "Recuperar senha",
         "/recuperar-senha",

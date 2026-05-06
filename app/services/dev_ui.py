@@ -6,7 +6,6 @@ import base64
 import html
 import os
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 from urllib.parse import urlencode
 
@@ -145,13 +144,6 @@ def _contexto_preview_email_fake(user: Any) -> dict[str, Any]:
             },
         ],
     }
-
-
-def contexto_email_sumario_padrao(
-    nome_destinatario: str = "Autor exemplo",
-) -> dict[str, Any]:
-    """Contexto de e-mail com árvore ``SECOES_PADRAO`` completa."""
-    return _contexto_preview_email_fake(SimpleNamespace(nome=nome_destinatario))
 
 
 def _contexto_preview_email_db(

@@ -1,4 +1,4 @@
-"""Sanitização de fragmentos HTML destinados ao PDF (WeasyPrint)."""
+"""Sanitização de fragmentos HTML destinados ao preview A4 e ao DOCX."""
 from __future__ import annotations
 
 import re

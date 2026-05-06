@@ -930,7 +930,7 @@
     if (action === "salvar-tudo") salvarTudo();
     else if (action === "fechar")
       window.location.href =
-        "/relatorios/" + REL_ID + "/validacao-revisao#ss-validacao";
+        "/relatorios/" + REL_ID;
     else if (action === "recarregar") window.location.reload();
     else if (action === "zoom-in") alert("Zoom não implementado ainda");
     else if (action === "zoom-out") alert("Zoom não implementado ainda");

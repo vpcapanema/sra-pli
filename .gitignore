@@ -34,6 +34,12 @@ gov_*.png
 preview_*.pdf
 mapa_da_aplicacao.html
 
+# Scripts temporarios (debug ad-hoc) e logs soltos na raiz
+tmp_*.py
+tmp_*.ps1
+uvicorn.err
+uvicorn.out
+
 # Snapshots adhoc gerados por scripts utilitarios
 artifacts/_*.txt
 artifacts/_*.html

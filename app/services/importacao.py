@@ -25,7 +25,7 @@ from ..list_lines import (
     split_markdown_pipe_row_cells,
 )
 from ..models import Bloco, Figura, Secao, User
-from ..numeracao import consolidar_referencias
+from ..numeracao import chave_numero, consolidar_referencias
 
 
 VALID_TYPES = {"texto", "lista", "tabela", "figura"}
@@ -226,16 +226,6 @@ def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool 
     return None
 
 
-def _secao_sort_key(numero: str) -> tuple:
-    parts = []
-    for part in (numero or "").split("."):
-        if part.isdigit():
-            parts.append((0, int(part)))
-        else:
-            parts.append((1, part.lower()))
-    return tuple(parts)
-
-
 def _usuario_pode_estruturar(user: User, sec_atual: Secao, numero: str) -> bool:
     if user.role in ("admin", "coordenador"):
         return True
@@ -374,7 +364,7 @@ def _resolver_secao_importada(
 
 def _reordenar_secoes(db: Session, rel_id: int) -> None:
     secoes = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
-    for ordem, sec in enumerate(sorted(secoes, key=lambda item: _secao_sort_key(item.numero))):
+    for ordem, sec in enumerate(sorted(secoes, key=lambda item: chave_numero(item.numero))):
         sec.ordem = ordem
 
 

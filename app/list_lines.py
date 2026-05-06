@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from html import escape
-from typing import List
 
 # Romana: padrão comum; evita conflito com "i" solto exceto com . ou )
 _ROMAN = r"(?:i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii|xiii|xiv|xv|xvi|xvii|xviii|xix|xx|xxi|l|li|c)"
@@ -22,7 +21,7 @@ class _ListItem:
     level: int
     kind: str  # "ul" | "ol_1" | "ol_a" | "ol_A" | "ol_i" | "ol_I"
     text: str
-    children: List["_ListItem"] = field(default_factory=list)
+    children: list["_ListItem"] = field(default_factory=list)
 
 
 def _strip_marker(rest: str) -> tuple[str | None, str]:

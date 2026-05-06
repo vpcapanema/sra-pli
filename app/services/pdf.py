@@ -1,16 +1,18 @@
 """Lógica de preview HTML e exportação DOCX (rotas em ``app/routes/pdf.py``).
 
-Endpoints de PDF estão 410 Gone: o sistema usa preview HTML A4 + DOCX.
-Este módulo concentra toda a regra de negócio, resolução de escopo de
-seções e montagem de respostas binárias/HTML.
+Endpoints históricos de PDF foram substituídos pelo preview HTML A4 + DOCX.
+Eles agora respondem com ``307 Temporary Redirect`` para o equivalente ativo,
+preservando bookmarks externos. Este módulo concentra toda a regra de negócio,
+resolução de escopo de seções e montagem de respostas binárias/HTML.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from fastapi import HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from ..auth import current_user
@@ -73,14 +75,14 @@ def _section_filter(
 
 
 def gerar_pdf(rel_id: int, request: Request, db: Session, secao_ids: list[int]):
-    """Endpoint legado desativado: o sistema usa preview HTML A4 e DOCX."""
-    del rel_id, secao_ids  # preservado por compat de assinatura
+    """Endpoint legado: redireciona para o preview HTML A4 (307)."""
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    raise HTTPException(
-        410, detail="Geração de PDF desativada. Use a pré-visualização HTML."
-    )
+    destino = f"/relatorios/{rel_id}/preview"
+    if secao_ids:
+        destino = f"{destino}?{urlencode([('secao_ids', s) for s in secao_ids])}"
+    return RedirectResponse(url=destino, status_code=307)
 
 
 def preview_html(rel_id: int, request: Request, db: Session, secao_ids: list[int]):
@@ -119,7 +121,12 @@ def exportar_relatorio(
         else ("-secoes" if section_ids else "")
     )
     if query.formato == "pdf":
-        raise HTTPException(410, detail="Exportação PDF desativada. Use DOCX.")
+        params = [("formato", "docx"), ("escopo", query.escopo)]
+        params.extend(("secao_ids", s) for s in query.secao_ids)
+        return RedirectResponse(
+            url=f"/relatorios/{rel_id}/exportar?{urlencode(params)}",
+            status_code=307,
+        )
     if query.formato == "docx":
         docx = render_docx(db, rel, section_ids)
         fname = f"{rel.codigo}-{rel.versao}{suffix}.docx"
@@ -135,10 +142,11 @@ def exportar_relatorio(
 
 
 def exportar_para_assinatura(rel_id: int, request: Request, db: Session):
-    del rel_id  # preservado por compat de assinatura
+    """Endpoint legado: pacote de assinatura em PDF foi substituído pelo DOCX."""
     user = current_user(request, db)
     if not user:
         return response_login(request)
-    raise HTTPException(
-        410, detail="Pacote com PDF para assinatura desativado. Use DOCX."
+    return RedirectResponse(
+        url=f"/relatorios/{rel_id}/exportar?formato=docx&escopo=inteiro",
+        status_code=307,
     )

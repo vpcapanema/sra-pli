@@ -22,7 +22,7 @@ Este ficheiro é **agnóstico de IDE** (não depende de Cursor, VS Code, Copilot
 |--------|------------|
 | API / páginas | **FastAPI** + **Jinja2** (HTML tradicional; não há SPA React) |
 | Dados | **PostgreSQL** via **SQLAlchemy 2** |
-| PDF | **WeasyPrint** (`app/templates/pdf/relatorio.html`) |
+| PDF/Entrega | Preview HTML A4 (`app/templates/pdf/relatorio.html`) + **DOCX** via `python-docx` |
 | Sessão | Cookies assinados (`SECRET_KEY`, middleware de sessão) |
 | E-mail | **SendGrid** (envio + webhook de eventos) |
 | Deploy típico | **Docker** + **Render** (`render.yaml` na raiz) |
@@ -133,7 +133,7 @@ Se alterar nomes de variáveis, atualize **`.env.example`**, **`app/config.py`**
 O mesmo texto, já formatado para copiar/colar, está na raiz do repo: **`AI_AGENT_INITIAL_COMMAND.txt`**.
 
 ```text
-Estás no repositório SRA (FastAPI, Postgres, SendGrid, PDF WeasyPrint).
+Estás no repositório SRA (FastAPI, Postgres, SendGrid, preview HTML A4 + DOCX).
 Lê primeiro docs/AI_AGENT_WELCOME_PROMPT.md, depois .env.example e app/config.py.
 Não lês nem reproduzas .env. Segue AGENTS.md e .cursor/project-instructions.md para domínio e regras do repo.
 ```

@@ -24,11 +24,9 @@ import re
 import unicodedata
 from io import BytesIO
 from pathlib import Path
-from typing import List, Tuple
 
 from docx import Document
 from docx.table import Table
-from docx.text.paragraph import Paragraph
 
 
 def _norm_text_(s: str) -> str:
@@ -61,7 +59,7 @@ from .services.importacao import (
 PASTA_RELATORIOS = Path(__file__).resolve().parent.parent / "relatorios_entregues"
 
 
-def listar_docx_disponiveis() -> List[str]:
+def listar_docx_disponiveis() -> list[str]:
     """Lista nomes de DOCX em ``relatorios_entregues/`` (ordenados).
 
     Ignora arquivos temporarios do Word (``~$...``) e extensoes que nao
@@ -100,26 +98,26 @@ def _style_heading_level(style_name: str) -> int:
     return max(1, min(lvl, 9))
 
 
-def _split_legenda_fonte(line: str) -> Tuple[str, str]:
+def _split_legenda_fonte(line: str) -> tuple[str, str]:
     match = _FONTE_RE.search(line)
     if not match:
         return line.strip(), ""
     return line[: match.start()].strip(), match.group(1).strip()
 
 
-def _split_figura_fonte(line: str) -> Tuple[str, str]:
+def _split_figura_fonte(line: str) -> tuple[str, str]:
     legenda, fonte = _split_legenda_fonte(line)
     legenda = _FIGURA_PREFIX_RE.sub("", legenda).strip()
     return legenda, fonte
 
 
-def _split_tabela_fonte(line: str) -> Tuple[str, str]:
+def _split_tabela_fonte(line: str) -> tuple[str, str]:
     legenda, fonte = _split_legenda_fonte(line)
     legenda = _TABELA_PREFIX_RE.sub("", legenda).strip()
     return legenda, fonte
 
 
-def _parse_numero_titulo(text: str) -> Tuple[str, str]:
+def _parse_numero_titulo(text: str) -> tuple[str, str]:
     """Extrai ``(numero, titulo)`` de uma linha de heading.
 
     Exemplos aceitos:
@@ -286,7 +284,7 @@ def _b64_to_bytes(b64: str) -> bytes:
         return b""
 
 
-def extrair_relatorio_docx(raw: bytes) -> List[dict]:  # noqa: C901
+def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
     """Extrai estrutura completa (secoes + blocos) de bytes de um DOCX.
 
     Retorno: ``list[dict]`` onde cada item tem as chaves
@@ -297,7 +295,7 @@ def extrair_relatorio_docx(raw: bytes) -> List[dict]:  # noqa: C901
     """
     document = Document(BytesIO(raw))
 
-    resultado: List[dict] = []
+    resultado: list[dict] = []
     vistos_numeros: set[str] = set()
     contadores_por_nivel: dict[int, int] = {}
     ultimo_numero = ""
@@ -470,7 +468,7 @@ def extrair_relatorio_docx(raw: bytes) -> List[dict]:  # noqa: C901
     return resultado
 
 
-def extrair_relatorio_docx_disponivel(nome_arquivo: str) -> List[dict]:
+def extrair_relatorio_docx_disponivel(nome_arquivo: str) -> list[dict]:
     """Extrai secoes + blocos de um DOCX da pasta ``relatorios_entregues/``.
 
     Valida ``nome_arquivo`` contra ``listar_docx_disponiveis()`` para

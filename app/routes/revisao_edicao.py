@@ -2,20 +2,9 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..services import validacao_revisao as validacao_revisao_service
+from ..services import revisao_edicao as revisao_edicao_service
 
 router = APIRouter()
-
-
-@router.get("/relatorios/{rel_id}/validacao-revisao")
-def validacao_revisao_page(
-    rel_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    return validacao_revisao_service.validacao_revisao_page(
-        rel_id, request, db
-    )
 
 
 @router.post("/relatorios/{rel_id}/secoes/{sec_id}/observacao-validacao")
@@ -28,7 +17,7 @@ def salvar_observacao_validacao_secao(
     redirect_to: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    return validacao_revisao_service.salvar_observacao_validacao_secao(
+    return revisao_edicao_service.salvar_observacao_validacao_secao(
         rel_id, sec_id, request, observacao, redirect_to, db
     )
 
@@ -39,7 +28,7 @@ def revisao_linguistica_rodar(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return validacao_revisao_service.revisao_linguistica_rodar(
+    return revisao_edicao_service.revisao_linguistica_rodar(
         rel_id, request, db
     )
 
@@ -50,7 +39,7 @@ def revisao_edicao_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return validacao_revisao_service.revisao_edicao_page(
+    return revisao_edicao_service.revisao_edicao_page(
         rel_id, request, db
     )
 
@@ -62,7 +51,7 @@ async def revisao_salvar_bloco(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return await validacao_revisao_service.revisao_salvar_bloco(
+    return await revisao_edicao_service.revisao_salvar_bloco(
         rel_id, bloco_id, request, db
     )
 
@@ -74,7 +63,7 @@ def revisao_desconfirmar_bloco(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return validacao_revisao_service.revisao_desconfirmar_bloco(
+    return revisao_edicao_service.revisao_desconfirmar_bloco(
         rel_id, bloco_id, request, db
     )
 
@@ -85,6 +74,6 @@ async def revisao_vocabulario_adicionar(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return await validacao_revisao_service.revisao_vocabulario_adicionar(
+    return await revisao_edicao_service.revisao_vocabulario_adicionar(
         rel_id, request, db
     )

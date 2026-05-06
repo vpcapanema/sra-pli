@@ -5,7 +5,8 @@ Cron externo não lê esta tabela diretamente: ela orienta horários esperados n
 documentação da UI **e** aplica regras no backend (:func:`~.service.abrir_periodo`,
 :func:`~.service.enviar_lembretes`, prazos nos e-mails e sugestões de período).
 
-``MESES_PT`` é duplicado de ``service.py``/adjacentes só para evitar importação circular.
+``MESES_PT`` é local ao pacote ``notificacoes`` (usado por este módulo em
+:func:`periodo_referente_para_data`).
 """
 
 from __future__ import annotations

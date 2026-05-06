@@ -58,10 +58,6 @@ def normalizar_email_secundario_obrigatorio(
     return s, None
 
 
-# Alias interno mantido p/ minimizar diff. Novos códigos devem usar o público.
-_normalizar_email_secundario_obrigatorio = normalizar_email_secundario_obrigatorio
-
-
 def _clear_pwd_reset_session(request: Request) -> None:
     request.session.pop(_SRA_PWD_RESET_UID, None)
     request.session.pop(_SRA_PWD_RESET_AT, None)
@@ -100,6 +96,7 @@ def login_submit(
             request,
             error="Selecione um perfil válido.",
             role=perfil,
+            email_preenchido=(email or "").strip().lower(),
             status_code=400,
         )
     email_norm = email.strip().lower()
@@ -131,6 +128,7 @@ def login_submit(
                 request,
                 error="E-mail, perfil ou senha inválidos.",
                 role=perfil,
+                email_preenchido=email_norm,
                 status_code=401,
             )
         _clear_pwd_reset_session(request)
@@ -157,6 +155,7 @@ def login_submit(
             request,
             error="Falha temporária no login. Tente novamente em instantes.",
             role=perfil,
+            email_preenchido=email_norm,
             status_code=500,
         )
 

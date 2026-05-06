@@ -3,8 +3,8 @@
 header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_extra
 %}
 <link rel="stylesheet" href="/static/css/revisao_edicao.css" />
-<link rel="stylesheet" href="/static/vendor/quill/quill.snow.css" />
-<script src="/static/vendor/quill/quill.js"></script>
+<link rel="stylesheet" href="/static/vendor/quill.snow.css" />
+<script src="/static/vendor/quill.min.js"></script>
 {% endblock %} {% block content %}
 <div
   id="rev-edit-root"
@@ -1035,9 +1035,9 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
     </div>
     <div class="rev-banner__actions">
       <a
-        href="/relatorios/{{ rel.id }}/validacao-revisao#ss-validacao"
+        href="/relatorios/{{ rel.id }}"
         class="rev-btn rev-btn--ghost"
-        >Voltar para Validação</a
+        >Voltar ao relatório</a
       >
     </div>
   </div>

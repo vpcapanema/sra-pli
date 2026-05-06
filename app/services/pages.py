@@ -29,7 +29,6 @@ from starlette.responses import RedirectResponse, Response
 
 from ..auth import current_user, pode_editar_perfil_usuario
 from ..docx_clone_extractor import listar_docx_disponiveis
-from ..jinja_filters import registrar as _registrar_filtros_jinja
 from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..modo_edicao_blocos import modo_edicao_coordenador_rel
@@ -43,23 +42,7 @@ from ..sumario_extractor import listar_pdfs_disponiveis
 templates = Jinja2Templates(
     directory=str(Path(__file__).parent.parent / "templates")
 )
-_registrar_filtros_jinja(templates.env.filters)
 _registrar_globais_jinja(templates.env)
-
-MESES_PT = [
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
-]
 
 # Última medição já produzida fora do sistema; próximo sugerido = NUMERO_BASE + 1.
 NUMERO_BASE = 14
@@ -109,12 +92,18 @@ def response_login(
     error: str | None = None,
     notice: str | None = None,
     role: str | None = None,
+    email_preenchido: str | None = None,
     status_code: int = 200,
 ) -> Response:
     return templates.TemplateResponse(
         request,
         "complementos/login.html",
-        {"error": error, "notice": notice, "role": role},
+        {
+            "error": error,
+            "notice": notice,
+            "role": role,
+            "email_preenchido": email_preenchido or "",
+        },
         status_code=status_code,
     )
 

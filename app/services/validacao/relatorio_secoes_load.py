@@ -4,13 +4,14 @@ Usado pelas checagens de validação/revisão para evitar consultas divergentes.
 """
 from __future__ import annotations
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from ...models import Relatorio, Secao
 
 
 def load_relatorio_secoes_blocos_responsavel(db: Session, rel_id: int) -> Relatorio:
-    return (
+    rel = (
         db.query(Relatorio)
         .options(
             selectinload(Relatorio.secoes).options(
@@ -19,5 +20,8 @@ def load_relatorio_secoes_blocos_responsavel(db: Session, rel_id: int) -> Relato
             ),
         )
         .filter(Relatorio.id == rel_id)
-        .one()
+        .one_or_none()
     )
+    if rel is None:
+        raise HTTPException(404, detail="Relatório não encontrado.")
+    return rel

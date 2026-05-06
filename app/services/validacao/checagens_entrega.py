@@ -7,21 +7,19 @@ chave do achado.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from sqlalchemy.orm import Session
 
 from ...models import Bloco, EntregaRelatorio, Figura, Relatorio, Secao, User
+from ...ref_resolve import RE_REF
 from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
 
 
 # Severidades: 'erro' bloqueia visualmente (vermelho), 'aviso' chama atenção
 # (amarelo). 'info' é neutro (cinza, contagens).
 SEVERIDADES = ("erro", "aviso", "info")
-
-_REF_RE = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,7 +210,7 @@ def _checar_referencias(
     O renderizador final ignora marcadores quebrados; aqui o coord vê antes.
     """
     textos = (b.conteudo or "") + " " + (b.legenda or "")
-    for tipo, alvo_str in _REF_RE.findall(textos):
+    for tipo, alvo_str in RE_REF.findall(textos):
         alvo_id = int(alvo_str)
         valido = (
             alvo_id in ids_secoes if tipo == "secao" else alvo_id in ids_blocos_figtab

@@ -703,7 +703,10 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    sec_ids_escopo = secao_ids_na_subarvore(sec.relatorio.secoes, sec.numero or "") if sec.relatorio else {sec.id}
+    secoes_irmas = (
+        db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
+    )
+    sec_ids_escopo = secao_ids_na_subarvore(secoes_irmas, sec.numero or "")
     if not sec_ids_escopo:
         sec_ids_escopo = {sec.id}
     origens_clonadas = {"clonado", "docx_import", "pdf_import"}
@@ -741,8 +744,7 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
                 raise HTTPException(403)
             sec.responsavel_id = rid
     db.commit()
-    if retorno == "upload":
-        return response_conteudo_upload(request, db, rel_id, sec_id)
+    del retorno
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
@@ -793,8 +795,7 @@ def status_secao(  # pylint: disable=too-many-arguments
         raise HTTPException(400)
     sec.status = status
     db.commit()
-    if retorno == "upload":
-        return response_conteudo_upload(request, db, rel_id, sec_id)
+    del retorno
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 

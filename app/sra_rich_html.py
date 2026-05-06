@@ -116,7 +116,7 @@ def _unwrap_outer_div(html: str) -> str:
 
 
 def sanitize_rich_html_for_pdf(fragment: str) -> str:
-    """Limpa fragmento HTML do RTE para injetar no template do PDF (WeasyPrint)."""
+    """Limpa fragmento HTML do RTE para injetar no template de preview A4 e no DOCX."""
     if not (fragment or "").strip():
         return ""
     wrapped = _OPEN_DIV + fragment + _DIV_CLOSE

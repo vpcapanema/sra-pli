@@ -9,7 +9,7 @@ visual Concremat e gera o PDF final pronto para assinatura eletrônica.
 
 - **Backend**: FastAPI + SQLAlchemy 2 + Postgres
 - **Frontend**: HTML + Jinja2 (sem React, conforme preferência do projeto)
-- **PDF**: WeasyPrint (HTML/CSS → PDF/A-ready com `@page`, sumário, cabeçalho e rodapé)
+- **Entrega final**: DOCX (`python-docx`) + preview HTML A4 renderizado em tela
 - **Auth**: sessão assinada (`itsdangerous`) + bcrypt
 - **Deploy**: Docker + Render (web service + Postgres gerenciado)
 
@@ -23,7 +23,8 @@ app/
   models.py          # User, Relatorio, Secao, Bloco, Figura
   auth.py            # bcrypt + sessão
   bootstrap.py       # init_db + seed admin + seções padrão
-  pdf_render.py      # WeasyPrint + template Concremat
+  pdf_render.py      # Preview HTML A4 (template Concremat)
+  docx_render.py     # Geracao DOCX (entrega final)
   routes/            # auth, pages, relatorios, blocos, figuras, pdf
   templates/         # UI HTML + pdf/relatorio.html
   static/css/app.css # Tema Concremat/PLI (paleta navy/green)

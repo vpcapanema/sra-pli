@@ -20,7 +20,7 @@
     </script>
     <script src="/static/js/sra_log.js"></script>
     <script src="/static/js/sra_auth_fetch.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/static/vendor/sweetalert2.all.min.js"></script>
     <script src="/static/js/sra_process_ui.js"></script>
     {% endif %}
   </head>
@@ -138,7 +138,9 @@
         <br />
         <span class="sb-role">{{ user.role }}</span>
         <br />
-        <a href="/logout" class="sb-logout">Sair</a>
+        <form method="post" action="/logout" class="sb-logout-form">
+          <button type="submit" class="sb-logout">Sair</button>
+        </form>
       </div>
     </aside>
     <div

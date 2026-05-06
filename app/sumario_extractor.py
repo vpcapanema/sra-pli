@@ -14,7 +14,6 @@ import io
 import re
 import unicodedata
 from pathlib import Path
-from typing import List, Tuple
 
 import pypdf
 
@@ -32,7 +31,7 @@ def _strip_acentos(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
-def listar_pdfs_disponiveis() -> List[str]:
+def listar_pdfs_disponiveis() -> list[str]:
     """Lista nomes de PDFs em ``relatorios_entregues/`` (ordenados)."""
     if not PASTA_RELATORIOS.is_dir():
         return []
@@ -40,7 +39,7 @@ def listar_pdfs_disponiveis() -> List[str]:
 
 
 def _ler_paginas_iniciais(reader: pypdf.PdfReader, max_paginas: int = 8) -> str:
-    partes: List[str] = []
+    partes: list[str] = []
     for i, page in enumerate(reader.pages[:max_paginas]):
         try:
             partes.append(page.extract_text() or "")
@@ -49,7 +48,7 @@ def _ler_paginas_iniciais(reader: pypdf.PdfReader, max_paginas: int = 8) -> str:
     return "\n".join(partes)
 
 
-def _parse_sumario(texto: str) -> List[Tuple[str, str]]:
+def _parse_sumario(texto: str) -> list[tuple[str, str]]:
     """Extrai entradas (numero, titulo) do bloco do SUMARIO."""
     linhas = texto.splitlines()
     # Localiza a palavra SUMARIO (sem acento) na lista de linhas
@@ -61,7 +60,7 @@ def _parse_sumario(texto: str) -> List[Tuple[str, str]]:
     if inicio < 0:
         return []
 
-    entradas: List[Tuple[str, str]] = []
+    entradas: list[tuple[str, str]] = []
     vistos: set[str] = set()
     for ln in linhas[inicio:]:
         m = _RE_LINHA_SUMARIO.match(ln)
@@ -79,7 +78,7 @@ def _parse_sumario(texto: str) -> List[Tuple[str, str]]:
     return entradas
 
 
-def extrair_sumario(fonte: "str | Path | bytes") -> List[Tuple[str, str]]:
+def extrair_sumario(fonte: "str | Path | bytes") -> list[tuple[str, str]]:
     """Extrai o sumario de um PDF (path em disco ou bytes em memoria)."""
     if isinstance(fonte, (str, Path)):
         reader = pypdf.PdfReader(str(fonte))
@@ -89,7 +88,7 @@ def extrair_sumario(fonte: "str | Path | bytes") -> List[Tuple[str, str]]:
     return _parse_sumario(texto)
 
 
-def extrair_sumario_pdf_disponivel(nome_arquivo: str) -> List[Tuple[str, str]]:
+def extrair_sumario_pdf_disponivel(nome_arquivo: str) -> list[tuple[str, str]]:
     """Extrai sumario de um PDF da pasta ``relatorios_entregues/``.
 
     Valida o nome para evitar path traversal: aceita apenas nomes presentes
@@ -113,7 +112,7 @@ _RE_CABECALHO_SECAO = re.compile(
 
 def _ler_pdf_completo(reader: pypdf.PdfReader) -> str:
     """Lê todas as páginas do PDF e retorna o texto concatenado."""
-    partes: List[str] = []
+    partes: list[str] = []
     for page in reader.pages:
         try:
             partes.append(page.extract_text() or "")
@@ -124,7 +123,7 @@ def _ler_pdf_completo(reader: pypdf.PdfReader) -> str:
 
 def extrair_secoes_e_conteudo(
     fonte: "str | Path | bytes",
-) -> List[Tuple[str, str, str]]:
+) -> list[tuple[str, str, str]]:
     """Extrai seções com conteúdo completo de um PDF.
 
     Retorna lista de tuplas ``(numero, titulo, conteudo_html)`` onde
@@ -153,7 +152,7 @@ def extrair_secoes_e_conteudo(
     numeros_validos = {num for num, _ in sumario}
 
     # 4) Localiza posições dos cabeçalhos no corpo
-    posicoes: List[Tuple[int, str, str]] = []  # (idx_linha, numero, titulo)
+    posicoes: list[tuple[int, str, str]] = []  # (idx_linha, numero, titulo)
     _nums_vistos: set[str] = set()
     for idx, ln in enumerate(linhas):
         m = _RE_CABECALHO_SECAO.match(ln)
@@ -166,14 +165,14 @@ def extrair_secoes_e_conteudo(
                     posicoes.append((idx, num, tit))
 
     # 5) Extrai conteúdo entre cabeçalhos
-    resultado: List[Tuple[str, str, str]] = []
+    resultado: list[tuple[str, str, str]] = []
     for i, (idx_linha, num, tit) in enumerate(posicoes):
         # Conteúdo vai da linha após o cabeçalho até o próximo cabeçalho
         fim = posicoes[i + 1][0] if i + 1 < len(posicoes) else len(linhas)
         bloco_linhas = linhas[idx_linha + 1 : fim]
         # Limpa e converte para HTML simples (parágrafos)
-        paragrafos: List[str] = []
-        buffer: List[str] = []
+        paragrafos: list[str] = []
+        buffer: list[str] = []
         for ln in bloco_linhas:
             ln_strip = ln.strip()
             if not ln_strip:
@@ -195,7 +194,7 @@ def extrair_secoes_e_conteudo(
         if num not in nums_encontrados and len(num) <= 16:
             resultado.append((num, tit, ""))
 
-    def _sort_key(item: Tuple[str, str, str]) -> List[int]:
+    def _sort_key(item: tuple[str, str, str]) -> list[int]:
         return [int(x) if x.isdigit() else 0 for x in item[0].split(".")]
 
     resultado.sort(key=_sort_key)
@@ -208,7 +207,7 @@ def extrair_secoes_e_conteudo(
 
 def _extrair_blocos_avancado(
     fonte: "str | Path | bytes",
-) -> "List[dict]":
+) -> "list[dict]":
     """Extrai blocos estruturados (texto, tabela, figura) de um PDF usando PyMuPDF.
 
     Retorna lista de dicts com:
@@ -244,11 +243,10 @@ def _extrair_blocos_avancado(
         return []
 
     numeros_validos = {num for num, _ in sumario}
-    titulos_map = {num: tit for num, tit in sumario}
 
     # 2) Percorrer páginas e extrair blocos de texto, tabelas e imagens
     # Primeiro coleta todo texto com marcadores de seção
-    texto_completo_linhas: List[str] = []
+    texto_completo_linhas: list[str] = []
     imagens_por_pagina: "dict[int, list[dict]]" = {}
 
     for page_num in range(len(doc)):
@@ -313,7 +311,7 @@ def _extrair_blocos_avancado(
 
     # 4) Localizar seções e associar conteúdo
     linhas = texto_completo_linhas
-    posicoes: List[Tuple[int, str, str]] = []
+    posicoes: list[tuple[int, str, str]] = []
     _nums_vistos_av: set[str] = set()
     for idx, ln in enumerate(linhas):
         m = _RE_CABECALHO_SECAO.match(ln)
@@ -326,16 +324,16 @@ def _extrair_blocos_avancado(
                     posicoes.append((idx, num, tit))
 
     # 5) Montar resultado por seção
-    resultado: List[dict] = []
+    resultado: list[dict] = []
     for i, (idx_linha, num, tit) in enumerate(posicoes):
         fim = posicoes[i + 1][0] if i + 1 < len(posicoes) else len(linhas)
         bloco_linhas = linhas[idx_linha + 1 : fim]
 
-        blocos_secao: List[dict] = []
+        blocos_secao: list[dict] = []
 
         # Texto: parágrafos
-        paragrafos: List[str] = []
-        buffer: List[str] = []
+        paragrafos: list[str] = []
+        buffer: list[str] = []
         for ln in bloco_linhas:
             ln_strip = ln.strip()
             if not ln_strip:
@@ -365,11 +363,11 @@ def _extrair_blocos_avancado(
     # Para cada página com tabelas/imagens, associar à seção mais provável
     # baseado na ordem de aparição
     # (simplificação: adiciona tabelas e imagens na ordem em que aparecem)
-    total_tabelas: List[str] = []
+    total_tabelas: list[str] = []
     for pg in sorted(tabelas_por_pagina.keys()):
         total_tabelas.extend(tabelas_por_pagina[pg])
 
-    total_imagens: List[dict] = []
+    total_imagens: list[dict] = []
     for pg in sorted(imagens_por_pagina.keys()):
         total_imagens.extend(imagens_por_pagina[pg])
 
@@ -379,9 +377,6 @@ def _extrair_blocos_avancado(
         for sec in resultado:
             if tabela_idx >= len(total_tabelas):
                 break
-            # Se a seção tem texto com palavras-chave de tabela, associa
-            texto_sec = " ".join(b.get("conteudo", "") for b in sec["blocos"])
-            palavras_tabela = ["tabela", "quadro", "Tabela", "Quadro"]
             for _ in range(total_tabelas.__len__()):
                 if tabela_idx >= len(total_tabelas):
                     break
@@ -420,7 +415,7 @@ def _extrair_blocos_avancado(
             })
 
     # Ordena
-    def _sort_key(item: dict) -> List[int]:
+    def _sort_key(item: dict) -> list[int]:
         return [int(x) if x.isdigit() else 0 for x in item["secao_numero"].split(".")]
 
     resultado.sort(key=_sort_key)
@@ -430,7 +425,7 @@ def _extrair_blocos_avancado(
 
 def extrair_completo_pdf_disponivel(
     nome_arquivo: str,
-) -> "List[dict]":
+) -> "list[dict]":
     """Extrai seções + blocos (texto, tabela, figura) de um PDF da pasta
     ``relatorios_entregues/``.
 

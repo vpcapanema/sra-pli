@@ -1,9 +1,6 @@
 import base64
-import contextlib
 import html as _html
-import os
 import re
-import sys
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -17,6 +14,10 @@ from . import ref_resolve
 from . import sra_rich_html as srh
 from .html_sanitize import sanitize_pdf_html_fragment as _sanitize_pdf_html_fragment
 from .list_lines import split_markdown_pipe_row_cells
+
+
+_RE_TABLE_SEP_MD = re.compile(r"\|?\s*:?-{2,}:?(\s*\|\s*:?-{2,}:?)*\s*\|?")
+_RE_TABLE_SEP_ASCII = re.compile(r"\+[-=+\s]+\+?")
 
 
 @dataclass(frozen=True)
@@ -108,10 +109,10 @@ def _render_tabela_inner_html(corpo: str, legenda: str, numero, posicao: str = "
             return True
         # Linha de separador markdown: ---, ---|---, |---|---|, com `:` opcional
         # para alinhamento (`|:---:|---:|`).
-        if re.fullmatch(r"\|?\s*:?-{2,}:?(\s*\|\s*:?-{2,}:?)*\s*\|?", s):
+        if _RE_TABLE_SEP_MD.fullmatch(s):
             return True
         # ascii art: +---+---+   ou  +===+===+
-        if re.fullmatch(r"\+[-=+\s]+\+?", s):
+        if _RE_TABLE_SEP_ASCII.fullmatch(s):
             return True
         return False
 
@@ -422,6 +423,7 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
         tab_by_top[sec_top] = contadores["tab"]
         secoes.append(
             {
+                "id": sec.id,
                 "numero": sec.numero,
                 "titulo": sec.titulo,
                 "blocos": blocos_render,
@@ -460,28 +462,3 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
 def render_html(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> str:
     template = _env.get_template("pdf/relatorio.html")
     return template.render(**_montar_contexto(db, rel, section_ids))
-
-
-@contextlib.contextmanager
-def _stderr_to_devnull():
-    """Evita ruído GLib-GIO no stderr (Windows) durante o WeasyPrint."""
-    stderr_fd = sys.stderr.fileno()
-    with open(os.devnull, "w", encoding="utf-8") as sink:
-        saved = os.dup(stderr_fd)
-        try:
-            os.dup2(sink.fileno(), stderr_fd)
-            yield
-        finally:
-            os.dup2(saved, stderr_fd)
-            os.close(saved)
-
-
-def render_pdf(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> bytes:
-    html_str = render_html(db, rel, section_ids)
-    from weasyprint import HTML  # import tardio: GTK não necessário fora do /pdf
-
-    doc = HTML(string=html_str, base_url=str(TEMPLATES_DIR))
-    if sys.platform == "win32":
-        with _stderr_to_devnull():
-            return doc.write_pdf()
-    return doc.write_pdf()

@@ -6,16 +6,14 @@ Uso típico: o coord percorre as categorias antes de finalizar o relatório.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session, selectinload
 
 from ...models import EntregaRelatorio, Figura, Relatorio, Secao
+from ...ref_resolve import RE_REF
+from .checagens_entrega import _figuras_com_dados
 from .relatorio_secoes_load import load_relatorio_secoes_blocos_responsavel
-
-
-_REF_RE = re.compile(r"\[\[REF:(figura|tabela|secao)\|(\d+)\]\]")
 
 
 @dataclass(slots=True)
@@ -235,7 +233,7 @@ def _categoria_refs_quebradas(rel: Relatorio) -> CategoriaGlobal:
     for sec in sorted(rel.secoes, key=lambda s: s.ordem):
         for b in sec.blocos:
             texto = (b.conteudo or "") + " " + (b.legenda or "")
-            for tipo, alvo_str in _REF_RE.findall(texto):
+            for tipo, alvo_str in RE_REF.findall(texto):
                 alvo = int(alvo_str)
                 ok = alvo in ids_secoes if tipo == "secao" else alvo in ids_figtab
                 if not ok:
@@ -269,22 +267,13 @@ def _categoria_entregas_pendentes(entregas: list[EntregaRelatorio]) -> Categoria
             cat.itens.append(
                 ItemGlobal(
                     rotulo=f"{nome} — status: {e.status.replace('_', ' ')}",
-                    link=f"/relatorios/{e.relatorio_id}/validacao-revisao#ss-validacao",
+                    link=f"/relatorios/{e.relatorio_id}/revisao-edicao",
                     autor_rotulo=(
                         f"E-mail: {email}" if email else "(sem e-mail no cadastro do usuário)"
                     ),
                 )
             )
     return cat
-
-
-def _figuras_com_dados(db: Session, rel_id: int) -> set[int]:
-    rows = (
-        db.query(Figura.id)
-        .filter(Figura.relatorio_id == rel_id, Figura.dados.isnot(None))
-        .all()
-    )
-    return {row[0] for row in rows}
 
 
 def montar_checagens_globais(
