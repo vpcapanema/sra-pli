@@ -741,18 +741,22 @@ Vocabulario
 # === Diagnosticos adicionados ===
 aceitavel
 Apresentacao
+btns
+Btns
 compativel
+consistencia
+dicionarios
 docxs
+edvel
+entao
 Invalidacao
 iteracao
 observavel
+proporcao
 recuperacao
 sensiveis
+slowapi
 Swal
+temporarios
 tras
 utilitarios
-entao
-proporcao
-temporarios
-slowapi
-consistencia
