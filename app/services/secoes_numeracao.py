@@ -138,17 +138,24 @@ def _achar_par_swap(
     """
     numero_sec = sec.numero or ""
     nivel = numero_sec.count(".")
-    prefixo_pai = ".".join(numero_sec.split(".")[:-1]) + "."
-    irmaos = (
-        db.query(Secao)
-        .filter(
-            Secao.relatorio_id == rel_id,
-            Secao.numero.like(f"{prefixo_pai}%"),
-        )
-        .all()
-    )
+    partes = numero_sec.split(".")
+    prefixo_pai = ".".join(partes[:-1]) + "." if nivel > 0 else ""
+    q = db.query(Secao).filter(Secao.relatorio_id == rel_id)
+    if nivel == 0:
+        # Irmaos de raiz: apenas secoes sem ponto no numero.
+        q = q.filter(~Secao.numero.like("%.%.%")).filter(~Secao.numero.like("%.%"))
+    else:
+        q = q.filter(Secao.numero.like(f"{prefixo_pai}%"))
+    irmaos = q.all()
     diretos = sorted(
-        (s for s in irmaos if (s.numero or "").count(".") == nivel),
+        (
+            s for s in irmaos
+            if (s.numero or "").count(".") == nivel
+            and (
+                nivel == 0
+                or (s.numero or "").startswith(prefixo_pai)
+            )
+        ),
         key=lambda s: (s.ordem or 0, _ordem_for_numero(s.numero or "")),
     )
     pos = next((i for i, s in enumerate(diretos) if s.id == sec.id), -1)

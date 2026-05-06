@@ -881,8 +881,6 @@ def mover_secao(
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    if "." not in (sec.numero or ""):
-        raise HTTPException(400, detail="Secoes de primeiro nivel nao podem ser movidas.")
     par = _achar_par_swap(db, rel_id, sec, direcao)
     if par is None:
         return response_relatorio_detail(request, db, rel_id)
