@@ -572,6 +572,10 @@ keepalive
 llms
 MCP
 migracao
+Btns
+btns
+edvel
+revis
 paineis
 Postgres
 PostgreSQL
