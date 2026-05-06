@@ -71,6 +71,7 @@
                     <label>
                       Definir status:
                       <select name="novo_status">
+                        <option value="pendente" {% if l.status == 'pendente' %}selected{% endif %}>pendente</option>
                         <option value="notificado" {% if l.status == 'notificado' %}selected{% endif %}>notificado</option>
                         <option value="aguardando_envio" {% if l.status == 'aguardando_envio' %}selected{% endif %}>aguardando envio</option>
                         <option value="enviado" {% if l.status == 'enviado' %}selected{% endif %}>enviado</option>

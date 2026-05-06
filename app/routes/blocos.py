@@ -82,7 +82,7 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
 
 
 @router.post("/{bloco_id}/mover")
-def mover_bloco(
+def mover_bloco(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     rel_id: int,
     sec_id: int,
     bloco_id: int,

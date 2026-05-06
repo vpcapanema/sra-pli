@@ -2,6 +2,11 @@
 ignore = [".venv", "venv", "_extracted_text", "relatorios_entregues"]
 extension-pkg-allow-list = ["pydantic", "bcrypt"]
 
+[tool.pylint.TYPECHECK]
+ignored-modules = [
+    "alembic.context",
+]
+
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
     "missing-module-docstring",

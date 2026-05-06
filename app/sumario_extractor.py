@@ -249,8 +249,7 @@ def _extrair_blocos_avancado(
     texto_completo_linhas: list[str] = []
     imagens_por_pagina: "dict[int, list[dict]]" = {}
 
-    for page_num in range(len(doc)):
-        page = doc[page_num]
+    for page_num, page in enumerate(doc):
         # Texto
         texto_pagina = page.get_text("text") or ""
         texto_completo_linhas.extend(texto_pagina.splitlines())
@@ -377,7 +376,7 @@ def _extrair_blocos_avancado(
         for sec in resultado:
             if tabela_idx >= len(total_tabelas):
                 break
-            for _ in range(total_tabelas.__len__()):
+            for _ in range(len(total_tabelas)):
                 if tabela_idx >= len(total_tabelas):
                     break
                 sec["blocos"].append({

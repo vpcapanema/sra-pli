@@ -713,9 +713,8 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           ‹
         </button>
       </div>
-      <ul class="rev-tree__list">
-        {% for node in arvore_revisao %}
-        <li
+      <div class="rev-tree__list" role="list">{%- for node in arvore_revisao -%}<div
+          role="listitem"
           class="rev-tree__item rev-tree__item--lvl-{{ node.nivel }}{% if node.tem_erro %} rev-has-erro{% elif node.tem_aviso %} rev-has-aviso{% endif %}{% if loop.first %} rev-active{% endif %}"
         >
           <a
@@ -735,9 +734,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
             >
             {% endif %}
           </a>
-        </li>
-        {% endfor %}
-      </ul>
+        </div>{%- endfor -%}</div>
     </nav>
 
     <!-- Documento (scrollável) -->

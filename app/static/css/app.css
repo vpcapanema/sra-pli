@@ -73,6 +73,11 @@ body.sb-resizing #main,body.sb-resizing #sb{transition:none}
 @media (max-width:1100px){
   .page-rel-com-preview #content{width:100%}
 }
+.page-entregas #content{
+  max-width:none;
+  width:100%;
+  box-sizing:border-box;
+}
 .upload-layout{width:100%;box-sizing:border-box}
 .page-rel-com-preview .upload-layout{
   display:grid;
@@ -151,7 +156,7 @@ span.locked-lbl.modo-edicao-tag{margin-right:6px;font-size:10.5px;color:#7a5d00;
 .edit-bloco-tabela-head strong{font-size:12.5px;color:var(--navy)}
 .edit-bloco-tabela-meta{font-size:11px;color:var(--muted)}
 .edit-bloco-tabela{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
-.edit-bloco-tabela thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
+.edit-bloco-tabela thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:var(--navy);padding:6px 8px;border-bottom:1px solid var(--border)}
 .edit-bloco-tabela tbody td{padding:6px 8px;border-bottom:1px solid #f0f3f7;vertical-align:top}
 .edit-bloco-tabela tbody tr:last-child td{border-bottom:0}
 .edit-bloco-tabela td:nth-child(3){max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -202,8 +207,11 @@ tr.row-nova-sub input.sub-titulo{font-size:12px;padding:3px 6px;border:1px solid
 .link-quiet:hover{color:var(--text);background:#f1f5f9;border-color:#aab4c0}
 .link-danger{color:var(--danger)}
 .link-danger:hover{color:#a8001f;background:#fdecee;border-color:#d99098}
-.td-actions{display:inline-flex;align-items:center;gap:3px;flex-wrap:nowrap;white-space:nowrap}
+.td-actions{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;white-space:nowrap}
 .td-actions .inline-form{display:inline-flex;margin:0}
+.blocos-table th,.blocos-table td{vertical-align:middle}
+.blocos-table .td-actions{vertical-align:middle}
+.th-acoes,.blocos-table td:last-child,.edit-bloco-tabela td:last-child{vertical-align:middle;white-space:nowrap;width:1%}
 .sb2{padding:18px 20px}
 .sdesc{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.7}
 
@@ -397,6 +405,7 @@ details.bloco .det-body{padding:14px 16px}
 .btn-toggle-notif.off{background:#e6ecf2;color:#5a6b7d;border-color:#d0d7de}
 .btn-toggle-notif.off:hover{background:#d4dde6}
 
+.tag.tag-status-pendente{background:#eef1f4;color:#475569;border:1px solid #cbd5e1}
 .tag.tag-status-notificado{background:rgba(17,101,147,.12);color:var(--blue);border:1px solid rgba(17,101,147,.25)}
 .tag.tag-status-aguardando_envio{background:var(--warn-soft);color:var(--warn);border:1px solid rgba(200,128,0,.25)}
 .tag.tag-status-enviado{background:rgba(62,194,110,.15);color:var(--green-dk);border:1px solid rgba(62,194,110,.35)}

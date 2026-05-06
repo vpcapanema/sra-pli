@@ -1,0 +1,17 @@
+﻿diff --git a/app/templates/complementos/secao_edit_conteudo_upload.html b/app/templates/complementos/secao_edit_conteudo_upload.html
+index b514d40..3b2b5ad 100644
+--- a/app/templates/complementos/secao_edit_conteudo_upload.html
++++ b/app/templates/complementos/secao_edit_conteudo_upload.html
+@@ -1,10 +1,10 @@
+ {% extends "base.html" %}
+ {% block head_extra %}
+ <link
+-  href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
++  href="/static/vendor/quill.snow.css"
+   rel="stylesheet"
+ />
+-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
++<script src="/static/vendor/quill.min.js"></script>
+ {% endblock %}
+ {% block body_class %}page-conteudo-upload
+ page-rel-com-preview{% endblock %} {% block title %}Gerenciador e editor de seção e upload · {{

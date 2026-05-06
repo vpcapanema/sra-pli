@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block head_extra %}
 <link
   href="/static/vendor/quill.snow.css"
@@ -70,19 +70,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               <select
                 id="sel-sec-responsavel"
                 data-sec-tem-upload="{{ '1' if sec_tem_upload else '0' }}"
-                title="Responsável pela seção{%- if sec_tem_upload -%} (obrigatório quando há conteúdo inserido pelo autor){%- endif -%}"
-                {%- if sec_tem_upload %} required{%- endif %}
+                title="Responsável pela seção{% if sec_tem_upload %} (obrigatório quando há conteúdo inserido pelo autor){% endif %}"
+                {% if sec_tem_upload %}required{% endif %}
               >
                 {% if not sec_tem_upload %}
                 <option value="">—</option>
                 {% endif %}
                 {% for a in autores %}
-                {% set _resp_none = sec.responsavel_id == None %}
-                {% set _sel_autor = sec.responsavel_id == a.id or (_resp_none and user.role == 'autor' and a.id == user.id) %}
                 <option
                   value="{{ a.id }}"
                   {% if a.id != user.id and user.role == 'autor' %}disabled{% endif %}
-                  {% if _sel_autor %}selected{% endif %}
+                  {% if sec.responsavel_id == a.id or (sec.responsavel_id is none and user.role == 'autor' and a.id == user.id) %}selected{% endif %}
                 >
                   {{ a.nome }}
                 </option>
@@ -132,24 +130,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         <span class="sn">2</span><span class="st">Importar conteúdo</span>
       </div>
       <div class="sb2">
-        <table class="sec-meta-table">
-          <thead>
-            <tr>
-              <th>Nº seção</th>
-              <th>Título</th>
-              <th>Responsável</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{{ sec.numero }}</td>
-              <td>{{ sec.titulo }}</td>
-              <td>{{ sec.responsavel.nome if sec.responsavel else '—' }}</td>
-              <td><span class="status-badge status-{{ sec.status }}">{{ sec.status | replace('_', ' ') | title }}</span></td>
-            </tr>
-          </tbody>
-        </table>
         <form id="form-importar-conteudo" class="import-form">
           <label for="import-arquivo" class="import-arquivo-lbl">
             Arquivo estruturado (.txt ou .docx)
@@ -214,9 +194,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       class="ss ss-sub active-tab{% if not blocos_escopo %} is-hidden{% endif %}"
       id="ss-blocos"
     >
-      <div class="ss-hdr" style="cursor:pointer" id="ss-blocos-hdr">
+      <div class="ss-hdr">
         <span class="sn">2.1</span><span class="st">Blocos extraídos (subsecções incluídas)</span>
-        <button type="button" id="ss-blocos-toggle" class="ss-toggle-btn" aria-expanded="true" title="Recolher/expandir" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:16px;color:var(--navy);padding:0 4px;">▾</button>
       </div>
       <div class="sb2 blocos-table-wrap">
         {% if blocos_escopo %}
@@ -258,56 +237,24 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           </button>
         </div>
         <table class="blocos-table">
-          <colgroup>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-          </colgroup>
           <thead>
             <tr>
               <th class="select-col">
-                <input type="checkbox" id="select-all-blocos" title="Selecionar todos">
+                <input
+                  type="checkbox"
+                  id="bulk-select-all"
+                  title="Selecionar todos os blocos disponíveis"
+                  aria-label="Selecionar todos os blocos disponíveis"
+                />
               </th>
-              <th class="th-filterable" data-col="indice">
-                <span class="th-label">Índice da seção</span>
-                <button type="button" class="th-filter-btn" data-col="indice" title="Filtrar por índice">▾</button>
-                <div class="th-filter-dropdown" id="th-drop-indice">
-                  <ul class="th-filter-list" id="th-list-indice"></ul>
-                </div>
-              </th>
-              <th class="th-filterable" data-col="titulo">
-                <span class="th-label">Título da seção</span>
-                <button type="button" class="th-filter-btn" data-col="titulo" title="Filtrar por título">▾</button>
-                <div class="th-filter-dropdown" id="th-drop-titulo">
-                  <ul class="th-filter-list" id="th-list-titulo"></ul>
-                </div>
-              </th>
-              <th class="th-filterable" data-col="tipo">
-                <span class="th-label">Tipo</span>
-                <button type="button" class="th-filter-btn" data-col="tipo" title="Filtrar por tipo">▾</button>
-                <div class="th-filter-dropdown" id="th-drop-tipo">
-                  <ul class="th-filter-list" id="th-list-tipo"></ul>
-                </div>
-              </th>
-              <th class="th-filterable" data-col="classe">
-                <span class="th-label">Classe</span>
-                <button type="button" class="th-filter-btn" data-col="classe" title="Filtrar por classe">▾</button>
-                <div class="th-filter-dropdown" id="th-drop-classe">
-                  <ul class="th-filter-list" id="th-list-classe"></ul>
-                </div>
-              </th>
+              <th>Índice da seção</th>
+              <th>Título da seção</th>
+              <th>Tipo do elemento</th>
               <th>Textos e Char</th>
               <th>Adicionado por</th>
               <th>Data de adição</th>
-              <th>Data de atualização</th>
-              <th class="th-acoes">Ações</th>
+              <th>Data da atualização</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -340,8 +287,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </td>
               <td>{{ b.secao.numero }}</td>
               <td>{{ b.secao.titulo }}</td>
-              <td>{{ b.tipo|capitalize }}</td>
-              <td>{{ categoria_bloco | default('—') }}</td>
+              <td>{{ b.tipo|capitalize }} - {{ categoria_bloco }}</td>
               <td>
                 <small>
                   {{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)
@@ -411,10 +357,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             {% endfor %}
           </tbody>
         </table>
-        <div class="tbl-pag-bar" id="blocos-pag-bar">
-          <span class="blocos-pag-info" id="blocos-pag-info"></span>
-          <div class="blocos-pag-btns" id="blocos-pag-btns"></div>
-        </div>
         {% else %}
         <p class="sdesc">
           Nenhum bloco ainda — use Importar ou o editor abaixo.
@@ -551,7 +493,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 title="Gravar no servidor todos os rascunhos locais pendentes (última carga de blocos e texto em edição)"
                 aria-label="Salvar tudo no servidor"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+                Salvar tudo
               </button>
               {% if user.role in ['admin','coordenador'] %}
               <button
@@ -580,51 +522,19 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               class="edit-bloco-tabela-meta"
             ></span>
           </div>
-          <table class="bloco-table edit-bloco-tabela blocos-table">
-            <colgroup>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
-            </colgroup>
+          <table class="bloco-table edit-bloco-tabela">
             <thead>
               <tr>
-                <th class="th-filterable" data-col="sec">
-                  <span class="th-label">Nº seção</span>
-                  <button type="button" class="th-filter-btn" data-col="sec" title="Filtrar por nº seção">▾</button>
-                  <div class="th-filter-dropdown" id="th-drop-edit-sec">
-                    <ul class="th-filter-list" id="th-list-edit-sec"></ul>
-                  </div>
-                </th>
-                <th class="th-filterable" data-col="edit-tipo">
-                  <span class="th-label">Tipo</span>
-                  <button type="button" class="th-filter-btn" data-col="edit-tipo" title="Filtrar por tipo">▾</button>
-                  <div class="th-filter-dropdown" id="th-drop-edit-tipo">
-                    <ul class="th-filter-list" id="th-list-edit-tipo"></ul>
-                  </div>
-                </th>
-                <th class="th-filterable" data-col="edit-classe">
-                  <span class="th-label">Classe</span>
-                  <button type="button" class="th-filter-btn" data-col="edit-classe" title="Filtrar por classe">▾</button>
-                  <div class="th-filter-dropdown" id="th-drop-edit-classe">
-                    <ul class="th-filter-list" id="th-list-edit-classe"></ul>
-                  </div>
-                </th>
+                <th>Nº seção</th>
+                <th>Tipo</th>
                 <th>Resumo</th>
                 <th>Atualizado</th>
                 <th>Rascunho?</th>
-                <th class="th-acoes">Ações</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody id="edit-bloco-tabela-body"></tbody>
           </table>
-          <div class="tbl-pag-bar" id="edit-blocos-pag-bar">
-            <span class="blocos-pag-info" id="edit-blocos-pag-info"></span>
-            <div class="blocos-pag-btns" id="edit-blocos-pag-btns"></div>
-          </div>
         </div>
         <form
           method="post"
@@ -639,7 +549,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             id="add-bloco-titulo"
             value="{{ sec.numero }} – {{ sec.titulo }}"
           />
-          <div class="full add-bloco-grid is-hidden" id="add-bloco-editor-subsec">
+          <div class="full add-bloco-grid">
             <div class="add-bloco-conteudo-head bloco-toolbar-wrap">
               <span id="add-bloco-conteudo-lbl" class="mini-label">Conteúdo</span>
               <div class="bloco-toolbar-row">
@@ -942,7 +852,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     <section class="ss active-tab upload-preview-inner" id="ss-preview">
       <div class="ss-hdr">
         <span class="sn">4</span>
-        <span class="st">Pré-visualização do conteúdo</span>
+        <span class="st">Pré-visualização do relatório</span>
         <button
           type="button"
           class="btn-pdf btn-pdf-icon"
@@ -986,15 +896,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             />
           </svg>
         </button>
-              <button
-                type="button"
-                id="btn-preview-fullscreen"
-                class="secondary-mini"
-                title="Abrir pré-visualização em tela inteira em nova aba"
-                onclick="window.open(document.getElementById('preview-frame').src, '_blank')"
-              >
-                ⛶ Tela inteira
-              </button>
       </div>
       <div class="sb2">
         <details class="export-menu">
@@ -1112,228 +1013,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     </section>
   </aside>
 </div>
-<script>
-  // ---- Filtros de coluna: lista de valores dinâmica + toggle ----
-  (function () {
-    window._tblFilters = {
-      blocos: { indice: '', titulo: '', tipo: '', classe: '' },
-      edit:   { sec: '', 'edit-tipo': '', 'edit-classe': '' }
-    };
-    var COL_MAP = {
-      'indice':      { tbl: '.blocos-table',      col: 1, grp: 'blocos', key: 'indice' },
-      'titulo':      { tbl: '.blocos-table',      col: 2, grp: 'blocos', key: 'titulo' },
-      'tipo':        { tbl: '.blocos-table',      col: 3, grp: 'blocos', key: 'tipo' },
-      'classe':      { tbl: '.blocos-table',      col: 4, grp: 'blocos', key: 'classe' },
-      'sec':         { tbl: '.edit-bloco-tabela', col: 0, grp: 'edit',   key: 'sec' },
-      'edit-tipo':   { tbl: '.edit-bloco-tabela', col: 1, grp: 'edit',   key: 'edit-tipo' },
-      'edit-classe': { tbl: '.edit-bloco-tabela', col: 2, grp: 'edit',   key: 'edit-classe' }
-    };
-    function getUniqueVals(tblSel, colIdx) {
-      var tbl = document.querySelector(tblSel);
-      if (!tbl) return [];
-      var seen = {};
-      tbl.querySelectorAll('tbody tr').forEach(function (row) {
-        var cell = row.querySelectorAll('td')[colIdx];
-        if (cell) { var v = cell.textContent.trim(); if (v) seen[v] = true; }
-      });
-      return Object.keys(seen).sort();
-    }
-    function populateList(listEl, vals, activeVal) {
-      listEl.innerHTML = '';
-      [''].concat(vals).forEach(function (v) {
-        var li = document.createElement('li');
-        li.className = 'th-filter-item' + (v === activeVal ? ' active' : '');
-        li.textContent = v === '' ? '(Todos)' : v;
-        li.dataset.val = v;
-        listEl.appendChild(li);
-      });
-    }
-    document.addEventListener('click', function (ev) {
-      var btn = ev.target.closest('.th-filter-btn');
-      if (btn) {
-        var col = btn.dataset.col;
-        var drop = document.getElementById('th-drop-' + col);
-        document.querySelectorAll('.th-filter-dropdown.open').forEach(function (d) {
-          if (d !== drop) d.classList.remove('open');
-        });
-        if (drop) {
-          if (!drop.classList.contains('open')) {
-            var cfg = COL_MAP[col];
-            if (cfg) {
-              var listEl = drop.querySelector('.th-filter-list');
-              if (listEl) populateList(listEl, getUniqueVals(cfg.tbl, cfg.col), window._tblFilters[cfg.grp][cfg.key] || '');
-            }
-            drop.classList.add('open');
-          } else {
-            drop.classList.remove('open');
-          }
-        }
-        ev.stopPropagation();
-        return;
-      }
-      var li = ev.target.closest('.th-filter-item');
-      if (li) {
-        var drop = li.closest('.th-filter-dropdown');
-        if (!drop) return;
-        var col = drop.id.replace('th-drop-', '');
-        var cfg = COL_MAP[col];
-        if (!cfg) return;
-        window._tblFilters[cfg.grp][cfg.key] = li.dataset.val;
-        li.closest('.th-filter-list').querySelectorAll('.th-filter-item').forEach(function (x) {
-          x.classList.toggle('active', x.dataset.val === li.dataset.val);
-        });
-        drop.classList.remove('open');
-        document.dispatchEvent(new CustomEvent('tbl-filter-change', { detail: { grp: cfg.grp } }));
-        ev.stopPropagation();
-        return;
-      }
-      if (!ev.target.closest('.th-filter-dropdown')) {
-        document.querySelectorAll('.th-filter-dropdown.open').forEach(function (d) { d.classList.remove('open'); });
-      }
-    });
-  })();
-
-(function () {
-  /* ======= BLOCOS-TABLE: filtro + paginação + collapse ======= */
-  var ssHdr = document.getElementById('ss-blocos-hdr');
-  var ssToggle = document.getElementById('ss-blocos-toggle');
-  var ssBlocos = document.getElementById('ss-blocos');
-  if (ssHdr && ssToggle && ssBlocos) {
-    var sbBody = ssBlocos.querySelector('.sb2');
-    ssHdr.addEventListener('click', function (ev) {
-      if (ev.target.closest('input, select, button') && ev.target !== ssToggle) return;
-      var open = ssToggle.getAttribute('aria-expanded') !== 'false';
-      ssToggle.setAttribute('aria-expanded', String(!open));
-      ssToggle.classList.toggle('collapsed', open);
-      if (sbBody) sbBody.style.display = open ? 'none' : '';
-    });
-  }
-
-  (function () {
-    var PG = 10;
-    var tbl = document.querySelector('.blocos-table');
-    if (!tbl) return;
-    var allRows = Array.from(tbl.querySelectorAll('tbody tr'));
-    var pagInfo = document.getElementById('blocos-pag-info');
-    var pagBtns = document.getElementById('blocos-pag-btns');
-    var curPage = 1;
-    function getVisible() {
-      var f = window._tblFilters.blocos;
-      var vi = f.indice.toLowerCase();
-      var vt = f.titulo.toLowerCase();
-      var tp = f.tipo.toLowerCase();
-      var cl = f.classe.toLowerCase();
-      return allRows.filter(function (row) {
-        var cells = row.querySelectorAll('td');
-        var indice = cells[1] ? cells[1].textContent.trim().toLowerCase() : '';
-        var titulo = cells[2] ? cells[2].textContent.trim().toLowerCase() : '';
-        var tipo   = cells[3] ? cells[3].textContent.trim().toLowerCase() : '';
-        var classe = cells[4] ? cells[4].textContent.trim().toLowerCase() : '';
-        return (!vi || indice.includes(vi))
-            && (!vt || titulo.includes(vt))
-            && (!tp || tipo.includes(tp))
-            && (!cl || classe.includes(cl));
-      });
-    }
-    function renderPage() {
-      var visible = getVisible();
-      var total = visible.length;
-      var pages = Math.max(1, Math.ceil(total / PG));
-      if (curPage > pages) curPage = 1;
-      allRows.forEach(function (r) { r.style.display = 'none'; });
-      var start = (curPage - 1) * PG;
-      visible.slice(start, start + PG).forEach(function (r) { r.style.display = ''; });
-      if (pagInfo) {
-        var showing = Math.min(PG, total - start);
-        pagInfo.textContent = showing + '/' + total + ' reg · ' + curPage + '/' + pages + ' pág';
-      }
-      if (pagBtns) {
-        pagBtns.innerHTML = '';
-        for (var p = 1; p <= pages; p++) {
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'blocos-pag-btn' + (p === curPage ? ' active' : '');
-          btn.textContent = p;
-          btn.dataset.p = p;
-          pagBtns.appendChild(btn);
-        }
-      }
-    }
-    document.addEventListener('tbl-filter-change', function (ev) {
-      if (ev.detail.grp === 'blocos') { curPage = 1; renderPage(); }
-    });
-    if (pagBtns) pagBtns.addEventListener('click', function (ev) {
-      var btn = ev.target.closest('.blocos-pag-btn');
-      if (btn) { curPage = Number(btn.dataset.p); renderPage(); }
-    });
-    renderPage();
-  })();
-
-  /* ======= EDIT-BLOCO-TABELA: filtro + paginação ======= */
-  (function () {
-    var editPG = 10;
-    var editPage = 1;
-    var editAllRows = [];
-    var pagInfo = document.getElementById('edit-blocos-pag-info');
-    var pagBtns = document.getElementById('edit-blocos-pag-btns');
-    var tblBody = document.getElementById('edit-bloco-tabela-body');
-    if (!tblBody) return;
-    function refresh() {
-      editAllRows = Array.from(tblBody.querySelectorAll('tr'));
-      renderEditPage();
-    }
-    function getEditVisible() {
-      var f = window._tblFilters.edit;
-      var vs = f.sec.toLowerCase();
-      var vt = f['edit-tipo'].toLowerCase();
-      var vc = f['edit-classe'].toLowerCase();
-      return editAllRows.filter(function (row) {
-        var cells = row.querySelectorAll('td');
-        var sec    = cells[0] ? cells[0].textContent.trim().toLowerCase() : '';
-        var tipo   = cells[1] ? cells[1].textContent.trim().toLowerCase() : '';
-        var classe = cells[2] ? cells[2].textContent.trim().toLowerCase() : '';
-        return (!vs || sec.includes(vs))
-            && (!vt || tipo.includes(vt))
-            && (!vc || classe.includes(vc));
-      });
-    }
-    function renderEditPage() {
-      var visible = getEditVisible();
-      var total = visible.length;
-      var pages = Math.max(1, Math.ceil(total / editPG));
-      if (editPage > pages) editPage = 1;
-      editAllRows.forEach(function (r) { r.style.display = 'none'; });
-      var start = (editPage - 1) * editPG;
-      visible.slice(start, start + editPG).forEach(function (r) { r.style.display = ''; });
-      if (pagInfo) {
-        var editShowing = Math.min(editPG, total - start);
-        pagInfo.textContent = editShowing + '/' + total + ' reg · ' + editPage + '/' + pages + ' pág';
-      }
-      if (pagBtns) {
-        pagBtns.innerHTML = '';
-        for (var p = 1; p <= pages; p++) {
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'blocos-pag-btn' + (p === editPage ? ' active' : '');
-          btn.textContent = p;
-          btn.dataset.p = p;
-          pagBtns.appendChild(btn);
-        }
-      }
-    }
-    document.addEventListener('tbl-filter-change', function (ev) {
-      if (ev.detail.grp === 'edit') { editPage = 1; renderEditPage(); }
-    });
-    if (pagBtns) pagBtns.addEventListener('click', function (ev) {
-      var btn = ev.target.closest('.blocos-pag-btn');
-      if (btn) { editPage = Number(btn.dataset.p); renderEditPage(); }
-    });
-    if (typeof MutationObserver !== 'undefined') {
-      new MutationObserver(refresh).observe(tblBody, { childList: true });
-    }
-  })();
-})();
-</script>
 <script src="/static/js/import_texto_tools.js"></script>
 <script>
   (function () {
@@ -1542,150 +1221,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         applyZoom();
       });
     applyZoom();
-  })();
-</script>
-<script>
-  /* Sincroniza a se\u00e7\u00e3o 4 (iframe de pr\u00e9-visualiza\u00e7\u00e3o) com a se\u00e7\u00e3o 2 (import-list):
-     - Ao rolar a import-list, a pr\u00e9-visualiza\u00e7\u00e3o acompanha a se\u00e7\u00e3o mais vis\u00edvel.
-     - Ao clicar em um card ou header de grupo, a pr\u00e9-visualiza\u00e7\u00e3o pula para a se\u00e7\u00e3o.
-     O iframe \u00e9 same-origin (/relatorios/{id}/preview), ent\u00e3o acessamos o documento diretamente. */
-  (function () {
-    const frame = document.getElementById("preview-frame");
-    const list = document.getElementById("import-list");
-    if (!frame || !list) return;
-
-    let rafPending = false;
-    let suppressUntil = 0;
-    let lastAnchor = "";
-
-    function getFrameDoc() {
-      try {
-        return (
-          frame.contentDocument ||
-          (frame.contentWindow && frame.contentWindow.document) ||
-          null
-        );
-      } catch (err) {
-        return null;
-      }
-    }
-
-    function anchorFromNumero(numero) {
-      const n = String(numero == null ? "" : numero).trim();
-      if (!n) return "";
-      return "sec-" + n.replace(/\./g, "-");
-    }
-
-    function numeroSecaoFromEl(el) {
-      if (!el) return "";
-      const section = el.closest(".import-secao");
-      if (!section) return "";
-      const numInput = section.querySelector(".import-secao-num");
-      const fromInput = numInput ? String(numInput.value || "").trim() : "";
-      if (fromInput) return fromInput;
-      const key = section.getAttribute("data-key") || "";
-      if (!key || key === "__atual__") return "";
-      return key;
-    }
-
-    function scrollFrameTo(anchorId, behavior) {
-      if (!anchorId) return;
-      const doc = getFrameDoc();
-      if (!doc) return;
-      const target = doc.getElementById(anchorId);
-      if (!target) return;
-      try {
-        target.scrollIntoView({
-          behavior: behavior || "smooth",
-          block: "start",
-          inline: "nearest",
-        });
-      } catch (err) {
-        target.scrollIntoView();
-      }
-    }
-
-    function secaoMaisVisivelNoImportList() {
-      const secs = list.querySelectorAll(".import-secao");
-      if (!secs.length) return "";
-      const listRect = list.getBoundingClientRect();
-      const refY = listRect.top + 12;
-      let melhor = null;
-      let melhorDist = Infinity;
-      secs.forEach((sec) => {
-        const hdr = sec.querySelector(".import-secao-hdr");
-        const ref = hdr || sec;
-        const r = ref.getBoundingClientRect();
-        if (r.bottom < listRect.top - 4) return;
-        if (r.top > listRect.bottom + 4) return;
-        const dist = Math.abs(r.top - refY);
-        if (dist < melhorDist) {
-          melhorDist = dist;
-          melhor = sec;
-        }
-      });
-      if (!melhor) return "";
-      const numInput = melhor.querySelector(".import-secao-num");
-      const fromInput = numInput ? String(numInput.value || "").trim() : "";
-      if (fromInput) return fromInput;
-      const key = melhor.getAttribute("data-key") || "";
-      if (!key || key === "__atual__") return "";
-      return key;
-    }
-
-    function syncFromScroll() {
-      if (Date.now() < suppressUntil) return;
-      const numero = secaoMaisVisivelNoImportList();
-      const anchor = anchorFromNumero(numero);
-      if (!anchor || anchor === lastAnchor) return;
-      lastAnchor = anchor;
-      scrollFrameTo(anchor, "smooth");
-    }
-
-    function onScroll() {
-      if (rafPending) return;
-      rafPending = true;
-      window.requestAnimationFrame(() => {
-        rafPending = false;
-        syncFromScroll();
-      });
-    }
-
-    list.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("scroll", onScroll, {
-      passive: true,
-      capture: true,
-    });
-
-    list.addEventListener(
-      "click",
-      (ev) => {
-        const t = ev.target;
-        if (!t) return;
-        const ignorar = t.closest(
-          "input, select, textarea, .import-secao-toggle, .import-secao-bulk-btn, .import-tx-tool, .import-raw-close, .import-raw, .seg-chip[data-seg-toggle]",
-        );
-        if (ignorar) return;
-        const card = t.closest(".import-card");
-        const hdr = t.closest(".import-secao-hdr");
-        const ref = card || hdr;
-        if (!ref) return;
-        const numero = numeroSecaoFromEl(ref);
-        const anchor = anchorFromNumero(numero);
-        if (!anchor) return;
-        suppressUntil = Date.now() + 600;
-        lastAnchor = anchor;
-        scrollFrameTo(anchor, "smooth");
-      },
-      true,
-    );
-
-    frame.addEventListener("load", () => {
-      lastAnchor = "";
-      setTimeout(syncFromScroll, 120);
-    });
-
-    setTimeout(syncFromScroll, 300);
   })();
 </script>
 <script
@@ -2476,8 +2011,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     document.getElementById("add-bloco-tipo").value = tipo || "texto";
     document.getElementById("add-bloco-conteudo").value = conteudo || "";
     if (window.loadSraQuillContent) window.loadSraQuillContent(conteudo || "");
-    const editorSubsec = document.getElementById("add-bloco-editor-subsec");
-    if (editorSubsec) editorSubsec.classList.remove("is-hidden");
     const wrapEc = document.getElementById("edit-bloco-controls");
     const relIdEc = wrapEc ? wrapEc.dataset.relId : "{{ rel.id }}";
     const selEc = document.getElementById("sec-nav");
@@ -2532,8 +2065,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         document.getElementById("add-bloco-tipo").value = "texto";
         document.getElementById("add-bloco-conteudo").value = "";
         if (window.loadSraQuillContent) window.loadSraQuillContent("");
-        const editorSubsec = document.getElementById("add-bloco-editor-subsec");
-        if (editorSubsec) editorSubsec.classList.add("is-hidden");
         if (window.atualizaExemplosBloco) window.atualizaExemplosBloco();
         this.remove();
       };
@@ -2648,19 +2179,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       if (c.startsWith("# ")) return "Título";
       return "Parágrafo";
     }
-    function classeLabel(b) {
-      var tipo = (b.tipo || '').toLowerCase();
-      var conteudo = String(b.conteudo || '').trim();
-      if (tipo === 'texto') {
-        if (conteudo.startsWith('# '))  return 'Título';
-        if (conteudo.startsWith('## ')) return 'Subtítulo';
-        return 'Parágrafo';
-      }
-      if (tipo === 'lista')   return 'Lista';
-      if (tipo === 'figura')  return 'Figura';
-      if (tipo === 'tabela')  return 'Tabela';
-      return '—';
-    }
     function renderRow(b, secNumero) {
       const draft = temRascunho(b.id);
       const upd = b.updated_at ? new Date(b.updated_at).toLocaleString() : "—";
@@ -2705,9 +2223,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         "</td>" +
         "<td>" +
         escHtml(tipoLabel(b)) +
-        "</td>" +
-        "<td>" +
-        escHtml(classeLabel(b)) +
         "</td>" +
         '<td title="' +
         escHtml(resolverRefs(b.conteudo || "", refMapas)) +
@@ -3003,75 +2518,18 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       );
     }
 
-    async function confirmar() {
+    function confirmar() {
       if (!_blocoIdEmEdicao) {
         setStatus("Carregue um bloco antes de confirmar.", "warn");
         return;
       }
-      const pe = parseEditTarget();
-      if (!pe) {
-        setStatus("Não foi possível determinar o alvo de edição.", "danger");
-        return;
-      }
-      // Flush do editor para o rascunho local antes de enviar ao servidor
-      salvar();
-      const draft = lerRascunho(_blocoIdEmEdicao);
-      const titulo = draft ? draft.titulo : (inpTitulo.value || "");
-      const conteudo = draft ? draft.conteudo : (taConteudo.value || "");
-      const fd = new FormData();
-      fd.append("titulo", titulo);
-      fd.append("conteudo", conteudo);
-      // Campos extras que o servidor pode precisar (legenda/fonte/figura_id ficam
-      // em branco quando não disponíveis via rascunho — o servidor mantém o valor original)
-      fd.append("legenda", "");
-      fd.append("fonte", "");
-      fd.append("figura_id", "");
-      const url =
-        "/relatorios/" +
-        pe.relId +
-        "/secoes/" +
-        pe.secaoId +
-        "/blocos/" +
-        pe.blocoId +
-        "/editar";
-      setStatus("Enviando bloco #" + pe.blocoId + " ao servidor…", "working");
-      try {
-        const r = await fetch(url, {
-          method: "POST",
-          body: fd,
-          credentials: "same-origin",
-        });
-        if (!r.ok) {
-          setStatus(
-            "Falha ao confirmar bloco #" + pe.blocoId + " (HTTP " + r.status + ").",
-            "danger",
-          );
-          return;
-        }
-        // Remove o rascunho local após sucesso no servidor
-        window.localStorage.removeItem(localKey(_blocoIdEmEdicao));
-        setStatus(
-          "Bloco #" + pe.blocoId + " enviado ao servidor com sucesso.",
-          "ok",
-        );
-        _blocoIdEmEdicao = null;
-        btnSalvar.disabled = true;
-        btnConfirmar.disabled = true;
-      } catch (e) {
-        setStatus("Falha ao confirmar: " + e.message, "danger");
-      }
+      formAdd.submit();
     }
 
     if (formAdd) {
-      formAdd.addEventListener("submit", (e) => {
-        // Em modo edição, intercepta o submit: salva apenas localmente (rascunho).
-        // O envio ao servidor fica a cargo de btn-edit-confirmar.
-        const isEdit = formAdd.action.indexOf("/editar") !== -1;
-        if (isEdit) {
-          e.preventDefault();
-          salvar();
-          return;
-        }
+      formAdd.addEventListener("submit", () => {
+        const m = formAdd.action.match(/\/blocos\/(\d+)\/editar(?:\?|$|\/|#)/);
+        if (m) window.localStorage.removeItem(localKey(m[1]));
       });
     }
 
@@ -3325,102 +2783,34 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       return "usar seção";
     }
 
-    /** Divide o conteúdo bruto do bloco em pedaços que correspondam aos subtipos detectados.
-        Para parágrafo/lista o backend agrega várias linhas num único segmento (count>1),
-        mas o JS reconstrói a visualização individual a partir de b.conteudo. */
-    function segmentosDetalhados(subtipos, conteudoBruto) {
-      const linhas = String(conteudoBruto || "").split(/\r?\n/);
-      const out = [];
-      let li = 0;
-      const totalLinhas = linhas.length;
-      const avancarVazias = () => {
-        while (li < totalLinhas && !linhas[li].trim()) li++;
-      };
-      const consumirLinha = () => {
-        if (li < totalLinhas) {
-          const v = linhas[li];
-          li++;
-          return v;
-        }
-        return "";
-      };
-      (subtipos || []).forEach((s) => {
-        const kind = s.kind || "paragrafo";
-        const count = Math.max(1, Number(s.count || 1));
-        const previews = [];
-        avancarVazias();
-        if (kind === "titulo") {
-          const l = consumirLinha();
-          previews.push(l.replace(/^#\s+/, "").trim());
-        } else if (kind === "subtitulo") {
-          const l = consumirLinha();
-          previews.push(l.replace(/^##\s+/, "").trim());
-        } else if (kind === "lista") {
-          const itens = [];
-          for (let k = 0; k < count && li < totalLinhas; k++) {
-            avancarVazias();
-            const l = consumirLinha();
-            if (l.trim()) itens.push(l.trim());
-          }
-          itens.forEach((t) => previews.push(t));
-        } else {
-          // parágrafo: cada parágrafo é uma linha não vazia separada por linhas em branco
-          for (let k = 0; k < count && li < totalLinhas; k++) {
-            avancarVazias();
-            const buf = [];
-            while (li < totalLinhas && linhas[li].trim()) {
-              buf.push(linhas[li].trim());
-              li++;
-            }
-            if (buf.length) previews.push(buf.join(" "));
-          }
-        }
-        if (!previews.length && s.preview) previews.push(String(s.preview));
-        out.push({ kind, count, previews });
-      });
-      return out;
-    }
-
     // Constrói os HTML para cada subtipo (chips de TEXTO/LISTA).
-    // Layout em 2 linhas por item: chip (clicável, alterna para o import-raw) + lista de previews individuais.
-    function renderSubtipos(subtipos, conteudoBruto) {
+    function renderSubtipos(subtipos) {
       if (!Array.isArray(subtipos) || !subtipos.length) {
         return '<div class="import-segs-empty">sem segmentos detectados</div>';
       }
-      const detalhados = segmentosDetalhados(subtipos, conteudoBruto);
-      const items = detalhados
+      const items = subtipos
         .map((s) => {
-          const kind = s.kind;
+          const kind = s.kind || "paragrafo";
           const label = SUBTIPO_LABEL[kind] || kind;
-          const count = s.count;
+          const count = Number(s.count || 0);
           const suffix =
             kind === "lista" && count > 1
               ? " (" + count + " itens)"
               : kind === "paragrafo" && count > 1
                 ? " (" + count + ")"
                 : "";
-          const previewsHtml = (s.previews || [])
-            .map(
-              (p) =>
-                '<li class="seg-preview-item">' + esc(p || "") + "</li>",
-            )
-            .join("");
           return (
             '<li class="seg-item" data-kind="' +
             esc(kind) +
             '">' +
-            '<div class="seg-row seg-row-chip">' +
-            '<button type="button" class="seg-chip seg-chip-' +
+            '<span class="seg-chip seg-chip-' +
             esc(kind) +
-            '" data-seg-toggle="1" title="Clique para editar o texto bruto">' +
+            '">' +
             esc(label + suffix) +
-            "</button>" +
-            "</div>" +
-            '<div class="seg-row seg-row-preview">' +
-            '<ul class="seg-preview-list">' +
-            previewsHtml +
-            "</ul>" +
-            "</div>" +
+            "</span>" +
+            '<span class="seg-preview">' +
+            esc(s.preview || "") +
+            "</span>" +
             "</li>"
           );
         })
@@ -3467,51 +2857,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       );
     }
 
-    // Mapa de classes válidas por tipo
-    var CLASSE_OPS = {
-      texto: [
-        { value: 'paragrafo', label: 'Parágrafo' },
-        { value: 'subtitulo', label: 'Subtítulo (H2)' },
-        { value: 'titulo',    label: 'Título (H1)' },
-      ],
-      lista: [
-        { value: 'lista', label: 'Lista' },
-      ],
-    };
-
-    /** Deduz a classe atual do bloco a partir de b.subtipos ou b.conteudo. */
-    function deduceClasse(b) {
-      // prioridade 1: se subtipos tem exatamente 1 item, usa o kind
-      if (b.subtipos && b.subtipos.length === 1) return b.subtipos[0].kind || 'paragrafo';
-      // prioridade 2: conteúdo começa com ## → subtítulo, # → título
-      var c = String(b.conteudo || '').trim();
-      if (c.startsWith('## ')) return 'subtitulo';
-      if (c.startsWith('# '))  return 'titulo';
-      // prioridade 3: tipo lista
-      if ((b.tipo || '') === 'lista') return 'lista';
-      return 'paragrafo';
-    }
-
-    /** Gera o select de classe (só para tipo texto e lista). */
-    function classeSelectBadge(i, b) {
-      var tipo = (b.tipo || 'texto').toLowerCase();
-      var ops = CLASSE_OPS[tipo];
-      if (!ops) return '';
-      var atual = b.classe || deduceClasse(b);
-      // Persiste no objeto para uso posterior
-      if (!b.classe) b.classe = atual;
-      var opts = ops.map(function (o) {
-        return '<option value="' + o.value + '"' + (o.value === atual ? ' selected' : '') + '>' + o.label + '</option>';
-      }).join('');
-      return (
-        '<select id="import-classe-sel-' + i + '" name="import-classe-sel-' + i + '"' +
-        ' class="import-classe-sel" data-i="' + i + '" data-field="classe"' +
-        ' title="Classe do bloco">' +
-        opts + '</select>'
-      );
-    }
-
-    function tipoSelectBadge(i, tipoAtual) {
+    function tipoSelect(i, tipoAtual) {
       const opts = ["texto", "lista", "figura", "tabela"]
         .map((t) => {
           return (
@@ -3530,11 +2876,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         i +
         '" name="import-tipo-sel-' +
         i +
-        '" class="import-tipo-badge import-tipo-sel" data-tipo="' +
-        esc(tipoAtual) +
-        '" data-i="' +
+        '" class="import-tipo-sel" data-i="' +
         i +
-        '" data-field="tipo" title="Tipo identificado pelo sistema — clique para alterar">' +
+        '" data-field="tipo" title="Mudar tipo do bloco">' +
         opts +
         "</select>"
       );
@@ -3546,15 +2890,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       const confPct = Math.round(conf * 100);
       const confCls = confidenceClass(conf);
       const checked = b.selecionado !== false ? "checked" : "";
-      const motivo = b.motivo || "";
-      const confTip =
-        "Nível de confiança: estimativa (0–100%) de que o sistema classificou corretamente o tipo deste bloco com base na análise do arquivo. " +
-        "Faixas: ≥85% (alto) · 70–84% (médio) · <70% (baixo — revise antes de importar)." +
-        (motivo ? "\nMotivo: " + motivo : "");
       return (
-        '<header class="import-card-hdr" data-tipo="' +
-        esc(tipo) +
-        '">' +
+        '<header class="import-card-hdr">' +
         '<input type="checkbox" id="import-card-check-' +
         i +
         '" name="import-card-check-' +
@@ -3564,63 +2901,25 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         '" data-field="selecionado" ' +
         checked +
         ">" +
-        tipoSelectBadge(i, tipo) +
-        classeSelectBadge(i, b) +
-        '<span class="import-conf-wrap">' +
-        '<span class="import-conf-lbl" tabindex="0" data-conf-tip="' +
-        esc(confTip) +
-        '" title="' +
-        esc(confTip) +
-        '">Nível de confiança</span>' +
+        '<span class="import-tipo-badge" data-tipo="' +
+        esc(tipo) +
+        '">' +
+        esc(TIPO_LABEL[tipo] || tipo.toUpperCase()) +
+        "</span>" +
         '<span class="import-conf import-conf-' +
         confCls +
-        '" tabindex="0" data-conf-tip="' +
-        esc(confTip) +
         '" title="' +
-        esc(confTip) +
+        esc(b.motivo || "") +
         '">' +
         confPct +
         "%</span>" +
+        tipoSelect(i, tipo) +
+        '<span class="import-card-motivo" title="' +
+        esc(b.motivo || "") +
+        '">' +
+        esc(b.motivo || "") +
         "</span>" +
         "</header>"
-      );
-    }
-
-    /** Gera o HTML da proposta de subseção quando um bloco é identificado como subtítulo. */
-    function renderSubsecaoProposal(b, i) {
-      // Determina o número da seção atual (pode ser digitado pelo usuário no import-secao-num).
-      var secNumAtual = String(b.secao_numero || '').trim();
-      // Título da subseção: texto do bloco sem o prefixo ##
-      var tituloSub = String(b.conteudo || '').trim().replace(/^##\s*/, '');
-      // Proposta de índice: calcula próximo filho disponível usando seções existentes.
-      var indiceSug = (function () {
-        if (!secNumAtual) return '?';
-        var prefixo = secNumAtual + '.';
-        var maxFilho = 0;
-        existingSectionNumbers.forEach(function (n) {
-          if (n.startsWith(prefixo)) {
-            var resto = n.slice(prefixo.length);
-            if (!/\./.test(resto)) {
-              var num = parseInt(resto, 10);
-              if (!isNaN(num) && num > maxFilho) maxFilho = num;
-            }
-          }
-        });
-        return prefixo + (maxFilho + 1);
-      })();
-      return (
-        '<div class="subsec-proposal" data-i="' + i + '">' +
-        '<span class="subsec-proposal-icon">⤵</span>' +
-        '<strong class="subsec-proposal-title">Proposta de nova subseção</strong>' +
-        '<div class="subsec-proposal-fields">' +
-        '<label class="mini-label">Índice</label>' +
-        '<input type="text" id="subsec-num-' + i + '" name="subsec-num-' + i + '" class="subsec-proposal-num" data-i="' + i + '" value="' + esc(indiceSug) + '" placeholder="ex.: 2.1.1">' +
-        '<label class="mini-label">Título</label>' +
-        '<input type="text" id="subsec-titulo-' + i + '" name="subsec-titulo-' + i + '" class="subsec-proposal-titulo" data-i="' + i + '" value="' + esc(tituloSub) + '" placeholder="Título da subseção">' +
-        '</div>' +
-        '<p class="subsec-proposal-hint">Este bloco foi identificado como subtítulo. ' +
-        'Confirme ou ajuste o índice e o título para criar automaticamente a subseção ao importar.</p>' +
-        '</div>'
       );
     }
 
@@ -3630,12 +2929,10 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         i +
         '">' +
         renderCardHeader(b, i) +
-        (((b.classe || deduceClasse(b)) === 'subtitulo') ? renderSubsecaoProposal(b, i) : '') +
         '<div class="import-card-body">' +
-        '<div class="import-segs-view">' +
-        renderSubtipos(b.subtipos, b.conteudo) +
-        "</div>" +
-        '<div class="import-raw is-hidden" data-raw-mode="1">' +
+        renderSubtipos(b.subtipos) +
+        '<details class="import-raw">' +
+        "<summary>editar texto bruto</summary>" +
         '<div class="import-raw-tb" role="toolbar" aria-label="Ferramentas de listas (texto)">' +
         '<span class="import-raw-tb-hint">Listas e níveis (só o texto, não a estrutura de seções):</span>' +
         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="bullet" title="Itens com marcador">• Marcadores</button>' +
@@ -3644,7 +2941,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="oli" title="i. ii. iii. (romano)">i. ii. iii.</button>' +
         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="indent" title="Aumentar nível (2 espaços)">Nível +</button>' +
         '<button type="button" class="secondary-mini import-tx-tool" data-import-tx-tool="outdent" title="Diminuir nível">Nível −</button>' +
-        '<button type="button" class="secondary-mini import-raw-close" data-raw-close="1" title="Salvar alterações e voltar aos segmentos">✓ Salvar e fechar</button>' +
         "</div>" +
         '<textarea id="import-raw-ta-' +
         i +
@@ -3655,7 +2951,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         '" data-field="conteudo" rows="6">' +
         esc(b.conteudo || "") +
         "</textarea>" +
-        "</div>" +
+        "</details>" +
         "</div>" +
         "</article>"
       );
@@ -3676,8 +2972,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     function renderFiguraCard(b, i, indiceSug) {
       const hasImg = b.image_b64 && b.image_mime;
       const idxRow = indiceSug
-        ? '<div class="import-meta-row">' +
-          '<label class="mini-label" for="imp-fig-' +
+        ? '<label class="mini-label" for="imp-fig-' +
           i +
           '-idx">Índice</label>' +
           '<input id="imp-fig-' +
@@ -3685,7 +2980,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" ' +
           ' value="' +
           esc(indiceSug) +
-          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção."></div>'
+          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
         : "";
       const mimeSub = esc(
         String(b.image_mime || "").split("/")[1] || "img",
@@ -3713,22 +3008,22 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         i +
         '">' +
         renderCardHeader(b, i) +
-        '<div class="import-card-body import-card-2col import-card-2col-reverse">' +
+        '<div class="import-card-body import-card-2col">' +
+        '<div class="import-fig-thumb">' +
+        thumb +
+        "</div>" +
         '<div class="import-meta-fields">' +
         idxRow +
-        '<div class="import-meta-row">' +
         '<label class="mini-label" for="imp-fig-' +
         i +
         '-leg">Legenda</label>' +
-        '<textarea id="imp-fig-' +
+        '<input id="imp-fig-' +
         i +
-        '-leg" rows="1" class="import-meta-textarea auto-grow" data-i="' +
+        '-leg" type="text" data-i="' +
         i +
-        '" data-field="legenda" placeholder="ex.: Vista aérea da obra">' +
+        '" data-field="legenda" value="' +
         esc(b.legenda || "") +
-        "</textarea>" +
-        "</div>" +
-        '<div class="import-meta-row">' +
+        '" placeholder="ex.: Vista aérea da obra">' +
         '<label class="mini-label" for="imp-fig-' +
         i +
         '-fonte">Fonte</label>' +
@@ -3741,18 +3036,13 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         '" placeholder="ex.: Concremat 2025">' +
         "</div>" +
         "</div>" +
-        '<div class="import-fig-thumb">' +
-        thumb +
-        "</div>" +
-        "</div>" +
         "</article>"
       );
     }
 
     function renderTabelaCard(b, i, indiceSug) {
       const idxRow = indiceSug
-        ? '<div class="import-meta-row">' +
-          '<label class="mini-label" for="imp-tab-' +
+        ? '<label class="mini-label" for="imp-tab-' +
           i +
           '-idx">Índice</label>' +
           '<input id="imp-tab-' +
@@ -3760,30 +3050,29 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           '-idx" type="text" class="import-indice-readonly" readonly tabindex="-1" ' +
           ' value="' +
           esc(indiceSug) +
-          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção."></div>'
+          '" title="Sugestão: numeração por capítulo (primeiro nível do índice da seção) e ordem no lote, somando o que já existe nesta seção.">'
         : "";
       return (
         '<article class="import-card import-card-tabela" data-i="' +
         i +
         '">' +
         renderCardHeader(b, i) +
-        '<div class="import-card-body">' +
-        '<div class="import-card-2col import-card-2col-reverse">' +
+        '<div class="import-card-body import-card-2col">' +
+        '<div class="import-tab-prev">' +
+        renderTabelaPreview(b.tabela_preview) +
+        "</div>" +
         '<div class="import-meta-fields">' +
         idxRow +
-        '<div class="import-meta-row">' +
         '<label class="mini-label" for="imp-tab-' +
         i +
         '-leg">Legenda</label>' +
-        '<textarea id="imp-tab-' +
+        '<input id="imp-tab-' +
         i +
-        '-leg" rows="1" class="import-meta-textarea auto-grow" data-i="' +
+        '-leg" type="text" data-i="' +
         i +
-        '" data-field="legenda" placeholder="ex.: Quantitativo de serviços">' +
+        '" data-field="legenda" value="' +
         esc(b.legenda || "") +
-        "</textarea>" +
-        "</div>" +
-        '<div class="import-meta-row">' +
+        '" placeholder="ex.: Quantitativo de serviços">' +
         '<label class="mini-label" for="imp-tab-' +
         i +
         '-fonte">Fonte</label>' +
@@ -3794,13 +3083,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         '" data-field="fonte" value="' +
         esc(b.fonte || "") +
         '" placeholder="ex.: Diário de obra">' +
-        "</div>" +
-        "</div>" +
-        '<div class="import-tab-prev">' +
-        renderTabelaPreview(b.tabela_preview) +
-        "</div>" +
-        "</div>" +
-        '<details class="import-raw import-raw-tabela-full">' +
+        '<details class="import-raw">' +
         "<summary>editar dados brutos da tabela</summary>" +
         '<textarea id="import-raw-ta-' +
         i +
@@ -3808,10 +3091,11 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         i +
         '" class="import-raw-ta" data-i="' +
         i +
-        '" data-field="conteudo" rows="8">' +
+        '" data-field="conteudo" rows="6">' +
         esc(b.conteudo || "") +
         "</textarea>" +
         "</details>" +
+        "</div>" +
         "</div>" +
         "</article>"
       );
@@ -3963,11 +3247,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       window.requestAnimationFrame(() => {
         list.innerHTML = html;
         updateSummary();
-        // Ajusta a altura inicial das textareas com auto-grow (legenda etc.).
-        list.querySelectorAll(".auto-grow").forEach((el) => {
-          el.style.height = "auto";
-          el.style.height = el.scrollHeight + "px";
-        });
       });
     }
 
@@ -4041,13 +3320,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       });
     }
 
-    // ---- Handlers (delega\u00e7\u00e3o no list) ----
+    // ---- Handlers (delegação no list) ----
     list.addEventListener("input", (ev) => {
       const el = ev.target;
-      if (el && el.classList && el.classList.contains("auto-grow")) {
-        el.style.height = "auto";
-        el.style.height = el.scrollHeight + "px";
-      }
       if (el.dataset.field) {
         const idx = Number(el.dataset.i);
         if (!Number.isFinite(idx) || !importBlocks[idx]) return;
@@ -4098,21 +3373,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         renderReview();
         return;
       }
-      if (el.dataset.field === "classe") {
-        const idx = Number(el.dataset.i);
-        if (!Number.isFinite(idx) || !importBlocks[idx]) return;
-        importBlocks[idx].classe = el.value;
-        // Re-renderiza o card para mostrar/esconder proposta de subseção
-        const card = el.closest('.import-card');
-        if (card && importBlocks[idx]) {
-          const novoHtml = renderCard(importBlocks[idx], idx);
-          const temp = document.createElement('div');
-          temp.innerHTML = novoHtml;
-          const novoCard = temp.firstElementChild;
-          if (novoCard) card.replaceWith(novoCard);
-        }
-        return;
-      }
       if (el.dataset.field === "selecionado") {
         const idx = Number(el.dataset.i);
         if (Number.isFinite(idx) && importBlocks[idx]) {
@@ -4133,53 +3393,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             txTool.getAttribute("data-import-tx-tool"),
           );
           ta.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-        ev.preventDefault();
-        return;
-      }
-      const segChip = ev.target.closest(".seg-chip[data-seg-toggle]");
-      if (segChip) {
-        const card = segChip.closest(".import-card");
-        if (card) {
-          const raw = card.querySelector(".import-raw[data-raw-mode]");
-          if (raw) {
-            raw.classList.remove("is-hidden");
-            const ta = raw.querySelector(".import-raw-ta");
-            if (ta) {
-              try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
-            }
-          }
-        }
-        ev.preventDefault();
-        return;
-      }
-      const rawClose = ev.target.closest(".import-raw-close[data-raw-close]");
-      if (rawClose) {
-        const card = rawClose.closest(".import-card");
-        if (card) {
-          const raw = card.querySelector(".import-raw[data-raw-mode]");
-          if (raw) {
-            // Garante que o valor digitado foi persistido em importBlocks (mesmo sem blur).
-            const ta = raw.querySelector(".import-raw-ta");
-            if (ta) {
-              const idx = Number(ta.dataset.i);
-              if (Number.isFinite(idx) && importBlocks[idx]) {
-                importBlocks[idx].conteudo = ta.value;
-              }
-            }
-            raw.classList.add("is-hidden");
-            // Re-renderiza só este card para atualizar os previews a partir do novo conteudo.
-            const i = Number(card.getAttribute("data-i"));
-            if (Number.isFinite(i) && importBlocks[i]) {
-              const segsView = card.querySelector(".import-segs-view");
-              if (segsView) {
-                segsView.innerHTML = renderSubtipos(
-                  importBlocks[i].subtipos,
-                  importBlocks[i].conteudo,
-                );
-              }
-            }
-          }
         }
         ev.preventDefault();
         return;
@@ -4466,12 +3679,11 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
 <style>
   /* Tabela de Blocos */
   .blocos-table-wrap {
-    overflow-x: hidden;
+    overflow-x: auto;
   }
   .blocos-table {
-    width: 100%;
-    table-layout: fixed;
-    font-size: 10px;
+    min-width: 880px;
+    font-size: 11.5px;
     margin: 10px 0 16px;
     border-collapse: separate;
     border-spacing: 0;
@@ -4485,88 +3697,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     border: 0;
     border-right: 1px solid #9babbc;
     border-bottom: 1px solid #9babbc;
-    padding: 5px 4px;
-    line-height: 1.25;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    overflow-wrap: anywhere;
   }
   .blocos-table th {
     white-space: nowrap;
     border-color: #7890a5;
-    font-size: 9px;
-    padding: 5px 3px;
   }
   .blocos-table th:last-child,
   .blocos-table td:last-child {
     border-right: 0;
-  }
-  .blocos-table td:nth-child(2),
-  .blocos-table td:nth-child(3),
-  .blocos-table td:nth-child(4),
-  .blocos-table td:nth-child(5),
-  .blocos-table td:nth-child(7) {
-    white-space: nowrap;
-  }
-  .blocos-table td:nth-child(3) {
-    text-align: left;
-  }
-  .blocos-table td:nth-child(6),
-  .blocos-table td:nth-child(8),
-  .blocos-table td:nth-child(9) {
-    font-size: 9px;
-  }
-  .blocos-table td.td-actions {
-    display: table-cell;
-    vertical-align: middle;
-    text-align: center;
-    line-height: 1;
-  }
-  .blocos-table td.td-actions > * {
-    vertical-align: middle;
-  }
-  .blocos-table .inline-form,
-  .blocos-table .bloco-action,
-  .blocos-table .locked-lbl {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .blocos-table col:nth-child(1) { width: 28px; }
-  .blocos-table col:nth-child(2) { width: 9%; }
-  .blocos-table col:nth-child(3) { width: 18%; }
-  .blocos-table col:nth-child(4) { width: 8%; }
-  .blocos-table col:nth-child(5) { width: 9%; }
-  .blocos-table col:nth-child(6) { width: 9%; }
-  .blocos-table col:nth-child(7) { width: 12%; }
-  .blocos-table col:nth-child(8) { width: 10%; }
-  .blocos-table col:nth-child(9) { width: 10%; }
-  .blocos-table col:nth-child(10) { width: 7%; }
-  .edit-bloco-tabela tbody td {
-    vertical-align: middle;
-  }
-  .edit-bloco-tabela col:nth-child(1) { width: 10%; }
-  .edit-bloco-tabela col:nth-child(2) { width: 10%; }
-  .edit-bloco-tabela col:nth-child(3) { width: 12%; }
-  .edit-bloco-tabela col:nth-child(4) { width: 36%; }
-  .edit-bloco-tabela col:nth-child(5) { width: 16%; }
-  .edit-bloco-tabela col:nth-child(6) { width: 9%; }
-  .edit-bloco-tabela col:nth-child(7) { width: 7%; }
-  .edit-bloco-tabela td:nth-child(4) {
-    text-align: left;
-    white-space: nowrap;
-  }
-  .edit-bloco-tabela td:last-child {
-    display: table-cell;
-    text-align: center;
-    vertical-align: middle;
-    line-height: 1;
-  }
-  .edit-bloco-tabela .btn-row-edit,
-  .edit-bloco-tabela .locked-lbl {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
   .blocos-table tbody tr:last-child td {
     border-bottom: 0;
@@ -4621,20 +3759,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     cursor: not-allowed;
   }
   .td-actions {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    flex-wrap: nowrap;
+    text-align: center;
     white-space: nowrap;
-    vertical-align: middle;
-  }
-  .th-acoes,
-  .blocos-table td:last-child,
-  .edit-bloco-tabela td:last-child {
-    vertical-align: middle;
-    white-space: nowrap;
-    width: 1%;
   }
   .inline-form {
     margin: 0;
@@ -4643,7 +3769,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   .td-actions .inline-form,
   .td-actions .bloco-action {
     vertical-align: middle;
-    margin: 0 1px;
+    margin: 0 2px;
   }
   .bloco-action {
     display: inline-flex;
@@ -4673,50 +3799,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     font-size: 10.5px;
     color: var(--muted);
   }
-  /* Tabela de metadados da seção (topo da seção 2) */
-  .sec-meta-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    margin-bottom: 14px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .sec-meta-table thead th {
-    background: var(--navy);
-    color: #fff;
-    padding: 6px 10px;
-    text-align: left;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 700;
-    border-right: 1px solid rgba(255,255,255,0.12);
-  }
-  .sec-meta-table thead th:last-child { border-right: 0; }
-  .sec-meta-table tbody td {
-    padding: 7px 10px;
-    border-right: 1px solid var(--border);
-    border-top: 1px solid var(--border);
-    vertical-align: middle;
-    color: var(--text);
-    font-weight: 500;
-  }
-  .sec-meta-table tbody td:last-child { border-right: 0; }
-  .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
-  .status-pendente   { background: #fff3d6; color: #8a5b00; }
-  .status-em_andamento { background: #d6ecf5; color: #0e5573; }
-  .status-aprovada   { background: #dff3e4; color: #1f7a3a; }
-  .status-reprovada  { background: #ffe1de; color: #a32219; }
-
   .import-form {
     display: flex;
     flex-direction: column;
@@ -4953,17 +4035,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
 
   /* Cards de bloco */
   .import-card {
-    border: 1px solid #b3c2d4;
-    border-radius: 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
     background: #fff;
-    box-shadow: 0 1px 2px rgba(19, 38, 64, 0.08);
-    min-height: 150px;
-    display: flex;
-    flex-direction: column;
-  }
-  .import-card:hover {
-    border-color: #7f96b3;
-    box-shadow: 0 2px 4px rgba(19, 38, 64, 0.12);
   }
   .import-card-hdr {
     display: flex;
@@ -4972,25 +4046,13 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     padding: 6px 10px;
     background: #f0f4fa;
     border-bottom: 1px solid var(--border);
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .import-card-hdr[data-tipo="figura"] {
-    background: #d6ecf5;
-  }
-  .import-card-hdr[data-tipo="tabela"] {
-    background: #e0d7f0;
-  }
-  .import-card-hdr[data-tipo="lista"] {
-    background: #d7ecde;
+    flex-wrap: wrap;
   }
   .import-card-check {
     width: 14px;
     height: 14px;
     margin: 0;
     cursor: pointer;
-    flex: 0 0 auto;
   }
   .import-tipo-badge {
     font-size: 10px;
@@ -5001,63 +4063,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     background: var(--navy);
     color: #fff;
   }
-  /* Quando .import-tipo-badge \u00e9 um <select> (fus\u00e3o badge + seletor de tipo).
-     Cor neutra para preservar legibilidade em todos os tipos de cabe\u00e7alho. */
-  select.import-tipo-badge {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    border: 1px solid #c9d4e0;
-    background-color: #f5f7fb;
-    color: var(--text);
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 20px 2px 8px;
-    border-radius: 3px;
-    width: auto;
-    min-width: 0;
-    cursor: pointer;
-    line-height: 1.4;
-    background-image: linear-gradient(45deg, transparent 50%, #667 50%),
-      linear-gradient(135deg, #667 50%, transparent 50%);
-    background-position:
-      calc(100% - 10px) 55%,
-      calc(100% - 6px) 55%;
-    background-size:
-      4px 4px,
-      4px 4px;
-    background-repeat: no-repeat;
-    flex: 0 0 auto;
+  .import-tipo-badge[data-tipo="figura"] {
+    background: #0e7da5;
   }
-  select.import-tipo-badge option {
-    background: #fff;
-    color: var(--text);
-    font-weight: 600;
-    text-transform: none;
-    letter-spacing: normal;
+  .import-tipo-badge[data-tipo="tabela"] {
+    background: #5a3aa0;
   }
-  select.import-tipo-badge:focus {
-    outline: 2px solid var(--blue);
-    outline-offset: 1px;
-  }
-  .import-conf-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
-    flex: 0 0 auto;
-  }
-  .import-conf-lbl {
-    font-size: 10.5px;
-    color: var(--muted);
-    text-decoration: underline dotted;
-    text-underline-offset: 2px;
-    cursor: help;
-    white-space: nowrap;
-    font-weight: 600;
+  .import-tipo-badge[data-tipo="lista"] {
+    background: #1f7a3a;
   }
   .import-conf {
     font-size: 11px;
@@ -5080,38 +4093,48 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     background: #ffe1de;
     color: #a32219;
   }
+  .import-tipo-sel {
+    padding: 3px 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .import-card-motivo {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+    min-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .import-card-body {
     padding: 10px 12px;
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
   }
   .import-card-2col {
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 160px 1fr;
     gap: 14px;
-    align-items: stretch;
-    flex: 1 1 auto;
-  }
-  .import-card-2col-reverse {
-    grid-template-columns: 1fr minmax(260px, auto);
+    align-items: start;
   }
   @media (max-width: 720px) {
-    .import-card-2col,
-    .import-card-2col-reverse {
+    .import-card-2col {
       grid-template-columns: 1fr;
     }
   }
 
-  /* Segmentos do TEXTO (chips + lista de previews). */
+  /* Segmentos do TEXTO (chips + preview) */
   .import-segs {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   .import-segs-empty {
     font-size: 11.5px;
@@ -5119,21 +4142,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     font-style: italic;
   }
   .seg-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 4px 0;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 3px 0;
     border-bottom: 1px dotted #e3e9f0;
   }
   .seg-item:last-child {
     border-bottom: 0;
-  }
-  .seg-row-chip {
-    display: flex;
-    align-items: center;
-  }
-  .seg-row-preview {
-    padding-left: 2px;
   }
   .seg-chip {
     font-size: 10.5px;
@@ -5142,21 +4159,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     border-radius: 3px;
     text-align: center;
     letter-spacing: 0.04em;
-    display: inline-block;
-  }
-  button.seg-chip {
-    border: 1px solid transparent;
-    font-family: inherit;
-    cursor: pointer;
-    line-height: 1.4;
-  }
-  button.seg-chip:hover {
-    filter: brightness(0.96);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
-  }
-  button.seg-chip:focus {
-    outline: 2px solid var(--blue);
-    outline-offset: 1px;
   }
   .seg-chip-paragrafo {
     background: #e3eef7;
@@ -5174,18 +4176,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     background: #f7e3c5;
     color: #8a5b00;
   }
-  .seg-preview-list {
-    margin: 0;
-    padding-left: 18px;
-    list-style: disc outside;
-    font-size: 11.5px;
-    color: var(--text);
-    line-height: 1.45;
-  }
-  .seg-preview-item {
-    word-break: break-word;
-    margin: 1px 0;
-  }
   .seg-preview {
     font-size: 11.5px;
     color: var(--text);
@@ -5195,10 +4185,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
 
   .import-raw {
     margin-top: 8px;
-  }
-  .import-raw.is-hidden,
-  .import-segs-view.is-hidden {
-    display: none !important;
   }
   .import-raw > summary {
     cursor: pointer;
@@ -5212,29 +4198,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   }
   .import-raw[open] > summary {
     margin-bottom: 6px;
-  }
-  .import-raw-close {
-    margin-left: auto;
-    font-size: 10.5px;
-    padding: 3px 10px;
-    background: #dff3e4;
-    color: #1f7a3a;
-    border: 1px solid #b7deb9;
-    font-weight: 600;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  .import-raw-close:hover {
-    background: #cbe9cf;
-  }
-  .import-raw-tabela-full {
-    width: 100%;
-    margin-top: 10px;
-    box-sizing: border-box;
-  }
-  .import-raw-tabela-full .import-raw-ta {
-    width: 100%;
-    box-sizing: border-box;
   }
   .import-raw-tb {
     display: flex;
@@ -5265,24 +4228,22 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     resize: vertical;
   }
 
-  /* Figura: thumbnail (sempre data URL na revis\u00e3o quando o analisador envia image_b64) */
+  /* Figura: thumbnail (sempre data URL na revisão quando o analisador envia image_b64) */
   .import-fig-thumb {
     border: 1px solid var(--border);
     border-radius: 3px;
-    padding: 6px;
+    padding: 4px;
     background: #fafbfd;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 200px;
-    height: 100%;
-    box-sizing: border-box;
+    gap: 4px;
+    min-height: 120px;
   }
   .import-fig-thumb img {
     max-width: 100%;
-    max-height: 260px;
+    max-height: 140px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -5304,21 +4265,16 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   .import-tab-prev {
     border: 1px solid var(--border);
     border-radius: 3px;
-    padding: 6px;
+    padding: 4px;
     background: #fafbfd;
     overflow: auto;
-    max-height: 280px;
-    min-height: 80px;
-    height: 100%;
-    box-sizing: border-box;
-    width: 100%;
+    max-height: 180px;
   }
   .import-mini-tbl {
     border-collapse: collapse;
     font-size: 11px;
-    width: max-content;
+    width: auto;
     min-width: 100%;
-    table-layout: auto;
   }
   .import-mini-tbl th,
   .import-mini-tbl td {
@@ -5326,7 +4282,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     padding: 3px 7px;
     text-align: left;
     vertical-align: top;
-    white-space: nowrap;
   }
   .import-mini-tbl th {
     background: #eaf3ff;
@@ -5348,51 +4303,19 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     text-align: center;
   }
 
-  /* Campos de meta (legenda/fonte) \u00e0 direita do thumb/mini-tbl */
+  /* Campos de meta (legenda/fonte) à direita do thumb/mini-tbl */
   .import-meta-fields {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    min-width: 0;
+    gap: 4px;
   }
-  .import-meta-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    min-width: 0;
-  }
-  .import-meta-row:last-child {
-    margin-bottom: 0;
-  }
-  .import-meta-fields .mini-label,
-  .import-meta-row .mini-label {
+  .import-meta-fields .mini-label {
     font-size: 10.5px;
     color: var(--muted);
     margin: 0;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    flex: 0 0 72px;
-    text-align: right;
-  }
-  .import-meta-row input[type="text"],
-  .import-meta-row textarea {
-    flex: 1 1 auto;
-    min-width: 180px;
-    max-width: 100%;
-    padding: 6px 8px;
-    font-size: 12px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    font-family: inherit;
-    box-sizing: border-box;
-  }
-  .import-meta-textarea.auto-grow {
-    resize: none;
-    overflow: hidden;
-    line-height: 1.4;
-    min-height: 30px;
   }
   .import-meta-fields input[type="text"] {
     width: 100%;
@@ -5493,8 +4416,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     background: var(--blue);
     color: #fff;
   }
-  .ss.is-hidden,
-  .add-bloco-grid.is-hidden {
+  .ss.is-hidden {
     display: none;
   }
   .btn-pdf.btn-pdf-icon {
@@ -6038,154 +4960,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   .bloco:hover .bloco-edit-btn {
     background: var(--navy);
     color: #fff;
-  }
-  /* ---- Toggle de seção ---- */
-  .ss-toggle-btn { transition: transform .2s; }
-  .ss-toggle-btn.collapsed { transform: rotate(-90deg); }
-  /* ---- Filtros em dropdown por coluna ---- */
-  .th-filterable {
-    position: relative;
-    white-space: nowrap;
-  }
-  .th-label {
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: 700;
-    vertical-align: middle;
-  }
-  .th-filter-btn {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.75);
-    cursor: pointer;
-    font-size: 11px;
-    padding: 0 0 0 4px;
-    line-height: 1;
-    vertical-align: middle;
-    transition: color .15s;
-  }
-  .th-filter-btn:hover { color: #fff; }
-  .th-filterable:has(.th-filter-dropdown.open) .th-filter-btn { color: #fff; }
-  .th-filter-dropdown {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 200;
-    min-width: 160px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.14);
-    padding: 6px;
-    margin-top: 2px;
-  }
-  .th-filter-dropdown.open { display: block; }
-  .th-filter-list {
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    min-width: 140px;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-  .th-filter-item {
-    padding: 6px 12px;
-    font-size: 12px;
-    cursor: pointer;
-    color: var(--text);
-    white-space: nowrap;
-    border-radius: 2px;
-    transition: background .12s;
-  }
-  .th-filter-item:hover { background: #e8f0fb; }
-  .th-filter-item.active { background: var(--navy); color: #fff; font-weight: 600; }
-  .tbl-pag-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 0 4px;
-    flex-wrap: wrap;
-  }
-  .blocos-pag-info { font-size: 11px; color: var(--muted); }
-  .blocos-pag-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
-  .blocos-pag-btn {
-    padding: 3px 9px;
-    font-size: 11px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: #fff;
-    cursor: pointer;
-    font-family: inherit;
-    color: var(--text);
-  }
-  .blocos-pag-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
-  .blocos-pag-btn:hover:not(.active) { background: #f0f4fa; }
-
-  /* ---- Seletor de classe do bloco (header do card) ---- */
-  .import-classe-sel {
-    appearance: none;
-    -webkit-appearance: none;
-    border: 1px solid #c9d4e0;
-    background-color: #eef2f7;
-    color: var(--text);
-    font-family: inherit;
-    font-weight: 600;
-    font-size: 10px;
-    padding: 2px 16px 2px 6px;
-    border-radius: 3px;
-    cursor: pointer;
-    line-height: 1.4;
-    background-image: linear-gradient(45deg, transparent 50%, #667 50%),
-      linear-gradient(135deg, #667 50%, transparent 50%);
-    background-position: calc(100% - 8px) 55%, calc(100% - 4px) 55%;
-    background-size: 4px 4px, 4px 4px;
-    background-repeat: no-repeat;
-    flex: 0 0 auto;
-    width: auto;
-    min-width: 0;
-    max-width: 110px;
-  }
-  .import-classe-sel:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .import-classe-sel option { background: #fff; color: var(--text); }
-
-  /* ---- Proposta de subseção (subtítulo) ---- */
-  .subsec-proposal {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px 12px;
-    background: #fffbe6;
-    border-left: 3px solid #f5a623;
-    border-bottom: 1px solid #f5e7b2;
-  }
-  .subsec-proposal-icon { font-size: 16px; color: #c87d00; }
-  .subsec-proposal-title { font-size: 11.5px; font-weight: 700; color: #8a5b00; }
-  .subsec-proposal-fields {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .subsec-proposal-fields .mini-label { flex: 0 0 auto; }
-  .subsec-proposal-num,
-  .subsec-proposal-titulo {
-    padding: 4px 8px;
-    font-size: 12px;
-    border: 1px solid #e0c860;
-    border-radius: 3px;
-    font-family: inherit;
-    background: #fff;
-  }
-  .subsec-proposal-num { width: 90px; }
-  .subsec-proposal-titulo { flex: 1 1 200px; }
-  .subsec-proposal-hint {
-    font-size: 11px;
-    color: #8a5b00;
-    margin: 0;
-    line-height: 1.4;
   }
 </style>
 {% endblock %}

@@ -197,6 +197,7 @@ _ERROR_LOG = getLogger("app.error")
 
 
 def _erro_html(titulo: str, mensagem: str, status: int) -> HTMLResponse:
+    cabecalho_h1 = f"<h{1}>{titulo}</h{1}>"
     html = (
         '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
         f"<title>{titulo} · SRA</title>"
@@ -205,7 +206,8 @@ def _erro_html(titulo: str, mensagem: str, status: int) -> HTMLResponse:
         "h1{font-size:1.5rem;margin-bottom:.5rem}"
         "p{color:#4b5563;line-height:1.5}"
         'a{color:#1d4ed8;text-decoration:none}</style></head><body>'
-        f"<h1>{titulo}</h1><p>{mensagem}</p>"
+        + cabecalho_h1 + "\n"
+        f"<p>{mensagem}</p>"
         '<p><a href="/">Voltar ao início</a></p>'
         "</body></html>"
     )

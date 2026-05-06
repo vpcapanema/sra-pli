@@ -149,6 +149,7 @@ class Figura(Base):
 # (coord confirma o conteúdo). "Finalizado" continua sendo estado do
 # Relatorio inteiro, não do destinatário.
 ENTREGA_STATUS_VALIDOS = (
+    "pendente",
     "notificado",
     "aguardando_envio",
     "enviado",

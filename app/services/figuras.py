@@ -27,7 +27,7 @@ def _client_aceita_json(request: Request) -> bool:
     return "application/json" in accept
 
 
-def upload_figura(
+def upload_figura(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     rel_id: int,
     request: Request,
     arquivo: UploadFile,

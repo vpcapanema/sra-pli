@@ -1,4 +1,4 @@
-# pylint: disable=protected-access,too-many-locals,too-many-branches,too-many-statements
+# pylint: disable=protected-access,too-many-locals,too-many-branches,too-many-statements,unsubscriptable-object
 """Extracao de estrutura (secoes + blocos) a partir de relatorios DOCX.
 
 Substitui a antiga extracao via PDF para a opcao "Relatorio entregue" no
@@ -27,18 +27,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.table import Table
-
-
-def _norm_text_(s: str) -> str:
-    """Normaliza texto para comparação: strip, lower, sem acentos, espaços colapsados."""
-    if not s:
-        return ""
-    s = unicodedata.normalize("NFKD", s)
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    s = s.lower()
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
+from docx.text.paragraph import Paragraph
 
 from .list_lines import block_is_homogeneous_list, line_is_list_item
 from .services.importacao import (
@@ -55,6 +44,18 @@ from .services.importacao import (
     _read_numfmt_from_docx,
     _word_list_canonical_line,
 )
+
+
+def _norm_text_(s: str) -> str:
+    """Normaliza texto para comparação: strip, lower, sem acentos, espaços colapsados."""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
 
 PASTA_RELATORIOS = Path(__file__).resolve().parent.parent / "relatorios_entregues"
 
@@ -330,7 +331,7 @@ def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
             continue
 
         # ------------------- Paragrafos -------------------
-        paragraph = element  # type: Paragraph
+        paragraph: Paragraph = element
 
         # Imagens incorporadas no paragrafo (placeholder; legenda vira depois)
         imgs = _paragraph_images(paragraph)

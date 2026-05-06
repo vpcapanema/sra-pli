@@ -1,0 +1,69 @@
+﻿diff --git a/app/templates/complementos/secao_edit_conteudo_upload.html b/app/templates/complementos/secao_edit_conteudo_upload.html
+index f670861..b514d40 100644
+--- a/app/templates/complementos/secao_edit_conteudo_upload.html
++++ b/app/templates/complementos/secao_edit_conteudo_upload.html
+@@ -847,7 +847,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
+   </div>
+   <aside
+     class="upload-preview"
+-    aria-label="Pré-visualização do relatório em PDF"
++    aria-label="Pré-visualização do relatório"
+   >
+     <section class="ss active-tab upload-preview-inner" id="ss-preview">
+       <div class="ss-hdr">
+@@ -896,31 +896,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
+             />
+           </svg>
+         </button>
+-        <a
+-          href="/relatorios/{{ rel.id }}/pdf"
+-          target="_blank"
+-          class="btn-pdf btn-pdf-icon"
+-          title="Abrir PDF em nova aba"
+-          aria-label="Abrir PDF em nova aba"
+-        >
+-          <svg
+-            viewBox="0 0 24 24"
+-            width="13"
+-            height="13"
+-            fill="none"
+-            stroke="currentColor"
+-            stroke-width="2.2"
+-            stroke-linecap="round"
+-            stroke-linejoin="round"
+-            aria-hidden="true"
+-          >
+-            <path
+-              d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+-            />
+-            <polyline points="15 3 21 3 21 9" />
+-            <line x1="10" y1="14" x2="21" y2="3" />
+-          </svg>
+-        </a>
+       </div>
+       <div class="sb2">
+         <details class="export-menu">
+@@ -1012,9 +987,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
+               </div>
+             </div>
+             <div class="export-actions">
+-              <button type="submit" name="formato" value="pdf">
+-                Exportar PDF
+-              </button>
+               <button
+                 type="submit"
+                 name="formato"
+@@ -1030,10 +1002,10 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
+           <div class="preview-zoom-inner" id="preview-zoom-inner">
+             <iframe
+               id="preview-frame"
+-              src="{{ pdf_preview_url }}"
+-              data-src="{{ pdf_preview_url }}"
++              src="{{ preview_url }}"
++              data-src="{{ preview_url }}"
+               class="preview-frame"
+-              title="Pré-visualização da seção {{ sec.numero }} – {{ sec.titulo }} no relatório em PDF"
++              title="Pré-visualização da seção {{ sec.numero }} – {{ sec.titulo }} no relatório"
+             ></iframe>
+           </div>
+         </div>

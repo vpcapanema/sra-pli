@@ -737,3 +737,22 @@ tconn
 tname
 vocabulario
 Vocabulario
+
+# === Diagnosticos adicionados ===
+aceitavel
+Apresentacao
+compativel
+docxs
+Invalidacao
+iteracao
+observavel
+recuperacao
+sensiveis
+Swal
+tras
+utilitarios
+entao
+proporcao
+temporarios
+slowapi
+consistencia

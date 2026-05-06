@@ -553,8 +553,9 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     ``todos`` força todos (ex.: reenvio manual do coordenador).
 
     O retorno é sucesso só se **todos** os envios da chamada tiverem sucesso.
-    ``EntregaRelatorio.status`` só avança com envio bem-sucedido para o
-    **e-mail principal** (ver :func:`_avancar_status_apos_envio`).
+    ``EntregaRelatorio.status`` avança a cada envio bem-sucedido em **qualquer
+    um** dos endereços do autor (principal ou secundário); ver
+    :func:`_avancar_status_apos_envio`.
     """
     entrega = _entrega_para(db, env.rel.id, env.user.id)
     contexto = _montar_contexto_email(
@@ -570,7 +571,6 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     if not destinos:
         return ResultadoEnvio(True, None, None, modo_atual())
 
-    primary_norm = destinatarios_ciclo.email_primario_norm(env.user)
     resultados: list[ResultadoEnvio] = []
     erros: list[str] = []
     for dest_email in destinos:
@@ -581,8 +581,8 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
             contexto=contexto,
         )
         _registrar_envio(db, entrega, tipo, dest_email, resultado)
-        if dest_email.strip().lower() == primary_norm and resultado.sucesso:
-            _avancar_status_apos_envio(db, entrega, tipo)
+        if resultado.sucesso:
+            _avancar_status_apos_envio(entrega, tipo)
         resultados.append(resultado)
         if resultado.erro:
             erros.append(f"{dest_email}: {resultado.erro}")
@@ -601,31 +601,28 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
 
 
 def _avancar_status_apos_envio(
-    db: Session, entrega: EntregaRelatorio, tipo: str
+    entrega: EntregaRelatorio, tipo: str
 ) -> None:
-    """Regra do utilizador: 1ª notificação (no **e-mail principal**) =>
-    ``notificado``; a partir da 2ª (no principal), ``aguardando_envio``.
-    Envios só para ``email2`` não contam para esta contagem.
+    """Avança o status da entrega a partir de um envio bem-sucedido.
+
+    Regra (decisão por tipo, não por contagem):
+    - ``abertura`` → ``notificado`` (se ainda em ``pendente``).
+    - ``lembrete`` / ``ultima_chamada`` / ``manual`` → ``aguardando_envio``
+      (se ainda em ``pendente``/``notificado``).
+
+    **Qualquer** endereço bem-sucedido do autor (principal ou secundário)
+    conta; o status reflete "autor foi avisado com sucesso", não um canal
+    privilegiado. Nunca regride ``enviado``/``validado``.
     """
     if entrega.status in ("enviado", "validado"):
         return
-    user = entrega.user
-    primary = (user.email if user else "").strip().lower()
-    if not primary:
-        return
-    bem_sucedidos = (
-        db.query(NotificacaoEnvio)
-        .filter(
-            NotificacaoEnvio.entrega_id == entrega.id,
-            NotificacaoEnvio.sucesso.is_(True),
-            func.lower(NotificacaoEnvio.destinatario_email) == primary,
-        )
-        .count()
-    )
     if tipo == "abertura":
-        entrega.status = "notificado"
-    elif bem_sucedidos >= 2:
-        entrega.status = "aguardando_envio"
+        if entrega.status == "pendente":
+            entrega.status = "notificado"
+        return
+    if tipo in ("lembrete", "ultima_chamada", "manual"):
+        if entrega.status in ("pendente", "notificado"):
+            entrega.status = "aguardando_envio"
 
 
 def notificar_autores_abertura(
@@ -774,6 +771,14 @@ def abrir_periodo(  # pylint: disable=too-many-locals
     resumo.relatorio_id = novo.id
     resumo.relatorio_codigo = novo.codigo
     resumo.criou_relatorio = True
+
+    # Materializa 1 EntregaRelatorio (status='pendente') por autor ativo
+    # imediatamente após a criação do relatório. Assim, a lista de entregas
+    # fica persistente desde o minuto zero e o envio de e-mail a seguir só
+    # atualiza colunas (evita janela em que a UI exibe 'tabela vazia').
+    # pylint: disable=import-outside-toplevel
+    from ..services.entregas.lista_painel import garantir_entregas_relatorio
+    garantir_entregas_relatorio(db, novo)
 
     todas_map = {s.numero: s for s in db.query(Secao)
                  .options(selectinload(Secao.responsavel))

@@ -50,7 +50,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
     position:sticky; top:0; z-index:10;
     display:flex; gap:8px; align-items:center; justify-content:center;
     padding:8px 12px; margin:-12px -12px 12px;
-    background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+    background:rgba(255,255,255,.92); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
     border-bottom:1px solid #c9d2dd;
     font-family:Verdana, Arial, Helvetica, sans-serif; font-size:12px; color:#334;
   }
@@ -78,6 +78,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
   .preview-sheet{
     position:relative;
     width:210mm;
+    height:297mm;
     min-height:297mm;
     margin:0;
     padding:22.2mm 20mm 25mm 20mm;
@@ -85,6 +86,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
     background:#fff;
     box-shadow:0 10px 35px rgba(0,0,0,.22);
     border-radius:2px;
+    overflow:hidden;
     transform:scale(var(--sra-preview-zoom, 1));
     transform-origin:top center;
     /* compensa o espaco vertical que o scale "consome" */
@@ -92,6 +94,11 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
   }
   .preview-sheet--capa{
     padding:0;
+    overflow:hidden;
+  }
+  .sheet-body{
+    height:100%;
+    max-height:100%;
     overflow:hidden;
   }
   .secao{ scroll-margin-top: 56px; }
@@ -224,16 +231,16 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
 }
 .bloco ul li,.bloco ol li{ margin:0 0 6pt; line-height:1.15; padding-left:0; text-align:justify; }
 .empty-section{ color:#7a8694; font-style:italic; }
-.figura{ text-align:center; margin: 10pt 0 14pt; page-break-inside: avoid; }
-.figura img{ max-width: 100%; max-height: 112mm; border: 0; }
-.figura .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 9pt; line-height:1.15; color:#111; margin-top: 10pt; margin-bottom:10pt; font-weight:700; }
-.figura .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 8.5pt; line-height:1.15; color:#111; margin:0 0 10pt; }
-.tabela{ margin: 8pt 0 14pt; page-break-inside: avoid; }
-.tabela .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9pt; line-height:1.15; color:#111; font-weight:700; margin-bottom:10pt; }
-.tabela table{ width:100%; border-collapse:collapse; font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9.5pt; line-height:1.15; }
+.figura{ text-align:center; margin: 10pt auto 14pt; page-break-inside: avoid; }
+.figura img{ max-width: 100%; max-height: 112mm; border: 0; display:block; margin:0 auto; }
+.figura .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 9pt; line-height:1.15; color:#111; margin-top: 10pt; margin-bottom:10pt; font-weight:700; text-align:center; }
+.figura .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 8.5pt; line-height:1.15; color:#111; margin:0 0 10pt; text-align:center; }
+.tabela{ margin: 8pt auto 14pt; page-break-inside: avoid; text-align:center; }
+.tabela .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9pt; line-height:1.15; color:#111; font-weight:700; margin-bottom:10pt; text-align:center; }
+.tabela table{ width:100%; border-collapse:collapse; font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9.5pt; line-height:1.15; margin:0 auto; }
 .tabela th{ background:#fff; color:#111; padding:4pt 6pt; text-align:left; font-size:8.8pt; font-weight:800; border:0.7pt solid #111; }
-.tabela td{ padding:4pt 6pt; border:0.5pt solid #111; vertical-align:top; }
-.tabela .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:8.5pt; line-height:1.15; color:#111; margin-top:10pt; margin-bottom:10pt; }
+.tabela td{ padding:4pt 6pt; border:0.5pt solid #111; vertical-align:top; text-align:left; }
+.tabela .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:8.5pt; line-height:1.15; color:#111; margin-top:10pt; margin-bottom:10pt; text-align:center; }
 
 /* Página de assinaturas */
 .assinaturas{ page-break-before: always; padding-top: 10mm; }
@@ -246,7 +253,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
   <body>
     {% macro secao_conteudo(s) -%}
         {% set nivel = s.numero.count('.') + 1 %}
-        <section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}">
+        <section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}" data-sra-flow-block>
           <h1>
             <span class="num">{{ s.numero }}</span>{{ s.titulo }}
           </h1>
@@ -416,23 +423,35 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           <span class="sheet-ftr-right">3</span>
         </div>
       </div>
-      <!-- ===================== SEÇÕES (folhas por capítulo nível 1) ===================== -->
-      {% for grupo in secoes_preview_grupos %}
-      <div class="preview-sheet">
+      <!-- ===================== SEÇÕES (prévia paginada A4) ===================== -->
+      <div class="preview-sheet" data-sra-content-source="secoes">
         <div class="sheet-running-header">
           <img src="{{ header_logos_src }}" alt="">
         </div>
-        <div class="sheet-body">
-          {% for s in grupo %}
-            {{ secao_conteudo(s) }}
+        <div class="sheet-body" data-sra-paginate-source>
+          {% for grupo in secoes_preview_grupos %}
+            {% for s in grupo %}
+              {{ secao_conteudo(s) }}
+            {% endfor %}
           {% endfor %}
         </div>
         <div class="sheet-running-footer">
           <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
-          <span class="sheet-ftr-right">{{ 3 + loop.index }}</span>
+          <span class="sheet-ftr-right">4</span>
         </div>
       </div>
-      {% endfor %}
+      <template id="sra-preview-sheet-template">
+        <div class="preview-sheet">
+          <div class="sheet-running-header">
+            <img src="{{ header_logos_src }}" alt="">
+          </div>
+          <div class="sheet-body"></div>
+          <div class="sheet-running-footer">
+            <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+            <span class="sheet-ftr-right"></span>
+          </div>
+        </div>
+      </template>
       <!-- ===================== ASSINATURAS ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
@@ -458,7 +477,7 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
         </div>
         <div class="sheet-running-footer">
           <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
-          <span class="sheet-ftr-right">{{ 3 + (secoes_preview_grupos|length) + 1 }}</span>
+          <span class="sheet-ftr-right" data-sra-assinaturas-page>{{ 3 + (secoes_preview_grupos|length) + 1 }}</span>
         </div>
       </div>
     </div>
@@ -489,6 +508,43 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           var a4Px = 210 * 96 / 25.4;
           apply(avail / a4Px);
         }
+        function paginatePreviewContent(){
+          var rootEl = document.querySelector('.preview-root');
+          var firstSheet = document.querySelector('[data-sra-content-source="secoes"]');
+          var sourceBody = document.querySelector('[data-sra-paginate-source]');
+          var tpl = document.getElementById('sra-preview-sheet-template');
+          if (!rootEl || !firstSheet || !sourceBody || !tpl || sourceBody.dataset.paginated === '1') return;
+          sourceBody.dataset.paginated = '1';
+          var nodes = Array.from(sourceBody.childNodes).filter(function(n){
+            return n.nodeType !== Node.TEXT_NODE || n.textContent.trim();
+          });
+          sourceBody.innerHTML = '';
+          var pageNo = 4;
+          function setPageNumber(sheet, n){
+            var target = sheet.querySelector('.sheet-ftr-right');
+            if (target) target.textContent = String(n);
+          }
+          function newSheet(){
+            var sheet = tpl.content.firstElementChild.cloneNode(true);
+            setPageNumber(sheet, ++pageNo);
+            rootEl.insertBefore(sheet, firstSheet.nextSibling);
+            firstSheet = sheet;
+            return sheet.querySelector('.sheet-body');
+          }
+          setPageNumber(firstSheet, pageNo);
+          var body = sourceBody;
+          nodes.forEach(function(node){
+            body.appendChild(node);
+            if (body.scrollHeight > body.clientHeight + 1 && body.childNodes.length > 1) {
+              body.removeChild(node);
+              body = newSheet();
+              body.appendChild(node);
+            }
+          });
+          var assinaturaPage = document.querySelector('[data-sra-assinaturas-page]');
+          if (assinaturaPage) assinaturaPage.textContent = String(pageNo + 1);
+        }
+        requestAnimationFrame(function(){ requestAnimationFrame(paginatePreviewContent); });
         // Restaura ou define zoom inicial
         var saved = null;
         try { saved = parseFloat(localStorage.getItem(STORAGE_KEY)); } catch(e){}
@@ -511,9 +567,9 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           catch (e) { el.scrollIntoView(); }
         }
         if (location.hash) {
-          // dois rAF para garantir que o scale foi aplicado e o layout refez
+          // três rAF para garantir que zoom, paginação e layout foram aplicados
           requestAnimationFrame(function(){
-            requestAnimationFrame(scrollToHash);
+            requestAnimationFrame(function(){ requestAnimationFrame(scrollToHash); });
           });
         }
         window.addEventListener('hashchange', scrollToHash);

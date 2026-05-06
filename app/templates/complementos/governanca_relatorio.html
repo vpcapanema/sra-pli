@@ -65,7 +65,7 @@
               <span class="meta-inline">
                 espelho da tabela publicada em
                 {% if lista_entregas_rel %}
-                  <a href="/relatorios/{{ lista_entregas_rel.id }}/entregas">/relatorios/{{ lista_entregas_rel.id }}/entregas</a>
+                  <code>/relatorios/{{ lista_entregas_rel.id }}/entregas</code>
                 {% else %}
                   <code>/relatorios/&lt;id&gt;/entregas</code>
                 {% endif %}
@@ -73,6 +73,12 @@
               </span>
             </summary>
             <div class="det-body">
+              {% if lista_entregas_rel %}
+              <p class="meta-inline">
+                Abrir tabela publicada:
+                <a href="/relatorios/{{ lista_entregas_rel.id }}/entregas">/relatorios/{{ lista_entregas_rel.id }}/entregas</a>
+              </p>
+              {% endif %}
               <p class="sdesc">
                 Lista oficial dos autores que enviam conteúdo para o relatório selecionado, com o status de cada entrega e os carimbos das notificações já confirmadas pelo SendGrid. <strong>Coordenação aprova/reprova</strong> aplicando o status pelo menu <strong>⋮</strong> (use <em>validado</em> para aprovar — encerra o ciclo de notificação para o autor; volte para <em>aguardando_envio</em> ou <em>notificado</em> para reabrir e disparar lembrete). Para gerenciar utilizadores e senhas, use <a href="/usuarios">Equipe e permissões</a>.
               </p>
@@ -318,24 +324,7 @@
                     · executado em {{ resultado_teste.executado_em }}
                     · modo de envio:
                     {{ tag_modo_envio(resultado_teste.modo_envio) }}
-                    <ul class="mt-8">
-                      {% for k, v in resultado_teste.dados.items() %}
-                        {% if k == "avisos" %}
-                          {% if v %}
-                            <li>
-                              <strong>avisos:</strong>
-                              <ul>
-                                {% for av in v %}<li>{{ av }}</li>{% endfor %}
-                              </ul>
-                            </li>
-                          {% endif %}
-                        {% else %}
-                          <li>
-                            <strong>{{ k }}:</strong> {{ v if v is not none else '—' }}
-                          </li>
-                        {% endif %}
-                      {% endfor %}
-                    </ul>
+                    <div class="mt-8" role="list">{%- for k, v in resultado_teste.dados.items() -%}{%- if k == "avisos" -%}{%- if v -%}<div role="listitem"><strong>avisos:</strong><div role="list">{%- for av in v -%}<div role="listitem">{{ av }}</div>{%- endfor -%}</div></div>{%- endif -%}{%- else -%}<div role="listitem"><strong>{{ k }}:</strong> {{ v if v is not none else '—' }}</div>{%- endif -%}{%- endfor -%}</div>
                   </div>
                 {% endif %}
 

@@ -195,20 +195,48 @@ def response_relatorio_detail(
     rel = (
         db.query(Relatorio)
         .options(
-            selectinload(Relatorio.secoes).selectinload(Secao.responsavel),
+            selectinload(Relatorio.secoes).load_only(
+                Secao.id,
+                Secao.relatorio_id,
+                Secao.numero,
+                Secao.titulo,
+                Secao.ordem,
+                Secao.responsavel_id,
+                Secao.status,
+            ),
             selectinload(Relatorio.secoes)
-            .selectinload(Secao.blocos)
-            .load_only(Bloco.id, Bloco.secao_id),
+            .selectinload(Secao.responsavel)
+            .load_only(User.id, User.nome),
         )
         .filter(Relatorio.id == rel_id)
         .one_or_none()
     )
     if not rel:
         return response_dashboard(request, db)
+    contagens = {
+        sec_id: {"clonados": 0, "autorados": 0}
+        for sec_id in (sec.id for sec in rel.secoes)
+    }
+    rows = (
+        db.query(
+            Bloco.secao_id,
+            case(
+                (Bloco.origem.in_(("docx_import", "pdf_import", "clonado")), "clonados"),
+                else_="autorados",
+            ).label("grupo"),
+            func.count(Bloco.id),
+        )
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(Secao.relatorio_id == rel_id)
+        .group_by(Bloco.secao_id, "grupo")
+        .all()
+    )
+    for secao_id, grupo, total in rows:
+        contagens.setdefault(secao_id, {"clonados": 0, "autorados": 0})[grupo] = int(total or 0)
     return templates.TemplateResponse(
         request,
         "complementos/relatorio_detail.html",
-        {"user": user, "rel": rel},
+        {"user": user, "rel": rel, "contagens_blocos": contagens},
     )
 
 

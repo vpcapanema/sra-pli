@@ -16,9 +16,9 @@
       <label for="login-role">Perfil</label>
       <select id="login-role" name="role" title="Perfil com que vai iniciar sessão" required>
         <option value="" disabled {% if not role %}selected{% endif %}>— selecione —</option>
-        <option value="autor" {% if role == 'autor' %}selected{% endif %}>Autor</option>
-        <option value="coordenador" {% if role == 'coordenador' %}selected{% endif %}>Coordenador</option>
-        <option value="admin" {% if role == 'admin' %}selected{% endif %}>Administrador</option>
+        <option value="autor" {% if 'autor' == role %}selected{% endif %}>Autor</option>
+        <option value="coordenador" {% if 'coordenador' == role %}selected{% endif %}>Coordenador</option>
+        <option value="admin" {% if 'admin' == role %}selected{% endif %}>Administrador</option>
       </select>
       <label for="login-password">Senha</label>
       <div class="login-password-row">

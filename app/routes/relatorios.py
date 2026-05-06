@@ -112,7 +112,7 @@ def reverter_relatorio(rel_id: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/responsavel")
-def atribuir_responsavel(
+def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     rel_id: int,
     sec_id: int,
     request: Request,
@@ -135,7 +135,7 @@ def status_secao_get(
 
 
 @router.post("/{rel_id}/secoes/{sec_id}/status")
-def status_secao(
+def status_secao(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     rel_id: int,
     sec_id: int,
     request: Request,

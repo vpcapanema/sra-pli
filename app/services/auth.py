@@ -27,6 +27,7 @@ from .pages import (
     response_login,
     response_usuario_edit,
     response_usuarios,
+    url_hub_autor,
     usuario_edit_precheck,
 )
 
@@ -136,7 +137,7 @@ def login_submit(
         request.session["user_role"] = user.role
         destino = "/dashboard"
         if user.role == "autor":
-            destino = "/painel-upload"
+            destino = url_hub_autor(db) or "/painel-upload"
         t_destino = time.perf_counter()
         _log.info(
             "login_submit destino_ms=%.1f total_ms=%.1f user_id=%s role=%s destino=%s",
@@ -275,7 +276,7 @@ def usuarios_page(request: Request, db: Session):
     return response_usuarios(request, db)
 
 
-def usuarios_create(  # pylint: disable=too-many-arguments
+def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
     request: Request,
     *,
     nome: str,
@@ -371,6 +372,12 @@ def usuarios_create(  # pylint: disable=too-many-arguments
     )
     db.add(novo)
     db.commit()
+    # Autor novo entra na mesma condição dos demais: 1 EntregaRelatorio
+    # (status='pendente') em todos os relatórios ainda não finalizados.
+    # pylint: disable=import-outside-toplevel
+    from .entregas.lista_painel import garantir_entregas_para_autor
+    if garantir_entregas_para_autor(db, novo):
+        db.commit()
     _log.info(
         "Cadastro utilizador: concluído id=%s email=%s role=%s operador_id=%s",
         novo.id,
@@ -451,6 +458,8 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
     if duplicado:
         return _err("Já existe utilizador com este e-mail e perfil.")
 
+    role_anterior = alvo.role
+
     alvo.email = email_norm
     alvo.email2 = email2_norm
     alvo.nome = nome_fmt
@@ -468,6 +477,13 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
         alvo.password_hash = hash_password(password)
 
     db.commit()
+    # Promoção a 'autor' faz o user herdar as entregas persistentes dos
+    # demais autores (1 EntregaRelatorio 'pendente' por relatório aberto).
+    if alvo.role == "autor" and role_anterior != "autor":
+        # pylint: disable=import-outside-toplevel
+        from .entregas.lista_painel import garantir_entregas_para_autor
+        if garantir_entregas_para_autor(db, alvo):
+            db.commit()
     if alvo.id == request.session.get("user_id"):
         request.session["user_role"] = alvo.role
     _log.info(
