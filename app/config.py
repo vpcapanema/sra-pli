@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # Postgres real (Render). Sem fallback: a aplicação exige DATABASE_URL no .env.
     DATABASE_URL: str
+    # Defaults inseguros so servem em dev; validacao abaixo bloqueia prod.
     SECRET_KEY: str = "dev-secret-change-me"
     ADMIN_EMAIL: str = "admin@concremat.local"
     ADMIN_PASSWORD: str = "admin123"
@@ -48,8 +49,37 @@ class Settings(BaseSettings):
     CRONJOB_ORG_JOB_RETRY_FALHAS: int = 7547409
     # Em produção com HTTPS (ex.: Render): True para cookie de sessão com atributo Secure.
     SESSION_COOKIE_SECURE: bool = False
+    # Observabilidade de erros. Sem DSN, Sentry fica off.
+    SENTRY_DSN: str = ""
+    # Percentual de traces amostradas (0.0 a 1.0). Em prod comece com 0.1.
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+def _validar_producao(s: "Settings") -> None:
+    """Em APP_ENV=production, rejeita defaults inseguros no boot."""
+    if (s.APP_ENV or "").strip().lower() != "production":
+        return
+    erros: list[str] = []
+    sk = (s.SECRET_KEY or "").strip()
+    sk_bad_prefixes = ("dev-", "local-", "change-me", "test-")
+    if (
+        not sk
+        or len(sk) < 32
+        or sk.lower().startswith(sk_bad_prefixes)
+    ):
+        erros.append(
+            "SECRET_KEY em producao precisa ter >=32 chars e nao comecar "
+            "com prefixos inseguros (dev-, local-, change-me, test-)"
+        )
+    if s.ADMIN_PASSWORD in ("", "admin123", "change-me") or len(s.ADMIN_PASSWORD) < 8:
+        erros.append("ADMIN_PASSWORD em producao precisa ter >=8 chars e nao ser default")
+    if not s.SESSION_COOKIE_SECURE:
+        erros.append("SESSION_COOKIE_SECURE deve ser true em producao (HTTPS)")
+    if erros:
+        raise RuntimeError("Configuracao insegura em producao: " + "; ".join(erros))
+
+
 settings = Settings()
+_validar_producao(settings)

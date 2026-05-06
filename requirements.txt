@@ -24,3 +24,9 @@ language_tool_python==3.3.0
 pyspellchecker==0.8.1
 bleach==6.2.0
 beautifulsoup4==4.12.3
+# Rate-limit em endpoints sensiveis (/login, /recuperar-senha).
+slowapi==0.1.9
+# Observabilidade de erros em producao (opcional: sem SENTRY_DSN fica off).
+sentry-sdk[fastapi]==2.18.0
+# Migracoes de schema (substitui/complementa bootstrap DDL).
+alembic==1.14.0

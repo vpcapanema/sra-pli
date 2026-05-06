@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..rate_limit import limiter
 from ..services import auth as auth_service
 
 router = APIRouter()
@@ -13,6 +14,7 @@ def login_page(request: Request):
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 def login_submit(
     request: Request,
     email: str = Form(...),
@@ -34,6 +36,7 @@ def recuperar_senha_page(request: Request):
 
 
 @router.post("/recuperar-senha")
+@limiter.limit("5/minute")
 def recuperar_senha_submit(
     request: Request,
     email: str = Form(...),
@@ -49,6 +52,7 @@ def recuperar_senha_definir_page(request: Request):
 
 
 @router.post("/recuperar-senha/definir")
+@limiter.limit("5/minute")
 def recuperar_senha_definir_submit(
     request: Request,
     password: str = Form(...),

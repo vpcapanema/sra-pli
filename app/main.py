@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 from logging import getLogger
 from time import perf_counter
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.exceptions import HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .db import SessionLocal, get_db
 from .bootstrap import init_db
+from .rate_limit import limiter, rate_limit_handler
+from slowapi.errors import RateLimitExceeded
 from .routes import auth as auth_routes
 from .routes import pages as page_routes
 from .routes import relatorio_exclusao as relatorio_exclusao_routes
@@ -39,13 +42,38 @@ BASE_DIR = Path(__file__).parent
 _HTTP_AUDIT_LOG = getLogger("app.http")
 
 
+# Sentry: ativa apenas se SENTRY_DSN estiver configurado.
+if settings.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            environment=settings.APP_ENV,
+            traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+            send_default_pii=False,
+        )
+    except Exception:  # noqa: BLE001
+        getLogger("app.sentry").exception("Falha ao inicializar Sentry; seguindo sem ele")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db()
+    try:
+        init_db()
+    except Exception:  # noqa: BLE001
+        # Falha de DDL nao deve derrubar o processo em loop no healthcheck.
+        # Log estruturado e app sobe; rotas que dependem do schema iram falhar
+        # de forma observavel, em vez do container reiniciar para sempre.
+        getLogger("app.bootstrap").exception("init_db falhou; app subira mesmo assim")
     yield
 
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+
+# Rate-limit (slowapi). As decoracoes @limiter.limit nas rotas exigem
+# que o limiter esteja em app.state e que o handler 429 esteja registrado.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 
 @app.middleware("http")
@@ -126,6 +154,49 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
+_ERROR_LOG = getLogger("app.error")
+
+
+def _erro_html(titulo: str, mensagem: str, status: int) -> HTMLResponse:
+    html = (
+        '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+        f"<title>{titulo} · SRA</title>"
+        '<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;'
+        'max-width:640px;margin:12vh auto;padding:0 24px;color:#1f2937}'
+        "h1{font-size:1.5rem;margin-bottom:.5rem}"
+        "p{color:#4b5563;line-height:1.5}"
+        'a{color:#1d4ed8;text-decoration:none}</style></head><body>'
+        f"<h1>{titulo}</h1><p>{mensagem}</p>"
+        '<p><a href="/">Voltar ao início</a></p>'
+        "</body></html>"
+    )
+    return HTMLResponse(html, status_code=status)
+
+
+@app.exception_handler(HTTPException)
+async def sra_http_exception_handler(request: Request, exc: HTTPException):
+    # Preserva 3xx (redirects) e respostas estruturadas para APIs/JSON.
+    if exc.status_code < 400 or request.url.path.startswith("/admin/cron"):
+        raise exc
+    if exc.status_code == 404:
+        return _erro_html("Página não encontrada", "O recurso solicitado não existe ou foi movido.", 404)
+    if exc.status_code == 403:
+        return _erro_html("Acesso negado", "Você não tem permissão para acessar este recurso.", 403)
+    if exc.status_code == 401:
+        return _erro_html("Sessão expirada", "Faça login novamente para continuar.", 401)
+    raise exc
+
+
+@app.exception_handler(Exception)
+async def sra_unhandled_exception_handler(request: Request, exc: Exception):
+    _ERROR_LOG.exception("unhandled: %s %s", request.method, request.url.path)
+    return _erro_html(
+        "Erro interno",
+        "Ocorreu uma falha ao processar sua solicitação. A equipe técnica já foi notificada.",
+        500,
+    )
+
+
 @app.get("/")
 def home(request: Request, db: Session = Depends(get_db)):
     return response_home(request, db)
@@ -133,7 +204,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "ts": datetime.utcnow().isoformat()}
+    return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
 
 
 @app.get("/favicon.ico")

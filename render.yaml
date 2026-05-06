@@ -48,6 +48,12 @@ services:
       # Chave da API do cron-job.org usada apenas para exibir status dos jobs.
       - key: CRONJOB_ORG_API_KEY
         sync: false
+      # ---- Observabilidade (Sentry) ----
+      # Sem SENTRY_DSN, Sentry fica off. Em producao, preencha no painel.
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.1"
 
 # ---------------------------------------------------------------------------
 # Servicos de cron (descomentar se quiser jobs nativos Render; no free eram pagos).

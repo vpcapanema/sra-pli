@@ -26,8 +26,16 @@ package-lock.json
 # Relatorio de lint gerado para o agente (scripts/dump_agent_diagnostics.py)
 artifacts/agent-diagnostics.txt
 
+# Scripts locais de automacao/smoke (podem conter tokens, IDs de servico)
+scripts/_smoke_http.py
+scripts/_render_update_env.py
+
 # Cache do Playwright MCP (sessoes do agente; nao versionar)
 .playwright-mcp/
+
+# Alembic: versionar config e migrations, ignorar __pycache__ local
+alembic/__pycache__/
+alembic/versions/__pycache__/
 
 # Capturas e relatorios soltos na raiz (lixo de sessoes anteriores do agente)
 gov_*.png
