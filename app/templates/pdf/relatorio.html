@@ -94,6 +94,15 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
     padding:0;
     overflow:hidden;
   }
+  .secao{ scroll-margin-top: 56px; }
+  .secao:target{
+    animation: sra-preview-target-flash 1.8s ease-out 1;
+  }
+  @keyframes sra-preview-target-flash{
+    0%   { background: rgba(29, 78, 216, 0.18); box-shadow: 0 0 0 4px rgba(29,78,216,0.18); }
+    60%  { background: rgba(29, 78, 216, 0.08); box-shadow: 0 0 0 4px rgba(29,78,216,0.08); }
+    100% { background: transparent; box-shadow: none; }
+  }
   .preview-sheet--capa .capa{
     margin:0;
     width:100%;
@@ -490,6 +499,24 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           var a4Px = 210 * 96 / 25.4;
           if (window.innerWidth < a4Px + 40) fitWidth(); else apply(1);
         }
+        // Reposiciona na ancora da secao apos aplicar o zoom (o layout muda
+        // por causa do transform:scale, entao o scroll automatico do hash
+        // feito pelo browser pode cair em posicao errada).
+        function scrollToHash(){
+          var hash = (location.hash || '').trim();
+          if (!hash || hash.length < 2) return;
+          var el = document.getElementById(hash.slice(1));
+          if (!el) return;
+          try { el.scrollIntoView({block: 'start', behavior: 'auto'}); }
+          catch (e) { el.scrollIntoView(); }
+        }
+        if (location.hash) {
+          // dois rAF para garantir que o scale foi aplicado e o layout refez
+          requestAnimationFrame(function(){
+            requestAnimationFrame(scrollToHash);
+          });
+        }
+        window.addEventListener('hashchange', scrollToHash);
         document.querySelectorAll('[data-sra-preview]').forEach(function(btn){
           btn.addEventListener('click', function(){
             var action = btn.getAttribute('data-sra-preview');
