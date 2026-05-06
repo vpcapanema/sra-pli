@@ -151,8 +151,13 @@ def response_dashboard(request: Request, db: Session) -> Response:
     user = current_user(request, db)
     if not user:
         return response_login(request)
+    # LIMIT 50: dashboard mostra apenas relatorios recentes; evita crescimento
+    # ilimitado do SELECT conforme o contrato avanca ao longo dos meses.
     relatorios = (
-        db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
+        db.query(Relatorio)
+        .order_by(Relatorio.created_at.desc())
+        .limit(50)
+        .all()
     )
     sugestao = _sugestao_proximo_relatorio(db, relatorios)
     pdfs_disponiveis = listar_pdfs_disponiveis()
@@ -322,8 +327,15 @@ def _response_secao_page(
         .order_by(Figura.created_at)
         .all()
     )
+    # Filtra por roles relevantes: admin nao assume secao; outros roles
+    # (se existirem no futuro) ficam fora automaticamente. Evita SELECT de
+    # tabela users inteira a cada abertura da pagina de editor.
     autores = (
-        db.query(User).options(load_only(User.id, User.nome)).order_by(User.nome).all()
+        db.query(User)
+        .options(load_only(User.id, User.nome))
+        .filter(User.role.in_(("autor", "coordenador")))
+        .order_by(User.nome)
+        .all()
     )
     sec_ids_escopo = secao_ids_na_subarvore(rel.secoes, sec.numero or "")
     media_counts = _media_counts(db, rel.id, sec_ids_escopo)

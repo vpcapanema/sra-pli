@@ -31,6 +31,11 @@ def excluir_relatorio(rel_id: int, request: Request, db: Session):
         if deleted == 0:
             raise HTTPException(404)
     db.expire_all()
+    try:
+        from ..main import sidebar_cache_invalidate
+        sidebar_cache_invalidate()
+    except Exception:
+        pass
     return response_dashboard(request, db)
 
 

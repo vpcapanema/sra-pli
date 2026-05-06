@@ -28,7 +28,9 @@ artifacts/agent-diagnostics.txt
 
 # Scripts locais de automacao/smoke (podem conter tokens, IDs de servico)
 scripts/_smoke_http.py
+scripts/_smoke_prod.py
 scripts/_render_update_env.py
+scripts/_SESSION_CONTEXT.md
 
 # Cache do Playwright MCP (sessoes do agente; nao versionar)
 .playwright-mcp/

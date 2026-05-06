@@ -424,6 +424,11 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
         raise HTTPException(400, detail=f"Erro ao gravar seções: {exc.orig}")
 
     _p(98, "Finalizando")
+    try:
+        from ..main import sidebar_cache_invalidate
+        sidebar_cache_invalidate()
+    except Exception:
+        pass
     return rel_id_novo
 
 
@@ -668,6 +673,11 @@ def duplicar_relatorio(rel_id: int, request: Request, db: Session):  # pylint: d
                 )
             )
 
+    try:
+        from ..main import sidebar_cache_invalidate
+        sidebar_cache_invalidate()
+    except Exception:
+        pass
     return response_dashboard(request, db)
 
 

@@ -42,6 +42,37 @@ BASE_DIR = Path(__file__).parent
 _HTTP_AUDIT_LOG = getLogger("app.http")
 
 
+# Cache em memoria para o sidebar (ultimo relatorio + primeira secao).
+# Essa info quase nao muda: so quando um novo relatorio e criado ou a
+# primeira secao de um relatorio e reordenada. TTL curto (30s) garante
+# consistencia aceitavel sem pagar ~190ms de RTT Postgres por request.
+_sidebar_cache_lock = __import__("threading").Lock()
+_sidebar_cache: dict = {"ts": 0.0, "rel_id": None, "sec_id": None}
+_SIDEBAR_CACHE_TTL = 30.0  # segundos
+
+
+def _sidebar_cache_get() -> tuple[int | None, int | None] | None:
+    """Retorna (rel_id, sec_id) se cache valido, senao None."""
+    with _sidebar_cache_lock:
+        if perf_counter() - _sidebar_cache["ts"] < _SIDEBAR_CACHE_TTL:
+            return _sidebar_cache["rel_id"], _sidebar_cache["sec_id"]
+    return None
+
+
+def _sidebar_cache_set(rel_id: int | None, sec_id: int | None) -> None:
+    with _sidebar_cache_lock:
+        _sidebar_cache["ts"] = perf_counter()
+        _sidebar_cache["rel_id"] = rel_id
+        _sidebar_cache["sec_id"] = sec_id
+
+
+def sidebar_cache_invalidate() -> None:
+    """Invalidacao explicita: chamar apos criar/remover relatorios ou
+    reordenar secoes. Proxima request recarregara do banco."""
+    with _sidebar_cache_lock:
+        _sidebar_cache["ts"] = 0.0
+
+
 # Sentry: ativa apenas se SENTRY_DSN estiver configurado.
 if settings.SENTRY_DSN:
     try:
@@ -110,34 +141,42 @@ async def sra_hub_sidebar_context(request: Request, call_next):
 
     Evita links ``/painel-upload#…`` que perdem o fragmento após redirecionamento
     3xx e permite âncoras corretas em páginas sem ``rel`` no contexto do template.
+
+    Perf: cache em memória com TTL curto para evitar abrir uma segunda conexão
+    ao Postgres em CADA request autenticado (economia ~190ms/request).
     """
     request.state.sra_hub_rel_id = None
     request.state.sra_hub_primeira_secao_id = None
     path = request.url.path
     if request.method == "GET" and request.session.get("user_id") and not path.startswith("/static"):
-        db = SessionLocal()
-        try:
-            row = db.execute(
-                text(
-                    """
-                    SELECT r.id, (
-                        SELECT s.id FROM secoes s
-                        WHERE s.relatorio_id = r.id
-                        ORDER BY s.ordem, s.id
+        cached = _sidebar_cache_get()
+        if cached is not None:
+            rel_id, sec_id = cached
+        else:
+            db = SessionLocal()
+            try:
+                row = db.execute(
+                    text(
+                        """
+                        SELECT r.id, (
+                            SELECT s.id FROM secoes s
+                            WHERE s.relatorio_id = r.id
+                            ORDER BY s.ordem, s.id
+                            LIMIT 1
+                        )
+                        FROM relatorios r
+                        ORDER BY r.created_at DESC
                         LIMIT 1
+                        """
                     )
-                    FROM relatorios r
-                    ORDER BY r.created_at DESC
-                    LIMIT 1
-                    """
-                )
-            ).first()
-            if row and row[0] is not None:
-                request.state.sra_hub_rel_id = int(row[0])
-                if row[1] is not None:
-                    request.state.sra_hub_primeira_secao_id = int(row[1])
-        finally:
-            db.close()
+                ).first()
+            finally:
+                db.close()
+            rel_id = int(row[0]) if row and row[0] is not None else None
+            sec_id = int(row[1]) if row and row[1] is not None else None
+            _sidebar_cache_set(rel_id, sec_id)
+        request.state.sra_hub_rel_id = rel_id
+        request.state.sra_hub_primeira_secao_id = sec_id
     return await call_next(request)
 
 
