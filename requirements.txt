@@ -23,6 +23,9 @@ language_tool_python==3.3.0
 # O código prefere LanguageTool quando o import e a JVM funcionam; senão cai para pyspellchecker.
 pyspellchecker==0.8.1
 bleach==6.2.0
+# Dependencia transitiva: bleach.css_sanitizer requer tinycss2.
+# Antes vinha via weasyprint; apos remocao, precisa ser explicita.
+tinycss2==1.5.1
 beautifulsoup4==4.12.3
 # Rate-limit em endpoints sensiveis (/login, /recuperar-senha).
 slowapi==0.1.9
