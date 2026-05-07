@@ -716,6 +716,7 @@ ACMR
 Codgi
 DAEE
 dckfvc
+dicionarios
 Gmail
 hhmm
 language_tool_python
@@ -723,10 +724,14 @@ linguistica
 linguisticas
 ortografia
 PMSP
+proprios
 pyspellchecker
 Resetando
 sconn
+sensiveis
 serao
 sincronizacao
 tconn
+Temporarios
 tname
+utilitarios
