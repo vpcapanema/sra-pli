@@ -41,3 +41,10 @@ artifacts/_*.py
 artifacts/_*.png
 artifacts/route-audit-summary.txt
 artifacts/route-inventory.md
+
+# Temporarios locais e arquivos sensiveis (nao versionar)
+.tmp/
+.venv_new/
+tmp/
+scripts/_SESSION_CONTEXT.md
+chave_ppk/
