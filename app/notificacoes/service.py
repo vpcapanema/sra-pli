@@ -567,7 +567,28 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
             db, entrega.id, tipo, destinos_completos
         )
     if not destinos:
+        log.info(
+            "[notif/processar_destinatario] relatorio_id=%s relatorio=%s user_id=%s tipo=%s enviar_para=%s destinos=0 modo=%s",
+            env.rel.id,
+            env.rel.codigo,
+            env.user.id,
+            tipo,
+            enviar_para,
+            modo_atual(),
+        )
         return ResultadoEnvio(True, None, None, modo_atual())
+
+    log.info(
+        "[notif/processar_destinatario] relatorio_id=%s relatorio=%s user_id=%s tipo=%s enviar_para=%s destinos=%d lista=%s modo=%s",
+        env.rel.id,
+        env.rel.codigo,
+        env.user.id,
+        tipo,
+        enviar_para,
+        len(destinos),
+        ",".join(destinos),
+        modo_atual(),
+    )
 
     primary_norm = destinatarios_ciclo.email_primario_norm(env.user)
     resultados: list[ResultadoEnvio] = []
@@ -590,11 +611,28 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     primeiro_id = next((r.message_id for r in resultados if r.message_id), None)
     modo = resultados[-1].modo if resultados else modo_atual()
     if todos_ok:
+        log.info(
+            "[notif/processar_destinatario] sucesso relatorio_id=%s user_id=%s tipo=%s enviados=%d message_id=%s",
+            env.rel.id,
+            env.user.id,
+            tipo,
+            len(destinos),
+            primeiro_id,
+        )
         return ResultadoEnvio(True, primeiro_id, None, modo)
+    erro_final = "; ".join(erros) if erros else "falha_envio"
+    log.warning(
+        "[notif/processar_destinatario] falha relatorio_id=%s user_id=%s tipo=%s enviados=%d erro=%s",
+        env.rel.id,
+        env.user.id,
+        tipo,
+        len(destinos),
+        erro_final,
+    )
     return ResultadoEnvio(
         False,
         primeiro_id,
-        "; ".join(erros) if erros else "falha_envio",
+        erro_final,
         modo,
     )
 
@@ -702,6 +740,15 @@ def notificar_autores_abertura(
         else:
             resumo.emails_falhados += 1
     db.commit()
+    log.info(
+        "[notif/notificar_autores_abertura] resumo relatorio_id=%s relatorio=%s enviados=%s falhados=%s pulados_ja_enviados=%s avisos=%s",
+        rel.id,
+        rel.codigo,
+        resumo.emails_enviados,
+        resumo.emails_falhados,
+        resumo.pulados_ja_enviados,
+        " | ".join(resumo.avisos) if resumo.avisos else "",
+    )
     return resumo
 
 

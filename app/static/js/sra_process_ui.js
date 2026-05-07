@@ -13,6 +13,7 @@
   "use strict";
 
   var SKIP = "data-sra-confirm-skip";
+  var PENDING = "data-sra-confirm-pending";
 
   var FLUXO = {
     importacao_assistida_analise: {
@@ -326,8 +327,17 @@
       }
       form.dataset.sraWired = "1";
       form.addEventListener("submit", function (e) {
+        if (form.getAttribute(PENDING) === "1") {
+          logFluxoConfirmar("0-bloqueado", "submit ignorado por confirmação já em curso", {
+            action: form.action || "",
+            chave: form.getAttribute("data-sra-confirm") || "",
+          });
+          e.preventDefault();
+          return;
+        }
         if (form.getAttribute(SKIP) === "1" || form.dataset.sraConfirmSkip === "1") {
           form.removeAttribute(SKIP);
+          form.removeAttribute(PENDING);
           logFluxoConfirmar("5-post-nativo", "envio HTML normal (sem segundo confirm)", {
             action: form.action || "",
             chave: form.getAttribute("data-sra-confirm"),
@@ -338,6 +348,7 @@
         if (!ch) {
           return;
         }
+        form.setAttribute(PENDING, "1");
         var actionUrl = form.action || "";
         var t0 =
           typeof performance !== "undefined" && performance.now ? performance.now() : null;
@@ -366,6 +377,7 @@
         });
         confirmarComChave(ch, ov).then(function (sim) {
           if (!sim) {
+            form.removeAttribute(PENDING);
             var cancelTxt =
               "[fluxo confirm] cancelado — POST não enviado | " +
               stringifyFluxoExtra({ chave: ch, action: actionUrl });
@@ -394,24 +406,32 @@
             });
             iniciarAcompanhamentoSubmit(form, ch);
             if (precisaSegundaFaseValidacao(ch)) {
-              form.setAttribute(SKIP, "1");
-              if (form.requestSubmit) {
-                logFluxoConfirmar("4-requestSubmit", "segunda fase (SKIP+validação HTML5)");
-                form.requestSubmit();
-              } else {
-                logFluxoConfirmar("4-submit", "fallback form.submit()");
-                form.submit();
-              }
-            } else {
-              logFluxoConfirmar(
-                "4-submit-direto",
-                "form.submit() — sem SKIP (evita requestSubmit bloqueado por CSS ou segunda fase)"
-              );
-              form.submit();
-            }
-          });
-        });
-      });
+               form.setAttribute(SKIP, "1");
+               if (form.requestSubmit) {
+                 logFluxoConfirmar("4-requestSubmit", "segunda fase (SKIP+validação HTML5)");
+                 form.requestSubmit();
+               } else {
+                 logFluxoConfirmar("4-submit", "fallback form.submit()");
+                 form.submit();
+               }
+             } else {
+               logFluxoConfirmar(
+                 "4-submit-direto",
+                 "form.submit() — sem SKIP (evita requestSubmit bloqueado por CSS ou segunda fase)"
+               );
+               form.submit();
+             }
+           });
+-        });
++        }).catch(function (err) {
++          form.removeAttribute(PENDING);
++          logFluxoConfirmar("x-erro", "falha no fluxo de confirmação", {
++            chave: ch,
++            action: actionUrl,
++            erro: String(err),
++          });
++        });
+       });
     });
   }
 

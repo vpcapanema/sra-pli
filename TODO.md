@@ -1,9 +1,15 @@
-# TODO - Ajustes seção 1.2.1 Notificação assistida de usuários
+# TODO - Correção fluxo confirm + diagnóstico de falhas no envio manual
 
-- [x] 1. Atualizar `app/services/governanca/execucao_manual_jobs.py`
-  - [x] Tornar `abertura` idempotente (`force=False`)
-  - [x] Adicionar aviso quando abertura já tiver sido disparada para o relatório
-- [x] 2. Atualizar textos em `app/templates/complementos/governanca_relatorio.html`
-  - [x] Remover menção de "força reenvio" em abertura
-  - [x] Explicar exceção de idempotência para abertura e orientar uso de outro tipo
-- [x] 3. Atualizar este TODO com progresso
+- [x] 1. Levantar contexto do problema no frontend e backend
+  - [x] Confirmar origem do log `[fluxo confirm] cancelado — POST não enviado`
+  - [x] Confirmar origem dos contadores `emails_enviados/emails_falhados/pulados_ja_enviados`
+- [ ] 2. Atualizar `app/static/js/sra_process_ui.js`
+  - [ ] Adicionar trava anti-reentrância no submit com confirmação
+  - [ ] Fixar chave/action do submit atual para evitar corrida
+  - [ ] Garantir limpeza da trava em cancelamento e envio
+- [ ] 3. Atualizar `app/notificacoes/service.py`
+  - [ ] Melhorar logs diagnósticos em `notificar_autores_abertura`
+  - [ ] Melhorar logs diagnósticos em `_processar_destinatario` (destinos, modo, erro)
+- [ ] 4. Validar resultado esperado
+  - [ ] Confirm não cancelar indevidamente quando usuário confirma
+  - [ ] Logs explicarem claramente causa de `emails_falhados`
