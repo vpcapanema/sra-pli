@@ -1,0 +1,37 @@
+Senhas geradas para autores do SRA - Sistema de Relatórios de Atividades
+Gerado em: 2026-05-05
+
+Autores:
+--------
+
+1. André Fernando Ribeiro da Silva
+   Email: andre.fernando@concremat-transplan.com.br
+   Senha: ,::W}x+93iL0
+
+2. Cristina Ikonomidis
+   Email: cristina.ikonomidis@concremat-transplan.com.br
+   Senha: 38iTA67P{0DQ
+
+3. Joseane Carvalho Queiroz
+   Email: joseane.queiroz@concremat-transplan.com.br
+   Senha: 3)"r[VBqLjvU
+
+4. Karin Anne van de Bilt
+   Email: karin.bilt@concremat-transplan.com.br
+   Senha: I{T'%<Ypzwdc
+
+5. Silvio Massaru Ichihara
+   Email: silvio.ichihara@concremat-transplan.com.br
+   Senha: 6@PUe6okY:ld
+
+6. Vitor Rozante Porto
+   Email: vitor.porto@concremat-transplan.com.br
+   Senha: i9`1:OIa!J>v
+
+7. Vinicius do Prado Capanema
+   Email: vinicius.capanema@concremat-transplan.com.br
+   Senha: K`_*EG`LYQvy
+
+Nota: As senhas foram atualizadas no banco de dados (hash bcrypt).
+Este arquivo contém as senhas em plain text para envio por email.
+Após o envio, este arquivo deve ser excluído por segurança.
