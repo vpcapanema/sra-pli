@@ -131,8 +131,30 @@
           </thead>
           <tbody>
             {% for s in rel.secoes %} {% set nivel = s.numero.count('.') + 1 %}
-            <tr class="lvl-{{ nivel }}">
+            {% set ns = namespace(has_children=false) %}
+            {% for child in rel.secoes %}
+              {% if child.numero.startswith(s.numero ~ '.') %}
+                {% set ns.has_children = true %}
+              {% endif %}
+            {% endfor %}
+            <tr
+              class="lvl-{{ nivel }}"
+              data-sumario-row
+              data-sumario-numero="{{ s.numero }}"
+              data-sumario-nivel="{{ nivel }}"
+              data-sumario-has-children="{{ '1' if ns.has_children else '0' }}"
+            >
               <td>
+                {% if ns.has_children %}
+                  <button
+                    type="button"
+                    class="sumario-toggle"
+                    aria-expanded="false"
+                    aria-label="Expandir seção {{ s.numero }}"
+                  >▸</button>
+                {% else %}
+                  <span class="sumario-toggle-spacer" aria-hidden="true"></span>
+                {% endif %}
                 <strong>{{ s.numero }}</strong>
               </td>
               <td>{{ s.titulo }}</td>

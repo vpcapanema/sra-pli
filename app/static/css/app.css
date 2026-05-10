@@ -521,6 +521,32 @@ body.sra-sidebar-collapsed .sb-logout {
   white-space: nowrap;
   text-align: left;
 }
+.sumario-table tr.is-hidden {
+  display: none;
+}
+.sumario-toggle,
+.sumario-toggle-spacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.sumario-toggle {
+  color: var(--blue-dk);
+  background: #eef4fb;
+  border: 1px solid #c8d7e6;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+}
+.sumario-toggle:hover {
+  background: #dfeaf6;
+  border-color: #9eb6cf;
+}
 .sumario-table th:nth-child(n + 3),
 .sumario-table td:nth-child(n + 3) {
   text-align: center;

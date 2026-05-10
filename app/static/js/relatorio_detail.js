@@ -97,6 +97,82 @@
 })();
 
 (function () {
+  var rows = Array.prototype.slice.call(
+    document.querySelectorAll("[data-sumario-row]"),
+  );
+  if (!rows.length) return;
+
+  function level(row) {
+    return parseInt(row.getAttribute("data-sumario-nivel") || "1", 10);
+  }
+
+  function numero(row) {
+    return row.getAttribute("data-sumario-numero") || "";
+  }
+
+  function isDescendant(row, parentNumber) {
+    return numero(row).indexOf(parentNumber + ".") === 0;
+  }
+
+  function directChild(row, parentNumber, parentLevel) {
+    return isDescendant(row, parentNumber) && level(row) === parentLevel + 1;
+  }
+
+  function setExpanded(row, expanded) {
+    var btn = row.querySelector(".sumario-toggle");
+    row.dataset.sumarioExpanded = expanded ? "1" : "0";
+    if (btn) {
+      btn.textContent = expanded ? "▾" : "▸";
+      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      btn.setAttribute(
+        "aria-label",
+        (expanded ? "Recolher seção " : "Expandir seção ") + numero(row),
+      );
+    }
+  }
+
+  function refreshVisibility() {
+    rows.forEach(function (row) {
+      if (level(row) === 1) {
+        row.classList.remove("is-hidden");
+        return;
+      }
+      var visible = false;
+      for (var i = rows.indexOf(row) - 1; i >= 0; i -= 1) {
+        var candidate = rows[i];
+        if (level(candidate) >= level(row)) continue;
+        if (directChild(row, numero(candidate), level(candidate))) {
+          visible =
+            candidate.dataset.sumarioExpanded === "1" &&
+            !candidate.classList.contains("is-hidden");
+          break;
+        }
+      }
+      row.classList.toggle("is-hidden", !visible);
+    });
+  }
+
+  rows.forEach(function (row) {
+    setExpanded(row, false);
+    var btn = row.querySelector(".sumario-toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var expanded = row.dataset.sumarioExpanded !== "1";
+      setExpanded(row, expanded);
+      if (!expanded) {
+        rows.forEach(function (candidate) {
+          if (candidate !== row && isDescendant(candidate, numero(row))) {
+            setExpanded(candidate, false);
+          }
+        });
+      }
+      refreshVisibility();
+    });
+  });
+  refreshVisibility();
+})();
+
+(function () {
   var inner = document.getElementById("rel-sum-preview-zoom-inner");
   var frame = document.getElementById("preview-frame");
   var reloadBtn = document.getElementById("rel-sum-btn-preview-reload");
