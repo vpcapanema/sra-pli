@@ -33,10 +33,6 @@ from ..docx_clone_extractor import listar_docx_disponiveis
 from ..jinja_filters import registrar_globais as _registrar_globais_jinja
 from ..models import Bloco, Figura, Relatorio, Secao, User
 from ..modo_edicao_blocos import modo_edicao_coordenador_rel
-from ..notificacoes.ciclo_params import (
-    obter_parametros_ciclo,
-    periodo_referente_para_data,
-)
 from ..numeracao import chave_numero, secao_ids_na_subarvore
 from ..sumario_extractor import listar_pdfs_disponiveis
 
@@ -45,6 +41,42 @@ _registrar_globais_jinja(templates.env)
 
 # Última medição já produzida fora do sistema; próximo sugerido = NUMERO_BASE + 1.
 NUMERO_BASE = 14
+MEDICAO_BASE_D20 = 10
+ANO_BASE_D20 = 2025
+MES_BASE_D20 = 11
+
+
+def _add_months(ano: int, mes: int, delta: int) -> tuple[int, int]:
+    total = ano * 12 + (mes - 1) + delta
+    return total // 12, (total % 12) + 1
+
+
+def _periodo_por_medicao(numero_medicao: int) -> dict:
+    ano_ref, mes_ref = _add_months(
+        ANO_BASE_D20,
+        MES_BASE_D20,
+        numero_medicao - MEDICAO_BASE_D20,
+    )
+    ano_fim, mes_fim = _add_months(ano_ref, mes_ref, 1)
+    meses = [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro",
+    ]
+    return {
+        "mes_referencia": f"{meses[mes_ref - 1]} de {ano_ref}",
+        "periodo_inicio": date(ano_ref, mes_ref, 11),
+        "periodo_fim": date(ano_fim, mes_fim, 10),
+    }
 
 
 def url_hub_autor(db: Session) -> str | None:
@@ -59,10 +91,6 @@ def _sugestao_proximo_relatorio(
     db: Session,
     relatorios: list[Relatorio] | None = None,
 ) -> dict:
-    hoje = date.today()
-    par = obter_parametros_ciclo(db)
-    per = periodo_referente_para_data(hoje, par)
-
     # Próximo número de medição (evita segundo SELECT quando já temos a lista).
     if relatorios is not None:
         nums = [r.numero_medicao for r in relatorios if r.numero_medicao is not None]
@@ -70,6 +98,7 @@ def _sugestao_proximo_relatorio(
     else:
         max_num = db.query(func.max(Relatorio.numero_medicao)).scalar() or NUMERO_BASE
     proximo = max_num + 1
+    per = _periodo_por_medicao(proximo)
     return {
         "codigo": f"D20-{proximo}",
         "titulo": f"Relatório Mensal D20-{proximo}",

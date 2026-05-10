@@ -44,6 +44,18 @@
       id="form-novo-relatorio"
     >
       <div>
+        <label for="rel-novo-medicao">Nº da medição</label>
+        <input
+          id="rel-novo-medicao"
+          name="numero_medicao"
+          type="number"
+          min="1"
+          title="Número da medição"
+          placeholder="10"
+          value="{{ sugestao.numero_medicao }}"
+        />
+      </div>
+      <div>
         <label for="rel-novo-codigo">Código</label>
         <input
           id="rel-novo-codigo"
@@ -74,18 +86,6 @@
           placeholder="Relatório Mensal D20-13"
           value="{{ sugestao.titulo }}"
           required
-        />
-      </div>
-      <div>
-        <label for="rel-novo-medicao">Nº medição</label>
-        <input
-          id="rel-novo-medicao"
-          name="numero_medicao"
-          type="number"
-          min="1"
-          title="Número da medição"
-          placeholder="1, 2, 3..."
-          value="{{ sugestao.numero_medicao }}"
         />
       </div>
       <div>

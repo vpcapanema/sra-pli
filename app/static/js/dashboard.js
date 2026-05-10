@@ -2,48 +2,68 @@
   const cod = document.getElementById("rel-novo-codigo");
   const tit = document.getElementById("rel-novo-titulo");
   const med = document.getElementById("rel-novo-medicao");
-  if (!cod || !tit || !med) return;
+  const mes = document.getElementById("rel-novo-mes");
+  const ini = document.getElementById("rel-novo-pi");
+  const fim = document.getElementById("rel-novo-pf");
+  if (!cod || !tit || !med || !mes || !ini || !fim) return;
 
-  function derivarDeCodigo(raw) {
-    const s = (raw || "").trim();
-    if (!s) return { medicao: null, titulo: null };
-    if (/^\d+$/.test(s)) {
-      const n = parseInt(s, 10);
-      if (Number.isNaN(n) || n < 1) return { medicao: null, titulo: null };
-      return { medicao: n, titulo: "Relatório Mensal D20-" + n };
-    }
-    const idx = s.lastIndexOf("-");
-    if (idx < 0) {
-      return { medicao: null, titulo: "Relatório Mensal " + s };
-    }
-    const pref = s.slice(0, idx).trim().replace(/\s+/g, "");
-    const suf = s.slice(idx + 1).replace(/\s+/g, "");
-    if (!/^\d+$/.test(suf)) {
-      return { medicao: null, titulo: "Relatório Mensal " + s };
-    }
-    const n = parseInt(suf, 10);
-    if (Number.isNaN(n) || n < 1) {
-      return { medicao: null, titulo: "Relatório Mensal " + s };
-    }
-    let codigoTitulo = s;
-    if (/^d20$/i.test(pref)) {
-      codigoTitulo = "D20-" + n;
-    }
-    return { medicao: n, titulo: "Relatório Mensal " + codigoTitulo };
+  const meses = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+  const baseMedicao = 10;
+  const baseAno = 2025;
+  const baseMes = 10;
+
+  function isoDate(ano, mesIndex, dia) {
+    return (
+      String(ano).padStart(4, "0") +
+      "-" +
+      String(mesIndex + 1).padStart(2, "0") +
+      "-" +
+      String(dia).padStart(2, "0")
+    );
   }
 
-  function syncTituloMedicao() {
-    const d = derivarDeCodigo(cod.value);
-    if (d.medicao != null) {
-      med.value = String(d.medicao);
-    }
-    if (d.titulo != null) {
-      tit.value = d.titulo;
-    }
+  function addMonths(ano, mesIndex, delta) {
+    const total = ano * 12 + mesIndex + delta;
+    return { ano: Math.floor(total / 12), mesIndex: total % 12 };
   }
 
-  cod.addEventListener("input", syncTituloMedicao);
-  cod.addEventListener("blur", syncTituloMedicao);
+  function syncDeMedicao() {
+    const n = parseInt(med.value, 10);
+    if (Number.isNaN(n) || n < 1) return;
+    const ref = addMonths(baseAno, baseMes, n - baseMedicao);
+    const prox = addMonths(ref.ano, ref.mesIndex, 1);
+    cod.value = "D20-" + n;
+    tit.value = "Relatório Mensal D20-" + n;
+    mes.value = meses[ref.mesIndex] + " de " + ref.ano;
+    ini.value = isoDate(ref.ano, ref.mesIndex, 11);
+    fim.value = isoDate(prox.ano, prox.mesIndex, 10);
+  }
+
+  function syncMedicaoDeCodigo() {
+    const m = (cod.value || "").match(/(?:^|-)D?20?-?(\d+)$/i);
+    const simples = (cod.value || "").match(/^\s*(\d+)\s*$/);
+    const match = simples || m;
+    if (!match) return;
+    med.value = match[1];
+    syncDeMedicao();
+  }
+
+  med.addEventListener("input", syncDeMedicao);
+  med.addEventListener("blur", syncDeMedicao);
+  cod.addEventListener("blur", syncMedicaoDeCodigo);
 })();
 
 (function () {
