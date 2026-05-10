@@ -31,12 +31,25 @@
     <script src="/static/js/sra_process_ui.js"></script>
     {% endif %}
   </head>
+  {% set _path = request.url.path if request is defined else '' %}
+  {% set _parts_hub = _path.strip('/').split('/') %}
+  {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
   <body
-    class="{% if user %}sra-app {% endif %}{% block body_class %}{% endblock %}"
+    class="{% if user %}sra-app {% if _relatorio_sumario %}sra-sidebar-collapsed{% endif %}{% endif %}{% block body_class %}{% endblock %}"
   >
     {% if user %}
     <aside id="sb">
       <div id="sb-hdr">
+        <button
+          type="button"
+          id="sb-toggle"
+          class="sb-toggle"
+          aria-label="Recolher menu lateral"
+          aria-controls="sb"
+          aria-expanded="{% if _relatorio_sumario %}false{% else %}true{% endif %}"
+        >
+          ☰
+        </button>
         <h1>SRA · PLI-SP</h1>
         <p>
           Sistema de Relatórios de Atividades
@@ -46,10 +59,7 @@
       </div>
       <nav aria-label="Navegação principal">
         <span class="sb-sep">Navegação</span>
-        {% set _path = request.url.path %} {% set _parts_hub =
-        _path.strip('/').split('/') %} {% set _relatorio_sumario = (_parts_hub |
-        length == 2 and _parts_hub[0] == 'relatorios' and
-        _parts_hub[1].isdigit()) %} {% set _on_gestao = _path == '/dashboard' or
+        {% set _on_gestao = _path == '/dashboard' or
         _path.endswith('/entregas') or _path.endswith('/revisao-edicao') %} {%
         set _on_relatorio = _relatorio_sumario or
         _path.endswith('/upload-conteudo') or
@@ -261,6 +271,27 @@
 
         document.querySelectorAll(".export-sections").forEach(initExportTree);
 
+        function initSidebarToggle() {
+          var btn = document.getElementById("sb-toggle");
+          if (!btn) return;
+          function setCollapsed(collapsed) {
+            document.body.classList.toggle("sra-sidebar-collapsed", collapsed);
+            btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+            btn.setAttribute(
+              "aria-label",
+              collapsed ? "Expandir menu lateral" : "Recolher menu lateral",
+            );
+          }
+          setCollapsed(
+            document.body.classList.contains("sra-sidebar-collapsed"),
+          );
+          btn.addEventListener("click", function () {
+            setCollapsed(
+              !document.body.classList.contains("sra-sidebar-collapsed"),
+            );
+          });
+        }
+
         function initSidebarResizer() {
           var handle = document.getElementById("sb-resizer");
           if (!handle) return;
@@ -272,7 +303,12 @@
             window.localStorage.getItem("sra:sidebar-w") || "",
             10,
           );
-          if (!isNaN(stored) && stored >= minW && stored <= maxW) {
+          if (
+            !document.body.classList.contains("sra-sidebar-collapsed") &&
+            !isNaN(stored) &&
+            stored >= minW &&
+            stored <= maxW
+          ) {
             root.style.setProperty("--sw", stored + "px");
           }
           var dragging = false;
@@ -335,6 +371,7 @@
             window.localStorage.setItem("sra:sidebar-w", String(w));
           });
         }
+        initSidebarToggle();
         initSidebarResizer();
       })();
     </script>

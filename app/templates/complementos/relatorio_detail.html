@@ -138,18 +138,26 @@
               <td>{{ s.titulo }}</td>
               <td>
                 {% if user.role in ['admin','coordenador'] %}
-                  <select
-                    class="sumario-responsavel-select"
-                    data-rel-id="{{ rel.id }}"
-                    data-sec-id="{{ s.id }}"
-                    aria-label="Responsável pela seção {{ s.numero }}"
-                    title="Responsável pela seção {{ s.numero }}"
-                  >
-                    <option value="">—</option>
-                    {% for a in autores %}
-                      <option value="{{ a.id }}" {% if s.responsavel_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
-                    {% endfor %}
-                  </select>
+                  <div class="responsavel-picker">
+                    <button
+                      type="button"
+                      class="responsavel-display"
+                      aria-expanded="false"
+                      aria-label="Selecionar responsável pela seção {{ s.numero }}"
+                    >{{ s.responsavel.nome if s.responsavel else '—' }}</button>
+                    <select
+                      class="sumario-responsavel-select"
+                      data-rel-id="{{ rel.id }}"
+                      data-sec-id="{{ s.id }}"
+                      aria-label="Responsável pela seção {{ s.numero }}"
+                      title="Responsável pela seção {{ s.numero }}"
+                    >
+                      <option value="">—</option>
+                      {% for a in autores %}
+                        <option value="{{ a.id }}" {% if s.responsavel_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
                 {% else %}
                   {{ s.responsavel.nome if s.responsavel else '—' }}
                 {% endif %}
@@ -173,14 +181,14 @@
                 <div class="td-actions">
                   <a
                     href="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/upload-conteudo"
-                    class="link-quiet"
+                    class="link-quiet action-edit"
                     title="Gerenciador e editor de seção e upload — {{ s.numero }}"
                     aria-label="Gerenciador e editor de seção e upload — {{ s.numero }}"
                     ><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>
                   {% if user.role in ['admin','coordenador'] and rel.status != 'finalizado' %}
                     <button
                       type="button"
-                      class="link-quiet btn-add-sub"
+                      class="link-quiet btn-add-sub action-add"
                       data-add-sub-rel="{{ rel.id }}"
                       data-add-sub-pai="{{ s.id }}"
                       aria-label="Adicionar nova seção a partir de {{ s.numero }}"
@@ -197,7 +205,7 @@
                       <input type="hidden" name="direcao" id="mover-direcao-cima" value="cima" />
                       <button
                         type="submit"
-                        class="link-quiet"
+                        class="link-quiet action-move"
                         aria-label="Mover seção {{ s.numero }} para cima"
                       ><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
                     </form>
@@ -210,7 +218,7 @@
                       <input type="hidden" name="direcao" id="mover-direcao-baixo" value="baixo" />
                       <button
                         type="submit"
-                        class="link-quiet"
+                        class="link-quiet action-move"
                         aria-label="Mover seção {{ s.numero }} para baixo"
                       ><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
                     </form>
@@ -224,7 +232,7 @@
                     >
                       <button
                         type="submit"
-                        class="link-danger"
+                        class="link-danger action-delete"
                         title="Excluir seção {{ s.numero }}"
                         aria-label="Excluir seção {{ s.numero }}"
                       ><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
