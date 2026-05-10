@@ -43,14 +43,16 @@ _AUTOR_PATH_RES: tuple[re.Pattern[str], ...] = tuple(
 )
 
 _SKIP_PREFIXES: tuple[str, ...] = ("/static/",)
-_SKIP_PATHS_EXACT = frozenset({
-    "/health",
-    "/favicon.ico",
-    "/login",
-    "/logout",
-    "/recuperar-senha",
-    "/recuperar-senha/definir",
-})
+_SKIP_PATHS_EXACT = frozenset(
+    {
+        "/health",
+        "/favicon.ico",
+        "/login",
+        "/logout",
+        "/recuperar-senha",
+        "/recuperar-senha/definir",
+    }
+)
 
 
 def path_allowed_for_autor(path: str) -> bool:
@@ -67,8 +69,8 @@ def _accept_prefers_json(scope: Scope) -> bool:
 class SraAutorRouteGuardMiddleware:
     """Bloqueia autores fora do conjunto de URLs de gerenciamento de seção e upload."""
 
-    def __init__(self, asgi_app: ASGIApp) -> None:
-        self.asgi_app = asgi_app
+    def __init__(self, app: ASGIApp) -> None:
+        self.asgi_app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -78,10 +80,7 @@ class SraAutorRouteGuardMiddleware:
         path = scope.get("path") or ""
         sess = scope["session"] if "session" in scope else None
         sem_guarda = (
-            path.startswith(_SKIP_PREFIXES)
-            or path in _SKIP_PATHS_EXACT
-            or sess is None
-            or not sess.get("user_id")
+            path.startswith(_SKIP_PREFIXES) or path in _SKIP_PATHS_EXACT or sess is None or not sess.get("user_id")
         )
         if sem_guarda:
             await self.asgi_app(scope, receive, send)
