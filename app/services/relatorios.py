@@ -4,7 +4,7 @@ import re
 import threading
 from pathlib import Path
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -19,8 +19,6 @@ from ..numeracao import consolidar_referencias, renumerar_relatorio, secao_ids_n
 from .. import ref_resolve
 from ..sumario_extractor import extrair_completo_pdf_disponivel, extrair_sumario
 from ..docx_clone_extractor import (
-    PASTA_RELATORIOS,
-    extrair_relatorio_docx,
     extrair_relatorio_docx_disponivel,
 )
 from .. import progress_jobs
@@ -213,6 +211,37 @@ async def progresso_criar_relatorio(token: str) -> JSONResponse:
     return JSONResponse(estado)
 
 
+async def upload_docx_only(docx_upload: UploadFile, db: Session) -> JSONResponse:
+    """Upload de DOCX apenas, sem clonagem automática."""
+    from ..docx_clone_extractor import PASTA_RELATORIOS
+
+    if not docx_upload or not docx_upload.filename:
+        raise HTTPException(400, detail="Envie um arquivo DOCX.")
+
+    nome_arquivo = Path(docx_upload.filename).name.strip()
+    if not nome_arquivo.lower().endswith(".docx"):
+        raise HTTPException(400, detail="O arquivo enviado não é um DOCX.")
+    if nome_arquivo.startswith("~$"):
+        raise HTTPException(400, detail="Arquivo temporário do Word não é aceito.")
+
+    # Ler bytes do arquivo
+    docx_bytes = await docx_upload.read()
+    if not docx_bytes:
+        raise HTTPException(400, detail="Arquivo DOCX vazio.")
+
+    # Salvar arquivo em relatorios_entregues/
+    try:
+        PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
+        destino = PASTA_RELATORIOS / nome_arquivo
+        destino.write_bytes(docx_bytes)
+    except OSError as exc:
+        raise HTTPException(500, detail=f"Falha ao salvar DOCX: {exc}")
+    except Exception as exc:
+        raise HTTPException(500, detail=f"Erro ao salvar arquivo: {exc}")
+
+    return JSONResponse({"status": "success", "filename": nome_arquivo})
+
+
 def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,too-many-statements
     token: str | None,
     codigo: str,
@@ -294,32 +323,6 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
         if not secoes_com_conteudo:
             raise HTTPException(400, detail=f"Não foi possível extrair o conteúdo de {nome}.")
         _p(45, "PDF processado; gravando seções")
-    elif fonte == "docx_upload":
-        if not docx_bytes or not docx_filename:
-            raise HTTPException(400, detail="Envie um arquivo DOCX.")
-        nome_arquivo = Path(docx_filename).name.strip()
-        if not nome_arquivo.lower().endswith(".docx"):
-            raise HTTPException(400, detail="O arquivo enviado não é um DOCX.")
-        if nome_arquivo.startswith("~$"):
-            raise HTTPException(400, detail="Arquivo temporário do Word não é aceito.")
-        if not docx_bytes:
-            raise HTTPException(400, detail="Arquivo DOCX vazio.")
-        _p(10, "Salvando DOCX enviado")
-        try:
-            PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
-            destino = PASTA_RELATORIOS / nome_arquivo
-            destino.write_bytes(docx_bytes)
-        except OSError as exc:
-            raise HTTPException(500, detail=f"Falha ao salvar DOCX: {exc}")
-        _p(20, "Extraindo seções do DOCX")
-        try:
-            secoes_com_conteudo = extrair_relatorio_docx(docx_bytes)
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(400, detail=f"Falha ao ler o DOCX: {exc}")
-        if not secoes_com_conteudo:
-            raise HTTPException(400, detail="Não foi possível extrair conteúdo do DOCX enviado.")
-        origem_blocos = "docx_import"
-        _p(55, "DOCX processado; gravando seções")
     elif fonte == "upload":
         if not pdf_bytes or not pdf_filename:
             raise HTTPException(400, detail="Envie um arquivo PDF.")
@@ -336,7 +339,7 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
             raise HTTPException(400, detail="Não foi possível extrair o sumário do PDF enviado.")
         _p(50, "PDF processado; gravando seções")
     else:
-        raise HTTPException(400, detail="Selecione um relatório base, um relatório entregue ou envie um arquivo.")
+        raise HTTPException(400, detail="Selecione um relatório base ou um DOCX externo.")
 
     rel = Relatorio(
         codigo=codigo.strip(),
@@ -426,6 +429,7 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
     _p(98, "Finalizando")
     try:
         from ..main import sidebar_cache_invalidate
+
         sidebar_cache_invalidate()
     except Exception:
         pass
@@ -675,6 +679,7 @@ def duplicar_relatorio(rel_id: int, request: Request, db: Session):  # pylint: d
 
     try:
         from ..main import sidebar_cache_invalidate
+
         sidebar_cache_invalidate()
     except Exception:
         pass
@@ -713,9 +718,7 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    secoes_irmas = (
-        db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
-    )
+    secoes_irmas = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
     sec_ids_escopo = secao_ids_na_subarvore(secoes_irmas, sec.numero or "")
     if not sec_ids_escopo:
         sec_ids_escopo = {sec.id}
@@ -732,10 +735,7 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
         if sec_tem_upload:
             raise HTTPException(
                 400,
-                detail=(
-                    "Selecione um responsável: esta seção já tem conteúdo "
-                    "inserido pelo autor."
-                ),
+                detail=("Selecione um responsável: esta seção já tem conteúdo inserido pelo autor."),
             )
         if user.role == "autor":
             raise HTTPException(403, detail="Autor só pode atribuir a si próprio.")
@@ -921,3 +921,58 @@ def renomear_secao(
     sec.titulo = titulo
     db.commit()
     return response_conteudo_upload(request, db, rel_id, sec_id)
+
+
+async def editar_secoes_lote(
+    rel_id: int,
+    request: Request,
+    db: Session,
+):
+    """Edita múltiplas seções em lote (responsável ou status)."""
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    user = u
+    if user.role not in ("admin", "coordenador"):
+        raise HTTPException(403, detail="Apenas administradores e coordenadores podem editar seções em lote")
+
+    payload = await request.json()
+    campo = payload.get("campo")
+    valor = payload.get("valor")
+    secao_ids = payload.get("secao_ids", [])
+
+    if not campo or not valor or not secao_ids:
+        raise HTTPException(400, detail="Campo, valor e secao_ids são obrigatórios")
+
+    if campo not in ("responsavel_id", "status"):
+        raise HTTPException(400, detail="Campo inválido. Use 'responsavel_id' ou 'status'")
+
+    if campo == "responsavel_id":
+        try:
+            valor = int(valor)
+        except (ValueError, TypeError):
+            raise HTTPException(400, detail="responsavel_id deve ser um número")
+    elif campo == "status":
+        if valor not in ("pendente", "em_andamento", "aprovada"):
+            raise HTTPException(400, detail="Status inválido")
+
+    secoes = db.query(Secao).filter(Secao.id.in_(secao_ids), Secao.relatorio_id == rel_id).all()
+    if not secoes:
+        raise HTTPException(404, detail="Nenhuma seção encontrada")
+
+    atualizados = 0
+    for sec in secoes:
+        if campo == "responsavel_id":
+            sec.responsavel_id = valor
+        elif campo == "status":
+            sec.status = valor
+        atualizados += 1
+
+    db.commit()
+    return JSONResponse(
+        {
+            "atualizados": atualizados,
+            "campo": campo,
+            "valor": valor,
+        }
+    )

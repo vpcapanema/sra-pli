@@ -88,22 +88,13 @@ def _check(request: Request, db: Session, rel_id: int, sec_id: int):
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
-    if (
-        user.role == "autor"
-        and sec.responsavel_id is not None
-        and sec.responsavel_id != user.id
-    ):
+    if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
         raise HTTPException(403, detail="Não autorizado")
     return user, sec
 
 
 def _secoes_taxonomia(db: Session, rel_id: int) -> list[Secao]:
-    return (
-        db.query(Secao)
-        .filter(Secao.relatorio_id == rel_id)
-        .order_by(Secao.ordem, Secao.numero)
-        .all()
-    )
+    return db.query(Secao).filter(Secao.relatorio_id == rel_id).order_by(Secao.ordem, Secao.numero).all()
 
 
 def _default_destino(sec: Secao, motivo: str = "seção atual do importador") -> SecaoDestino:
@@ -130,7 +121,9 @@ def _target_section(secoes: list[Secao], fallback: Secao, numero: str | None) ->
     sec = by_numero.get(numero)
     if sec:
         return SecaoDestino(sec, sec.numero, sec.titulo, 0.99, f"marcador [SECAO] apontou para {numero}")
-    return SecaoDestino(None, numero, f"Seção {numero}", 0.72, f"marcador [SECAO:{numero}] criará seção no relatório", "criar")
+    return SecaoDestino(
+        None, numero, f"Seção {numero}", 0.72, f"marcador [SECAO:{numero}] criará seção no relatório", "criar"
+    )
 
 
 def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> list[dict]:
@@ -146,14 +139,9 @@ def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> li
         return blocks
     titulo_atual = sec_atual.titulo or f"Seção {numero_atual}"
     numeros_detectados = {
-        str(b.get("secao_numero") or "").strip()
-        for b in blocks
-        if str(b.get("secao_numero") or "").strip()
+        str(b.get("secao_numero") or "").strip() for b in blocks if str(b.get("secao_numero") or "").strip()
     }
-    tem_alinhado = any(
-        n == numero_atual or n.startswith(numero_atual + ".")
-        for n in numeros_detectados
-    )
+    tem_alinhado = any(n == numero_atual or n.startswith(numero_atual + ".") for n in numeros_detectados)
     forcar_secao_atual = bool(numeros_detectados) and not tem_alinhado
     out: list[dict] = []
     for b in blocks:
@@ -172,7 +160,14 @@ def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> li
     return out
 
 
-def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool = False) -> SecaoDestino | None:
+def _match_secao_linha(
+    secoes: list[Secao],
+    text: str,
+    *,
+    heading_context: bool = False,
+    usa_numeracao_relativa: bool = False,
+    sec_base: Secao | None = None,
+) -> SecaoDestino | None:
     body = re.sub(r"^#{1,6}\s*", "", text.strip())
     if not body:
         return None
@@ -181,6 +176,22 @@ def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool 
     if match:
         numero = match.group(1).strip()
         resto = (match.group(2) or "").strip()
+
+        # Converte número relativo para absoluto se necessário
+        if usa_numeracao_relativa and sec_base and _is_numero_relativo(numero, by_numero.keys(), sec_base):
+            numero_convertido = _convert_numero_relativo(numero, sec_base)
+            numero = numero_convertido
+            # Se o número convertido não existe no relatório, cria SecaoDestino para criação
+            if numero not in by_numero:
+                return SecaoDestino(
+                    None,
+                    numero,
+                    resto.strip() or f"Seção {numero}",
+                    0.84,
+                    f"seção {numero} criada a partir de posição hierárquica relativa",
+                    "criar",
+                )
+
         sec = by_numero.get(numero)
         if sec:
             titulo_norm = _norm_text(sec.titulo)
@@ -200,15 +211,24 @@ def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool 
         for sec_numero in sorted(by_numero, key=len, reverse=True):
             if not body.startswith(sec_numero):
                 continue
-            proximo = body[len(sec_numero): len(sec_numero) + 1]
+            proximo = body[len(sec_numero) : len(sec_numero) + 1]
             if proximo in {"", " ", "-", "–", "—"} or (proximo and not re.match(r"[\d.]", proximo)):
                 sec = by_numero[sec_numero]
-                titulo = body[len(sec_numero):].strip(" -–—\t") or sec.titulo
+                titulo = body[len(sec_numero) :].strip(" -–—\t") or sec.titulo
                 acao = "renomear" if _norm_text(titulo) and _norm_text(titulo) != _norm_text(sec.titulo) else "usar"
-                return SecaoDestino(sec, sec.numero, titulo, 0.9, f"número de seção {sec_numero} reconhecido mesmo sem espaçamento", acao)
+                return SecaoDestino(
+                    sec,
+                    sec.numero,
+                    titulo,
+                    0.9,
+                    f"número de seção {sec_numero} reconhecido mesmo sem espaçamento",
+                    acao,
+                )
         resto_norm = _norm_text(resto)
         if resto_norm and (heading_context or "." in numero or (len(numero) <= 2 and resto[:1].isupper())):
-            return SecaoDestino(None, numero, resto.strip(), 0.84, f"seção {numero} identificada no arquivo enviado", "criar")
+            return SecaoDestino(
+                None, numero, resto.strip(), 0.84, f"seção {numero} identificada no arquivo enviado", "criar"
+            )
     titulo_norm = _norm_text(body)
     if heading_context and titulo_norm:
         best_score = -1.0
@@ -222,7 +242,13 @@ def _match_secao_linha(secoes: list[Secao], text: str, *, heading_context: bool 
                 best_score = score
                 best_sec = sec
         if best_sec is not None and best_score >= 0.86:
-            return SecaoDestino(best_sec, best_sec.numero, best_sec.titulo, best_score, "título parecido com uma seção real do relatório")
+            return SecaoDestino(
+                best_sec,
+                best_sec.numero,
+                best_sec.titulo,
+                best_score,
+                "título parecido com uma seção real do relatório",
+            )
     return None
 
 
@@ -322,6 +348,11 @@ def _resolver_secao_importada(
     titulo = str(item.get("secao_titulo") or "").strip()
     secao_id_raw = item.get("secao_id")
 
+    # Se a seção atual já tiver um responsável atribuído, usar esse mesmo responsável
+    # para as novas seções criadas durante a importação (atribuição automática)
+    # Caso contrário, usar o usuário atual como responsável
+    responsavel_padrao = sec_atual.responsavel_id if sec_atual.responsavel_id else user.id
+
     sec: Secao | None = None
     if numero:
         sec = secoes_by_numero.get(numero)
@@ -333,7 +364,7 @@ def _resolver_secao_importada(
                 numero=numero,
                 titulo=titulo or f"Seção {numero}",
                 ordem=0,
-                responsavel_id=user.id if user.role == "autor" else None,
+                responsavel_id=responsavel_padrao,
             )
             db.add(sec)
             db.flush()
@@ -353,11 +384,7 @@ def _resolver_secao_importada(
 
     if sec is None or sec.relatorio_id != rel_id:
         raise HTTPException(400, detail="Seção de destino inválida.")
-    if (
-        user.role == "autor"
-        and sec.responsavel_id is not None
-        and sec.responsavel_id != user.id
-    ):
+    if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
         raise HTTPException(403, detail="Não autorizado para uma seção selecionada.")
     return sec
 
@@ -445,7 +472,14 @@ def _tabela_preview(conteudo: str) -> dict:
     raw_lines = [ln for ln in (conteudo or "").splitlines() if ln.strip()]
     lines = [ln for ln in raw_lines if not _is_table_separator(ln)]
     if not lines:
-        return {"headers": [], "rows": [], "total_rows": 0, "total_cols": 0, "truncated_rows": False, "truncated_cols": False}
+        return {
+            "headers": [],
+            "rows": [],
+            "total_rows": 0,
+            "total_cols": 0,
+            "truncated_rows": False,
+            "truncated_cols": False,
+        }
     cells = [split_markdown_pipe_row_cells(ln) for ln in lines]
     cols_total = max((len(r) for r in cells), default=0)
     headers_full = (cells[0] + [""] * cols_total)[:cols_total]
@@ -811,7 +845,7 @@ def _read_numfmt_from_docx(document: Document, num_id: int, ilvl: int) -> str:
             if a is not None and int(a) == int(num_id):
                 an = num.find(qn("w:abstractNumId"))
                 if an is not None:
-                    abs_id = (an.get(qn("w:val")) or an.get("val") or "0")
+                    abs_id = an.get(qn("w:val")) or an.get("val") or "0"
                 break
         if abs_id is not None:
             for ab in root.iter(qn("w:abstractNum")):
@@ -819,7 +853,7 @@ def _read_numfmt_from_docx(document: Document, num_id: int, ilvl: int) -> str:
                 if a is None or str(a) != str(abs_id):
                     continue
                 for lvl in ab.iter(qn("w:lvl")):
-                    li = (lvl.get(qn("w:ilvl")) or lvl.get("ilvl") or "0")
+                    li = lvl.get(qn("w:ilvl")) or lvl.get("ilvl") or "0"
                     if int(li) != int(ilvl):
                         continue
                     nfmt = lvl.find(qn("w:numFmt"))
@@ -873,12 +907,67 @@ def _word_list_canonical_line(
     return line
 
 
+def _convert_numero_relativo(numero_relativo: str, sec_base: Secao) -> str:
+    """Converte um número relativo de seção para absoluto baseado na seção base.
+
+    Exemplo: se sec_base.numero = "4.4.8":
+    - numero_relativo = "1" -> retorna "4.4.8" (seção base)
+    - numero_relativo = "2" -> retorna "4.4.9" (próximo irmão)
+    - numero_relativo = "3" -> retorna "4.4.10" (segundo irmão após)
+    - numero_relativo = "1.1" -> retorna "4.4.8.1" (subnível da base)
+    - numero_relativo = "2.1" -> retorna "4.4.9.1" (subnível do próximo irmão)
+
+    O número relativo indica o deslocamento a partir da seção base.
+    """
+    if not sec_base.numero:
+        return numero_relativo
+
+    partes_base = _split_numero_parts(sec_base.numero)
+    partes_relativo = _split_numero_parts(numero_relativo)
+
+    if not partes_relativo:
+        return sec_base.numero
+
+    # Calcula o deslocamento no primeiro nível
+    deslocamento = partes_relativo[0] - 1
+
+    # Aplica o deslocamento ao último nível da base
+    if partes_base:
+        partes_base[-1] += deslocamento
+
+    # Se tem múltiplos níveis (ex: "1.1", "2.1"), adiciona os níveis restantes como subníveis
+    if len(partes_relativo) > 1:
+        partes_base.extend(partes_relativo[1:])
+
+    return ".".join(str(p) for p in partes_base)
+
+
+def _is_numero_relativo(numero: str, secoes_existentes: set[str], sec_base: Secao | None = None) -> bool:
+    """Verifica se um número de seção deve ser interpretado como posição hierárquica relativa.
+
+    Um número é considerado relativo se não existe como seção absoluta no relatório.
+    Quando uma seção base é fornecida, assume que todos os números devem ser interpretados
+    como relativos à essa base (para upload em seção específica).
+    """
+    if not numero:
+        return False
+
+    # Se temos uma seção base, assume que todos os números são relativos
+    if sec_base and sec_base.numero:
+        return True
+
+    # Se o número não existe como seção absoluta no relatório, é considerado relativo
+    return numero not in secoes_existentes
+
+
 def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]:
     document = Document(BytesIO(raw))
     secoes = _secoes_taxonomia(db, rel_id)
     current_sec = db.get(Secao, sec_id)
     if not current_sec:
         return []
+    # Guarda a seção original como base fixa para conversão de números relativos
+    sec_original = current_sec
     current_destino = _default_destino(current_sec)
     blocks: list[dict] = []
     buf: list[str] = []
@@ -887,6 +976,23 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
     pending_table_legenda = ""
     pending_table_fonte = ""
     word_list_counters: dict[tuple[int, int], int] = {}
+
+    # Detecta se o arquivo usa numeração relativa (começa com 1 e não existe no relatório)
+    secoes_existentes = {sec.numero for sec in secoes}
+    usa_numeracao_relativa = False
+
+    # Primeira passagem para detectar numeração relativa
+    for element in _iter_docx_blocks(document):
+        if isinstance(element, Table):
+            continue
+        text = element.text.strip()
+        if text:
+            match = _SECTION_NUMBER_RE.match(text)
+            if match:
+                numero = match.group(1).strip()
+                if _is_numero_relativo(numero, secoes_existentes, sec_original):
+                    usa_numeracao_relativa = True
+                    break
 
     for element in _iter_docx_blocks(document):
         if isinstance(element, Table):
@@ -936,7 +1042,11 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
         if _TABELA_RE.match(text):
             _flush_text(blocks, current_sec, buf, current_destino)
             legenda, fonte = _split_tabela_fonte(text)
-            if last_media_idx is not None and blocks[last_media_idx].get("tipo") == "tabela" and not blocks[last_media_idx].get("legenda"):
+            if (
+                last_media_idx is not None
+                and blocks[last_media_idx].get("tipo") == "tabela"
+                and not blocks[last_media_idx].get("legenda")
+            ):
                 blocks[last_media_idx]["legenda"] = legenda
                 blocks[last_media_idx]["fonte"] = fonte
             else:
@@ -953,7 +1063,9 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             last_media_idx = None
             continue
 
-        sec_from_line = _match_secao_linha(secoes, text)
+        sec_from_line = _match_secao_linha(
+            secoes, text, usa_numeracao_relativa=usa_numeracao_relativa, sec_base=sec_original
+        )
         if sec_from_line:
             _flush_text(blocks, current_sec, buf, current_destino)
             current_destino = sec_from_line
@@ -1019,9 +1131,7 @@ async def analisar_importacao(
     max_bytes = settings.IMPORTACAO_ANALISAR_MAX_BYTES
     if len(raw) > max_bytes:
         limite_mb = max(max_bytes // (1024 * 1024), 1)
-        detail = (
-            f"Arquivo muito grande para importação assistida (máx. {limite_mb} MB)."
-        )
+        detail = f"Arquivo muito grande para importação assistida (máx. {limite_mb} MB)."
         raise HTTPException(400, detail=detail)
     nome = (arquivo.filename or "").lower()
     if nome.endswith(".docx"):
@@ -1041,6 +1151,74 @@ async def analisar_importacao(
         blocks = _preencher_secao_vazia_com_atual(sec_atual, blocks)
 
     return JSONResponse({"blocks": blocks, "total": len(blocks)})
+
+
+async def preview_importacao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session,
+):
+    """Simula a importação sem persistir, retornando preview da estrutura resultante."""
+    user, sec_atual = _check(request, db, rel_id, sec_id)
+    payload = await request.json()
+    blocks = payload.get("blocks") or []
+    responsavel_id_enviado = payload.get("responsavel_id")
+    selected_items = [item for item in blocks if item.get("selecionado") is not False]
+
+    # Carrega seções atuais para simulação
+    secoes_relatorio = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
+    secoes_by_numero = {sec.numero: sec for sec in secoes_relatorio}
+
+    # Simula criação/renomeio de seções
+    secoes_simuladas = []
+    novas_secoes = []
+    secoes_renomeadas = []
+
+    for item in selected_items:
+        numero = str(item.get("secao_numero") or "").strip()
+        titulo = str(item.get("secao_titulo") or "").strip()
+        existente = secoes_by_numero.get(numero) if numero else None
+        titulo_anterior = existente.titulo if existente is not None else ""
+
+        if numero and existente is None:
+            # Nova seção seria criada
+            novas_secoes.append(
+                {
+                    "numero": numero,
+                    "titulo": titulo or f"Seção {numero}",
+                    "responsavel_id": int(responsavel_id_enviado) if responsavel_id_enviado else user.id,
+                    "status": "em_andamento",
+                    "blocos_inseridos": 1,
+                }
+            )
+        elif numero and titulo and _norm_text(titulo) != _norm_text(titulo_anterior):
+            # Seção seria renomeada
+            secoes_renomeadas.append(
+                {"numero": numero, "titulo_anterior": titulo_anterior, "titulo_novo": titulo, "blocos_inseridos": 1}
+            )
+        else:
+            # Seção existente receberia blocos
+            secoes_simuladas.append(
+                {
+                    "numero": existente.numero,
+                    "titulo": existente.titulo,
+                    "responsavel_id": existente.responsavel_id,
+                    "status": existente.status,
+                    "blocos_inseridos": 1,
+                }
+            )
+
+    return JSONResponse(
+        {
+            "novas_secoes": novas_secoes,
+            "secoes_renomeadas": secoes_renomeadas,
+            "secoes_atualizadas": secoes_simuladas,
+            "total_blocos": len(selected_items),
+            "total_secoes_criadas": len(novas_secoes),
+            "total_secoes_renomeadas": len(secoes_renomeadas),
+        }
+    )
 
 
 def _limpar_blocos_secao_importacao(txdb: Session, sec_ids: set[int]) -> None:
@@ -1070,6 +1248,7 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
     user, sec_atual = _check(request, db, rel_id, sec_id)
     payload = await request.json()
     blocks = payload.get("blocks") or []
+    responsavel_id_enviado = payload.get("responsavel_id")
     selected_items = [item for item in blocks if item.get("selecionado") is not False]
 
     structural_keys: set[tuple[str, str]] = set()
@@ -1091,9 +1270,7 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
             titulo = str(item.get("secao_titulo") or "").strip()
             existente = secoes_by_numero.get(numero) if numero else None
             titulo_anterior = existente.titulo if existente is not None else ""
-            sec = _resolver_secao_importada(
-                txdb, rel_id, sec_atual_tx, user, item, secoes_by_id, secoes_by_numero
-            )
+            sec = _resolver_secao_importada(txdb, rel_id, sec_atual_tx, user, item, secoes_by_id, secoes_by_numero)
             if numero and existente is None:
                 structural_keys.add(("criar", numero))
             elif numero and titulo and _norm_text(titulo) != _norm_text(titulo_anterior):
@@ -1103,10 +1280,8 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
         target_ids = {sec.id for _, sec in resolved_items}
         _limpar_blocos_secao_importacao(txdb, target_ids)
         ordem_rows = (
-            txdb.query(Bloco.secao_id, Bloco.ordem)
-            .filter(Bloco.secao_id.in_(target_ids))
-            .all()
-        ) if target_ids else []
+            (txdb.query(Bloco.secao_id, Bloco.ordem).filter(Bloco.secao_id.in_(target_ids)).all()) if target_ids else []
+        )
         ordens: dict[int, int] = {}
         for secao_id, ordem_atual in ordem_rows:
             ordens[secao_id] = max(ordens.get(secao_id, 0), (ordem_atual or -1) + 1)
@@ -1150,7 +1325,21 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
             )
             if sec.status == "pendente":
                 sec.status = "em_andamento"
+            # Se a seção existente não tem responsável, atribui o responsável selecionado no formulário
+            if sec.responsavel_id is None:
+                if responsavel_id_enviado:
+                    try:
+                        sec.responsavel_id = int(responsavel_id_enviado)
+                    except (ValueError, TypeError):
+                        sec.responsavel_id = user.id
+                else:
+                    sec.responsavel_id = user.id
             created += 1
+
+        # Após criar todos os blocos, consolida referências textuais para marcadores estáveis
+        # Isso garante que referências a figuras, tabelas e seções sejam atualizadas
+        # de acordo com a nova realidade hierárquica após a conversão de números relativos
+        consolidar_referencias(txdb, rel_id)
 
         counts = Counter(sec.id for _, sec in resolved_items)
         por_secao_rows = []

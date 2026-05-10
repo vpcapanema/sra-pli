@@ -82,6 +82,7 @@ def agora_brt() -> datetime:
     """
     try:
         from zoneinfo import ZoneInfo  # noqa: PLC0415
+
         return datetime.now(ZoneInfo("America/Sao_Paulo"))
     except Exception:  # noqa: BLE001
         return datetime.now(timezone.utc)
@@ -97,6 +98,7 @@ class ResumoAbertura:  # pylint: disable=too-many-instance-attributes
     classes-resumo de retorno; o ganho de juntar dois campos correlatos
     (ex.: ``emails_enviados`` + ``emails_falhados``) seria pior pra leitura.
     """
+
     relatorio_id: int | None = None
     relatorio_codigo: str = ""
     base_relatorio_id: int | None = None
@@ -165,22 +167,13 @@ def _relatorio_base(db: Session, base_relatorio_id: int | None = None) -> Relato
     """Último ``finalizado`` (preferido) ou mais recente em qualquer status."""
     if base_relatorio_id is not None:
         return db.get(Relatorio, base_relatorio_id)
-    rel = (
-        db.query(Relatorio)
-        .filter(Relatorio.status == "finalizado")
-        .order_by(Relatorio.created_at.desc())
-        .first()
-    )
+    rel = db.query(Relatorio).filter(Relatorio.status == "finalizado").order_by(Relatorio.created_at.desc()).first()
     if rel:
         return rel
-    return (
-        db.query(Relatorio).order_by(Relatorio.created_at.desc()).first()
-    )
+    return db.query(Relatorio).order_by(Relatorio.created_at.desc()).first()
 
 
-def _substituir_referencias_periodo(
-    texto: str | None, base: Relatorio, novo: Relatorio
-) -> str | None:
+def _substituir_referencias_periodo(texto: str | None, base: Relatorio, novo: Relatorio) -> str | None:
     """Atualiza trechos que identificam o relatório/período anterior para o atual.
 
     Substituições por igualdade literal (o conteúdo clonado costuma repetir
@@ -255,14 +248,10 @@ def _remap_refs_em_blocos_novo_relatorio(
     map_secao: dict[int, int],
     map_bloco: dict[int, int],
 ) -> None:
-    sec_ids = [
-        sid for (sid,) in db.query(Secao.id).filter(Secao.relatorio_id == novo_rel_id).all()
-    ]
+    sec_ids = [sid for (sid,) in db.query(Secao.id).filter(Secao.relatorio_id == novo_rel_id).all()]
     if not sec_ids:
         return
-    blocos = (
-        db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids)).order_by(Bloco.secao_id, Bloco.ordem).all()
-    )
+    blocos = db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids)).order_by(Bloco.secao_id, Bloco.ordem).all()
     for bl in blocos:
         bl.conteudo = _remap_refs_texto(bl.conteudo, map_secao, map_bloco)
         bl.legenda = _remap_refs_texto(bl.legenda, map_secao, map_bloco)
@@ -310,12 +299,7 @@ def _clonar_estrutura_e_conteudo(db: Session, base: Relatorio, novo: Relatorio) 
     Figuras binárias são duplicadas para ``novo``. Um DOCX importado depois na
     mesma seção remove os blocos clonados — ver ``confirmar_importacao``.
     """
-    secoes_orig = (
-        db.query(Secao)
-        .filter(Secao.relatorio_id == base.id)
-        .order_by(Secao.ordem)
-        .all()
-    )
+    secoes_orig = db.query(Secao).filter(Secao.relatorio_id == base.id).order_by(Secao.ordem).all()
     map_secao: dict[int, int] = {}
     map_bloco: dict[int, int] = {}
     map_figura_antigo_novo: dict[int, int] = {}
@@ -335,16 +319,9 @@ def _clonar_estrutura_e_conteudo(db: Session, base: Relatorio, novo: Relatorio) 
 
     for sold in secoes_orig:
         sid_novo = map_secao[sold.id]
-        blocos_velhos = (
-            db.query(Bloco)
-            .filter(Bloco.secao_id == sold.id)
-            .order_by(Bloco.ordem)
-            .all()
-        )
+        blocos_velhos = db.query(Bloco).filter(Bloco.secao_id == sold.id).order_by(Bloco.ordem).all()
         for ob in blocos_velhos:
-            fid_novo = _obter_ou_clonar_figura(
-                db, base, novo, ob.figura_id, map_figura_antigo_novo
-            )
+            fid_novo = _obter_ou_clonar_figura(db, base, novo, ob.figura_id, map_figura_antigo_novo)
 
             nb = Bloco(
                 secao_id=sid_novo,
@@ -368,9 +345,7 @@ def _clonar_estrutura_e_conteudo(db: Session, base: Relatorio, novo: Relatorio) 
     return len(secoes_orig)
 
 
-def _construir_relatorio_aberto(
-    db: Session, base: Relatorio, periodo: dict
-) -> Relatorio:
+def _construir_relatorio_aberto(db: Session, base: Relatorio, periodo: dict) -> Relatorio:
     """Cria o ``Relatorio`` com o próximo número de medição, clona a estrutura
     do ``base`` e devolve já refrescado. Faz commit estrutural antes para
     que o envio dos emails opere sobre estado durável."""
@@ -485,9 +460,7 @@ def _montar_contexto_email(
     }
 
 
-def _entrega_para(
-    db: Session, rel_id: int, user_id: int
-) -> EntregaRelatorio:
+def _entrega_para(db: Session, rel_id: int, user_id: int) -> EntregaRelatorio:
     """Pega ou cria a EntregaRelatorio (rel, user). UNIQUE garante não duplicar."""
     e = (
         db.query(EntregaRelatorio)
@@ -534,6 +507,7 @@ def _registrar_envio(
 class _Envio:
     """Pacote de dados imutável para um envio: a quem, qual relatório, quais
     seções, e o mapa de seções para resolver parents no template."""
+
     rel: Relatorio
     user: User
     secoes_user: list[Secao]
@@ -559,17 +533,40 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     """
     entrega = _entrega_para(db, env.rel.id, env.user.id)
     contexto = _montar_contexto_email(
-        db, env.rel, env.user, env.secoes_user, env.todas_map,
+        db,
+        env.rel,
+        env.user,
+        env.secoes_user,
+        env.todas_map,
     )
     destinos_completos = destinatarios_ciclo.emails_destino_notificacao(env.user)
     if enviar_para == "todos":
         destinos = list(destinos_completos)
     else:
-        destinos = destinatarios_ciclo.destinos_pendentes_tipo(
-            db, entrega.id, tipo, destinos_completos
-        )
+        destinos = destinatarios_ciclo.destinos_pendentes_tipo(db, entrega.id, tipo, destinos_completos)
     if not destinos:
+        log.info(
+            "[notif/processar_destinatario] relatorio_id=%s relatorio=%s user_id=%s tipo=%s enviar_para=%s destinos=0 modo=%s",
+            env.rel.id,
+            env.rel.codigo,
+            env.user.id,
+            tipo,
+            enviar_para,
+            modo_atual(),
+        )
         return ResultadoEnvio(True, None, None, modo_atual())
+
+    log.info(
+        "[notif/processar_destinatario] relatorio_id=%s relatorio=%s user_id=%s tipo=%s enviar_para=%s destinos=%d lista=%s modo=%s",
+        env.rel.id,
+        env.rel.codigo,
+        env.user.id,
+        tipo,
+        enviar_para,
+        len(destinos),
+        ",".join(destinos),
+        modo_atual(),
+    )
 
     resultados: list[ResultadoEnvio] = []
     erros: list[str] = []
@@ -591,18 +588,33 @@ def _processar_destinatario(  # pylint: disable=too-many-branches,too-many-local
     primeiro_id = next((r.message_id for r in resultados if r.message_id), None)
     modo = resultados[-1].modo if resultados else modo_atual()
     if todos_ok:
+        log.info(
+            "[notif/processar_destinatario] sucesso relatorio_id=%s user_id=%s tipo=%s enviados=%d message_id=%s",
+            env.rel.id,
+            env.user.id,
+            tipo,
+            len(destinos),
+            primeiro_id,
+        )
         return ResultadoEnvio(True, primeiro_id, None, modo)
+    erro_final = "; ".join(erros) if erros else "falha_envio"
+    log.warning(
+        "[notif/processar_destinatario] falha relatorio_id=%s user_id=%s tipo=%s enviados=%d erro=%s",
+        env.rel.id,
+        env.user.id,
+        tipo,
+        len(destinos),
+        erro_final,
+    )
     return ResultadoEnvio(
         False,
         primeiro_id,
-        "; ".join(erros) if erros else "falha_envio",
+        erro_final,
         modo,
     )
 
 
-def _avancar_status_apos_envio(
-    entrega: EntregaRelatorio, tipo: str
-) -> None:
+def _avancar_status_apos_envio(entrega: EntregaRelatorio, tipo: str) -> None:
     """Avança o status da entrega a partir de um envio bem-sucedido.
 
     Regra (decisão por tipo, não por contagem):
@@ -625,9 +637,7 @@ def _avancar_status_apos_envio(
             entrega.status = "aguardando_envio"
 
 
-def notificar_autores_abertura(
-    db: Session, rel_id: int, *, force: bool = False
-) -> ResumoNotificarAutores:
+def notificar_autores_abertura(db: Session, rel_id: int, *, force: bool = False) -> ResumoNotificarAutores:
     """Envia Mensagem 1 (abertura) para cada autor com notificações ativas.
 
     Por padrão é idempotente: usuários que já receberam ``abertura`` com
@@ -652,16 +662,11 @@ def notificar_autores_abertura(
         return resumo
     pares = destinatarios_ciclo.destinatarios_mensagem_abertura(db, rel)
     if not pares:
-        resumo.avisos.append(
-            "Nenhum utilizador com perfil autor e notificações do relatório ativas."
-        )
+        resumo.avisos.append("Nenhum utilizador com perfil autor e notificações do relatório ativas.")
         return resumo
     todas_map = {
         s.numero: s
-        for s in db.query(Secao)
-        .options(selectinload(Secao.responsavel))
-        .filter(Secao.relatorio_id == rel.id)
-        .all()
+        for s in db.query(Secao).options(selectinload(Secao.responsavel)).filter(Secao.relatorio_id == rel.id).all()
     }
     log.info(
         "[notif/notificar_autores_abertura] relatorio=%s destinatarios=%d force=%s",
@@ -682,9 +687,7 @@ def notificar_autores_abertura(
             )
             destinos_full = destinatarios_ciclo.emails_destino_notificacao(user_obj)
             pendentes = (
-                destinatarios_ciclo.destinos_pendentes_tipo(
-                    db, entrega_ex.id, "abertura", destinos_full
-                )
+                destinatarios_ciclo.destinos_pendentes_tipo(db, entrega_ex.id, "abertura", destinos_full)
                 if entrega_ex
                 else destinos_full
             )
@@ -692,14 +695,21 @@ def notificar_autores_abertura(
                 resumo.pulados_ja_enviados += 1
                 continue
         env = _Envio(rel, user_obj, secoes_user, todas_map)
-        resultado = _processar_destinatario(
-            db, env, "abertura", enviar_para=enviar_para_modo
-        )
+        resultado = _processar_destinatario(db, env, "abertura", enviar_para=enviar_para_modo)
         if resultado.sucesso:
             resumo.emails_enviados += 1
         else:
             resumo.emails_falhados += 1
     db.commit()
+    log.info(
+        "[notif/notificar_autores_abertura] resumo relatorio_id=%s relatorio=%s enviados=%s falhados=%s pulados_ja_enviados=%s avisos=%s",
+        rel.id,
+        rel.codigo,
+        resumo.emails_enviados,
+        resumo.emails_falhados,
+        resumo.pulados_ja_enviados,
+        " | ".join(resumo.avisos) if resumo.avisos else "",
+    )
     return resumo
 
 
@@ -735,8 +745,7 @@ def abrir_periodo(  # pylint: disable=too-many-locals
         resumo.relatorio_codigo = existente.codigo
         resumo.pulada_idempotencia = True
         resumo.avisos.append(
-            f"Já existe relatório para {periodo['mes_referencia']} "
-            f"(id={existente.id}). Use force=True para reabrir."
+            f"Já existe relatório para {periodo['mes_referencia']} (id={existente.id}). Use force=True para reabrir."
         )
         return resumo
 
@@ -756,16 +765,11 @@ def abrir_periodo(  # pylint: disable=too-many-locals
                 "exige pelo menos um Relatorio existente como base de seções."
             )
         else:
-            resumo.avisos.append(
-                f"Relatório base id={base_relatorio_id} não encontrado."
-            )
+            resumo.avisos.append(f"Relatório base id={base_relatorio_id} não encontrado.")
         return resumo
     resumo.base_relatorio_id = base.id
     if base.status != "finalizado":
-        resumo.avisos.append(
-            f"Base é o relatório {base.codigo} (status={base.status}). "
-            f"Idealmente seria 'finalizado'."
-        )
+        resumo.avisos.append(f"Base é o relatório {base.codigo} (status={base.status}). Idealmente seria 'finalizado'.")
 
     novo = _construir_relatorio_aberto(db, base, periodo)
     resumo.relatorio_id = novo.id
@@ -778,15 +782,19 @@ def abrir_periodo(  # pylint: disable=too-many-locals
     # atualiza colunas (evita janela em que a UI exibe 'tabela vazia').
     # pylint: disable=import-outside-toplevel
     from ..services.entregas.lista_painel import garantir_entregas_relatorio
+
     garantir_entregas_relatorio(db, novo)
 
-    todas_map = {s.numero: s for s in db.query(Secao)
-                 .options(selectinload(Secao.responsavel))
-                 .filter(Secao.relatorio_id == novo.id).all()}
+    todas_map = {
+        s.numero: s
+        for s in db.query(Secao).options(selectinload(Secao.responsavel)).filter(Secao.relatorio_id == novo.id).all()
+    }
     pares = destinatarios_ciclo.destinatarios_mensagem_abertura(db, novo)
     log.info(
         "[notif/abrir_periodo] relatorio=%s destinatarios=%d modo_email=%s",
-        novo.codigo, len(pares), modo_atual(),
+        novo.codigo,
+        len(pares),
+        modo_atual(),
     )
     for user_obj, secoes_user in pares:
         env = _Envio(novo, user_obj, secoes_user, todas_map)
@@ -798,8 +806,7 @@ def abrir_periodo(  # pylint: disable=too-many-locals
         resumo.entregas_criadas += 1
     if resumo.criou_relatorio and not pares:
         resumo.avisos.append(
-            "Relatório criado com conteúdo clonado; nenhum autor com "
-            "notificações do relatório ativas — nada a enviar."
+            "Relatório criado com conteúdo clonado; nenhum autor com notificações do relatório ativas — nada a enviar."
         )
     db.commit()
     return resumo
@@ -842,28 +849,24 @@ def enviar_lembretes(  # pylint: disable=too-many-locals
                 "Pode usar POST /admin/cron/lembretes?ignorar_calendario=true em urgentes."
             )
             return resumo
-        if (
-            tipo == "ultima_chamada"
-            and hoje_brt.day != parametros_cal.dia_ultima_chamada
-        ):
+        if tipo == "ultima_chamada" and hoje_brt.day != parametros_cal.dia_ultima_chamada:
             resumo.avisos.append(
                 "Hoje BRT não coincide com o dia da última chamada "
                 f"({parametros_cal.dia_ultima_chamada}) na configuração do ciclo."
             )
             return resumo
 
-    q = db.query(Relatorio).filter(
-        Relatorio.status.in_(("aberto", "em_revisao"))
-    )
+    q = db.query(Relatorio).filter(Relatorio.status.in_(("aberto", "em_revisao")))
     if relatorio_id is not None:
         q = q.filter(Relatorio.id == relatorio_id)
     relatorios = q.all()
     agora = datetime.utcnow()
     for rel in relatorios:
         resumo.relatorios_processados += 1
-        todas_map = {s.numero: s for s in db.query(Secao)
-                     .options(selectinload(Secao.responsavel))
-                     .filter(Secao.relatorio_id == rel.id).all()}
+        todas_map = {
+            s.numero: s
+            for s in db.query(Secao).options(selectinload(Secao.responsavel)).filter(Secao.relatorio_id == rel.id).all()
+        }
         for user_obj, secoes_user in destinatarios_ciclo.destinatarios_mensagem_abertura(db, rel):
             entrega = _entrega_para(db, rel.id, user_obj.id)
             if entrega.status in ("enviado", "validado"):
@@ -885,24 +888,15 @@ def enviar_lembretes(  # pylint: disable=too-many-locals
 # ---------------------------------------------------------------------------
 # 3) retry_falhas
 # ---------------------------------------------------------------------------
-def _deve_tentar_de_novo(
-    entrega: EntregaRelatorio, tipo: str, limite_tempo: datetime
-) -> tuple[bool, bool]:
+def _deve_tentar_de_novo(entrega: EntregaRelatorio, tipo: str, limite_tempo: datetime) -> tuple[bool, bool]:
     """(deve_processar, conta_como_desistencia). Decisão sem efeito colateral."""
     if not entrega or not entrega.user:
         return False, True
     if entrega.status in ("enviado", "validado"):
         return False, False
     primary = (entrega.user.email or "").strip().lower()
-    eventos = [
-        ev for ev in entrega.notificacoes
-        if ev.tipo == tipo and ev.enviada_em >= limite_tempo
-    ]
-    if any(
-        ev.sucesso
-        for ev in eventos
-        if (ev.destinatario_email or "").strip().lower() == primary
-    ):
+    eventos = [ev for ev in entrega.notificacoes if ev.tipo == tipo and ev.enviada_em >= limite_tempo]
+    if any(ev.sucesso for ev in eventos if (ev.destinatario_email or "").strip().lower() == primary):
         return False, False
     if len(eventos) >= _MAX_RETRIES_POR_SLOT:
         return False, True
@@ -940,14 +934,10 @@ def retry_falhas(db: Session) -> ResumoRetry:
         if not rel:
             resumo.desistencias += 1
             continue
-        secoes_rel = (
-            db.query(Secao)
-            .options(selectinload(Secao.responsavel))
-            .filter(Secao.relatorio_id == rel.id)
-            .all()
-        )
+        secoes_rel = db.query(Secao).options(selectinload(Secao.responsavel)).filter(Secao.relatorio_id == rel.id).all()
         env = _Envio(
-            rel, n.entrega.user,
+            rel,
+            n.entrega.user,
             [s for s in secoes_rel if s.responsavel_id == n.entrega.user_id],
             {s.numero: s for s in secoes_rel},
         )
@@ -978,9 +968,7 @@ def _pode_promover_para_enviado(
     return all(b.bloqueado for b in blocos)
 
 
-def recompute_status_enviado(
-    db: Session, user_id: int, rel_id: int
-) -> bool:
+def recompute_status_enviado(db: Session, user_id: int, rel_id: int) -> bool:
     """Promove a entrega para ``enviado`` se todas as seções do user no rel
     têm pelo menos 1 bloco e todos estão ``bloqueado=true``. Retorna
     ``True`` se mudou.
@@ -993,16 +981,9 @@ def recompute_status_enviado(
         )
         .one_or_none()
     )
-    secoes_user = (
-        db.query(Secao)
-        .filter(Secao.relatorio_id == rel_id, Secao.responsavel_id == user_id)
-        .all()
-    )
+    secoes_user = db.query(Secao).filter(Secao.relatorio_id == rel_id, Secao.responsavel_id == user_id).all()
     sec_ids = [s.id for s in secoes_user]
-    blocos = (
-        db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids)).all()
-        if sec_ids else []
-    )
+    blocos = db.query(Bloco).filter(Bloco.secao_id.in_(sec_ids)).all() if sec_ids else []
     if not _pode_promover_para_enviado(entrega, secoes_user, blocos):
         return False
     assert entrega is not None  # garantido pela função predicate
@@ -1011,7 +992,9 @@ def recompute_status_enviado(
     db.commit()
     log.info(
         "[notif/recompute] entrega=%s user=%d rel=%d -> enviado",
-        entrega.id, user_id, rel_id,
+        entrega.id,
+        user_id,
+        rel_id,
     )
     return True
 
@@ -1080,14 +1063,10 @@ def reenviar_manual(db: Session, entrega: EntregaRelatorio) -> bool:
     user_obj = db.get(User, entrega.user_id) if entrega.user_id else None
     if not rel or not user_obj:
         return False
-    secoes_rel = (
-        db.query(Secao)
-        .options(selectinload(Secao.responsavel))
-        .filter(Secao.relatorio_id == rel.id)
-        .all()
-    )
+    secoes_rel = db.query(Secao).options(selectinload(Secao.responsavel)).filter(Secao.relatorio_id == rel.id).all()
     env = _Envio(
-        rel, user_obj,
+        rel,
+        user_obj,
         [s for s in secoes_rel if s.responsavel_id == user_obj.id],
         {s.numero: s for s in secoes_rel},
     )

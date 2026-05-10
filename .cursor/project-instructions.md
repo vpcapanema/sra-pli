@@ -309,3 +309,47 @@ uvicorn app.main:app --reload
 ```
 
 Sanity check do app: `.\.venv\Scripts\python.exe -c "import app.main; print('ok')"`.
+
+
+## Estado Atual SRA 2.0 (2026-05)
+
+A reescrita SRA 2.0 vive em `SRA_2_0/` (FastAPI + SQLAlchemy + Jinja2).
+
+### Schema (alembic 0009-0012)
+- `dom_tipos_elemento`: 30 elementos OOXML com `categoria` + `suporte` + `ooxml_tag` (0009)
+- `relatorios_finalizados` reescrita: `revisao_id`, `artefato_docx`, `checksum_docx`, `snapshot_conteudo` JSONB, `mes/ano_referencia`, `nome_arquivo` (0009)
+- `secoes_canonicas`: `obrigatoria`, `dinamica`, `responsavel_default`, `numero` (0009)
+- `templates_dotx`: `dados BYTEA NULL` + `caminho_disco` + `tamanho_bytes` (0010 - Render PG nao comporta 308MB blobs)
+- `blocos`: `confirmado_por_autor_em/id` + `aprovado_por_coord_em/id` (0011)
+- `templates_mensagem`: assunto + corpo Jinja2, versionado por tipo (0012)
+
+### Rotas novas
+- `GET /admin/templates`, `GET /admin/templates/{id}/download` - 28 .dotx canonicos
+- `GET /admin/figuras`, `POST /admin/figuras/upload` (dedup SHA-256), `POST /admin/figuras/{id}/excluir`
+- `GET /admin/mensagens-templates`, `POST /admin/mensagens-templates/{tipo}` - templates Jinja
+- `GET /convite?token=...`, `POST /convite/aceitar` - primeiro acesso por convite
+- `POST /usuarios/{id}/convite/reenviar` - admin/coord reenvia convite
+- `POST /relatorios/{id}/reabrir` (modo=producao|revisao, motivo obrigatorio)
+- `POST /relatorios/{id}/entrega/enviar` - autor envia sua parte
+- `POST /relatorios/{r}/secoes/{s}/autores/adicionar` + `.../{u}/remover`
+
+### Servicos
+- `services/clonagem.py` - clona D20-N -> D20-N+1 com regex doc 03 sec 3.3
+- `services/validacao.py` - 6 criterios bloqueantes da finalizacao
+- `services/finalizacao.py` - snapshot + .docx + checksum
+- `services/notificacoes.py:renderizar_template` - Jinja2 do templates_mensagem
+- `services/importacao_docx.py` - parser OOXML completo (hyperlink/bookmark/field/page_break/section_break/tab/header/footer + word_xml)
+- `services/renderer_docx.py` - reaproveita word_xml preservado para fidelidade maxima
+
+### Cron jobs
+- `python -m app.cron.abrir_periodo [--mes YYYY-MM] [--force]`
+- `python -m app.cron.enviar_lembretes --tipo lembrete|ultima_chamada [--enviar]`
+- `python -m app.cron.retry_falhas [--limite 100]`
+
+### Scripts
+- `python -m scripts.bootstrap_templates_dotx [--com-blob]` - carga dos 28 .dotx
+
+### Testes (20 passando)
+```powershell
+.\.venv\Scripts\python.exe -m pytest SRA_2_0/tests/ -v
+```

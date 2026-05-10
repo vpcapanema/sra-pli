@@ -22,8 +22,18 @@ from sqlalchemy.orm import Session
 from ..models import ParametrosCicloNotificacao
 
 MESES_PT = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
 ]
 
 _HH_MM = re.compile(r"^\d{2}:\d{2}$")
@@ -79,7 +89,7 @@ class ParametrosCicloDTO:  # pylint: disable=too-many-instance-attributes
     """Snapshot imutável usado pela lógica de negócio (sem objeto ORM vivo)."""
 
     ciclo_dia_mes_anterior: int = 11
-    ciclo_dia_mes_atual: int = 11
+    ciclo_dia_mes_atual: int = 10
     prazo_autor_dia: int = 8
     prazo_coordenacao_dia: int = 10
     dias_lembrete: tuple[int, ...] = (5, 8)
@@ -192,31 +202,37 @@ def parametros_para_dto(row: ParametrosCicloNotificacao | None) -> ParametrosCic
     """Converte ORM (:mod:`models`) em DTO; ``None`` => defaults."""
     if row is None:
         return ParametrosCicloDTO.padrao()
-    dias = tuple(
-        int(x.strip())
-        for x in row.dias_lembrete_csv.split(",")
-        if x.strip().isdigit()
-    )
+    # Se o valor antigo (11) estiver persistido, corrige para o novo valor (10)
+    ciclo_dia_atual = row.ciclo_dia_mes_atual
+    if ciclo_dia_atual == 11:
+        ciclo_dia_atual = 10
+        # Atualiza o valor persistido no banco
+        row.ciclo_dia_mes_atual = 10
+    dias = tuple(int(x.strip()) for x in row.dias_lembrete_csv.split(",") if x.strip().isdigit())
     if not dias:
         dias = ParametrosCicloDTO.padrao().dias_lembrete
     return ParametrosCicloDTO(
         ciclo_dia_mes_anterior=max(1, min(31, int(row.ciclo_dia_mes_anterior))),
-        ciclo_dia_mes_atual=max(1, min(31, int(row.ciclo_dia_mes_atual))),
+        ciclo_dia_mes_atual=ciclo_dia_atual,
         prazo_autor_dia=max(1, min(31, int(row.prazo_autor_dia))),
         prazo_coordenacao_dia=max(1, min(31, int(row.prazo_coordenacao_dia))),
         dias_lembrete=dias,
         dia_ultima_chamada=max(1, min(31, int(row.dia_ultima_chamada))),
         dia_abertura_novo_ciclo=max(1, min(31, int(row.dia_abertura_novo_ciclo))),
-        hora_abertura_brt_hhmm=(row.hora_abertura_brt_hhmm or "03:00").strip(),
-        hora_lembretes_brt_hhmm=(row.hora_lembretes_brt_hhmm or "09:00").strip(),
-        hora_retry_brt_hhmm=(row.hora_retry_brt_hhmm or "12:00").strip(),
-        observacoes_internas=(row.observacoes_internas or ""),
+        hora_abertura_brt_hhmm=row.hora_abertura_brt_hhmm or "03:00",
+        hora_lembretes_brt_hhmm=row.hora_lembretes_brt_hhmm or "09:00",
+        hora_retry_brt_hhmm=row.hora_retry_brt_hhmm or "12:00",
+        observacoes_internas=row.observacoes_internas or "",
     )
 
 
 def obter_parametros_ciclo(db: Session) -> ParametrosCicloDTO:
     """Carrega persistido ou valores padrão (sem criar linha)."""
     linha = db.get(ParametrosCicloNotificacao, _ID_LINHA_UNICA)
+    # Corrige valor antigo (11) para novo valor (10) se persistido
+    if linha and linha.ciclo_dia_mes_atual == 11:
+        linha.ciclo_dia_mes_atual = 10
+        db.commit()
     return parametros_para_dto(linha)
 
 

@@ -31,6 +31,8 @@ disable = [
     "unused-variable",
     "raise-missing-from",
     "cell-var-from-loop",
+    "too-many-arguments",
+    "too-many-positional-arguments",
 ]
 
 [tool.pylint.FORMAT]

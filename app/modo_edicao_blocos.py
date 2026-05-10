@@ -33,8 +33,7 @@ def pode_mutar_apesar_de_bloqueado(
     Matriz por status do relatório (consulte ``project-instructions.md``):
 
     - ``rel_status == "aberto"``: ``bloqueado`` é trava **cooperativa** entre
-      autores; admin sempre passa, coordenador precisa ligar o **modo edição**
-      explícito para esta sessão.
+      autores; admin sempre passa, coordenador sempre passa (pode excluir com qualquer status).
     - ``rel_status == "em_revisao"``: a coleta encerrou e o coord é dono do
       conteúdo — coordenador e admin passam **sem** modo edição.
     - ``rel_status`` ``None`` (legado): mantém comportamento conservador
@@ -43,9 +42,8 @@ def pode_mutar_apesar_de_bloqueado(
     if user.role == "admin":
         return True
     if user.role == "coordenador":
-        if rel_status == "em_revisao":
-            return True
-        return modo_edicao_coordenador_rel(request, user, rel_id)
+        # Coordenador pode sempre mutar blocos bloqueados (pode excluir com qualquer status)
+        return True
     return False
 
 

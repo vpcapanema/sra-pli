@@ -33,6 +33,16 @@ async def analisar_importacao(
     return await importacao_service.analisar_importacao(rel_id, sec_id, request, arquivo, db)
 
 
+@router.post("/preview")
+async def preview_importacao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return await importacao_service.preview_importacao(rel_id, sec_id, request, db)
+
+
 @router.post("/confirmar")
 async def confirmar_importacao(
     rel_id: int,

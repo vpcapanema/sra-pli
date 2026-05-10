@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block head_extra %}
+<link href="/static/css/modelos_word.css" rel="stylesheet" />
+{% endblock %}
 {% block body_class %}page-modelos-word{% endblock %}
 {% block title %}Modelos Word (.dotx) · importação{% endblock %}
 {% block header %}Modelos para importação assistida{% endblock %}
@@ -114,8 +117,7 @@
         <tbody>
           {% for row in secoes_catalogo %}
             <tr
-              class="mw-cat-row mw-cat-depth-{{ row.nivel }}"
-              style="--mw-depth: {{ row.nivel }};"
+              class="mw-cat-row mw-cat-depth-{{ row.nivel }} mw-depth-{{ row.nivel }}"
             >
               <td class="mw-tree-num"><strong>{{ row.numero }}</strong></td>
               <td class="mw-tree-tit">{{ row.titulo }}</td>

@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block head_extra %}
+<link href="/static/css/governanca.css" rel="stylesheet" />
+{% endblock %}
 {% block title %}Governança do relatório{% endblock %}
 {% block header %}Governança do relatório{% endblock %}
 
@@ -378,7 +381,8 @@
                     </div>
                     <p class="coord-panel-desc coord-help-pop" id="coord-help-notificar">
                       Dispara manualmente uma das três mensagens do ciclo para um relatório existente.
-                      <strong>Abertura</strong> envia a Mensagem 1 a todos os autores ativos (força reenvio, inclusive a quem já recebeu — igual ao botão no sumário).
+                      A decisão do coordenador é soberana para os tipos manuais, com uma exceção operacional:
+                      <strong>Abertura</strong> respeita idempotência por relatório (se já foi disparada para o relatório, o sistema bloqueia novo disparo e orienta usar outro tipo).
                       <strong>Lembrete</strong> e <strong>Última chamada</strong> disparam a Mensagem 2 para entregas ainda pendentes, ignorando o calendário do ciclo (executa fora do dia configurado).
                     </p>
                     <form id="gov-form-testar-notificar"

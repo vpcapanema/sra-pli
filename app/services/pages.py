@@ -22,7 +22,8 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import case, func
+from sqlalchemy import case
+from sqlalchemy.sql import func
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from sqlalchemy.sql.functions import coalesce
 from starlette.responses import RedirectResponse, Response
@@ -39,9 +40,7 @@ from ..notificacoes.ciclo_params import (
 from ..numeracao import chave_numero, secao_ids_na_subarvore
 from ..sumario_extractor import listar_pdfs_disponiveis
 
-templates = Jinja2Templates(
-    directory=str(Path(__file__).parent.parent / "templates")
-)
+templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 _registrar_globais_jinja(templates.env)
 
 # Última medição já produzida fora do sistema; próximo sugerido = NUMERO_BASE + 1.
@@ -66,16 +65,10 @@ def _sugestao_proximo_relatorio(
 
     # Próximo número de medição (evita segundo SELECT quando já temos a lista).
     if relatorios is not None:
-        nums = [
-            r.numero_medicao
-            for r in relatorios
-            if r.numero_medicao is not None
-        ]
+        nums = [r.numero_medicao for r in relatorios if r.numero_medicao is not None]
         max_num = max(nums) if nums else NUMERO_BASE
     else:
-        max_num = (
-            db.query(func.max(Relatorio.numero_medicao)).scalar() or NUMERO_BASE
-        )
+        max_num = db.query(func.max(Relatorio.numero_medicao)).scalar() or NUMERO_BASE
     proximo = max_num + 1
     return {
         "codigo": f"D20-{proximo}",
@@ -108,9 +101,7 @@ def response_login(
     )
 
 
-def user_coord_ou_admin_ou_login(
-    request: Request, db: Session
-) -> User | Response:
+def user_coord_ou_admin_ou_login(request: Request, db: Session) -> User | Response:
     """Sessão obrigatória; apenas coordenador ou admin (403 caso contrário)."""
     user = current_user(request, db)
     if not user:
@@ -153,12 +144,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
         return response_login(request)
     # LIMIT 50: dashboard mostra apenas relatorios recentes; evita crescimento
     # ilimitado do SELECT conforme o contrato avanca ao longo dos meses.
-    relatorios = (
-        db.query(Relatorio)
-        .order_by(Relatorio.created_at.desc())
-        .limit(50)
-        .all()
-    )
+    relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).limit(50).all()
     sugestao = _sugestao_proximo_relatorio(db, relatorios)
     pdfs_disponiveis = listar_pdfs_disponiveis()
     docxs_disponiveis = listar_docx_disponiveis()
@@ -186,9 +172,7 @@ def response_painel_upload(request: Request, db: Session) -> Response:
     return RedirectResponse(url=f"/relatorios/{rel.id}", status_code=303)
 
 
-def response_relatorio_detail(
-    request: Request, db: Session, rel_id: int
-) -> Response:
+def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Response:
     user = current_user(request, db)
     if not user:
         return response_login(request)
@@ -204,19 +188,14 @@ def response_relatorio_detail(
                 Secao.responsavel_id,
                 Secao.status,
             ),
-            selectinload(Relatorio.secoes)
-            .selectinload(Secao.responsavel)
-            .load_only(User.id, User.nome),
+            selectinload(Relatorio.secoes).selectinload(Secao.responsavel).load_only(User.id, User.nome),
         )
         .filter(Relatorio.id == rel_id)
         .one_or_none()
     )
     if not rel:
         return response_dashboard(request, db)
-    contagens = {
-        sec_id: {"clonados": 0, "autorados": 0}
-        for sec_id in (sec.id for sec in rel.secoes)
-    }
+    contagens = {sec_id: {"clonados": 0, "autorados": 0} for sec_id in (sec.id for sec in rel.secoes)}
     rows = (
         db.query(
             Bloco.secao_id,
@@ -224,7 +203,7 @@ def response_relatorio_detail(
                 (Bloco.origem.in_(("docx_import", "pdf_import", "clonado")), "clonados"),
                 else_="autorados",
             ).label("grupo"),
-            func.count(Bloco.id),
+            func.count_(Bloco.id),
         )
         .join(Secao, Secao.id == Bloco.secao_id)
         .filter(Secao.relatorio_id == rel_id)
@@ -233,16 +212,20 @@ def response_relatorio_detail(
     )
     for secao_id, grupo, total in rows:
         contagens.setdefault(secao_id, {"clonados": 0, "autorados": 0})[grupo] = int(total or 0)
+
+    # Carrega autores para edição em lote
+    autores = (
+        db.query(User).options(load_only(User.id, User.nome)).filter(User.role == "autor").order_by(User.nome).all()
+    )
+
     return templates.TemplateResponse(
         request,
         "complementos/relatorio_detail.html",
-        {"user": user, "rel": rel, "contagens_blocos": contagens},
+        {"user": user, "rel": rel, "contagens_blocos": contagens, "autores": autores},
     )
 
 
-def _media_counts(
-    db: Session, rel_id: int, sec_ids_escopo: set[int]
-) -> dict:
+def _media_counts(db: Session, rel_id: int, sec_ids_escopo: set[int]) -> dict:
     """Conta figuras/tabelas (próprias e inline em texto) em uma query agregada.
 
     Evita trazer ``Bloco.conteudo`` inteiro à aplicação; funciona em Postgres
@@ -252,33 +235,16 @@ def _media_counts(
     """
     conteudo = coalesce(Bloco.conteudo, "")
     base_len = func.length(conteudo)
-    fig_in_text = (
-        base_len - func.length(func.replace(conteudo, "[[FIGURA:", ""))
-    ) / 9
-    tab_in_text_a = (
-        base_len - func.length(func.replace(conteudo, "[[TABELA:", ""))
-    ) / 9
-    tab_in_text_b = (
-        base_len - func.length(func.replace(conteudo, "[[TABELA|", ""))
-    ) / 9
-    tab_in_text_c = (
-        base_len - func.length(func.replace(conteudo, "[[TABELA]]", ""))
-    ) / 10
+    fig_in_text = (base_len - func.length(func.replace(conteudo, "[[FIGURA:", ""))) / 9
+    tab_in_text_a = (base_len - func.length(func.replace(conteudo, "[[TABELA:", ""))) / 9
+    tab_in_text_b = (base_len - func.length(func.replace(conteudo, "[[TABELA|", ""))) / 9
+    tab_in_text_c = (base_len - func.length(func.replace(conteudo, "[[TABELA]]", ""))) / 10
 
     fig_per_block = case((Bloco.tipo == "figura", 1), else_=0) + fig_in_text
-    tab_per_block = (
-        case((Bloco.tipo == "tabela", 1), else_=0)
-        + tab_in_text_a
-        + tab_in_text_b
-        + tab_in_text_c
-    )
+    tab_per_block = case((Bloco.tipo == "tabela", 1), else_=0) + tab_in_text_a + tab_in_text_b + tab_in_text_c
     ids_escopo_sql = sec_ids_escopo if sec_ids_escopo else {-1}
-    fig_in_sec = case(
-        (Bloco.secao_id.in_(ids_escopo_sql), fig_per_block), else_=0
-    )
-    tab_in_sec = case(
-        (Bloco.secao_id.in_(ids_escopo_sql), tab_per_block), else_=0
-    )
+    fig_in_sec = case((Bloco.secao_id.in_(ids_escopo_sql), fig_per_block), else_=0)
+    tab_in_sec = case((Bloco.secao_id.in_(ids_escopo_sql), tab_per_block), else_=0)
 
     row = (
         db.query(
@@ -321,9 +287,7 @@ def _response_secao_page(
                 Secao.ordem,
                 Secao.responsavel_id,
             ),
-            selectinload(Relatorio.secoes)
-            .selectinload(Secao.responsavel)
-            .load_only(User.id, User.nome),
+            selectinload(Relatorio.secoes).selectinload(Secao.responsavel).load_only(User.id, User.nome),
         )
         .filter(Relatorio.id == rel_id)
         .one_or_none()
@@ -338,32 +302,19 @@ def _response_secao_page(
     )
     if not rel or not sec or sec.relatorio_id != rel.id:
         return response_dashboard(request, db)
-    if (
-        user.role == "autor"
-        and sec.responsavel_id is not None
-        and sec.responsavel_id != user.id
-    ):
+    if user.role == "autor" and sec.responsavel_id is not None and sec.responsavel_id != user.id:
         return response_relatorio_detail(request, db, rel.id)
     figs = (
         db.query(Figura)
-        .options(
-            load_only(
-                Figura.id, Figura.nome, Figura.relatorio_id, Figura.created_at
-            )
-        )
+        .options(load_only(Figura.id, Figura.nome, Figura.relatorio_id, Figura.created_at))
         .filter(Figura.relatorio_id == rel.id)
         .order_by(Figura.created_at)
         .all()
     )
-    # Filtra por roles relevantes: admin nao assume secao; outros roles
-    # (se existirem no futuro) ficam fora automaticamente. Evita SELECT de
-    # tabela users inteira a cada abertura da pagina de editor.
+    # Filtra por roles relevantes: apenas autores podem ser responsáveis por seções.
+    # Evita SELECT de tabela users inteira a cada abertura da pagina de editor.
     autores = (
-        db.query(User)
-        .options(load_only(User.id, User.nome))
-        .filter(User.role.in_(("autor", "coordenador")))
-        .order_by(User.nome)
-        .all()
+        db.query(User).options(load_only(User.id, User.nome)).filter(User.role == "autor").order_by(User.nome).all()
     )
     sec_ids_escopo = secao_ids_na_subarvore(rel.secoes, sec.numero or "")
     media_counts = _media_counts(db, rel.id, sec_ids_escopo)
@@ -384,19 +335,13 @@ def _response_secao_page(
     )
     # Preview do upload-conteudo: mostra o RELATORIO INTEIRO e posiciona
     # via ancora na secao selecionada (fallback: primeira secao do relatorio).
-    _ancora_sec = sec if (sec and (sec.numero or "").strip()) else (
-        rel.secoes[0] if rel.secoes else None
-    )
-    _ancora = (
-        f"#sec-{(_ancora_sec.numero or '').replace('.', '-')}"
-        if _ancora_sec else ""
-    )
-    preview_url = f"/relatorios/{rel.id}/preview{_ancora}"
+    _ancora_sec = sec if (sec and (sec.numero or "").strip()) else (rel.secoes[0] if rel.secoes else None)
+    _ancora = f"#sec-{(_ancora_sec.numero or '').replace('.', '-')}" if _ancora_sec else ""
+    # Mostrar apenas a seção alvo no preview
+    preview_url = f"/relatorios/{rel.id}/preview?secao_ids={sec.id}{_ancora}"
     # "Upado" = qualquer bloco cuja origem NÃO seja clone/importação do DOCX/PDF.
     origens_clonadas = {"clonado", "docx_import", "pdf_import"}
-    sec_tem_upload = any(
-        (b.origem or "manual") not in origens_clonadas for b in blocos_escopo
-    )
+    sec_tem_upload = any((b.origem or "manual") not in origens_clonadas for b in blocos_escopo)
     return templates.TemplateResponse(
         request,
         template_name,
@@ -407,9 +352,7 @@ def _response_secao_page(
             "figuras": figs,
             "autores": autores,
             "media_counts": media_counts,
-            "modo_edicao_blocos": modo_edicao_coordenador_rel(
-                request, user, rel.id
-            ),
+            "modo_edicao_blocos": modo_edicao_coordenador_rel(request, user, rel.id),
             "mostrar_botao_modo_edicao": user.role == "coordenador",
             "blocos_escopo": blocos_escopo,
             "sec_ids_subarvore": sec_ids_escopo,
@@ -419,9 +362,7 @@ def _response_secao_page(
     )
 
 
-def response_conteudo_upload(
-    request: Request, db: Session, rel_id: int, sec_id: int
-) -> Response:
+def response_conteudo_upload(request: Request, db: Session, rel_id: int, sec_id: int) -> Response:
     """Gestão da secção: coordenação, importação assistida, blocos e editor."""
     return _response_secao_page(
         request,
@@ -432,9 +373,7 @@ def response_conteudo_upload(
     )
 
 
-def response_usuarios(
-    request: Request, db: Session, error: str | None = None
-) -> Response:
+def response_usuarios(request: Request, db: Session, error: str | None = None) -> Response:
     user = current_user(request, db)
     if not user:
         return response_login(request)
@@ -446,9 +385,7 @@ def response_usuarios(
     )
 
 
-def usuario_edit_precheck(
-    request: Request, db: Session, user_id: int
-) -> Response | tuple[User, User]:
+def usuario_edit_precheck(request: Request, db: Session, user_id: int) -> Response | tuple[User, User]:
     """Sessão válida e permissão para editar ``user_id``; senão página de erro."""
     viewer = current_user(request, db)
     if not viewer:
@@ -481,9 +418,7 @@ def response_usuario_edit(
     )
 
 
-def user_or_login_page(
-    request: Request, db: Session
-) -> tuple[User, None] | tuple[None, Response]:
+def user_or_login_page(request: Request, db: Session) -> tuple[User, None] | tuple[None, Response]:
     """Sem HTTP redirect: devolve a página de login (200) se não houver sessão."""
     u = current_user(request, db)
     if not u:

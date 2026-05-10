@@ -585,7 +585,7 @@ WSL
 # === Nomes proprios ===
 Vinicius
 
-# === Strings de validacao com chars acentuados ===
+# === Strings de validacao com charsacentuados ===
 záàâãäéèêëíìîïóòôõöúùûüçñ
 ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ
 
@@ -719,6 +719,7 @@ DAEE
 dckfvc
 dmarc
 DMARC
+dicionarios
 Gmail
 hhmm
 language_tool_python
@@ -727,13 +728,16 @@ linguisticas
 ortografia
 PMSP
 posicoes
+proprios
 pyspellchecker
 Resetando
 sconn
+sensiveis
 scrollável
 serao
 sincronizacao
 tconn
+Temporarios
 tname
 vocabulario
 Vocabulario

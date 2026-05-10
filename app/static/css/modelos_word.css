@@ -1,0 +1,86 @@
+/* Página /modelos-word-importacao — tutorial justificado e tabela hierárquica */
+.page-modelos-word .mw-tutorial {
+  text-align: justify;
+  line-height: 1.65;
+}
+.page-modelos-word .mw-tutorial .mw-intro {
+  text-align: justify;
+  margin: 0 0 0.25rem;
+}
+.page-modelos-word .mw-tutorial-list {
+  list-style: disc;
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 1.25rem;
+}
+.page-modelos-word .mw-tutorial-list li {
+  text-align: justify;
+  margin: 0;
+  padding: 1.1rem 0 1.1rem 0;
+  border-bottom: 1px solid #e8edf3;
+}
+.page-modelos-word .mw-tutorial-list li:first-child {
+  padding-top: 0.35rem;
+}
+.page-modelos-word .mw-tutorial-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0.2rem;
+}
+.page-modelos-word .mw-tutorial .mw-topic-title {
+  display: block;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 0.35rem;
+}
+.page-modelos-word .mw-tutorial .mw-example {
+  display: block;
+  margin-top: 0.45rem;
+  padding: 0.5rem 0.65rem;
+  background: #f4f7fb;
+  border-left: 3px solid var(--blue);
+  border-radius: 0 4px 4px 0;
+  font-size: 12.5px;
+  color: #2a3a4a;
+}
+.page-modelos-word .mw-tutorial .muted.mw-foot {
+  text-align: justify;
+  margin-top: 1.15rem;
+}
+.page-modelos-word table.mw-catalog tbody tr {
+  --mw-depth: 0;
+}
+.page-modelos-word table.mw-catalog tbody tr td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr td.mw-tree-tit {
+  padding-left: calc(10px + var(--mw-depth) * 1.05rem);
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-cat-depth-1 td.mw-tree-tit {
+  color: #2d3e4d;
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-cat-depth-2 td.mw-tree-tit {
+  color: #344555;
+  font-size: 11.2px;
+}
+/* Depth-based padding classes to replace inline --mw-depth */
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-0 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-0 td.mw-tree-tit {
+  padding-left: 10px;
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-1 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-1 td.mw-tree-tit {
+  padding-left: calc(10px + 1.05rem);
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-2 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-2 td.mw-tree-tit {
+  padding-left: calc(10px + 2.1rem);
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-3 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-3 td.mw-tree-tit {
+  padding-left: calc(10px + 3.15rem);
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-4 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-4 td.mw-tree-tit {
+  padding-left: calc(10px + 4.2rem);
+}
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-5 td.mw-tree-num,
+.page-modelos-word table.mw-catalog tbody tr.mw-depth-5 td.mw-tree-tit {
+  padding-left: calc(10px + 5.25rem);
+}

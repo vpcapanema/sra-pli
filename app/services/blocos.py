@@ -270,17 +270,22 @@ def excluir_blocos_lote(
     user, anc_sec = chk
     rel_status = anc_sec.relatorio.status if anc_sec.relatorio is not None else None
     blocos = _blocos_selecionados_escopo(db, rel_id, anc_sec, bloco_ids)
+
+    # Verificação de bloqueado: se algum bloco estiver bloqueado e usuário não puder mutar, retorna erro
+    # Isso mantém consistência com excluir_bloco individual
     if any(
         getattr(bloco, "bloqueado", False) and not pode_mutar_apesar_de_bloqueado(request, user, rel_id, rel_status)
         for bloco in blocos
     ):
         raise HTTPException(403, detail="Blocos bloqueados não podem ser excluídos.")
+
     ids = [bloco.id for bloco in blocos]
     afeta_numeracao = any(_impacta_numeracao(b.tipo, b.conteudo) for b in blocos)
     with tx_session() as txdb:
         if afeta_numeracao:
             consolidar_referencias(txdb, rel_id)
         txdb.query(Bloco).filter(Bloco.id.in_(ids)).delete(synchronize_session=False)
+    _hooks_recompute_entrega_varias_secoes(db, rel_id, [b.secao_id for b in blocos])
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
@@ -332,6 +337,7 @@ def excluir_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db:
         bloco_tx = txdb.get(Bloco, bloco_id)
         if bloco_tx is not None:
             txdb.delete(bloco_tx)
+    _hook_recompute_entrega(db, rel_id, b.secao_id)
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 
@@ -346,6 +352,63 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
     b.updated_at = datetime.utcnow()
     db.commit()
     _hook_recompute_entrega(db, rel_id, b.secao_id)
+    return response_conteudo_upload(request, db, rel_id, sec_id)
+
+
+def desbloquear_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, db: Session):
+    chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
+    if isinstance(chk, Response):
+        return chk
+    user, anc_sec = chk
+    b = _require_bloco_na_subarvore(db, rel_id, anc_sec, bloco_id)
+
+    # Verificar permissão: apenas responsável ou coordenadores/admin podem desbloquear
+    if user.role == "autor":
+        if anc_sec.responsavel_id is None or anc_sec.responsavel_id != user.id:
+            raise HTTPException(
+                403, detail="Apenas o responsável pela seção ou coordenadores podem desbloquear blocos."
+            )
+    elif user.role not in ("admin", "coordenador"):
+        raise HTTPException(403, detail="Sem permissão para desbloquear este bloco.")
+
+    if not b.bloqueado:
+        raise HTTPException(400, detail="Bloco já está desbloqueado.")
+
+    b.bloqueado = False
+    b.updated_at = datetime.utcnow()
+    db.commit()
+    return response_conteudo_upload(request, db, rel_id, sec_id)
+
+
+def desbloquear_blocos_lote(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    bloco_ids: list[int],
+    db: Session,
+):
+    chk = _check(request, db, rel_id, sec_id, exigir_editavel=True)
+    if isinstance(chk, Response):
+        return chk
+    user, anc_sec = chk
+    blocos = _blocos_selecionados_escopo(db, rel_id, anc_sec, bloco_ids)
+
+    # Verificar permissão: apenas responsável ou coordenadores/admin podem desbloquear
+    if user.role == "autor":
+        if anc_sec.responsavel_id is None or anc_sec.responsavel_id != user.id:
+            raise HTTPException(
+                403, detail="Apenas o responsável pela seção ou coordenadores podem desbloquear blocos."
+            )
+    elif user.role not in ("admin", "coordenador"):
+        raise HTTPException(403, detail="Sem permissão para desbloquear blocos.")
+
+    ids = [bloco.id for bloco in blocos]
+    agora = datetime.utcnow()
+    with tx_session() as txdb:
+        txdb.query(Bloco).filter(Bloco.id.in_(ids)).update(
+            {Bloco.bloqueado: False, Bloco.updated_at: agora},
+            synchronize_session=False,
+        )
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
 

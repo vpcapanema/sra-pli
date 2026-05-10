@@ -28,9 +28,7 @@ def revisao_linguistica_rodar(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return revisao_edicao_service.revisao_linguistica_rodar(
-        rel_id, request, db
-    )
+    return revisao_edicao_service.revisao_linguistica_rodar(rel_id, request, db)
 
 
 @router.get("/relatorios/{rel_id}/revisao-edicao")
@@ -39,9 +37,7 @@ def revisao_edicao_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return revisao_edicao_service.revisao_edicao_page(
-        rel_id, request, db
-    )
+    return revisao_edicao_service.revisao_edicao_page(rel_id, request, db)
 
 
 @router.post("/relatorios/{rel_id}/blocos/{bloco_id}/revisao-salvar")
@@ -51,9 +47,7 @@ async def revisao_salvar_bloco(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return await revisao_edicao_service.revisao_salvar_bloco(
-        rel_id, bloco_id, request, db
-    )
+    return await revisao_edicao_service.revisao_salvar_bloco(rel_id, bloco_id, request, db)
 
 
 @router.post("/relatorios/{rel_id}/blocos/{bloco_id}/revisao-desconfirmar")
@@ -63,9 +57,7 @@ def revisao_desconfirmar_bloco(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return revisao_edicao_service.revisao_desconfirmar_bloco(
-        rel_id, bloco_id, request, db
-    )
+    return revisao_edicao_service.revisao_desconfirmar_bloco(rel_id, bloco_id, request, db)
 
 
 @router.post("/relatorios/{rel_id}/revisao-linguistica/vocabulario")
@@ -74,6 +66,42 @@ async def revisao_vocabulario_adicionar(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    return await revisao_edicao_service.revisao_vocabulario_adicionar(
-        rel_id, request, db
-    )
+    return await revisao_edicao_service.revisao_vocabulario_adicionar(rel_id, request, db)
+
+
+@router.post("/relatorios/{rel_id}/verificar-indices")
+def verificar_indices(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return revisao_edicao_service.verificar_indices(rel_id, request, db)
+
+
+@router.post("/relatorios/{rel_id}/verificar-referencias")
+def verificar_referencias(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return revisao_edicao_service.verificar_referencias(rel_id, request, db)
+
+
+@router.post("/relatorios/{rel_id}/secoes/{sec_id}/verificar-indices")
+def verificar_indices_secao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return revisao_edicao_service.verificar_indices_secao(rel_id, sec_id, request, db)
+
+
+@router.post("/relatorios/{rel_id}/secoes/{sec_id}/verificar-referencias")
+def verificar_referencias_secao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return revisao_edicao_service.verificar_referencias_secao(rel_id, sec_id, request, db)

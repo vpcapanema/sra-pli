@@ -1,3 +1,98 @@
+(function () {
+  const cod = document.getElementById("rel-novo-codigo");
+  const tit = document.getElementById("rel-novo-titulo");
+  const med = document.getElementById("rel-novo-medicao");
+  if (!cod || !tit || !med) return;
+
+  function derivarDeCodigo(raw) {
+    const s = (raw || "").trim();
+    if (!s) return { medicao: null, titulo: null };
+    if (/^\d+$/.test(s)) {
+      const n = parseInt(s, 10);
+      if (Number.isNaN(n) || n < 1) return { medicao: null, titulo: null };
+      return { medicao: n, titulo: "Relatório Mensal D20-" + n };
+    }
+    const idx = s.lastIndexOf("-");
+    if (idx < 0) {
+      return { medicao: null, titulo: "Relatório Mensal " + s };
+    }
+    const pref = s.slice(0, idx).trim().replace(/\s+/g, "");
+    const suf = s.slice(idx + 1).replace(/\s+/g, "");
+    if (!/^\d+$/.test(suf)) {
+      return { medicao: null, titulo: "Relatório Mensal " + s };
+    }
+    const n = parseInt(suf, 10);
+    if (Number.isNaN(n) || n < 1) {
+      return { medicao: null, titulo: "Relatório Mensal " + s };
+    }
+    let codigoTitulo = s;
+    if (/^d20$/i.test(pref)) {
+      codigoTitulo = "D20-" + n;
+    }
+    return { medicao: n, titulo: "Relatório Mensal " + codigoTitulo };
+  }
+
+  function syncTituloMedicao() {
+    const d = derivarDeCodigo(cod.value);
+    if (d.medicao != null) {
+      med.value = String(d.medicao);
+    }
+    if (d.titulo != null) {
+      tit.value = d.titulo;
+    }
+  }
+
+  cod.addEventListener("input", syncTituloMedicao);
+  cod.addEventListener("blur", syncTituloMedicao);
+})();
+
+(function () {
+  document.querySelectorAll("[data-open-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const modal = document.getElementById(btn.dataset.openModal);
+      if (modal) modal.classList.remove("is-hidden");
+    });
+  });
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const modal = document.getElementById(btn.dataset.closeModal);
+      if (modal) modal.classList.add("is-hidden");
+    });
+  });
+  document.querySelectorAll(".rel-modal").forEach((modal) => {
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) modal.classList.add("is-hidden");
+    });
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      document
+        .querySelectorAll(".rel-modal:not(.is-hidden)")
+        .forEach((modal) => modal.classList.add("is-hidden"));
+    }
+  });
+})();
+
+// Toggle de seções do dashboard
+(function () {
+  document.querySelectorAll("[data-toggle-target]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const targetId = el.dataset.toggleTarget;
+      const target = document.getElementById(targetId);
+      if (!target) return;
+
+      const isHidden = target.classList.contains("ss-content-collapsed");
+      if (isHidden) {
+        target.classList.remove("ss-content-collapsed");
+        el.querySelector(".ss-toggle-icon").style.transform = "rotate(180deg)";
+      } else {
+        target.classList.add("ss-content-collapsed");
+        el.querySelector(".ss-toggle-icon").style.transform = "rotate(0deg)";
+      }
+    });
+  });
+})();
+
 /**
  * Progresso real de criação de relatório no dashboard (3 opções).
  *
@@ -23,34 +118,60 @@
     }
 
     var inpDocxUpload = form.querySelector('input[name="docx_upload"]');
-    var radios = form.querySelectorAll('input[name="fonte_secoes"]');
+    var selSRA = form.querySelector('select[name="base_relatorio_id"]');
+    var selDocx = form.querySelector('select[name="docx_disponivel"]');
+    var hiddenFonte = form.querySelector('input[name="fonte_secoes"]');
     var btnSubmit = form.querySelector('button[type="submit"]');
+    var btnUploadDocx = form.querySelector("#btn-upload-docx");
 
     var overlay = criarOverlay();
 
     function fonteAtual() {
-      var r = form.querySelector('input[name="fonte_secoes"]:checked');
-      return r ? r.value : "";
+      if (selDocx && selDocx.value) {
+        return "docx_disponivel";
+      }
+      if (inpDocxUpload && inpDocxUpload.files && inpDocxUpload.files[0]) {
+        return "docx_upload";
+      }
+      if (selSRA && selSRA.value) {
+        return "clone_relatorio";
+      }
+      return "";
     }
 
-    function atualizarBotaoVisivel() {
-      if (!btnSubmit) return;
-      var esc = fonteAtual();
-      if (esc === "docx_upload") {
-        btnSubmit.style.display = "none";
-      } else {
-        btnSubmit.style.display = "";
+    function atualizarFonteHidden() {
+      if (!hiddenFonte) return;
+      var f = fonteAtual();
+      if (f) {
+        hiddenFonte.value = f;
       }
     }
 
-    radios.forEach(function (r) {
-      r.addEventListener("change", atualizarBotaoVisivel);
+    selSRA.addEventListener("change", function () {
+      if (this.value) {
+        selDocx.value = "";
+        if (inpDocxUpload) inpDocxUpload.value = "";
+      }
+      atualizarFonteHidden();
     });
-    atualizarBotaoVisivel();
+
+    selDocx.addEventListener("change", function () {
+      if (this.value) {
+        selSRA.value = "";
+        if (inpDocxUpload) inpDocxUpload.value = "";
+      }
+      atualizarFonteHidden();
+    });
+
+    if (btnUploadDocx && inpDocxUpload) {
+      btnUploadDocx.addEventListener("click", function () {
+        inpDocxUpload.click();
+      });
+    }
 
     form.addEventListener("submit", function (ev) {
       var fonte = fonteAtual();
-      if (fonte === "docx_upload") {
+      if (!fonte) {
         ev.preventDefault();
         return;
       }
@@ -66,19 +187,53 @@
         if (!inpDocxUpload.files || !inpDocxUpload.files[0]) {
           return;
         }
-        var radioDocxUp = form.querySelector(
-          'input[name="fonte_secoes"][value="docx_upload"]',
-        );
-        if (radioDocxUp) {
-          radioDocxUp.checked = true;
-          atualizarBotaoVisivel();
-        }
-        if (!form.reportValidity()) {
-          return;
-        }
-        iniciarCriacao(form, overlay, inpDocxUpload.files[0]);
+        // Upload apenas, sem clonagem automática
+        uploadDocxOnly(form, overlay, inpDocxUpload.files[0]);
       });
     }
+  }
+
+  function uploadDocxOnly(form, overlay, arquivo) {
+    overlay.open();
+    overlay.set(0, "Enviando arquivo...");
+
+    var fd = new FormData();
+    fd.append("docx_upload", arquivo);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/relatorios/upload-docx", true);
+
+    xhr.upload.onprogress = function (e) {
+      if (!e.lengthComputable) return;
+      var pct = (e.loaded / e.total) * 100;
+      overlay.set(
+        pct,
+        "Enviando arquivo (" +
+          formatSize(e.loaded) +
+          " / " +
+          formatSize(e.total) +
+          ")",
+      );
+    };
+
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        overlay.set(100, "Upload concluído");
+        overlay.concluido();
+        // Recarregar página para atualizar lista de DOCX
+        setTimeout(function () {
+          window.location.reload();
+        }, 1000);
+      } else {
+        overlay.falhou("Falha ao fazer upload (HTTP " + xhr.status + ")");
+      }
+    };
+
+    xhr.onerror = function () {
+      overlay.falhou("Erro de rede.");
+    };
+
+    xhr.send(fd);
   }
 
   function criarOverlay() {
@@ -154,7 +309,14 @@
       xhr.upload.onprogress = function (e) {
         if (!e.lengthComputable) return;
         var pctUpload = (e.loaded / e.total) * 50;
-        overlay.set(pctUpload, "Enviando arquivo (" + formatSize(e.loaded) + " / " + formatSize(e.total) + ")");
+        overlay.set(
+          pctUpload,
+          "Enviando arquivo (" +
+            formatSize(e.loaded) +
+            " / " +
+            formatSize(e.total) +
+            ")",
+        );
       };
       xhr.upload.onload = function () {
         overlay.set(50, "Arquivo enviado; processando no servidor…");
@@ -181,7 +343,8 @@
       try {
         var j = JSON.parse(xhr.responseText);
         if (j && j.detail) {
-          msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+          msg =
+            typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
         }
       } catch (_) {
         if (xhr.responseText) {

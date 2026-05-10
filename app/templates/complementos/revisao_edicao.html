@@ -12,35 +12,9 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
   data-editavel="{{ '1' if relatorio_editavel else '0' }}"
 >
   <!-- Seletor de relatório -->
-  <div
-    class="rev-rel-selector"
-    style="
-      padding: 8px 16px;
-      background: #f3f6fa;
-      border-bottom: 1px solid #d0d8e4;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    "
-  >
-    <label
-      for="rev-rel-select"
-      style="font-size: 13px; color: #4a5568; font-weight: 600"
-      >Relatório:</label
-    >
-    <select
-      id="rev-rel-select"
-      onchange="if (this.value) location.href = this.value;"
-      style="
-        font-size: 13px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        border: 1px solid #cbd5e0;
-        background: #fff;
-        min-width: 280px;
-        max-width: 100%;
-      "
-    >
+  <div class="rev-rel-selector">
+    <label for="rev-rel-select">Relatório:</label>
+    <select id="rev-rel-select" class="rev-rel-select" data-rev-navigate>
       {% for r in relatorios_opcao %}
       <option value="/relatorios/{{ r.id }}/revisao-edicao"{% if r.id == rel.id %} selected{% endif %}>{{ r.codigo }} — {{ r.mes_referencia or r.titulo }}</option>
       {% endfor %}
@@ -695,6 +669,49 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           <span>DOCX</span>
         </button>
       </div>
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-verificar-indices"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="verificar-indices"
+          title="Verificar índices hierarquizados"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 3h18v18H3zM9 9l2 2 4-4M9 15l2 2 4-4"></path>
+          </svg>
+          <span>Índices</span>
+        </button>
+      </div>
+      <div class="rev-toolbar-card rev-toolbar-card--action">
+        <button
+          type="button"
+          id="rev-btn-verificar-referencias"
+          class="rev-toolbar-btn rev-toolbar-btn--icon-only rev-toolbar-btn--action"
+          data-action="verificar-referencias"
+          title="Verificar referências cruzadas"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Refs</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -740,7 +757,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
     <!-- Documento (scrollável) -->
     <main class="rev-doc">
       <div class="rev-doc__scroll">
-        <div class="rev-preview-root">
+        <div class="rev-preview-root" id="rev-preview-root">
           <!-- CAPA -->
           <div class="rev-sheet rev-sheet--capa">
             <section class="capa">
@@ -1244,7 +1261,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
 <!-- Modal para exportar DOCX - seções selecionadas -->
 <div id="modal-export-docx-secoes" class="rev-modal" hidden>
   <div class="rev-modal__overlay" data-action="close-modal"></div>
-  <div class="rev-modal__dialog" style="max-width: 600px">
+  <div class="rev-modal__dialog">
     <div class="rev-modal__header">
       <h3>Exportar DOCX - Seções Selecionadas</h3>
       <button type="button" class="rev-modal__close" data-action="close-modal">
@@ -1256,7 +1273,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       <div class="rev-secoes-list">
         {% for s in rel.secoes %}
         <label class="rev-secao-item">
-          <input type="checkbox" name="secoes" value="{{ s.id }}" checked />
+          <input type="checkbox" id="export-secao-{{ s.id }}" name="secoes" value="{{ s.id }}" checked />
           <span>{{ s.numero }} - {{ s.titulo }}</span>
         </label>
         {% endfor %}
@@ -1274,5 +1291,40 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
   </div>
 </div>
 
-<script src="{{ url_for('static', path='js/revisao_edicao.js') }}"></script>
+<!-- Modal para verificação de índices e referências -->
+<div id="modal-verificacao" class="rev-modal" style="display: none;">
+  <div class="rev-modal__overlay" data-action="close-modal"></div>
+  <div class="rev-modal__dialog rev-modal__dialog--wide">
+    <div class="rev-modal__header">
+      <h3 id="verificacao-title">Verificação</h3>
+      <button type="button" class="rev-modal__close" data-action="close-modal">
+        ×
+      </button>
+    </div>
+    <div class="rev-modal__body">
+      <div id="verificacao-loading" class="rev-loading" style="display: none;">
+        <p>Verificando...</p>
+      </div>
+      <div id="verificacao-results" class="rev-verificacao-results" style="display: none;">
+        <div class="rev-verificacao-summary">
+          <p id="verificacao-summary"></p>
+        </div>
+        <div id="verificacao-list" class="rev-verificacao-list"></div>
+      </div>
+      <div id="verificacao-empty" class="rev-verificacao-empty" style="display: none;">
+        <p>Nenhum problema encontrado.</p>
+      </div>
+    </div>
+    <div class="rev-modal__actions">
+      <button type="button" class="rev-btn" data-action="close-modal">
+        Fechar
+      </button>
+      <button type="button" id="verificacao-action-btn" class="rev-btn rev-btn--primary" style="display: none;">
+        Aplicar correções
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/revisao_edicao.js"></script>
 {% endblock %}

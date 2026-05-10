@@ -101,9 +101,7 @@ def _dict_navegacao_revisao_secao(
     rotulo = "" if sem else autor_rotulo_secao(sec)
     n_b = len(sec.blocos)
     n_c = sum(1 for b in sec.blocos if b.bloqueado)
-    blocos_txt = (
-        "sem blocos" if n_b == 0 else f"{n_c}/{n_b} blocos confirmados"
-    )
+    blocos_txt = "sem blocos" if n_b == 0 else f"{n_c}/{n_b} blocos confirmados"
     return {
         "secao_id": sec.id,
         "numero": num,
@@ -198,9 +196,7 @@ def salvar_observacao_validacao_secao(
         return p
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        raise HTTPException(
-            403, detail="Acesso restrito a coordenador/admin."
-        )
+        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404, detail="Seção não encontrada.")
@@ -210,9 +206,7 @@ def salvar_observacao_validacao_secao(
     sec.observacao_validacao = body or None
     db.add(sec)
     db.commit()
-    dest = (redirect_to or "").strip() or (
-        f"/relatorios/{rel_id}/revisao-edicao"
-    )
+    dest = (redirect_to or "").strip() or (f"/relatorios/{rel_id}/revisao-edicao")
     return RedirectResponse(url=dest, status_code=303)
 
 
@@ -224,14 +218,10 @@ def revisao_linguistica_rodar(
     """Análise sob demanda — devolve JSON consumido por fetch() no painel."""
     user, p = user_or_login_page(request, db)
     if p is not None:
-        return JSONResponse(
-            {"detail": "Sessão expirada."}, status_code=401
-        )
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        raise HTTPException(
-            403, detail="Acesso restrito a coordenador/admin."
-        )
+        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
     rel = db.get(Relatorio, rel_id)
     if not rel:
         raise HTTPException(404, detail="Relatório não encontrado.")
@@ -254,9 +244,7 @@ def revisao_edicao_page(
         return p
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        raise HTTPException(
-            403, detail="Acesso restrito a coordenador/admin."
-        )
+        raise HTTPException(403, detail="Acesso restrito a coordenador/admin.")
 
     rel = (
         db.query(Relatorio)
@@ -275,9 +263,7 @@ def revisao_edicao_page(
     contexto_pdf = _montar_contexto_pdf(db, rel)
     resumo_global, categorias_globais = montar_checagens_globais(db, rel)
     arvore_revisao = _arvore_revisao_navegacao(rel, categorias_globais, [])
-    relatorios_opcao = (
-        db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
-    )
+    relatorios_opcao = db.query(Relatorio).order_by(Relatorio.created_at.desc()).all()
 
     contexto = {
         "user": user,
@@ -322,59 +308,40 @@ async def revisao_salvar_bloco(
     """
     user, p = user_or_login_page(request, db)
     if p is not None:
-        return JSONResponse(
-            {"detail": "Sessão expirada."}, status_code=401
-        )
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        return JSONResponse(
-            {"detail": "Acesso restrito."}, status_code=403
-        )
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
 
     rel = db.get(Relatorio, rel_id)
     if not rel:
-        return JSONResponse(
-            {"detail": "Relatório não encontrado."}, status_code=404
-        )
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
     if rel.status == "finalizado":
         return JSONResponse(
-            {
-                "detail": (
-                    "Relatório finalizado: reverta o status antes de editar."
-                )
-            },
+            {"detail": ("Relatório finalizado: reverta o status antes de editar.")},
             status_code=409,
         )
 
     bloco = db.get(Bloco, bloco_id)
     sec = db.get(Secao, bloco.secao_id) if bloco else None
     if not bloco or sec is None or sec.relatorio_id != rel_id:
-        return JSONResponse(
-            {"detail": "Bloco não encontrado."}, status_code=404
-        )
+        return JSONResponse({"detail": "Bloco não encontrado."}, status_code=404)
 
     payload = await request.json()
     if not isinstance(payload, dict):
-        return JSONResponse(
-            {"detail": "Payload inválido."}, status_code=400
-        )
+        return JSONResponse({"detail": "Payload inválido."}, status_code=400)
 
     # Defesa em profundidade: se o conteúdo bruto contém marcadores
     # estruturais ([[FIGURA:..]], [[TABELA..]], [[REF:..]]), a edição inline
     # destruiria a integridade. O frontend já bloqueia a UI, mas o backend
     # também recusa explicitamente.
     bruto_atual = bloco.conteudo or ""
-    tem_marcador = (
-        "[[FIGURA:" in bruto_atual
-        or "[[TABELA" in bruto_atual
-        or "[[REF:" in bruto_atual
-    )
+    tem_marcador = "[[FIGURA:" in bruto_atual or "[[TABELA" in bruto_atual or "[[REF:" in bruto_atual
     if "conteudo" in payload and tem_marcador:
         return JSONResponse(
             {
                 "detail": (
-                    "Bloco contém marcadores de figura/tabela/referência. "
-                    "Edite no Editor de Conteúdo da seção."
+                    "Bloco contém marcadores de figura/tabela/referência. Edite no Editor de Conteúdo da seção."
                 ),
             },
             status_code=409,
@@ -414,20 +381,14 @@ def revisao_desconfirmar_bloco(
     """Reabre um bloco confirmado (``bloqueado=False``). Idempotente."""
     user, p = user_or_login_page(request, db)
     if p is not None:
-        return JSONResponse(
-            {"detail": "Sessão expirada."}, status_code=401
-        )
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        return JSONResponse(
-            {"detail": "Acesso restrito."}, status_code=403
-        )
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
 
     rel = db.get(Relatorio, rel_id)
     if not rel:
-        return JSONResponse(
-            {"detail": "Relatório não encontrado."}, status_code=404
-        )
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
     if rel.status == "finalizado":
         return JSONResponse(
             {"detail": "Relatório finalizado: reverta o status antes."},
@@ -437,16 +398,12 @@ def revisao_desconfirmar_bloco(
     bloco = db.get(Bloco, bloco_id)
     sec = db.get(Secao, bloco.secao_id) if bloco else None
     if not bloco or sec is None or sec.relatorio_id != rel_id:
-        return JSONResponse(
-            {"detail": "Bloco não encontrado."}, status_code=404
-        )
+        return JSONResponse({"detail": "Bloco não encontrado."}, status_code=404)
 
     bloco.bloqueado = False
     bloco.updated_at = datetime.utcnow()
     db.commit()
-    return JSONResponse(
-        {"ok": True, "bloco_id": bloco.id, "bloqueado": False}
-    )
+    return JSONResponse({"ok": True, "bloco_id": bloco.id, "bloqueado": False})
 
 
 # pylint: disable=too-many-return-statements,unused-argument
@@ -463,20 +420,14 @@ async def revisao_vocabulario_adicionar(
     """
     user, p = user_or_login_page(request, db)
     if p is not None:
-        return JSONResponse(
-            {"detail": "Sessão expirada."}, status_code=401
-        )
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
     assert user is not None
     if user.role not in ("admin", "coordenador"):
-        return JSONResponse(
-            {"detail": "Acesso restrito."}, status_code=403
-        )
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
 
     payload = await request.json()
     if not isinstance(payload, dict):
-        return JSONResponse(
-            {"detail": "Payload inválido."}, status_code=400
-        )
+        return JSONResponse({"detail": "Payload inválido."}, status_code=400)
     termo = (payload.get("termo") or "").strip()
     if not termo:
         return JSONResponse({"detail": "Termo vazio."}, status_code=400)
@@ -491,5 +442,303 @@ async def revisao_vocabulario_adicionar(
             "criado": criado,
             "termo": registro.termo,
             "id": registro.id,
+        }
+    )
+
+
+def verificar_indices(
+    rel_id: int,
+    request: Request,
+    db: Session,
+):
+    """Verifica se os índices de seções, figuras e tabelas estão logicamente hierarquizados."""
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    rel = (
+        db.query(Relatorio)
+        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
+        .filter(Relatorio.id == rel_id)
+        .one_or_none()
+    )
+    if not rel:
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
+
+    problemas = []
+
+    # Verificar hierarquia de seções
+    secoes_por_numero = {s.numero: s for s in rel.secoes if s.numero}
+    for sec in rel.secoes:
+        if not sec.numero:
+            continue
+        partes = sec.numero.split(".")
+        # Verificar se o número segue o padrão hierárquico
+        for i, parte in enumerate(partes):
+            if not parte.isdigit():
+                problemas.append(
+                    {
+                        "tipo": "error",
+                        "titulo": f"Seção {sec.numero} com formato inválido",
+                        "desc": f"O número da seção contém caracteres não numéricos: '{parte}'",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                    }
+                )
+                break
+
+        # Verificar se a seção pai existe (exceto para raízes)
+        if len(partes) > 1:
+            pai_numero = ".".join(partes[:-1])
+            if pai_numero not in secoes_por_numero:
+                problemas.append(
+                    {
+                        "tipo": "error",
+                        "titulo": f"Seção {sec.numero} sem pai",
+                        "desc": f"A seção pai '{pai_numero}' não existe no relatório",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                    }
+                )
+
+    # Verificar índices de figuras e tabelas por capítulo
+    figuras_por_capitulo: dict[str, int] = {}
+    tabelas_por_capitulo: dict[str, int] = {}
+    for sec in rel.secoes:
+        if not sec.numero:
+            continue
+        capitulo = sec.numero.split(".")[0]
+        for bloco in sec.blocos:
+            if bloco.tipo == "figura":
+                figuras_por_capitulo[capitulo] = figuras_por_capitulo.get(capitulo, 0) + 1
+            elif bloco.tipo == "tabela":
+                tabelas_por_capitulo[capitulo] = tabelas_por_capitulo.get(capitulo, 0) + 1
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "problemas": problemas,
+            "total": len(problemas),
+            "figuras_por_capitulo": figuras_por_capitulo,
+            "tabelas_por_capitulo": tabelas_por_capitulo,
+        }
+    )
+
+
+def verificar_referencias(
+    rel_id: int,
+    request: Request,
+    db: Session,
+):
+    """Verifica lógica hierárquica de referências cruzadas e identifica referências não indexadas."""
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    rel = (
+        db.query(Relatorio)
+        .options(selectinload(Relatorio.secoes).selectinload(Secao.blocos))
+        .filter(Relatorio.id == rel_id)
+        .one_or_none()
+    )
+    if not rel:
+        return JSONResponse({"detail": "Relatório não encontrado."}, status_code=404)
+
+    from ..ref_resolve import RE_REF
+
+    problemas = []
+    ids_secoes = {s.id for s in rel.secoes}
+    ids_blocos_figtab = {b.id for s in rel.secoes for b in s.blocos if b.tipo in ("figura", "tabela")}
+
+    # Verificar referências cruzadas no texto
+    for sec in rel.secoes:
+        for bloco in sec.blocos:
+            texto = (bloco.conteudo or "") + " " + (bloco.legenda or "")
+            for tipo, alvo_str in RE_REF.findall(texto):
+                alvo = int(alvo_str)
+                valido = alvo in ids_secoes if tipo == "secao" else alvo in ids_blocos_figtab
+                if not valido:
+                    problemas.append(
+                        {
+                            "tipo": "error",
+                            "titulo": f"Referência quebrada em {sec.numero}",
+                            "desc": f"Referência [[REF:{tipo}|{alvo}]] aponta para alvo inexistente no relatório (bloco #{bloco.id})",
+                            "secao_id": sec.id,
+                            "secao_numero": sec.numero,
+                            "bloco_id": bloco.id,
+                        }
+                    )
+
+    # Verificar se há figuras/tabelas sem referência no texto
+    figuras_referenciadas: set[int] = set()
+    tabelas_referenciadas: set[int] = set()
+    for sec in rel.secoes:
+        for bloco in sec.blocos:
+            texto = (bloco.conteudo or "") + " " + (bloco.legenda or "")
+            for tipo, alvo_str in RE_REF.findall(texto):
+                alvo = int(alvo_str)
+                if tipo == "figura":
+                    figuras_referenciadas.add(alvo)
+                elif tipo == "tabela":
+                    tabelas_referenciadas.add(alvo)
+
+    for sec in rel.secoes:
+        for bloco in sec.blocos:
+            if bloco.tipo == "figura" and bloco.id not in figuras_referenciadas:
+                problemas.append(
+                    {
+                        "tipo": "warning",
+                        "titulo": f"Figura não referenciada em {sec.numero}",
+                        "desc": f"A figura #{bloco.id} não é referenciada em nenhum texto do relatório",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                        "bloco_id": bloco.id,
+                    }
+                )
+            elif bloco.tipo == "tabela" and bloco.id not in tabelas_referenciadas:
+                problemas.append(
+                    {
+                        "tipo": "warning",
+                        "titulo": f"Tabela não referenciada em {sec.numero}",
+                        "desc": f"A tabela #{bloco.id} não é referenciada em nenhum texto do relatório",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                        "bloco_id": bloco.id,
+                    }
+                )
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "problemas": problemas,
+            "total": len(problemas),
+        }
+    )
+
+
+def verificar_indices_secao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session,
+):
+    """Verifica se os índices de seções, figuras e tabelas estão logicamente hierarquizados para uma seção específica."""
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    sec = db.get(Secao, sec_id)
+    if not sec:
+        return JSONResponse({"detail": "Seção não encontrada."}, status_code=404)
+
+    problemas = []
+
+    # Verificar hierarquia da seção
+    if sec.numero:
+        partes = sec.numero.split(".")
+        for parte in partes:
+            if not parte.isdigit():
+                problemas.append(
+                    {
+                        "tipo": "error",
+                        "titulo": f"Seção {sec.numero} com formato inválido",
+                        "desc": f"O número da seção contém caracteres não numéricos: '{parte}'",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                    }
+                )
+                break
+
+        # Verificar se a seção pai existe
+        if len(partes) > 1:
+            pai_numero = ".".join(partes[:-1])
+            pai = db.query(Secao).filter(Secao.relatorio_id == rel_id, Secao.numero == pai_numero).first()
+            if not pai:
+                problemas.append(
+                    {
+                        "tipo": "error",
+                        "titulo": f"Seção {sec.numero} sem pai",
+                        "desc": f"A seção pai '{pai_numero}' não existe no relatório",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                    }
+                )
+
+    # Verificar índices de figuras e tabelas na seção
+    figuras = [b for b in sec.blocos if b.tipo == "figura"]
+    tabelas = [b for b in sec.blocos if b.tipo == "tabela"]
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "problemas": problemas,
+            "total": len(problemas),
+            "figuras_count": len(figuras),
+            "tabelas_count": len(tabelas),
+        }
+    )
+
+
+def verificar_referencias_secao(
+    rel_id: int,
+    sec_id: int,
+    request: Request,
+    db: Session,
+):
+    """Verifica referências cruzadas em uma seção específica."""
+    user, p = user_or_login_page(request, db)
+    if p is not None:
+        return JSONResponse({"detail": "Sessão expirada."}, status_code=401)
+    assert user is not None
+    if user.role not in ("admin", "coordenador"):
+        return JSONResponse({"detail": "Acesso restrito."}, status_code=403)
+
+    sec = db.get(Secao, sec_id)
+    if not sec:
+        return JSONResponse({"detail": "Seção não encontrada."}, status_code=404)
+
+    from ..ref_resolve import RE_REF
+
+    problemas = []
+    ids_secoes = {s.id for s in sec.relatorio.secoes} if sec.relatorio else set()
+    ids_blocos_figtab = set()
+    if sec.relatorio:
+        for s in sec.relatorio.secoes:
+            for b in s.blocos:
+                if b.tipo in ("figura", "tabela"):
+                    ids_blocos_figtab.add(b.id)
+
+    # Verificar referências cruzadas no texto da seção
+    for bloco in sec.blocos:
+        texto = (bloco.conteudo or "") + " " + (bloco.legenda or "")
+        for tipo, alvo_str in RE_REF.findall(texto):
+            alvo = int(alvo_str)
+            valido = alvo in ids_secoes if tipo == "secao" else alvo in ids_blocos_figtab
+            if not valido:
+                problemas.append(
+                    {
+                        "tipo": "error",
+                        "titulo": f"Referência quebrada em {sec.numero}",
+                        "desc": f"Referência [[REF:{tipo}|{alvo}]] aponta para alvo inexistente (bloco #{bloco.id})",
+                        "secao_id": sec.id,
+                        "secao_numero": sec.numero,
+                        "bloco_id": bloco.id,
+                    }
+                )
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "problemas": problemas,
+            "total": len(problemas),
         }
     )

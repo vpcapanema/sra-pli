@@ -1,0 +1,206 @@
+/* Painel de Entregas */
+.painel-entregas table {
+  table-layout: auto;
+}
+.painel-entregas td.col-data {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.painel-entregas td.col-secoes {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.painel-entregas td.col-acoes {
+  position: relative;
+}
+
+/* Action menu dropdown */
+.acao-menu {
+  display: inline-block;
+  position: relative;
+}
+.acao-menu-trig {
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 14px;
+  color: var(--navy);
+  user-select: none;
+}
+.acao-menu-trig::-webkit-details-marker {
+  display: none;
+}
+.acao-menu[open] .acao-menu-trig {
+  background: var(--navy);
+  color: #fff;
+}
+.acao-menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.acao-menu-pop label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--navy);
+  font-weight: 700;
+  display: block;
+  margin: 0 0 4px;
+}
+.acao-menu-pop select {
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 100%;
+}
+.acao-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+.acao-btn:hover {
+  background: var(--navy);
+}
+.acao-btn.secondary {
+  background: #fff;
+  color: var(--navy);
+  border: 1px solid var(--navy);
+}
+.acao-btn.secondary:hover {
+  background: #f0f4f8;
+}
+.acao-menu-pop-form {
+  min-width: 440px;
+  max-width: 560px;
+  padding: 14px 16px 12px;
+  gap: 0;
+}
+.acao-menu-pop-form .acao-form-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.acao-menu-pop-form .acao-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.acao-menu-pop-form .acao-form-grid .full {
+  grid-column: 1/-1;
+}
+.acao-menu-pop-form .acao-form-grid label {
+  margin: 0 0 4px;
+}
+.acao-menu-pop-form input,
+.acao-menu-pop-form select,
+.acao-menu-pop-form textarea {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  width: 100%;
+}
+.acao-menu-pop-form textarea {
+  font-family: "Consolas", "Courier New", monospace;
+  min-height: 60px;
+  resize: vertical;
+}
+.acao-menu-pop-form .acao-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.acao-menu-pop-form .acao-form-ro {
+  font-size: 10.5px;
+  color: var(--muted);
+  grid-column: 1/-1;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.acao-menu-pop-form .acao-form-ro strong {
+  color: var(--text);
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .acao-menu-pop-form {
+    min-width: auto;
+    width: min(92vw, 520px);
+  }
+  .acao-menu-pop-form .acao-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Painel de entregas — instruções e aviso de prazo */
+.entregas-instr-body {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.entregas-instr-h {
+  margin: 1rem 0 0.5rem;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: var(--navy);
+}
+.entregas-instr-h:first-child {
+  margin-top: 0;
+}
+.entregas-instr-ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.35rem;
+}
+.entregas-instr-ol > li {
+  margin-bottom: 0.65rem;
+}
+.entregas-aviso-prazo {
+  margin-top: 1.25rem;
+  padding: 14px 16px;
+  border: 2px solid #7a1212;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fff5f5 0%, #ffe8e8 100%);
+  box-shadow: 0 2px 8px rgba(122, 18, 18, 0.12);
+  text-align: center;
+}
+.entregas-aviso-prazo-tit {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: #5c0f0f;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.entregas-aviso-prazo-txt {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #6b1010;
+  font-weight: 600;
+  text-align: center;
+}

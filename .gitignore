@@ -26,29 +26,13 @@ package-lock.json
 # Relatorio de lint gerado para o agente (scripts/dump_agent_diagnostics.py)
 artifacts/agent-diagnostics.txt
 
-# Scripts locais de automacao/smoke (podem conter tokens, IDs de servico)
-scripts/_smoke_http.py
-scripts/_smoke_prod.py
-scripts/_render_update_env.py
-scripts/_SESSION_CONTEXT.md
-
 # Cache do Playwright MCP (sessoes do agente; nao versionar)
 .playwright-mcp/
-
-# Alembic: versionar config e migrations, ignorar __pycache__ local
-alembic/__pycache__/
-alembic/versions/__pycache__/
 
 # Capturas e relatorios soltos na raiz (lixo de sessoes anteriores do agente)
 gov_*.png
 preview_*.pdf
 mapa_da_aplicacao.html
-
-# Scripts temporarios (debug ad-hoc) e logs soltos na raiz
-tmp_*.py
-tmp_*.ps1
-uvicorn.err
-uvicorn.out
 
 # Snapshots adhoc gerados por scripts utilitarios
 artifacts/_*.txt
@@ -58,5 +42,20 @@ artifacts/_*.png
 artifacts/route-audit-summary.txt
 artifacts/route-inventory.md
 
-# Senhas em plain text (temporario para envio por email)
+# Temporarios locais e arquivos sensiveis (nao versionar)
+.tmp/
+.venv_new/
+tmp/
+scripts/_SESSION_CONTEXT.md
+chave_ppk/
 docs/senhas_autores.txt
+cookies*.txt
+temp_import.json
+teste_uploads/
+apply_css_updates.py
+apply_filters.py
+apply_js_filter.py
+verify_changes.py
+exemplo_tabela_legenda_parametros.html
+tabela_visual_correto.html
+relatorios_entregues/D20-13 - R00 1.docx

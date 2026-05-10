@@ -57,15 +57,22 @@ def executar_notificacao_manual(
 ) -> None:
     """Despacha o envio manual de notificação ao usuário no tipo escolhido.
 
-    Manual sempre ignora a idempotência/calendário: o coord clicou de propósito.
-    Para ``abertura`` passa ``force=True`` (não pula quem já recebeu, reenvia
-    a principal **e** secundário). Para lembrete/última chamada, ignora o
-    calendário. Centraliza para o card unificado da governança.
+    Regra de governança:
+    - ``abertura`` respeita idempotência por relatório (não reenvia se já houve
+      abertura com sucesso para os destinatários daquele relatório).
+    - ``lembrete`` e ``ultima_chamada`` continuam soberanos na execução manual,
+      ignorando calendário quando o coordenador decide disparar.
     """
     if tipo not in TIPOS_NOTIFICACAO_MANUAL:
         raise ValueError(f"tipo de notificação inválido: {tipo!r}")
     if tipo == "abertura":
-        resumo = notificar_autores_abertura(db, relatorio_id, force=True)
+        resumo = notificar_autores_abertura(db, relatorio_id, force=False)
+        if resumo.pulados_ja_enviados > 0 and resumo.emails_enviados == 0:
+            resumo.avisos.append(
+                "Abertura já foi disparada para este relatório. "
+                "Para novo disparo, selecione outro tipo de notificação "
+                "(lembrete ou última chamada)."
+            )
     else:
         resumo = enviar_lembretes(
             db,

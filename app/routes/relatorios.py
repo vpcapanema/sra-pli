@@ -34,6 +34,14 @@ async def progresso_criar_relatorio(token: str) -> JSONResponse:
     return await relatorios_service.progresso_criar_relatorio(token)
 
 
+@router.post("/upload-docx")
+async def upload_docx_only(
+    docx_upload: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    return await relatorios_service.upload_docx_only(docx_upload, db)
+
+
 @router.post("")
 async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     request: Request,
@@ -47,7 +55,6 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
     pdf_disponivel: str = Form(""),
     docx_disponivel: str = Form(""),
     pdf_upload: "UploadFile | None" = File(None),
-    docx_upload: "UploadFile | None" = File(None),
     base_relatorio_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -63,7 +70,8 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         pdf_disponivel,
         docx_disponivel,
         pdf_upload,
-        docx_upload,
+        None,
+        None,
         base_relatorio_id,
         db,
     )
@@ -189,3 +197,12 @@ def renomear_secao(
     db: Session = Depends(get_db),
 ):
     return relatorios_service.renomear_secao(rel_id, sec_id, request, titulo, db)
+
+
+@router.post("/{rel_id}/secoes/editar-lote")
+async def editar_secoes_lote(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return await relatorios_service.editar_secoes_lote(rel_id, request, db)

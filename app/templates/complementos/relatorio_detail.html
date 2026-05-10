@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block head_extra %}
+<link href="/static/css/relatorio_detail.css" rel="stylesheet" />
+{% endblock %}
 {% block body_class %}page-rel-com-preview{% endblock %}
 {% block title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock %}
 {% block header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %}
@@ -106,10 +109,11 @@
           <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
             >Entregas dos autores</a
           >
+          <button type="button" class="btn-pdf" id="btn-editar-lote-sumario">Editar em lote</button>
         {% endif %}
       </div>
       <div class="sb2">
-        <table>
+        <table class="sumario-table">
           <thead>
             <tr>
               <th>#</th>
@@ -130,11 +134,11 @@
               <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
               <td>
                 {% set ns_b = contagens_blocos.get(s.id, {'clonados': 0, 'autorados': 0}) %}
-                <span title="Blocos clonados" style="color:#145214;font-weight:600">{{ ns_b.clonados }}</span>
-                <span aria-hidden="true" style="color:#9aa3af"> / </span>
-                <span title="Blocos inseridos pelo autor" style="color:#0b2a66;font-weight:600">{{ ns_b.autorados }}</span>
+                <span title="Blocos clonados" class="blocos-clonados">{{ ns_b.clonados }}</span>
+                <span aria-hidden="true" class="blocos-separator"> / </span>
+                <span title="Blocos inseridos pelo autor" class="blocos-autorados">{{ ns_b.autorados }}</span>
               </td>
-              <td>
+              <td class="status-col">
                 {% if s.status == 'aprovada' %}
                 <span class="sbadge s-completo">aprovada</span>
                 {% elif s.status == 'em_andamento' %}
@@ -169,7 +173,7 @@
                       class="inline-form"
                       title="Mover para cima"
                     >
-                      <input type="hidden" name="direcao" value="cima" />
+                      <input type="hidden" name="direcao" id="mover-direcao-cima" value="cima" />
                       <button
                         type="submit"
                         class="link-quiet"
@@ -182,7 +186,7 @@
                       class="inline-form"
                       title="Mover para baixo"
                     >
-                      <input type="hidden" name="direcao" value="baixo" />
+                      <input type="hidden" name="direcao" id="mover-direcao-baixo" value="baixo" />
                       <button
                         type="submit"
                         class="link-quiet"
@@ -226,22 +230,35 @@
         ><span class="st">Pré-visualização do relatório</span>
         <button
           type="button"
-          class="btn-pdf"
+          class="btn-pdf ibtn"
           id="rel-sum-preview-zoom-out"
           title="Diminuir zoom na pré-visualização"
         >
-          −
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
         <button
           type="button"
-          class="btn-pdf"
+          class="btn-pdf ibtn"
           id="rel-sum-preview-zoom-in"
           title="Aumentar zoom na pré-visualização"
         >
-          +
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
-        <button type="button" class="btn-pdf" id="rel-sum-btn-preview-reload">
-          Atualizar
+        <button
+          type="button"
+          class="btn-pdf ibtn"
+          id="rel-sum-btn-preview-reload"
+          title="Atualizar pré-visualização"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+        <button
+          type="button"
+          class="btn-pdf ibtn"
+          id="rel-sum-btn-preview-fullscreen"
+          title="Tela cheia"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
         </button>
       </div>
       <div class="sb2">
@@ -360,239 +377,83 @@
     </section>
   </aside>
 </div>
-<script>
-  (function () {
-    var inner = document.getElementById("rel-sum-preview-zoom-inner");
-    var frame = document.getElementById("preview-frame");
-    var reloadBtn = document.getElementById("rel-sum-btn-preview-reload");
-    var zIn = document.getElementById("rel-sum-preview-zoom-in");
-    var zOut = document.getElementById("rel-sum-preview-zoom-out");
-    if (!inner || !frame) return;
-    var scale = 1;
-    var minS = 0.5;
-    var maxS = 2;
-    var step = 0.1;
-    function applyZoom() {
-      scale = Math.round(Math.max(minS, Math.min(maxS, scale)) * 100) / 100;
-      var useZoom =
-        typeof CSS !== "undefined" && CSS.supports && CSS.supports("zoom", "1");
-      if (useZoom) {
-        inner.style.zoom = String(scale);
-        inner.style.transform = "";
-        inner.style.width = "";
-      } else {
-        inner.style.zoom = "";
-        inner.style.transform = "scale(" + scale + ")";
-        inner.style.transformOrigin = "top left";
-        inner.style.width = 100 / scale + "%";
-      }
-    }
-    if (reloadBtn && frame.dataset.src) {
-      reloadBtn.addEventListener("click", function () {
-        var base = frame.dataset.src;
-        frame.src =
-          base + (base.indexOf("?") >= 0 ? "&" : "?") + "t=" + Date.now();
-      });
-    }
-    if (zIn)
-      zIn.addEventListener("click", function () {
-        scale += step;
-        applyZoom();
-      });
-    if (zOut)
-      zOut.addEventListener("click", function () {
-        scale -= step;
-        applyZoom();
-      });
-    applyZoom();
-  })();
-  (function () {
-    var botoes = document.querySelectorAll(
-      "button.btn-add-sub[data-add-sub-pai]",
-    );
-    if (!botoes.length) return;
-    function coletarNumeros(tbody) {
-      var nums = [];
-      var alvos = tbody.querySelectorAll(
-        "tr:not(.row-nova-sub) td:first-child strong",
-      );
-      Array.prototype.forEach.call(alvos, function (el) {
-        var t = (el.textContent || "").trim();
-        if (t) nums.push(t);
-      });
-      return nums;
-    }
-    function calcularSugestoes(secaoNumero, todos) {
-      var partes = secaoNumero.split(".");
-      var nivelClicado = partes.length;
-      var opcoes = [];
-      var prefChild = secaoNumero + ".";
-      var maxFilho = 0;
-      todos.forEach(function (num) {
-        var ps = num.split(".");
-        if (ps.length === nivelClicado + 1 && num.indexOf(prefChild) === 0) {
-          var w = parseInt(ps[ps.length - 1], 10);
-          if (!isNaN(w) && w > maxFilho) maxFilho = w;
-        }
-      });
-      opcoes.push({
-        modo: "child",
-        numero: prefChild + (maxFilho + 1),
-        nivel: nivelClicado + 1,
-        rotulo: "subseção",
-      });
-      for (var k = nivelClicado; k >= 1; k--) {
-        var ult = parseInt(partes[k - 1], 10);
-        if (isNaN(ult)) continue;
-        var prefixoK = partes.slice(0, k - 1).join(".");
-        var num = (prefixoK ? prefixoK + "." : "") + (ult + 1);
-        var rotulo;
-        if (k === nivelClicado) rotulo = "mesma hierarquia";
-        else if (k === 1) rotulo = "novo capítulo";
-        else rotulo = "nível " + k;
-        opcoes.push({
-          modo: "sibling",
-          numero: num,
-          nivel: k,
-          rotulo: rotulo,
-        });
-      }
-      return opcoes;
-    }
-    function montarLinha(relId, paiId, opcoes) {
-      var tr = document.createElement("tr");
-      tr.setAttribute("data-pai-id", paiId);
-      var tdNum = document.createElement("td");
-      var sel = document.createElement("select");
-      sel.className = "sub-modo";
-      sel.title = "Selecione o índice da nova seção";
-      sel.setAttribute("aria-label", "Índice da nova seção");
-      opcoes.forEach(function (op) {
-        var o = document.createElement("option");
-        o.value = op.modo + ":" + op.numero;
-        o.dataset.modo = op.modo;
-        o.dataset.numero = op.numero;
-        o.dataset.nivel = String(op.nivel);
-        o.textContent = op.numero + " — " + op.rotulo;
-        sel.appendChild(o);
-      });
-      tdNum.appendChild(sel);
-      var tdTit = document.createElement("td");
-      var input = document.createElement("input");
-      input.type = "text";
-      input.required = true;
-      input.placeholder = "Título da nova seção";
-      input.maxLength = 200;
-      input.className = "sub-titulo";
-      input.setAttribute("aria-label", "Título da nova seção");
-      tdTit.appendChild(input);
-      var tdResp = document.createElement("td");
-      var tdBlk = document.createElement("td");
-      var tdSt = document.createElement("td");
-      var tdAct = document.createElement("td");
-      var btnOk = document.createElement("button");
-      btnOk.type = "button";
-      btnOk.className = "link-quiet";
-      btnOk.title = "Confirmar inclusão da seção";
-      btnOk.setAttribute("aria-label", "Confirmar inclusão da seção");
-      btnOk.textContent = "✔";
-      var btnCancel = document.createElement("button");
-      btnCancel.type = "button";
-      btnCancel.className = "link-danger";
-      btnCancel.setAttribute("data-cancelar-nova-sub", "");
-      btnCancel.title = "Cancelar inclusão";
-      btnCancel.setAttribute("aria-label", "Cancelar inclusão da seção");
-      btnCancel.textContent = "✕";
-      tdAct.appendChild(btnOk);
-      tdAct.appendChild(document.createTextNode(" "));
-      tdAct.appendChild(btnCancel);
-      tr.appendChild(tdNum);
-      tr.appendChild(tdTit);
-      tr.appendChild(tdResp);
-      tr.appendChild(tdBlk);
-      tr.appendChild(tdSt);
-      tr.appendChild(tdAct);
-      function aplicarNivel() {
-        var op = sel.options[sel.selectedIndex];
-        var n = parseInt(op && op.dataset.nivel, 10);
-        if (isNaN(n)) n = 1;
-        tr.className = "row-nova-sub lvl-" + n;
-      }
-      aplicarNivel();
-      sel.addEventListener("change", aplicarNivel);
-      function submeter() {
-        var titulo = input.value.trim();
-        if (!titulo) {
-          input.focus();
-          return;
-        }
-        var op = sel.options[sel.selectedIndex];
-        if (!op) return;
-        var modo = op.dataset.modo;
-        var numero = op.dataset.numero;
-        var f = document.createElement("form");
-        f.method = "post";
-        f.style.display = "none";
-        if (modo === "sibling") {
-          f.action = "/relatorios/" + relId + "/secoes";
-          var inN = document.createElement("input");
-          inN.type = "hidden";
-          inN.name = "numero";
-          inN.value = numero;
-          f.appendChild(inN);
-        } else {
-          f.action = "/relatorios/" + relId + "/secoes/" + paiId + "/subsecao";
-        }
-        var inT = document.createElement("input");
-        inT.type = "hidden";
-        inT.name = "titulo";
-        inT.value = titulo;
-        f.appendChild(inT);
-        document.body.appendChild(f);
-        f.submit();
-      }
-      btnOk.addEventListener("click", submeter);
-      input.addEventListener("keydown", function (ev) {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          submeter();
-        }
-      });
-      return { tr: tr, input: input };
-    }
-    Array.prototype.forEach.call(botoes, function (btn) {
-      btn.addEventListener("click", function () {
-        var paiId = btn.getAttribute("data-add-sub-pai");
-        var relId = btn.getAttribute("data-add-sub-rel");
-        var trAtual = btn.closest("tr");
-        if (!trAtual || !trAtual.parentNode) return;
-        var seguinte = trAtual.nextElementSibling;
-        if (
-          seguinte &&
-          seguinte.classList.contains("row-nova-sub") &&
-          seguinte.getAttribute("data-pai-id") === paiId
-        ) {
-          var jaInp = seguinte.querySelector("input.sub-titulo");
-          if (jaInp) jaInp.focus();
-          return;
-        }
-        var strongPai = trAtual.querySelector("td:first-child strong");
-        var paiNumero = strongPai ? (strongPai.textContent || "").trim() : "";
-        if (!paiNumero) return;
-        var todos = coletarNumeros(trAtual.parentNode);
-        var opcoes = calcularSugestoes(paiNumero, todos);
-        var nova = montarLinha(relId, paiId, opcoes);
-        trAtual.parentNode.insertBefore(nova.tr, trAtual.nextSibling);
-        nova.input.focus();
-      });
-    });
-    document.addEventListener("click", function (ev) {
-      var alvo = ev.target;
-      if (alvo && alvo.matches && alvo.matches("[data-cancelar-nova-sub]")) {
-        var tr = alvo.closest("tr.row-nova-sub");
-        if (tr && tr.parentNode) tr.parentNode.removeChild(tr);
-      }
-    });
-  })();
+
+<!-- Modal de edição em lote do sumário -->
+<dialog id="modal-editar-lote-sumario" class="modal-dialog">
+  <div class="modal-content modal-content--wide">
+    <div class="modal-header">
+      <h2>Editar sumário em lote</h2>
+      <button type="button" class="modal-close" id="fechar-modal-editar-lote" aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="edit-lote-layout">
+        <div class="edit-lote-col secoes-col">
+          <div class="secoes-col-header">
+            <h3>Seções</h3>
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-secoes" name="select-all-secoes">
+              Selecionar todas
+            </label>
+          </div>
+          <div class="secoes-list" id="secoes-list">
+            {% for s in rel.secoes %}
+            <label class="secao-item">
+              <input type="checkbox" id="secao-{{ s.id }}" name="secao_ids" value="{{ s.id }}" data-secao-numero="{{ s.numero }}" data-secao-titulo="{{ s.titulo }}">
+              <div class="secao-info">
+                <span class="secao-numero">{{ s.numero }}</span>
+                <span class="secao-titulo">{{ s.titulo }}</span>
+                <span class="secao-responsavel-atual">
+                  Responsável: {{ s.responsavel.nome if s.responsavel else '<em>não atribuído</em>'|safe }}
+                </span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="edit-lote-col valores-col">
+          <h3>Valores</h3>
+          <div class="campo-edicao">
+            <label for="campo-editar">Campo a editar</label>
+            <select id="campo-editar">
+              <option value="">Selecione um campo</option>
+              <option value="responsavel_id">Responsável</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+          <div class="valor-edicao" id="valor-edicao-container">
+            <label for="valor-editar">Valor a atribuir</label>
+            <select id="valor-editar" disabled>
+              <option value="">Selecione um campo primeiro</option>
+            </select>
+          </div>
+          <div class="edit-lote-info" id="edit-lote-info">
+            <span id="selecionados-count">0 seções selecionadas</span>
+          </div>
+          <div class="edit-lote-actions">
+            <button type="button" class="btn-primary" id="btn-aplicar-lote" disabled>Aplicar às seções selecionadas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script type="application/json" id="edit-lote-data">
+{
+  "relId": {{ rel.id }},
+  "autores": [
+    {% for a in autores %}
+    {"id": {{ a.id }}, "nome": {{ a.nome|tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ],
+  "statusOptions": [
+    {"value": "pendente", "label": "Pendente"},
+    {"value": "em_andamento", "label": "Em andamento"},
+    {"value": "aprovada", "label": "Aprovada"}
+  ]
+}
 </script>
+
+<script src="/static/js/relatorio_detail.js"></script>
+<script src="/static/js/relatorio_edit_lote.js"></script>
 {% endblock %}

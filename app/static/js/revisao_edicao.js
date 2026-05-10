@@ -929,8 +929,7 @@
     // Executa a ação
     if (action === "salvar-tudo") salvarTudo();
     else if (action === "fechar")
-      window.location.href =
-        "/relatorios/" + REL_ID;
+      window.location.href = "/relatorios/" + REL_ID;
     else if (action === "recarregar") window.location.reload();
     else if (action === "zoom-in") alert("Zoom não implementado ainda");
     else if (action === "zoom-out") alert("Zoom não implementado ainda");
@@ -984,6 +983,8 @@
 
     if (action === "salvar") salvarTudo();
     else if (action === "revisar") rodarRevisao();
+    else if (action === "verificar-indices") verificarIndices();
+    else if (action === "verificar-referencias") verificarReferencias();
     else if (action === "export-docx-todo")
       window.location.href =
         "/relatorios/" + REL_ID + "/exportar?formato=docx&escopo=inteiro";
@@ -1014,12 +1015,12 @@
   // ---------- Modais ----------
   function openModal(modalId) {
     var modal = document.getElementById(modalId);
-    if (modal) modal.hidden = false;
+    if (modal) modal.style.display = "";
   }
 
   function closeModal(modalId) {
     var modal = document.getElementById(modalId);
-    if (modal) modal.hidden = true;
+    if (modal) modal.style.display = "none";
   }
 
   function onModalClick(ev) {
@@ -1028,7 +1029,7 @@
     var act = action.dataset.action;
     if (act === "close-modal") {
       var modal = action.closest(".rev-modal");
-      if (modal) modal.hidden = true;
+      if (modal) modal.style.display = "none";
     }
   }
 
@@ -1312,6 +1313,118 @@
       rodarRevisao();
     }
   });
+
+  function verificarIndices() {
+    var modal = document.getElementById("modal-verificacao");
+    var title = document.getElementById("verificacao-title");
+    var loading = document.getElementById("verificacao-loading");
+    var results = document.getElementById("verificacao-results");
+    var empty = document.getElementById("verificacao-empty");
+    var summary = document.getElementById("verificacao-summary");
+    var list = document.getElementById("verificacao-list");
+    var actionBtn = document.getElementById("verificacao-action-btn");
+
+    title.textContent = "Verificar Índices Hierarquizados";
+    loading.style.display = "";
+    results.style.display = "none";
+    empty.style.display = "none";
+    actionBtn.style.display = "none";
+    modal.style.display = "";
+
+    fetch("/relatorios/" + REL_ID + "/verificar-indices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (data) {
+        loading.style.display = "none";
+        if (data.ok) {
+          if (data.total === 0) {
+            empty.style.display = "";
+          } else {
+            results.style.display = "";
+            summary.textContent = "Encontrados " + data.total + " problema(s)";
+            list.innerHTML = "";
+            data.problemas.forEach(function (p) {
+              var item = document.createElement("div");
+              item.className =
+                "rev-verificacao-item rev-verificacao-item--" + p.tipo;
+              item.innerHTML =
+                '<div class="rev-verificacao-item__title">' +
+                p.titulo +
+                "</div>" +
+                '<div class="rev-verificacao-item__desc">' +
+                p.desc +
+                "</div>";
+              list.appendChild(item);
+            });
+          }
+        }
+      })
+      .catch(function (err) {
+        loading.style.display = "none";
+        summary.textContent = "Erro ao verificar: " + err.message;
+        results.style.display = "";
+      });
+  }
+
+  function verificarReferencias() {
+    var modal = document.getElementById("modal-verificacao");
+    var title = document.getElementById("verificacao-title");
+    var loading = document.getElementById("verificacao-loading");
+    var results = document.getElementById("verificacao-results");
+    var empty = document.getElementById("verificacao-empty");
+    var summary = document.getElementById("verificacao-summary");
+    var list = document.getElementById("verificacao-list");
+    var actionBtn = document.getElementById("verificacao-action-btn");
+
+    title.textContent = "Verificar Referências Cruzadas";
+    loading.style.display = "";
+    results.style.display = "none";
+    empty.style.display = "none";
+    actionBtn.style.display = "none";
+    modal.style.display = "";
+
+    fetch("/relatorios/" + REL_ID + "/verificar-referencias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (data) {
+        loading.style.display = "none";
+        if (data.ok) {
+          if (data.total === 0) {
+            empty.style.display = "";
+          } else {
+            results.style.display = "";
+            summary.textContent = "Encontrados " + data.total + " problema(s)";
+            list.innerHTML = "";
+            data.problemas.forEach(function (p) {
+              var item = document.createElement("div");
+              item.className =
+                "rev-verificacao-item rev-verificacao-item--" + p.tipo;
+              item.innerHTML =
+                '<div class="rev-verificacao-item__title">' +
+                p.titulo +
+                "</div>" +
+                '<div class="rev-verificacao-item__desc">' +
+                p.desc +
+                "</div>";
+              list.appendChild(item);
+            });
+          }
+        }
+      })
+      .catch(function (err) {
+        loading.style.display = "none";
+        summary.textContent = "Erro ao verificar: " + err.message;
+        results.style.display = "";
+      });
+  }
 
   window.addEventListener("beforeunload", onBeforeUnload);
   aplicarDeepLink();
