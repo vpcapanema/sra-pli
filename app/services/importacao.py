@@ -1250,6 +1250,12 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
     blocks = payload.get("blocks") or []
     responsavel_id_enviado = payload.get("responsavel_id")
     selected_items = [item for item in blocks if item.get("selecionado") is not False]
+    autor_importacao_id = user.id
+    if responsavel_id_enviado:
+        try:
+            autor_importacao_id = int(responsavel_id_enviado)
+        except (ValueError, TypeError):
+            autor_importacao_id = user.id
 
     structural_keys: set[tuple[str, str]] = set()
     created = 0
@@ -1319,7 +1325,7 @@ async def confirmar_importacao(  # pylint: disable=too-many-locals,too-many-stat
                     legenda=(item.get("legenda") or "").strip() or None,
                     fonte=(item.get("fonte") or "").strip() or None,
                     figura_id=figura_id,
-                    autor_id=user.id,
+                    autor_id=autor_importacao_id,
                     origem="upload",
                 )
             )

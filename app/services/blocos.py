@@ -62,6 +62,38 @@ def _hooks_recompute_entrega_varias_secoes(db: Session, rel_id: int, sec_ids: li
         _hook_recompute_entrega(db, rel_id, sid)
 
 
+def _atribuir_responsavel_por_blocos_confirmados(
+    db: Session,
+    rel_id: int,
+    sec_ids: list[int],
+) -> None:
+    ids = list(dict.fromkeys(sec_ids))
+    if not ids:
+        return
+    rows = (
+        db.query(Bloco.secao_id, Bloco.autor_id)
+        .join(Secao, Secao.id == Bloco.secao_id)
+        .filter(
+            Secao.relatorio_id == rel_id,
+            Bloco.secao_id.in_(ids),
+            Bloco.bloqueado.is_(True),
+            Bloco.autor_id.isnot(None),
+        )
+        .group_by(Bloco.secao_id, Bloco.autor_id)
+        .all()
+    )
+    autores_por_secao: dict[int, set[int]] = {}
+    for secao_id, autor_id in rows:
+        autores_por_secao.setdefault(secao_id, set()).add(autor_id)
+    for secao_id, autores in autores_por_secao.items():
+        if len(autores) != 1:
+            continue
+        sec = db.get(Secao, secao_id)
+        if sec is not None:
+            sec.responsavel_id = next(iter(autores))
+    db.commit()
+
+
 def _pode_editar_status(user: User, rel: Relatorio) -> tuple[bool, str]:
     """Decide se o role do user pode editar conteudo deste relatorio.
 
@@ -253,6 +285,7 @@ def aprovar_blocos_lote(
             {Bloco.bloqueado: True, Bloco.updated_at: agora},
             synchronize_session=False,
         )
+    _atribuir_responsavel_por_blocos_confirmados(db, rel_id, [b.secao_id for b in blocos])
     _hooks_recompute_entrega_varias_secoes(db, rel_id, [b.secao_id for b in blocos])
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
@@ -351,6 +384,7 @@ def confirmar_bloco(rel_id: int, sec_id: int, bloco_id: int, request: Request, d
 
     b.updated_at = datetime.utcnow()
     db.commit()
+    _atribuir_responsavel_por_blocos_confirmados(db, rel_id, [b.secao_id])
     _hook_recompute_entrega(db, rel_id, b.secao_id)
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
