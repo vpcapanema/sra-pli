@@ -5,11 +5,12 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
+from starlette.responses import RedirectResponse
 
 from ..db import tx_session
 from ..models import Relatorio, Secao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
-from .pages import response_dashboard, response_relatorio_detail
+from .pages import response_relatorio_detail
 from .relatorios import (
     _admin_coord_ou_login,
     _admin_coord_relatorio_mutavel,
@@ -33,10 +34,11 @@ def excluir_relatorio(rel_id: int, request: Request, db: Session):
     db.expire_all()
     try:
         from ..main import sidebar_cache_invalidate
+
         sidebar_cache_invalidate()
     except Exception:
         pass
-    return response_dashboard(request, db)
+    return RedirectResponse(url="/dashboard", status_code=303)
 
 
 def excluir_subsecao(rel_id: int, sec_id: int, request: Request, db: Session):
@@ -47,9 +49,7 @@ def excluir_subsecao(rel_id: int, sec_id: int, request: Request, db: Session):
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
     if "." not in (sec.numero or ""):
-        raise HTTPException(
-            400, detail="Não é possível excluir seções de primeiro nível"
-        )
+        raise HTTPException(400, detail="Não é possível excluir seções de primeiro nível")
     with tx_session() as txdb:
         consolidar_referencias(txdb, rel_id)
         sec_tx = txdb.get(Secao, sec_id)
