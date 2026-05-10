@@ -34,8 +34,9 @@
   {% set _path = request.url.path if request is defined else '' %}
   {% set _parts_hub = _path.strip('/').split('/') %}
   {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
+  {% set _relatorio_sidebar_collapsed = _path == '/relatorios' or _path == '/relatorios/' or _relatorio_sumario %}
   <body
-    class="{% if user %}sra-app {% if _relatorio_sumario %}sra-sidebar-collapsed{% endif %}{% endif %}{% block body_class %}{% endblock %}"
+    class="{% if user %}sra-app {% if _relatorio_sidebar_collapsed %}sra-sidebar-collapsed{% endif %}{% endif %}{% block body_class %}{% endblock %}"
   >
     {% if user %}
     <aside id="sb">
@@ -46,7 +47,7 @@
           class="sb-toggle"
           aria-label="Recolher menu lateral"
           aria-controls="sb"
-          aria-expanded="{% if _relatorio_sumario %}false{% else %}true{% endif %}"
+          aria-expanded="{% if _relatorio_sidebar_collapsed %}false{% else %}true{% endif %}"
         >
           ☰
         </button>

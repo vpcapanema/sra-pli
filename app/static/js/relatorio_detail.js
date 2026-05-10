@@ -11,11 +11,36 @@
         return "Falha ao atualizar responsável.";
       });
   }
+  function aliasNome(nome) {
+    var raw = (nome || "").trim();
+    if (!raw || raw === "—") return "—";
+    var partes = raw.split(/\s+/).filter(Boolean);
+    if (partes.length <= 1) return raw;
+    var primeiro = partes[0];
+    var conectores = {
+      da: true,
+      de: true,
+      do: true,
+      das: true,
+      dos: true,
+      e: true,
+    };
+    var ultimo = "";
+    for (var i = partes.length - 1; i > 0; i -= 1) {
+      if (!conectores[partes[i].toLowerCase()]) {
+        ultimo = partes[i];
+        break;
+      }
+    }
+    return ultimo && ultimo !== primeiro ? primeiro + " " + ultimo : primeiro;
+  }
   Array.prototype.forEach.call(selects, function (sel) {
     var picker = sel.closest(".responsavel-picker");
     var display = picker ? picker.querySelector(".responsavel-display") : null;
     sel.dataset.valorOriginal = sel.value || "";
     if (display) {
+      display.title = display.textContent.trim();
+      display.textContent = aliasNome(display.textContent);
       display.addEventListener("click", function () {
         var open = !picker.classList.contains("is-open");
         picker.classList.toggle("is-open", open);
@@ -49,11 +74,13 @@
           }
           sel.dataset.valorOriginal = sel.value || "";
           if (display) {
-            display.textContent =
+            var nomeSelecionado =
               sel.options[sel.selectedIndex] &&
               sel.options[sel.selectedIndex].text
                 ? sel.options[sel.selectedIndex].text
                 : "—";
+            display.title = nomeSelecionado;
+            display.textContent = aliasNome(nomeSelecionado);
             picker.classList.remove("is-open");
             display.setAttribute("aria-expanded", "false");
           }

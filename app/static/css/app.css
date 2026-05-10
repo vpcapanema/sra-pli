@@ -559,6 +559,7 @@ body.sra-sidebar-collapsed .sb-logout {
 .sumario-table .responsavel-display {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   max-width: 170px;
   color: var(--blue-dk);
   background: transparent;
@@ -569,6 +570,9 @@ body.sra-sidebar-collapsed .sb-logout {
   text-decoration: underline;
   text-decoration-style: dotted;
   text-underline-offset: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sumario-table .td-actions {
   display: inline-flex;
@@ -578,16 +582,34 @@ body.sra-sidebar-collapsed .sb-logout {
   flex-wrap: nowrap;
 }
 .td-actions .action-edit i {
-  color: var(--blue-dk);
+  color: var(--blue-dk) !important;
 }
 .td-actions .action-add i {
-  color: var(--green-dk);
+  color: var(--green-dk) !important;
 }
 .td-actions .action-move i {
-  color: var(--blue-dk);
+  color: var(--blue-dk) !important;
 }
 .td-actions .action-delete i {
+  color: var(--danger) !important;
+}
+.td-actions .link-quiet,
+.td-actions .action-edit,
+.td-actions .action-add,
+.td-actions .action-move {
+  color: var(--blue-dk);
+}
+.td-actions .action-add {
+  color: var(--green-dk);
+}
+.td-actions .link-danger,
+.td-actions .action-delete {
   color: var(--danger);
+}
+.td-actions i.fa-solid {
+  color: currentColor !important;
+  opacity: 1;
+  visibility: visible;
 }
 tr.lvl-2 td:nth-child(2) {
   padding-left: 18px;
