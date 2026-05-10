@@ -38,6 +38,7 @@ engine = create_engine(
         "keepalives_interval": 10,
         "keepalives_count": 3,
         "connect_timeout": 10,
+        "options": "-c search_path=public",
     },
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)

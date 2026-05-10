@@ -10,6 +10,7 @@ from pathlib import Path
 
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -77,6 +78,7 @@ def sidebar_cache_invalidate() -> None:
 if settings.SENTRY_DSN:
     try:
         import sentry_sdk
+
         sentry_sdk.init(
             dsn=settings.SENTRY_DSN,
             environment=settings.APP_ENV,
@@ -170,6 +172,9 @@ async def sra_hub_sidebar_context(request: Request, call_next):
                         """
                     )
                 ).first()
+            except SQLAlchemyError:
+                getLogger("app.sidebar").exception("Falha ao carregar contexto da sidebar")
+                row = None
             finally:
                 db.close()
             rel_id = int(row[0]) if row and row[0] is not None else None
@@ -201,12 +206,11 @@ def _erro_html(titulo: str, mensagem: str, status: int) -> HTMLResponse:
     html = (
         '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
         f"<title>{titulo} · SRA</title>"
-        '<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;'
-        'max-width:640px;margin:12vh auto;padding:0 24px;color:#1f2937}'
+        "<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;"
+        "max-width:640px;margin:12vh auto;padding:0 24px;color:#1f2937}"
         "h1{font-size:1.5rem;margin-bottom:.5rem}"
         "p{color:#4b5563;line-height:1.5}"
-        'a{color:#1d4ed8;text-decoration:none}</style></head><body>'
-        + cabecalho_h1 + "\n"
+        "a{color:#1d4ed8;text-decoration:none}</style></head><body>" + cabecalho_h1 + "\n"
         f"<p>{mensagem}</p>"
         '<p><a href="/">Voltar ao início</a></p>'
         "</body></html>"
