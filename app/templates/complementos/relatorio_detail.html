@@ -131,7 +131,24 @@
                 <strong>{{ s.numero }}</strong>
               </td>
               <td>{{ s.titulo }}</td>
-              <td>{{ s.responsavel.nome if s.responsavel else '—' }}</td>
+              <td>
+                {% if user.role in ['admin','coordenador'] %}
+                  <select
+                    class="sumario-responsavel-select"
+                    data-rel-id="{{ rel.id }}"
+                    data-sec-id="{{ s.id }}"
+                    aria-label="Responsável pela seção {{ s.numero }}"
+                    title="Responsável pela seção {{ s.numero }}"
+                  >
+                    <option value="">—</option>
+                    {% for a in autores %}
+                      <option value="{{ a.id }}" {% if s.responsavel_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  {{ s.responsavel.nome if s.responsavel else '—' }}
+                {% endif %}
+              </td>
               <td>
                 {% set ns_b = contagens_blocos.get(s.id, {'clonados': 0, 'autorados': 0}) %}
                 <span title="Blocos clonados" class="blocos-clonados">{{ ns_b.clonados }}</span>

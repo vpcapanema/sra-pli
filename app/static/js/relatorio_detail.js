@@ -1,4 +1,56 @@
 (function () {
+  var selects = document.querySelectorAll(".sumario-responsavel-select");
+  if (!selects.length) return;
+  function msgErro(resp) {
+    return resp
+      .json()
+      .then(function (j) {
+        return j && j.detail ? j.detail : "Falha ao atualizar responsável.";
+      })
+      .catch(function () {
+        return "Falha ao atualizar responsável.";
+      });
+  }
+  Array.prototype.forEach.call(selects, function (sel) {
+    sel.dataset.valorOriginal = sel.value || "";
+    sel.addEventListener("change", function () {
+      var fd = new FormData();
+      fd.append("responsavel_id", sel.value || "");
+      fd.append("retorno", "sumario");
+      sel.disabled = true;
+      fetch(
+        "/relatorios/" +
+          sel.getAttribute("data-rel-id") +
+          "/secoes/" +
+          sel.getAttribute("data-sec-id") +
+          "/responsavel",
+        {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        },
+      )
+        .then(function (resp) {
+          if (!resp.ok) {
+            return msgErro(resp).then(function (msg) {
+              throw new Error(msg);
+            });
+          }
+          sel.dataset.valorOriginal = sel.value || "";
+        })
+        .catch(function (err) {
+          sel.value = sel.dataset.valorOriginal || "";
+          window.alert(err.message || "Falha ao atualizar responsável.");
+        })
+        .finally(function () {
+          sel.disabled = false;
+        });
+    });
+  });
+})();
+
+(function () {
   var inner = document.getElementById("rel-sum-preview-zoom-inner");
   var frame = document.getElementById("preview-frame");
   var reloadBtn = document.getElementById("rel-sum-btn-preview-reload");
@@ -46,7 +98,7 @@
     fullscreenBtn.addEventListener("click", function () {
       var previewSection = document.getElementById("ss-preview");
       if (!document.fullscreenElement) {
-        previewSection.requestFullscreen().catch(function(err) {
+        previewSection.requestFullscreen().catch(function (err) {
           console.error("Erro ao ativar tela cheia:", err);
         });
       } else {

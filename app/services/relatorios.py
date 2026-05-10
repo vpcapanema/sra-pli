@@ -41,6 +41,10 @@ from .secoes_numeracao import (
     _inserir_secao_em_relatorio,
     _proximo_numero_filho,
 )
+from .secao_responsaveis import (
+    aplicar_responsaveis_padrao,
+    secao_estatica_sistema,
+)
 
 
 def _exigir_relatorio_editavel(db: Session, rel_id: int) -> Relatorio:
@@ -423,6 +427,7 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
             else:
                 _p(70, "Criando seções padrão")
                 criar_secoes_padrao(txdb, rel_id_novo, secoes_explicitas=secoes_explicitas)
+            aplicar_responsaveis_padrao(txdb, rel_id_novo)
     except (IntegrityError, DataError) as exc:
         raise HTTPException(400, detail=f"Erro ao gravar seções: {exc.orig}")
 
@@ -718,6 +723,11 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
     sec = db.get(Secao, sec_id)
     if not sec or sec.relatorio_id != rel_id:
         raise HTTPException(404)
+    if user.role == "autor" and secao_estatica_sistema(sec.numero):
+        raise HTTPException(
+            403,
+            detail="Seção estática do sistema não aceita responsável autor.",
+        )
     secoes_irmas = db.query(Secao).filter(Secao.relatorio_id == rel_id).all()
     sec_ids_escopo = secao_ids_na_subarvore(secoes_irmas, sec.numero or "")
     if not sec_ids_escopo:
@@ -754,6 +764,16 @@ def atribuir_responsavel(  # pylint: disable=too-many-arguments,too-many-branche
                 raise HTTPException(403)
             sec.responsavel_id = rid
     db.commit()
+    accept = (request.headers.get("accept") or "").lower()
+    if retorno == "sumario" or "application/json" in accept:
+        autor = db.get(User, sec.responsavel_id) if sec.responsavel_id else None
+        return JSONResponse(
+            {
+                "secao_id": sec.id,
+                "responsavel_id": sec.responsavel_id,
+                "responsavel_nome": autor.nome if autor else None,
+            }
+        )
     del retorno
     return response_conteudo_upload(request, db, rel_id, sec_id)
 
