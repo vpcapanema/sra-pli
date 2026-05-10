@@ -529,23 +529,24 @@ body.sra-sidebar-collapsed .sb-logout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
+  width: 10px;
   height: 14px;
-  margin-right: 3px;
+  margin-right: 2px;
   vertical-align: middle;
 }
 .sumario-toggle {
   color: var(--blue-dk);
-  background: #eef4fb;
-  border: 1px solid #c8d7e6;
-  border-radius: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
+  padding: 0;
 }
 .sumario-toggle:hover {
-  background: #dfeaf6;
-  border-color: #9eb6cf;
+  color: var(--blue);
+  background: transparent;
 }
 .sumario-table th:nth-child(n + 3),
 .sumario-table td:nth-child(n + 3) {
