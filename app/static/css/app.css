@@ -619,6 +619,48 @@ body.sra-sidebar-collapsed .sb-logout {
 .td-actions .action-delete i {
   color: var(--danger) !important;
 }
+.td-actions .action-edit i,
+.td-actions .action-add i,
+.td-actions .action-move i,
+.td-actions .action-delete i {
+  display: none;
+}
+.td-actions .action-edit::before,
+.td-actions .action-add::before,
+.td-actions .action-move::before,
+.td-actions .action-delete::before {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 1;
+  visibility: visible;
+}
+.td-actions .action-edit::before {
+  content: "✎";
+  color: var(--blue-dk);
+}
+.td-actions .action-add::before {
+  content: "+";
+  color: var(--green-dk);
+}
+.td-actions .action-move[aria-label*="cima"]::before {
+  content: "↑";
+  color: var(--blue-dk);
+}
+.td-actions .action-move[aria-label*="baixo"]::before {
+  content: "↓";
+  color: var(--blue-dk);
+}
+.td-actions .action-delete::before {
+  content: "×";
+  color: var(--danger);
+}
 .td-actions .link-quiet,
 .td-actions .action-edit,
 .td-actions .action-add,
