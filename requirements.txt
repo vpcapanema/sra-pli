@@ -1,5 +1,7 @@
+# Runtime da aplicação SRA.
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
+starlette==1.0.0
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 pydantic==2.10.3
@@ -14,22 +16,23 @@ pypdf==5.1.0
 PyMuPDF==1.25.3
 pdfplumber==0.11.4
 python-docx==1.1.2
+python-dotenv==1.2.2
 sendgrid==6.11.0
 tzdata==2024.2
-# Revisão linguística (página /relatorios/{id}/validacao-revisao, Seção 2):
-# pyspellchecker é puro Python, ~7MB, PT-BR offline — cobre só ORTOGRAFIA.
-# Gramática e estilo: exige Java 8+ no PATH em tempo de execução. Pacote Python:
-language_tool_python==3.3.0
-# O código prefere LanguageTool quando o import e a JVM funcionam; senão cai para pyspellchecker.
-pyspellchecker==0.8.1
 bleach==6.2.0
-# Dependencia transitiva: bleach.css_sanitizer requer tinycss2.
-# Antes vinha via weasyprint; apos remocao, precisa ser explicita.
 tinycss2==1.5.1
 beautifulsoup4==4.12.3
-# Rate-limit em endpoints sensiveis (/login, /recuperar-senha).
 slowapi==0.1.9
-# Observabilidade de erros em producao (opcional: sem SENTRY_DSN fica off).
 sentry-sdk[fastapi]==2.18.0
-# Migracoes de schema (substitui/complementa bootstrap DDL).
 alembic==1.14.0
+
+# Revisão linguística.
+language_tool_python==3.3.0
+pyspellchecker==0.8.1
+
+# Ferramentas locais de qualidade, lint e testes usadas pelo workspace.
+ruff==0.15.12
+flake8==7.3.0
+pylint==4.0.5
+djlint==1.36.4
+pytest==9.0.3

@@ -1,10 +1,18 @@
 {
   "folders": [
     {
-      "path": ".",
+      "path": "d:\\sistema_relatorio_mensal_atividades",
     },
   ],
   "settings": {
+    "python.defaultInterpreterPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
+    "flake8.interpreter": [
+      "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
+    ],
+    "pylint.interpreter": [
+      "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
+    ],
+    "djlint.pythonPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
     "files.associations": {
       "app/templates/**/*.html": "jinja-html",
     },
