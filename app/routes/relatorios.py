@@ -71,7 +71,6 @@ async def criar_relatorio(  # pylint: disable=too-many-arguments,too-many-positi
         docx_disponivel,
         pdf_upload,
         None,
-        None,
         base_relatorio_id,
         db,
     )
