@@ -18,6 +18,7 @@ from ..auth import (
     current_user,
     formatar_nome_pessoa,
     hash_password,
+    normalizar_email_obrigatorio,
     verify_password,
 )
 from ..jinja_filters import registrar_globais as _registrar_globais_jinja
@@ -31,9 +32,7 @@ from .pages import (
     usuario_edit_precheck,
 )
 
-templates = Jinja2Templates(
-    directory=str(Path(__file__).parent.parent / "templates")
-)
+templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 _registrar_globais_jinja(templates.env)
 _log = logging.getLogger(__name__)
 
@@ -51,12 +50,7 @@ _SRA_PWD_RESET_AT = "sra_pwd_reset_at"
 def normalizar_email_secundario_obrigatorio(
     raw: str,
 ) -> tuple[str | None, str | None]:
-    s = (raw or "").strip().lower()
-    if not s:
-        return None, "E-mail secundário é obrigatório."
-    if "@" not in s or len(s) < 5:
-        return None, "E-mail secundário inválido."
-    return s, None
+    return normalizar_email_obrigatorio(raw, rotulo="E-mail secundário")
 
 
 def _clear_pwd_reset_session(request: Request) -> None:
@@ -100,15 +94,19 @@ def login_submit(
             email_preenchido=(email or "").strip().lower(),
             status_code=400,
         )
-    email_norm = email.strip().lower()
+    email_norm, err_email = normalizar_email_obrigatorio(email)
+    if err_email:
+        return response_login(
+            request,
+            error="E-mail, perfil ou senha inválidos.",
+            role=perfil,
+            email_preenchido=(email or "").strip().lower(),
+            status_code=401,
+        )
     t0 = time.perf_counter()
     _log.info("login_submit inicio role=%s email=%s", perfil, email_norm)
     try:
-        user = (
-            db.query(User)
-            .filter(User.email == email_norm, User.role == perfil)
-            .one_or_none()
-        )
+        user = db.query(User).filter(User.email == email_norm, User.role == perfil).one_or_none()
         t_user = time.perf_counter()
         _log.info(
             "login_submit consulta_usuario_ms=%.1f encontrado=%s role=%s",
@@ -149,9 +147,7 @@ def login_submit(
         )
         return response_client_goto(destino)
     except Exception:  # noqa: BLE001
-        _log.exception(
-            "login_submit erro inesperado role=%s email=%s", perfil, email_norm
-        )
+        _log.exception("login_submit erro inesperado role=%s email=%s", perfil, email_norm)
         return response_login(
             request,
             error="Falha temporária no login. Tente novamente em instantes.",
@@ -174,9 +170,7 @@ def recuperar_senha_page(request: Request):
     )
 
 
-def recuperar_senha_submit(
-    request: Request, email: str, role: str, db: Session
-):
+def recuperar_senha_submit(request: Request, email: str, role: str, db: Session):
     perfil = (role or "").strip().lower()
     if perfil not in _ROLES_LOGIN:
         return templates.TemplateResponse(
@@ -185,12 +179,18 @@ def recuperar_senha_submit(
             {"error": "Selecione um perfil válido."},
             status_code=400,
         )
-    email_norm = email.strip().lower()
-    user = (
-        db.query(User)
-        .filter(User.email == email_norm, User.role == perfil)
-        .one_or_none()
-    )
+    email_norm, err_email = normalizar_email_obrigatorio(email)
+    if err_email:
+        return templates.TemplateResponse(
+            request,
+            "complementos/recuperar_senha.html",
+            {
+                "error": "Não encontramos conta com este e-mail e perfil. "
+                "Confirme os dados ou contacte um administrador.",
+            },
+            status_code=400,
+        )
+    user = db.query(User).filter(User.email == email_norm, User.role == perfil).one_or_none()
     if not user:
         return templates.TemplateResponse(
             request,
@@ -213,8 +213,7 @@ def recuperar_senha_definir_page(request: Request):
             request,
             "complementos/recuperar_senha.html",
             {
-                "error": "Sessão de recuperação expirada ou inválida. "
-                "Comece novamente por e-mail e perfil.",
+                "error": "Sessão de recuperação expirada ou inválida. Comece novamente por e-mail e perfil.",
             },
             status_code=400,
         )
@@ -225,16 +224,13 @@ def recuperar_senha_definir_page(request: Request):
     )
 
 
-def recuperar_senha_definir_submit(
-    request: Request, password: str, password2: str, db: Session
-):
+def recuperar_senha_definir_submit(request: Request, password: str, password2: str, db: Session):
     if not _pwd_reset_session_ok(request):
         return templates.TemplateResponse(
             request,
             "complementos/recuperar_senha.html",
             {
-                "error": "Sessão de recuperação expirada ou inválida. "
-                "Comece novamente por e-mail e perfil.",
+                "error": "Sessão de recuperação expirada ou inválida. Comece novamente por e-mail e perfil.",
             },
             status_code=400,
         )
@@ -276,7 +272,7 @@ def usuarios_page(request: Request, db: Session):
     return response_usuarios(request, db)
 
 
-def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments,too-many-return-statements
     request: Request,
     *,
     nome: str,
@@ -289,7 +285,15 @@ def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-m
     user = current_user(request, db)
     if not user or user.role not in ("admin", "coordenador"):
         return response_login(request)
-    email_norm = email.strip().lower()
+    email_norm, err_email = normalizar_email_obrigatorio(email)
+    if err_email:
+        usuarios = db.query(User).order_by(User.nome).all()
+        return templates.TemplateResponse(
+            request,
+            "complementos/usuarios.html",
+            {"user": user, "usuarios": usuarios, "error": err_email},
+            status_code=400,
+        )
     _log.info(
         "Cadastro utilizador: início email=%s role_pedido=%s operador_id=%s",
         email_norm,
@@ -341,11 +345,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-m
             {"user": user, "usuarios": usuarios, "error": "Perfil inválido."},
             status_code=400,
         )
-    if (
-        db.query(User)
-        .filter(User.email == email_norm, User.role == role)
-        .first()
-    ):
+    if db.query(User).filter(User.email == email_norm, User.role == role).first():
         _log.warning(
             "Cadastro utilizador: rejeitado duplicado email=%s role=%s operador_id=%s",
             email_norm,
@@ -376,6 +376,7 @@ def usuarios_create(  # pylint: disable=too-many-arguments,too-many-locals,too-m
     # (status='pendente') em todos os relatórios ainda não finalizados.
     # pylint: disable=import-outside-toplevel
     from .entregas.lista_painel import garantir_entregas_para_autor
+
     if garantir_entregas_para_autor(db, novo):
         db.commit()
     _log.info(
@@ -433,17 +434,15 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
     except ValueError as e:
         return _err(str(e))
 
-    email_norm = email.strip().lower()
+    email_norm, err_email = normalizar_email_obrigatorio(email)
+    if err_email:
+        return _err(err_email)
     email2_norm, err_email2 = normalizar_email_secundario_obrigatorio(email2)
     if err_email2:
         return _err(err_email2)
 
     novo_role = alvo.role
-    if (
-        viewer.role == "admin"
-        and role
-        and role in ("admin", "coordenador", "autor")
-    ):
+    if viewer.role == "admin" and role and role in ("admin", "coordenador", "autor"):
         novo_role = role
 
     duplicado = (
@@ -464,11 +463,7 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
     alvo.email2 = email2_norm
     alvo.nome = nome_fmt
 
-    if (
-        viewer.role == "admin"
-        and role
-        and role in ("admin", "coordenador", "autor")
-    ):
+    if viewer.role == "admin" and role and role in ("admin", "coordenador", "autor"):
         alvo.role = role
 
     if password:
@@ -482,6 +477,7 @@ def usuario_edit_submit(  # pylint: disable=too-many-arguments,too-many-return-s
     if alvo.role == "autor" and role_anterior != "autor":
         # pylint: disable=import-outside-toplevel
         from .entregas.lista_painel import garantir_entregas_para_autor
+
         if garantir_entregas_para_autor(db, alvo):
             db.commit()
     if alvo.id == request.session.get("user_id"):

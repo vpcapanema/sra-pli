@@ -1,5 +1,6 @@
 import bcrypt
 import re
+from email_validator import EmailNotValidError, validate_email
 from fastapi import Request, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from .db import get_db
@@ -12,6 +13,17 @@ from .models import User
 # Mínimo de 2 palavras.
 _PARTICULAS = {"do", "da", "de", "dos", "das", "du", "e", "di", "del", "la", "von", "van"}
 _NOME_PALAVRA_RE = re.compile(r"^[A-ZÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ][a-záàâãäéèêëíìîïóòôõöúùûüçñ]+$")
+
+
+def normalizar_email_obrigatorio(raw: str, *, rotulo: str = "E-mail") -> tuple[str | None, str | None]:
+    s = (raw or "").strip()
+    if not s:
+        return None, f"{rotulo} é obrigatório."
+    try:
+        info = validate_email(s, check_deliverability=False)
+    except EmailNotValidError:
+        return None, f"{rotulo} inválido."
+    return info.normalized.lower(), None
 
 
 def formatar_nome_pessoa(raw: str) -> str:
@@ -37,9 +49,7 @@ def formatar_nome_pessoa(raw: str) -> str:
         if w in _PARTICULAS:
             continue
         if not _NOME_PALAVRA_RE.match(w):
-            raise ValueError(
-                "Nome inválido. Use apenas letras (ex.: 'Vinicius do Prado Capanema')."
-            )
+            raise ValueError("Nome inválido. Use apenas letras (ex.: 'Vinicius do Prado Capanema').")
     return " ".join(out)
 
 

@@ -1,4 +1,5 @@
 """Regras para edição de usuários pela governança."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,7 +7,7 @@ from urllib.parse import quote
 
 from sqlalchemy.orm import Session
 
-from ...auth import formatar_nome_pessoa
+from ...auth import formatar_nome_pessoa, normalizar_email_obrigatorio
 from ...models import User
 from ..auth import normalizar_email_secundario_obrigatorio
 from .acesso_permissoes import pode_editar_usuario_governanca
@@ -38,15 +39,11 @@ def _email_ja_usado(
     role: str,
     exceto_id: int,
 ) -> bool:
-    duplicado = (
-        db.query(User)
-        .filter(User.email == email_norm, User.role == role, User.id != exceto_id)
-        .first()
-    )
+    duplicado = db.query(User).filter(User.email == email_norm, User.role == role, User.id != exceto_id).first()
     return duplicado is not None
 
 
-def salvar_usuario_governanca(
+def salvar_usuario_governanca(  # pylint: disable=too-many-return-statements
     request,
     db: Session,
     viewer: User,
@@ -59,7 +56,9 @@ def salvar_usuario_governanca(
         nome_fmt = formatar_nome_pessoa(dados.nome)
     except ValueError as exc:
         return quote(str(exc))
-    email_norm = dados.email.strip().lower()
+    email_norm, err_email = normalizar_email_obrigatorio(dados.email)
+    if err_email:
+        return quote(err_email)
     email2_norm, err_email2 = normalizar_email_secundario_obrigatorio(dados.email2)
     if err_email2:
         return quote(err_email2)
