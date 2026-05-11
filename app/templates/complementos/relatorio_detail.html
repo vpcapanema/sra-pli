@@ -130,6 +130,13 @@ rel.mes_referencia }}{% endblock %} {% block content %}
                 Notificar autores (abertura)
               </button>
             </form>
+            <a
+              href="/relatorios/{{ rel.id }}/entregas"
+              class="secondary coord-btn-block coord-link-block"
+              title="Entregas dos autores"
+            >
+              Entregas dos autores
+            </a>
           </article>
         </div>
       </div>
@@ -142,11 +149,34 @@ rel.mes_referencia }}{% endblock %} {% block content %}
           %}</span
         ><span class="st">Sumário do relatório</span>
         {% if user.role in ['admin','coordenador'] %}
-        <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
-          >Entregas dos autores</a
+        <button
+          type="button"
+          class="btn-pdf sumario-hdr-icon-btn"
+          id="btn-editar-lote-sumario"
+          title="Editar em lote"
+          aria-label="Editar em lote"
         >
-        <button type="button" class="btn-pdf" id="btn-editar-lote-sumario">
-          Editar em lote
+          <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+        </button>
+        {% endif %} {% if user.role == 'coordenador' and rel.status !=
+        'finalizado' %}
+        <form
+          id="sumario-excluir-lote-form"
+          method="post"
+          action="/relatorios/{{ rel.id }}/secoes/excluir-lote"
+          data-sra-confirm="secao_excluir"
+          data-sra-detail="As seções selecionadas e os respetivos conteúdos serão removidos. A página será recarregada ao final."
+        ></form>
+        <button
+          type="submit"
+          form="sumario-excluir-lote-form"
+          class="btn-pdf link-danger action-delete sumario-hdr-icon-btn"
+          id="sumario-excluir-selecionadas"
+          title="Excluir seções selecionadas"
+          aria-label="Excluir seções selecionadas"
+          disabled
+        >
+          <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
         </button>
         {% endif %}
       </div>
@@ -154,8 +184,19 @@ rel.mes_referencia }}{% endblock %} {% block content %}
         <table class="sumario-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Seção</th>
+              {% if user.role == 'coordenador' and rel.status != 'finalizado' %}
+              <th class="select-col">
+                <input
+                  type="checkbox"
+                  id="sumario-select-all"
+                  name="sumario_select_all"
+                  title="Selecionar todas as seções"
+                  aria-label="Selecionar todas as seções"
+                />
+              </th>
+              {% endif %}
+              <th class="sumario-indice-col">#</th>
+              <th class="sumario-secao-col">Seção</th>
               <th>Responsável</th>
               <th title="Clonados / Inseridos pelo autor">
                 <span class="th-stack">
@@ -179,7 +220,20 @@ rel.mes_referencia }}{% endblock %} {% block content %}
               data-sumario-nivel="{{ nivel }}"
               data-sumario-has-children="{{ '1' if ns.has_children else '0' }}"
             >
-              <td>
+              {% if user.role == 'coordenador' and rel.status != 'finalizado' %}
+              <td class="select-col">
+                <input
+                  type="checkbox"
+                  id="sumario-secao-{{ s.id }}"
+                  name="secao_ids"
+                  value="{{ s.id }}"
+                  form="sumario-excluir-lote-form"
+                  class="sumario-select-row"
+                  aria-label="Selecionar seção {{ s.numero }}"
+                />
+              </td>
+              {% endif %}
+              <td class="sumario-indice-col">
                 {% if ns.has_children %}
                 <button
                   type="button"
@@ -194,7 +248,7 @@ rel.mes_referencia }}{% endblock %} {% block content %}
                 {% endif %}
                 <strong>{{ s.numero }}</strong>
               </td>
-              <td>{{ s.titulo }}</td>
+              <td class="sumario-secao-col">{{ s.titulo }}</td>
               <td>
                 {% if user.role in ['admin','coordenador'] %}
                 <div class="responsavel-picker">
@@ -316,7 +370,6 @@ rel.mes_referencia }}{% endblock %} {% block content %}
                     action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir"
                     class="inline-form"
                     data-sra-confirm="secao_excluir"
-                    data-sra-iniciar-acompanhamento="1"
                     data-sra-detail="Secção {{ s.numero }} – {{ s.titulo|e }} — os números seguintes no sumário serão reajustados automaticamente."
                   >
                     <button

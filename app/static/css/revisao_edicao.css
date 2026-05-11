@@ -724,11 +724,18 @@
   align-items: center;
   gap: 18px;
 }
+/* ===== Folha A4 (preview de revisão editorial) =====
+   Espelha as métricas do DOCX de referência (D20-13):
+   - Retrato: 210x297mm, margens top=22.2 / right=20 / bottom=25 / left=20mm
+   - Paisagem: 297x210mm, margens top=20 / right=25 / bottom=20 / left=22.2mm
+   A orientação é definida em `Secao.orientacao` (detectado de
+   `w:pgSz/w:orient` no importador DOCX) e propagada ao template como
+   classe `.rev-sheet--landscape` na folha que abriga a seção. */
 .rev-sheet {
   position: relative;
-  width: min(210mm, 100%);
+  width: 210mm;
   max-width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
   background: #fff;
   border: 1px solid #c8ced6;
   border-radius: 4px;
@@ -739,6 +746,22 @@
   font-size: 10pt;
   line-height: 1.15;
   color: #141414;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.rev-sheet--landscape {
+  width: 297mm;
+  max-width: 297mm;
+  height: 210mm;
+  padding: 20mm 25mm 20mm 22.2mm;
+}
+/* Wrapper de corpo: ocupa exatamente o miolo entre as margens da folha;
+   o overflow é controlado em `.rev-sheet` (overflow:hidden) — a paginação
+   JS move blocos overflow para uma nova folha durante o load. */
+.rev-sheet__body {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 .rev-sheet--capa {
   padding: 0;
@@ -758,6 +781,16 @@
   top: 8mm;
   border-bottom: 0.6pt dotted #d4d8de;
   padding-bottom: 2mm;
+  justify-content: flex-end;
+  align-items: center;
+}
+/* Logos PLI/DER no header — espelha o `header_logos_src` do PDF.
+   Altura calibrada para caber no espaço do cabeçalho (8mm-ish) sem distorção. */
+.rev-sheet__logo {
+  height: 9mm;
+  width: auto;
+  max-width: 60mm;
+  display: block;
 }
 .rev-sheet__ftr {
   bottom: 8mm;
@@ -767,9 +800,6 @@
 .rev-sheet__pg {
   font-weight: 600;
   color: #6b7280;
-}
-.rev-sheet__body {
-  min-height: 100%;
 }
 
 /* ---------- Status bar monocromática ---------- */
@@ -815,6 +845,40 @@
 .rev-sheet .secao h1 .num {
   color: #2b6cb0;
   min-width: 20mm;
+}
+/* Seções de nível 1 (1, 2, 3, ...) — espelham o estilo Ttulo1/Nvel1 do
+   DOCX de referência (D20-13): Verdana 14pt bold, cor #0F1E3D, sem borda
+   inferior e numeração colada ao título (tab ~7.5mm = 426 twips). */
+.rev-sheet .secao.lvl-1 h1 {
+  font-size: 14pt;
+  color: #0f1e3d;
+  font-weight: 700;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin: 18pt 0 12pt;
+  gap: 4mm;
+}
+.rev-sheet .secao.lvl-1 h1 .num {
+  color: inherit;
+  min-width: 7.5mm;
+}
+.rev-sheet .secao.lvl-1 .bloco p,
+.rev-sheet .secao.lvl-1 .bloco .ql-editor p {
+  margin: 0 0 12pt;
+}
+/* Callout do parágrafo "Este relatório é um item da Medição..." da seção 1.
+   Reflete o mesmo box (.sra-docx-callout) do template PDF e do DOCX clonado:
+   borda destacada, padding generoso e parágrafo em negrito. */
+.rev-sheet .sra-docx-callout {
+  border: 1.5pt solid #09101d;
+  border-radius: 4mm;
+  margin: 10pt 0 14pt;
+  padding: 5mm 7mm;
+  page-break-inside: avoid;
+}
+.rev-sheet .sra-docx-callout p {
+  font-weight: 700;
+  margin: 0;
 }
 .rev-sheet .secao.lvl-2 h1 {
   font-size: 12pt;

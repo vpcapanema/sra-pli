@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -21,4 +21,16 @@ def excluir_subsecao(
 ):
     return relatorio_exclusao_service.excluir_subsecao(
         rel_id, sec_id, request, db
+    )
+
+
+@router.post("/{rel_id}/secoes/excluir-lote")
+def excluir_secoes_lote(
+    rel_id: int,
+    request: Request,
+    secao_ids: list[int] = Form(default_factory=list),
+    db: Session = Depends(get_db),
+):
+    return relatorio_exclusao_service.excluir_secoes_lote(
+        rel_id, secao_ids, request, db
     )

@@ -97,6 +97,37 @@
 })();
 
 (function () {
+  var all = document.getElementById("sumario-select-all");
+  var rows = Array.prototype.slice.call(
+    document.querySelectorAll(".sumario-select-row"),
+  );
+  var btn = document.getElementById("sumario-excluir-selecionadas");
+  if (!all || !rows.length || !btn) return;
+
+  function updateState() {
+    var checked = rows.filter(function (item) {
+      return item.checked;
+    }).length;
+    btn.disabled = checked === 0;
+    all.checked = checked > 0 && checked === rows.length;
+    all.indeterminate = checked > 0 && checked < rows.length;
+  }
+
+  all.addEventListener("change", function () {
+    rows.forEach(function (item) {
+      item.checked = all.checked;
+    });
+    updateState();
+  });
+
+  rows.forEach(function (item) {
+    item.addEventListener("change", updateState);
+  });
+
+  updateState();
+})();
+
+(function () {
   var rows = Array.prototype.slice.call(
     document.querySelectorAll("[data-sumario-row]"),
   );

@@ -5,6 +5,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
 <link rel="stylesheet" href="/static/css/revisao_edicao.css" />
 <link rel="stylesheet" href="/static/vendor/quill.snow.css" />
 <script src="/static/vendor/quill.min.js"></script>
+<script src="/static/js/revisao_paginacao.js" defer></script>
 {% endblock %} {% block content %}
 <div
   id="rev-edit-root"
@@ -12,16 +13,17 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
   data-editavel="{{ '1' if relatorio_editavel else '0' }}"
 >
   <!-- Seletor de relatório -->
-   <div class="rev-rel-selector">
-  <label for="rev-rel-select">Relatório:</label>
-  <select id="rev-rel-select" class="rev-rel-select" data-rev-navigate>
-    {% for r in relatorios_opcao %}
-    <option value="/relatorios/{{ r.id }}/revisao-edicao" {% if r.id == rel.id %}selected{% endif %}>
-      {{ r.codigo }} — {{ r.mes_referencia or r.titulo }}
-    </option>
-    {% endfor %}
-  </select>
-</div>
+  <div class="rev-rel-selector">
+    <label for="rev-rel-select">Relatório:</label>
+    <select id="rev-rel-select" class="rev-rel-select" data-rev-navigate>
+      {% for r in relatorios_opcao %} {% set sel = ' selected' if r.id == rel.id
+      else '' %}
+      <option value="/relatorios/{{ r.id }}/revisao-edicao{{ '' }}" {{ sel }}>
+        {{ r.codigo }} — {{ r.mes_referencia or r.titulo }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
 
   <!-- Ribbon estilo Word (barra de menus em largura total) -->
   <div class="rev-ribbon">
@@ -772,9 +774,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           <div class="rev-sheet rev-sheet--capa">
             <section class="capa">
               <img
-                src="{{"
-                cover_bg_src
-                }}
+                src="{{ cover_bg_src }}"
                 class="capa-bg"
                 alt=""
                 height="200"
@@ -793,11 +793,11 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           <!-- FICHA TÉCNICA -->
           <div class="rev-sheet">
             <div class="rev-sheet__hdr">
-              <span
-                >Plano de Logística e Investimentos do Estado de SP | PLI
-                2050</span
-              >
-              <span class="rev-sheet__pg">2</span>
+              <img
+                class="rev-sheet__logo"
+                src="{{ header_logos_src }}"
+                alt=""
+              />
             </div>
             <div class="rev-sheet__body">
               <section class="ficha">
@@ -889,11 +889,11 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           <!-- SUMÁRIO -->
           <div class="rev-sheet">
             <div class="rev-sheet__hdr">
-              <span
-                >Plano de Logística e Investimentos do Estado de SP | PLI
-                2050</span
-              >
-              <span class="rev-sheet__pg">3</span>
+              <img
+                class="rev-sheet__logo"
+                src="{{ header_logos_src }}"
+                alt=""
+              />
             </div>
             <div class="rev-sheet__body">
               <section class="sumario">
@@ -911,20 +911,28 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           </div>
 
           <!-- SEÇÕES -->
-          {% for grupo in secoes_preview_grupos %}
-          <div class="rev-sheet">
+          {% for grupo in secoes_preview_grupos %} {% set grupo_orient =
+          (grupo[0].orientacao if grupo and grupo[0].orientacao else 'portrait')
+          %}
+          <div
+            class="rev-sheet{% if grupo_orient == 'landscape' %} rev-sheet--landscape{% endif %}"
+            data-orientacao="{{ grupo_orient }}"
+            data-rev-secoes-pagina="{{ 4 + loop.index0 }}"
+          >
             <div class="rev-sheet__hdr">
-              <span
-                >Plano de Logística e Investimentos do Estado de SP | PLI
-                2050</span
-              >
-              <span class="rev-sheet__pg">{{ 3 + loop.index }}</span>
+              <img
+                class="rev-sheet__logo"
+                src="{{ header_logos_src }}"
+                alt=""
+              />
             </div>
-            <div class="rev-sheet__body">
+            <div class="rev-sheet__body" data-rev-paginate-source>
               {% for s in grupo %} {% set nivel = s.numero.count('.') + 1 %}
               <section
                 id="sec-{{ s.numero|replace('.', '-') }}"
-                class="secao lvl-{{ nivel }}"
+                class="secao lvl-{{ nivel }}{% if s.orientacao == 'landscape' %} secao--landscape{% endif %}"
+                data-rev-secao-numero="{{ s.numero }}"
+                data-rev-secao-titulo="{{ s.titulo|e }}"
               >
                 <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
                 {% if s.blocos %} {% for b in s.blocos %} {% include

@@ -95,6 +95,10 @@ def init_db() -> None:
             )
             conn.execute(text("ALTER TABLE secoes ADD COLUMN IF NOT EXISTS ordem INTEGER NOT NULL DEFAULT 0;"))
             conn.execute(text("ALTER TABLE secoes ADD COLUMN IF NOT EXISTS observacao_validacao TEXT;"))
+            # Orientação A4 por seção (espelha w:pgSz/w:orient do DOCX).
+            conn.execute(
+                text("ALTER TABLE secoes ADD COLUMN IF NOT EXISTS orientacao VARCHAR(16) NOT NULL DEFAULT 'portrait';")
+            )
             conn.execute(
                 text(
                     "ALTER TABLE parametros_ciclo_notificacao "

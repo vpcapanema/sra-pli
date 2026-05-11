@@ -67,6 +67,13 @@
           content: "";
         }
       }
+      /* Página A4 paisagem para seções marcadas com .secao--landscape.
+         Margens espelham sect 3 (landscape) do DOCX de referência D20-13:
+         top=20, right=25, bottom=20, left=22.2mm. */
+      @page secao_landscape {
+        size: A4 landscape;
+        margin: 20mm 25mm 20mm 22.2mm;
+      }
       body {
         font-family: Verdana, Arial, Helvetica, sans-serif;
         font-size: 10pt;
@@ -211,6 +218,19 @@
           transform-origin: top center;
           /* compensa o espaco vertical que o scale "consome" */
           margin-bottom: calc((1 - var(--sra-preview-zoom, 1)) * -297mm);
+        }
+        /* Folha A4 paisagem (297x210mm). Margens espelham sectPr de
+           landscape do DOCX de referência (D20-13, sect 3): top=20,
+           right=25, bottom=20, left=22.2mm. */
+        .preview-sheet--landscape {
+          width: 297mm;
+          height: 210mm;
+          min-height: 210mm;
+          padding: 20mm 25mm 20mm 22.2mm;
+          margin-bottom: calc((1 - var(--sra-preview-zoom, 1)) * -210mm);
+        }
+        .preview-sheet-wrap--landscape {
+          width: calc(297mm * var(--sra-preview-zoom, 1));
         }
         .preview-sheet--capa {
           padding: 0;
@@ -533,6 +553,14 @@
       .secao.lvl-1 {
         page-break-before: always;
       }
+      /* Seção landscape: associa à @page nomeada `secao_landscape`
+         (A4 paisagem, margens da referência D20-13 sect 3). Força page-
+         break-before/after para isolar a seção numa folha própria. */
+      .secao--landscape {
+        page: secao_landscape;
+        page-break-before: always;
+        page-break-after: always;
+      }
       .secao.secao-num-1,
       .secao.secao-num-2 {
         break-before: auto;
@@ -836,7 +864,8 @@
     {% macro secao_conteudo(s) -%} {% set nivel = s.numero.count('.') + 1 %}
     <section
       id="sec-{{ s.numero|replace('.', '-') }}"
-      class="secao lvl-{{ nivel }} secao-num-{{ s.numero|replace('.', '-') }}"
+      class="secao lvl-{{ nivel }} secao-num-{{ s.numero|replace('.', '-') }}{% if s.orientacao == 'landscape' %} secao--landscape{% endif %}"
+      data-orientacao="{{ s.orientacao or 'portrait' }}"
       data-sra-flow-block
     >
       <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>

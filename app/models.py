@@ -91,6 +91,12 @@ class Secao(Base):
     ordem = Column(Integer, nullable=False, default=0)
     responsavel_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String(32), nullable=False, default="pendente")  # pendente, em_andamento, aprovada
+    # Orientação da página A4 para a seção. Espelha `w:pgSz w:orient` do
+    # DOCX de referência. Valores aceitos: 'portrait' (210x297mm,
+    # padrão) e 'landscape' (297x210mm, usado em cronogramas e
+    # planilhas largas). Detectado no importador DOCX a partir do
+    # sectPr; alteráve manualmente via UI futura.
+    orientacao = Column(String(16), nullable=False, default="portrait")
 
     relatorio = relationship("Relatorio", back_populates="secoes")
     responsavel = relationship("User")

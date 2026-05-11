@@ -398,13 +398,37 @@ def _remover_titulo_inicial_duplicado(html_fragment: str, sec_titulo: str) -> st
 
 
 def _preview_sheet_groups(secoes: list[dict]) -> list[list[dict]]:
-    """Agrupa seções para folhas na pré-visualização em ecrã (nível 1 = nova folha)."""
+    """Agrupa seções para folhas na pré-visualização em ecrã.
+
+    Regras:
+    1. Uma nova folha inicia em seção nível-1 que **tenha sub-seções**
+       (ex.: "4" tem "4.1", "4.2"...). Seções nível-1 "folha" (ex.: "1
+       Apresentação", "2 Histórico do Contrato", "3 Relação de Produtos
+       Entregues") fluem na mesma folha da anterior, espelhando a
+       paginação natural do DOCX/PDF de referência (D20-13).
+    2. **Mudança de orientação** (portrait ↔ landscape) força uma nova
+       folha — uma folha A4 não pode misturar orientações. Cada grupo
+       herda a orientação da sua primeira seção, lida em
+       ``grupo[0]['orientacao']`` pelo template.
+    """
+    numeros = [(s.get("numero") or "") for s in secoes]
+
+    def tem_subsecoes(num: str) -> bool:
+        if not num or "." in num:
+            return False
+        prefixo = f"{num}."
+        return any(n.startswith(prefixo) for n in numeros)
+
+    def orient_sec(sec: dict) -> str:
+        return sec.get("orientacao") or "portrait"
+
     groups: list[list[dict]] = []
     current: list[dict] = []
     for sec in secoes:
         num = sec.get("numero") or ""
         nivel = num.count(".") + 1
-        if nivel == 1 and current:
+        muda_orientacao = bool(current) and orient_sec(sec) != orient_sec(current[0])
+        if current and (muda_orientacao or (nivel == 1 and tem_subsecoes(num))):
             groups.append(current)
             current = [sec]
         else:
@@ -464,19 +488,31 @@ def _montar_contexto(  # pylint: disable=too-many-locals
                 "id": sec.id,
                 "numero": sec.numero,
                 "titulo": sec.titulo,
+                "orientacao": getattr(sec, "orientacao", None) or "portrait",
                 "blocos": blocos_render,
             }
         )
+    # Páginas no sumário (preview HTML): mapeia cada seção ao número da folha
+    # em que aparece. Ordem das folhas: 1=capa, 2=ficha, 3=sumário, 4+=grupos.
+    # No PDF/DOCX real a paginação ainda é feita pelo renderizador (WeasyPrint),
+    # mas o usuário do SRA consome o preview HTML — onde estes números são úteis.
+    grupos_preview = _preview_sheet_groups(secoes)
+    pagina_por_numero: dict[str, int] = {}
+    for i, grupo in enumerate(grupos_preview):
+        pagina = 4 + i
+        for sec in grupo:
+            pagina_por_numero[sec["numero"]] = pagina
     sumario_items = []
     for s in secoes:
         nivel_real = s["numero"].count(".") + 1
         nivel = min(nivel_real, 3)
         classe_profundidade = " deep" if nivel_real >= 4 else ""
         sec_id = "sec-" + re.sub(r"[^0-9A-Za-z_-]+", "-", s["numero"])
+        pagina = pagina_por_numero.get(s["numero"], "")
         sumario_items.append(
             f'<li class="lvl-{nivel}{classe_profundidade}"><a href="#{sec_id}">'
             f'<span class="num">{s["numero"]}</span><span class="ttl">{_esc(s["titulo"])}</span>'
-            f'<span class="dots"></span><span class="pg"></span></a></li>'
+            f'<span class="dots"></span><span class="pg">{pagina}</span></a></li>'
         )
     sumario_html = "<ol>" + "".join(sumario_items) + "</ol>"
     medicao = rel.numero_medicao or ""
@@ -486,7 +522,7 @@ def _montar_contexto(  # pylint: disable=too-many-locals
     return {
         "rel": rel,
         "secoes": secoes,
-        "secoes_preview_grupos": _preview_sheet_groups(secoes),
+        "secoes_preview_grupos": grupos_preview,
         "sumario_html": sumario_html,
         "hoje": date.today(),
         "medicao": medicao,

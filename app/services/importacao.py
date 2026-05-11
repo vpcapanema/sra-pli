@@ -160,6 +160,34 @@ def _preencher_secao_vazia_com_atual(sec_atual: Secao, blocks: list[dict]) -> li
     return out
 
 
+def _numero_na_subarvore(numero: str, raiz: str) -> bool:
+    numero = (numero or "").strip()
+    raiz = (raiz or "").strip()
+    return bool(raiz and (numero == raiz or numero.startswith(raiz + ".")))
+
+
+def _forcar_destinos_para_subarvore(sec_atual: Secao, blocks: list[dict]) -> list[dict]:
+    numero_atual = (sec_atual.numero or "").strip()
+    if not numero_atual:
+        return blocks
+    titulo_atual = sec_atual.titulo or f"Seção {numero_atual}"
+    out: list[dict] = []
+    for b in blocks:
+        num = str(b.get("secao_numero") or "").strip()
+        if _numero_na_subarvore(num, numero_atual):
+            out.append(b)
+            continue
+        nb = dict(b)
+        nb["secao_numero"] = numero_atual
+        nb["secao_id"] = sec_atual.id
+        nb["secao_titulo"] = titulo_atual
+        nb["acao_secao"] = "usar"
+        nb["motivo"] = "destino fora da subárvore do upload; aplicado à seção atual"
+        nb["confianca"] = min(float(nb.get("confianca") or 0), 0.69)
+        out.append(nb)
+    return out
+
+
 def _match_secao_linha(
     secoes: list[Secao],
     text: str,
@@ -253,6 +281,8 @@ def _match_secao_linha(
 
 
 def _usuario_pode_estruturar(user: User, sec_atual: Secao, numero: str) -> bool:
+    if not _numero_na_subarvore(numero, sec_atual.numero or ""):
+        return False
     if user.role in ("admin", "coordenador"):
         return True
     numero = (numero or "").strip()
@@ -952,9 +982,8 @@ def _is_numero_relativo(numero: str, secoes_existentes: set[str], sec_base: Seca
     if not numero:
         return False
 
-    # Se temos uma seção base, assume que todos os números são relativos
     if sec_base and sec_base.numero:
-        return True
+        return numero not in secoes_existentes
 
     # Se o número não existe como seção absoluta no relatório, é considerado relativo
     return numero not in secoes_existentes
@@ -1136,7 +1165,7 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             buf.append(text)
 
     _flush_text(blocks, current_sec, buf, current_destino)
-    return blocks
+    return _forcar_destinos_para_subarvore(sec_original, blocks)
 
 
 async def analisar_importacao(

@@ -56,23 +56,43 @@
       var target = sheet.querySelector(".sheet-ftr-right");
       if (target) target.textContent = String(n);
     }
-    function newSheet() {
+    function newSheet(landscape) {
       var sheet = tpl.content.firstElementChild.cloneNode(true);
+      if (landscape) {
+        sheet.classList.add("preview-sheet--landscape");
+        sheet.setAttribute("data-orientacao", "landscape");
+      }
       setPageNumber(sheet, ++pageNo);
       rootEl.insertBefore(sheet, firstSheet.nextSibling);
       firstSheet = sheet;
       return sheet.querySelector(".sheet-body");
     }
+    function nodeIsLandscape(n) {
+      return (
+        n && n.getAttribute && n.getAttribute("data-orientacao") === "landscape"
+      );
+    }
     setPageNumber(firstSheet, pageNo);
     var body = sourceBody;
+    var currentOrient = "portrait";
     nodes.forEach(function (node) {
+      var landscape = nodeIsLandscape(node);
+      // Se a orientação muda, força uma folha nova com a orientação correta
+      // (uma folha A4 não pode misturar portrait + landscape).
+      if (landscape && currentOrient !== "landscape") {
+        body = newSheet(true);
+        currentOrient = "landscape";
+      } else if (!landscape && currentOrient === "landscape") {
+        body = newSheet(false);
+        currentOrient = "portrait";
+      }
       body.appendChild(node);
       if (
         body.scrollHeight > body.clientHeight + 1 &&
         body.childNodes.length > 1
       ) {
         body.removeChild(node);
-        body = newSheet();
+        body = newSheet(landscape);
         body.appendChild(node);
       }
     });

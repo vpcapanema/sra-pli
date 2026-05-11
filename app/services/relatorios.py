@@ -49,22 +49,14 @@ from .secao_responsaveis import (
 )
 
 
-_CONTRATANTE_PADRAO = (
-    "Departamento de Estradas de Rodagem do Estado de São Paulo - DER/SP"
-)
+_CONTRATANTE_PADRAO = "Departamento de Estradas de Rodagem do Estado de São Paulo - DER/SP"
 _CONTRATADO_PADRAO = "Consórcio CONCREMAT - TRANSPLAN"
-_PROJETO_PADRAO = (
-    "Plano de Logística e Investimentos do Estado de São Paulo - PLI/SP"
-)
+_PROJETO_PADRAO = "Plano de Logística e Investimentos do Estado de São Paulo - PLI/SP"
 _CONTRATO_PADRAO = "PLI/SP-2050"
 
 
 def _formatar_data_br(valor) -> str:
     return valor.strftime("%d/%m/%Y") if valor else ""
-
-
-def _pluralizar_mes(qtd: int) -> str:
-    return "mês" if qtd == 1 else "meses"
 
 
 def _html_paragrafo_secao1(rotulo: str, valor: str) -> str:
@@ -76,6 +68,7 @@ def _html_paragrafo_secao1(rotulo: str, valor: str) -> str:
 
 
 def _html_callout_secao1(rel: Relatorio) -> str:
+    """Callout em destaque (negrito + borda) — espelha a referência D20-13."""
     medicao = rel.numero_medicao or 0
     codigo = rel.codigo or ""
     return (
@@ -84,36 +77,43 @@ def _html_callout_secao1(rel: Relatorio) -> str:
         '<strong><span style="font-size:10.0pt;font-family:Verdana">'
         f"Este relatório é um item da Medição {medicao}, composta pelo "
         f"presente relatório ({escape(codigo)}), atendendo ao Apêndice C: "
-        "Discriminação do Preço do Contrato e ao item 3.1 do contrato."
+        "Discriminação do Preço do Contrato e ao item 3.1 do Apêndice A do "
+        "Termo de Referência, o qual compreende que o contrato será avaliado "
+        "e, por consequência, remunerado pelos produtos entregues e aprovados "
+        "pela Contratante."
         "</span></strong></p></div>"
     )
 
 
-def _conteudo_apresentacao_clone(rel: Relatorio) -> str:
-    medicao = rel.numero_medicao or 0
-    periodo = (
-        f"{_formatar_data_br(rel.periodo_inicio)} a "
-        f"{_formatar_data_br(rel.periodo_fim)}"
+def _html_objetivo_secao1() -> str:
+    """Parágrafo de fechamento da seção 1 (referência D20-13)."""
+    return (
+        '<p style="text-align:justify;margin-bottom:12.0pt">'
+        '<span style="font-size:10.0pt;font-family:Verdana">'
+        "O objetivo deste documento é fornecer uma visão geral das atividades "
+        "desenvolvidas no projeto, juntamente com um descritivo de coordenação "
+        "e gestão realizadas ao longo desse período, oferecendo uma análise "
+        "detalhada do desempenho e dos progressos alcançados até o momento."
+        "</span></p>"
     )
-    prazo = f"{medicao} {_pluralizar_mes(medicao)}"
+
+
+def _conteudo_apresentacao_clone(rel: Relatorio) -> str:
+    """Seção 1 (Apresentação) canônica — paridade 1:1 com D20-13.
+
+    Estrutura: 4 linhas-rótulo + callout em destaque + parágrafo de objetivo.
+    Nada além disso (campos como ``Contrato``, ``Projeto``, ``Código``,
+    ``Status`` não constam da referência e foram removidos).
+    """
+    medicao = rel.numero_medicao or 0
+    periodo = f"{_formatar_data_br(rel.periodo_inicio)} a {_formatar_data_br(rel.periodo_fim)}"
     partes = [
         _html_paragrafo_secao1("Contratante", _CONTRATANTE_PADRAO),
         _html_paragrafo_secao1("Contratado", _CONTRATADO_PADRAO),
-        _html_paragrafo_secao1("Contrato", _CONTRATO_PADRAO),
-        _html_paragrafo_secao1("Projeto", _PROJETO_PADRAO),
-        _html_paragrafo_secao1(
-            "Nº do Relatório Mensal (D20)",
-            str(medicao),
-        ),
-        _html_paragrafo_secao1("Código do relatório", rel.codigo or ""),
-        _html_paragrafo_secao1("Medições realizadas", str(medicao)),
-        _html_paragrafo_secao1("Prazo corrido", prazo),
+        _html_paragrafo_secao1("Nº do Relatório Mensal (D20)", str(medicao)),
         _html_paragrafo_secao1("Período abrangido pelo Relatório", periodo),
-        _html_paragrafo_secao1(
-            "Status de acompanhamento",
-            rel.status or "aberto",
-        ),
         _html_callout_secao1(rel),
+        _html_objetivo_secao1(),
     ]
     return body_to_storage("".join(partes))
 
@@ -137,6 +137,52 @@ def _atualizar_apresentacao_docx_clone(
         else:
             blocos.append(bloco_apresentacao)
         return
+
+
+def _resincronizar_apresentacao_se_canonica(db: Session, rel: Relatorio) -> None:
+    """Atualiza a seção 1 do relatório se ela ainda estiver canônica.
+
+    Disparado após editar metadados do relatório (medição, período, código,
+    título). Se a seção 1 contém um único bloco com ``origem='clone_canonico'``,
+    sobrescrevemos o conteúdo para refletir os novos valores. Caso contrário
+    (autor editou, adicionou figuras/tabelas, mudou o texto), respeitamos a
+    edição e não tocamos no conteúdo.
+    """
+    sec1 = db.query(Secao).filter(Secao.relatorio_id == rel.id, Secao.numero == "1").one_or_none()
+    if sec1 is None:
+        return
+    blocos = db.query(Bloco).filter(Bloco.secao_id == sec1.id).all()
+    if len(blocos) != 1:
+        return
+    bloco = blocos[0]
+    if (bloco.origem or "") != "clone_canonico":
+        return
+    bloco.conteudo = _conteudo_apresentacao_clone(rel)
+
+
+def _aplicar_apresentacao_canonica_em_clone(db: Session, rel: Relatorio) -> None:
+    """Reescreve a seção 1 (Apresentação) do relatório clonado.
+
+    Após `_clonar_estrutura_e_conteudo`, a seção 1 carrega o texto-plano legado
+    da base. Aqui substituímos pelo conteúdo rich-HTML canônico (com callout
+    "Este relatório é um item da Medição..."), mantendo paridade visual com a
+    referência D20-13. Os blocos extras (figuras/tabelas) da seção 1 da base são
+    removidos para garantir layout determinístico.
+    """
+    sec1 = db.query(Secao).filter(Secao.relatorio_id == rel.id, Secao.numero == "1").one_or_none()
+    if sec1 is None:
+        return
+    db.query(Bloco).filter(Bloco.secao_id == sec1.id).delete(synchronize_session=False)
+    db.flush()
+    db.add(
+        Bloco(
+            secao_id=sec1.id,
+            tipo="texto",
+            ordem=0,
+            conteudo=_conteudo_apresentacao_clone(rel),
+            origem="clone_canonico",
+        )
+    )
 
 
 def _exigir_relatorio_editavel(db: Session, rel_id: int) -> Relatorio:
@@ -463,6 +509,11 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
                     secoes = txdb.query(Secao).filter(Secao.relatorio_id == rel.id).all()
                     for sec in secoes:
                         sec.titulo = _substituir_referencias_periodo(sec.titulo, base, rel) or sec.titulo
+                    # Reescreve a seção 1 (Apresentação) no novo relatório com o
+                    # conteúdo rich-HTML canônico (Contratante/Contratado/... +
+                    # callout em destaque), espelhando a referência D20-13.
+                    # Em clones, isto evita herdar o texto-plano legado da base.
+                    _aplicar_apresentacao_canonica_em_clone(txdb, rel)
                     txdb.commit()
                     _p(90, "Clonagem concluída")
             elif secoes_com_conteudo:
@@ -489,6 +540,7 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
                         ordem=ordem,
                         responsavel_id=None,
                         status="pendente",
+                        orientacao=sec_data.get("orientacao") or "portrait",
                     )
                     txdb.add(nova_sec)
                     txdb.flush()
@@ -674,6 +726,10 @@ def editar_relatorio(  # pylint: disable=too-many-arguments,too-many-positional-
     rel.periodo_inicio = dateparser.parse(periodo_inicio).date()
     rel.periodo_fim = dateparser.parse(periodo_fim).date()
     rel.numero_medicao = int(numero_medicao) if numero_medicao.strip() else None
+    # Se a seção 1 ainda está no conteúdo canônico (origem=clone_canonico),
+    # regenera-a para refletir os novos metadados (medição, período, código).
+    # Edições manuais (origem != clone_canonico) NUNCA são sobrescritas.
+    _resincronizar_apresentacao_se_canonica(db, rel)
     db.commit()
     return response_dashboard(request, db)
 
@@ -755,6 +811,7 @@ def duplicar_relatorio(rel_id: int, request: Request, db: Session):  # pylint: d
                 ordem=s.ordem,
                 responsavel_id=s.responsavel_id,
                 status="pendente",
+                orientacao=getattr(s, "orientacao", None) or "portrait",
             )
             txdb.add(nova_sec)
             txdb.flush()

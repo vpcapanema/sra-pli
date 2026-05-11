@@ -13,6 +13,7 @@ from ..numeracao import consolidar_referencias, renumerar_relatorio
 from .relatorios import (
     _admin_coord_ou_login,
     _admin_coord_relatorio_mutavel,
+    _u_or_login,
 )
 
 
@@ -56,5 +57,44 @@ def excluir_subsecao(rel_id: int, sec_id: int, request: Request, db: Session):
             txdb.delete(sec_tx)
             txdb.flush()
         renumerar_relatorio(txdb, rel_id)
+    db.expire_all()
+    return RedirectResponse(url=f"/relatorios/{rel_id}", status_code=303)
+
+
+def excluir_secoes_lote(
+    rel_id: int,
+    secao_ids: list[int],
+    request: Request,
+    db: Session,
+):
+    u, p = _u_or_login(request, db)
+    if p is not None:
+        return p
+    assert u is not None
+    if u.role != "coordenador":
+        raise HTTPException(403)
+    _exigir_relatorio_mutavel = _admin_coord_relatorio_mutavel(
+        request,
+        db,
+        rel_id,
+    )
+    if _exigir_relatorio_mutavel is not None:
+        return _exigir_relatorio_mutavel
+    ids = {int(sec_id) for sec_id in secao_ids if int(sec_id) > 0}
+    if ids:
+        with tx_session() as txdb:
+            consolidar_referencias(txdb, rel_id)
+            secoes = (
+                txdb.query(Secao)
+                .filter(Secao.relatorio_id == rel_id, Secao.id.in_(ids))
+                .order_by(Secao.numero)
+                .all()
+            )
+            for sec in secoes:
+                if "." not in (sec.numero or ""):
+                    continue
+                txdb.delete(sec)
+            txdb.flush()
+            renumerar_relatorio(txdb, rel_id)
     db.expire_all()
     return RedirectResponse(url=f"/relatorios/{rel_id}", status_code=303)

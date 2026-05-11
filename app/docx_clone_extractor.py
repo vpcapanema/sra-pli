@@ -179,6 +179,7 @@ def _abrir_secao(
     numero: str,
     titulo: str,
     vistos: set,
+    orientacao: str = "portrait",
 ) -> dict | None:
     """Cria uma nova entrada de secao e devolve-a, ou ``None`` se duplicada/invalida."""  # noqa: E501
     numero = (numero or "").strip()
@@ -189,6 +190,7 @@ def _abrir_secao(
     sec = {
         "secao_numero": numero,
         "secao_titulo": titulo or f"Secao {numero}",
+        "orientacao": orientacao if orientacao in ("portrait", "landscape") else "portrait",
         "blocos": [],
     }
     resultado.append(sec)
@@ -259,6 +261,47 @@ _CALLOUT_APRESENTACAO_RE = re.compile(
     r"este relat[oó]rio\s+[ée]\s+um item da medi[cç][aã]o\s+\d+",
     re.IGNORECASE,
 )
+
+
+def _orientacao_da_secao_docx(document: Document, section_idx: int) -> str:
+    """Devolve 'landscape' ou 'portrait' lendo ``w:pgSz/w:orient`` do DOCX.
+
+    No OOXML, o documento é dividido em "sections" (``w:sectPr``).
+    ``document.sections[i].orientation`` expõe ``WD_ORIENT.PORTRAIT`` /
+    ``LANDSCAPE``. Esta função é segura mesmo quando o índice está fora
+    do alcance ou o atributo não está presente.
+    """
+    try:
+        sections = document.sections
+        if section_idx >= len(sections):
+            return "portrait"
+        sec = sections[section_idx]
+        # python-docx: 0=portrait, 1=landscape
+        return "landscape" if int(sec.orientation) == 1 else "portrait"
+    except (AttributeError, ValueError, IndexError):
+        return "portrait"
+
+
+def _paragraph_section_index(paragraph: Paragraph, doc_xml: list) -> int:
+    """Calcula o índice da `sectPr` cujo conteúdo este parágrafo integra.
+
+    Itera linearmente os elementos do body; cada `sectPr` filho de `pPr`
+    (final de section) ou direto de `body` fecha a section corrente.
+    Retorna 0 antes do primeiro fechamento.
+    """
+    p_el = paragraph._element
+    idx = 0
+    for el in doc_xml:
+        if el is p_el:
+            return idx
+        if el.tag.endswith("}p"):
+            # uma sectPr dentro do pPr deste parágrafo encerra a section
+            ppr = el.find(qn("w:pPr"))
+            if ppr is not None and ppr.find(qn("w:sectPr")) is not None:
+                idx += 1
+        elif el.tag.endswith("}sectPr"):
+            idx += 1
+    return idx
 
 
 def _run_to_html(run) -> str:
@@ -613,6 +656,10 @@ def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
     """
     document = Document(BytesIO(raw))
 
+    # Cache da lista de elementos do body para resolver índice de section
+    # a que cada parágrafo pertence (espelha w:sectPr → orientação).
+    _body_children = list(document.element.body.iterchildren())
+
     resultado: list[dict] = []
     vistos_numeros: set[str] = set()
     contadores_por_nivel: dict[int, int] = {}
@@ -662,9 +709,7 @@ def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
             for img in imgs:
                 dados = _b64_to_bytes(img.get("image_b64") or "")
                 mime = img.get("image_mime") or "image/png"
-                pending_figure_idx = _append_figura_para_secao(
-                    _sec_ref(), "", "", dados, mime
-                )
+                pending_figure_idx = _append_figura_para_secao(_sec_ref(), "", "", dados, mime)
                 if pending_figure_idx is not None:
                     last_media_idx = pending_figure_idx
                     last_media_kind = "figura"
@@ -746,7 +791,12 @@ def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
                 for k in list(contadores_por_nivel.keys()):
                     if k > len(partes):
                         del contadores_por_nivel[k]
-            nova = _abrir_secao(resultado, numero, titulo, vistos_numeros)
+            # Detecta orientação da página em que este heading aparece.
+            # Espelha w:pgSz/w:orient do DOCX (referência D20-13 usa
+            # landscape em cronogramas / sec. 7, 11).
+            sect_idx = _paragraph_section_index(paragraph, _body_children)
+            orientacao = _orientacao_da_secao_docx(document, sect_idx)
+            nova = _abrir_secao(resultado, numero, titulo, vistos_numeros, orientacao)
             if nova is not None:
                 current_sec = nova
                 ultimo_numero = numero

@@ -5,6 +5,7 @@ Formatação **local** (independente da hierarquia de seções do relatório):
 - Marcador após o recuo, uma linha = um item: ``- ``, ``* ``, ``• ``; ``1.``; ``1)``; ``(1)``;
   ``a)``/``A)``/``a.``/``A.``; ``i)``/``I)``/``i.``/``I.`` (romanos: i, ii, iii, …, iv, …, ix, x, …)
 """
+
 from __future__ import annotations
 
 import re
@@ -207,11 +208,16 @@ def mixed_texto_paragrafos_e_listas_to_html(texto: str) -> str:
     para_buf: list[str] = []
 
     def flush_para() -> None:
+        # Convenção do SRA: cada linha não-vazia corresponde a um parágrafo
+        # lógico (espelha 1 <w:p> do DOCX = 1 linha no `conteudo`).
+        # Emitir um <p> por linha preserva a quebra visual da referência
+        # (D20-13) em itens como "Contratante:", "Contratado:", etc.
         if not para_buf:
             return
-        par = " ".join(p.strip() for p in para_buf if p.strip()).strip()
-        if par:
-            out.append(f"<p>{escape(par)}</p>")
+        for linha in para_buf:
+            par = linha.strip()
+            if par:
+                out.append(f"<p>{escape(par)}</p>")
         para_buf.clear()
 
     while i < len(linhas):
