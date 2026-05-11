@@ -490,17 +490,42 @@
     }
   }
 
-  function updatePreviewForSecao(secaoId) {
-    var base = frame.dataset.src;
+  function getSubtreeIds(secaoId) {
+    if (!secSelector) return [secaoId];
+    var selectedOpt = secSelector.querySelector('option[value="' + secaoId + '"]');
+    var selectedNum = selectedOpt ? (selectedOpt.dataset.numero || "") : "";
+    if (!selectedNum) return [secaoId];
+    var ids = [];
+    secSelector.querySelectorAll("option").forEach(function (opt) {
+      var num = opt.dataset.numero || "";
+      if (num === selectedNum || num.indexOf(selectedNum + ".") === 0) {
+        ids.push(opt.value);
+      }
+    });
+    return ids.length ? ids : [secaoId];
+  }
+
+  function buildPreviewUrl(secaoId, bustCache) {
+    var base = (frame.dataset.src || "").split("#")[0];
     var url = new URL(base, window.location.origin);
-    url.searchParams.set("secao_ids", secaoId);
-    frame.src = url.toString();
+    url.searchParams.delete("secao_ids");
+    getSubtreeIds(secaoId).forEach(function (id) {
+      url.searchParams.append("secao_ids", id);
+    });
+    if (bustCache) url.searchParams.set("t", Date.now());
+    var selectedOpt = secSelector ? secSelector.querySelector('option[value="' + secaoId + '"]') : null;
+    var num = selectedOpt ? (selectedOpt.dataset.numero || "") : "";
+    var anchor = num ? "#sec-" + num.replace(/\./g, "-") : "";
+    return url.toString() + anchor;
+  }
+
+  function updatePreviewForSecao(secaoId) {
+    frame.src = buildPreviewUrl(secaoId, false);
   }
 
   if (secSelector) {
     secSelector.addEventListener("change", function () {
-      var secId = secSelector.value;
-      updatePreviewForSecao(secId);
+      updatePreviewForSecao(secSelector.value);
     });
   }
 
@@ -510,12 +535,24 @@
 
   if (reloadBtn && frame.dataset.src) {
     reloadBtn.addEventListener("click", function () {
-      var base = frame.dataset.src;
       var secId = secSelector ? secSelector.value : "";
-      var url = new URL(base, window.location.origin);
-      url.searchParams.set("secao_ids", secId);
-      url.searchParams.set("t", Date.now());
-      frame.src = url.toString();
+      frame.src = buildPreviewUrl(secId, true);
+    });
+  }
+
+  // Preview de blocos individuais
+  var previewBtns = document.querySelectorAll(".preview-bloco-btn");
+  if (previewBtns.length > 0) {
+    previewBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var blocoId = btn.dataset.blocoId;
+        if (!blocoId) return;
+        var base = frame.dataset.src;
+        var url = new URL(base, window.location.origin);
+        url.searchParams.set("bloco_ids", blocoId);
+        url.searchParams.set("t", Date.now());
+        frame.src = url.toString();
+      });
     });
   }
   if (zIn)
@@ -3619,4 +3656,17 @@ function initEditBlocoFlow() {
       confirmBtn.disabled = false;
     }
   });
+})();
+
+// ---- Botão fullscreen preview ----
+(function () {
+  const btnFullscreen = document.getElementById("btn-preview-fullscreen");
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener("click", function () {
+      const frame = document.getElementById("preview-frame");
+      if (frame && frame.src) {
+        window.open(frame.src, "_blank");
+      }
+    });
+  }
 })();

@@ -1,9 +1,9 @@
 {% extends "base.html" %} {% block head_extra %}
 <link href="/static/css/relatorio_detail.css" rel="stylesheet" />
-{% endblock %} {% block body_class %}page-rel-com-preview{% endblock %} {% block
-title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock %} {% block
-header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %} {% block
-content %}
+{% endblock %} {% block body_class %}page-relatorio-detail
+page-rel-com-preview{% endblock %} {% block title %}{{ rel.codigo }} — {{
+rel.mes_referencia }}{% endblock %} {% block header %}{{ rel.codigo }} · {{
+rel.mes_referencia }}{% endblock %} {% block content %}
 <section class="hero">
   <h1>{{ rel.titulo }}</h1>
   <div class="subtitle">
@@ -61,11 +61,7 @@ content %}
               <div class="coord-field-row">
                 <div class="coord-field">
                   <label for="coord-rel-status">Alterar estado para</label>
-                  <select
-                    id="coord-rel-status"
-                    name="status"
-                    title="Novo estado do relatório"
-                  >
+                  <select id="coord-rel-status" name="status" title="Novo estado do relatório">
                     <option value="aberto"{% if rel.status == "aberto" %} selected{% endif %}>
                       Aberto — edição pelos autores
                     </option>
@@ -73,7 +69,7 @@ content %}
                       Em revisão — coordenação
                     </option>
                     <option value="finalizado"{% if rel.status == "finalizado" %} selected{% endif %}>
-                      Finalizado — fechado para alterações estruturais
+                      Finalizado — PDF entregue
                     </option>
                   </select>
                 </div>
@@ -525,8 +521,8 @@ content %}
           <div class="preview-zoom-inner" id="rel-sum-preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="/relatorios/{{ rel.id }}/preview?contexto=sumario"
-              data-src="/relatorios/{{ rel.id }}/preview?contexto=sumario"
+              src="/relatorios/{{ rel.id }}/preview"
+              data-src="/relatorios/{{ rel.id }}/preview"
               class="preview-frame"
               title="Pré-visualização do relatório"
             ></iframe>

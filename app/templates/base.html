@@ -4,13 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
-      {% block title %}{{ user and user.nome or 'SRA' }}{% endblock %} · SRA
+      {% block title %}{{ user and user.nome or 'SRA' }}{% endblock %} - SRA
     </title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-      integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/20I1fctJ0d/LsL4I9HA7knVfivniWe1Xy9QWffA06wPuzCnLKcAflP7w=="
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
@@ -31,10 +30,11 @@
     <script src="/static/js/sra_process_ui.js"></script>
     {% endif %}
   </head>
-  {% set _path = request.url.path if request is defined else '' %}
-  {% set _parts_hub = _path.strip('/').split('/') %}
-  {% set _relatorio_sumario = (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and _parts_hub[1].isdigit()) %}
-  {% set _relatorio_sidebar_collapsed = _path == '/relatorios' or _path == '/relatorios/' or _relatorio_sumario %}
+  {% set _path = request.url.path if request is defined else '' %} {% set
+  _parts_hub = _path.strip('/').split('/') %} {% set _relatorio_sumario =
+  (_parts_hub | length == 2 and _parts_hub[0] == 'relatorios' and
+  _parts_hub[1].isdigit()) %} {% set _relatorio_sidebar_collapsed = _path ==
+  '/relatorios' or _path == '/relatorios/' or _relatorio_sumario %}
   <body
     class="{% if user %}sra-app {% if _relatorio_sidebar_collapsed %}sra-sidebar-collapsed{% endif %}{% endif %}{% block body_class %}{% endblock %}"
   >
@@ -47,23 +47,22 @@
           class="sb-toggle"
           aria-label="Recolher menu lateral"
           aria-controls="sb"
-          aria-expanded="{% if _relatorio_sidebar_collapsed %}false{% else %}true{% endif %}"
+          aria-expanded="true"
         >
-          ☰
+          &#9776;
         </button>
-        <h1>SRA · PLI-SP</h1>
+        <h1>SRA - PLI-SP</h1>
         <p>
           Sistema de Relatórios de Atividades
           <br />
-          Concremat–Transplan
+          Concremat-Transplan
         </p>
       </div>
       <nav aria-label="Navegação principal">
         <span class="sb-sep">Navegação</span>
-        {% set _on_gestao = _path == '/dashboard' or
-        _path.endswith('/entregas') or _path.endswith('/revisao-edicao') %} {%
-        set _on_relatorio = _relatorio_sumario or
-        _path.endswith('/upload-conteudo') or
+        {% set _on_gestao = _path == '/dashboard' or _path.endswith('/entregas')
+        or _path.endswith('/revisao-edicao') %} {% set _on_relatorio =
+        _relatorio_sumario or _path.endswith('/upload-conteudo') or
         _path.startswith('/modelos-word-importacao') or _path ==
         '/painel-upload' %} {% set _on_admin = _path.startswith('/usuarios') or
         _path.startswith('/governanca-relatorio') %} {% set _on_suporte =
@@ -93,8 +92,8 @@
         in ['admin','coordenador'] %}
         <details class="{{ _cls_gestao }}" {{ _open_gestao }}>
           <summary class="ni ni-toggle">
-            <span class="num">01</span><span class="nlbl">Painel e Gestão</span>
-            <span class="ni-caret" aria-hidden="true">▾</span>
+            <span class="num">1</span><span class="nlbl">Painel e Gestão</span>
+            <span class="ni-caret" aria-hidden="true">&#9662;</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="/dashboard">Painel de relatórios</a>
@@ -107,8 +106,8 @@
         {% endif %}
         <details class="{{ _cls_relatorio }}" {{ _open_relatorio }}>
           <summary class="ni ni-toggle">
-            <span class="num">02</span><span class="nlbl">Relatório</span>
-            <span class="ni-caret" aria-hidden="true">▾</span>
+            <span class="num">2</span><span class="nlbl">Relatório</span>
+            <span class="ni-caret" aria-hidden="true">&#9662;</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="{{ _url_sumario_hub }}">Sumário</a>
@@ -123,8 +122,8 @@
         {% if user.role in ['admin','coordenador'] %}
         <details class="{{ _cls_admin }}" {{ _open_admin }}>
           <summary class="ni ni-toggle">
-            <span class="num">03</span><span class="nlbl">Administração</span>
-            <span class="ni-caret" aria-hidden="true">▾</span>
+            <span class="num">3</span><span class="nlbl">Administração</span>
+            <span class="ni-caret" aria-hidden="true">&#9662;</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
@@ -135,9 +134,9 @@
         </details>
         <details class="{{ _cls_suporte }}" {{ _open_suporte }}>
           <summary class="ni ni-toggle">
-            <span class="num">04</span
+            <span class="num">4</span
             ><span class="nlbl">Suporte e Diagnóstico</span>
-            <span class="ni-caret" aria-hidden="true">▾</span>
+            <span class="ni-caret" aria-hidden="true">&#9662;</span>
           </summary>
           <div class="ni-sub">
             <a class="ni-sub-link" href="/mapa-aplicacao">Mapa da aplicação</a>
@@ -186,7 +185,7 @@
             ><span class="sf-val sf-role">{{ user.role }}</span></span
           >
         </div>
-        <span class="meta">SEMIL · Consórcio Concremat–Transplan</span>
+        <span class="meta">SEMIL - Consorcio Concremat-Transplan</span>
       </header>
       <div id="content">{% block content %}{% endblock %}</div>
     </div>

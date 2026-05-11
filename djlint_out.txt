@@ -1,0 +1,22 @@
+
+
+Linting 0/1 files            00:00    
+Linting 1/1 files ╗╗╗╗╗╗╗╗╗╗ 00:00    
+                                      
+
+Linting 1/1 files ╗╗╗╗╗╗╗╗╗╗ 00:00    
+Linting 1/1 files ╗╗╗╗╗╗╗╗╗╗ 00:00    
+
+
+app\templates\complementos\secao_edit_conteudo_upload.html
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+H025 69:14 Tag seems to be an orphan. </option>
+H025 118:16 Tag seems to be an orphan. </option>
+H025 120:14 Tag seems to be an orphan. </select>
+H025 138:16 Tag seems to be an orphan. </option>
+H025 151:16 Tag seems to be an orphan. </option>
+H025 164:16 Tag seems to be an orphan. </option>
+H025 582:16 Tag seems to be an orphan. </option>
+
+Linted 1 file, found 7 errors.
+

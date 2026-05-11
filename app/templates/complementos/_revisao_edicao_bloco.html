@@ -74,7 +74,7 @@ permanece intacto no DB, sem efeito de UI). #} {% set _body_attrs =
   {% endif %} {% elif b.tipo == 'figura' %}
   <div class="figura">
     {% if b.src %}
-    <img src="{{ b.src }}" alt="" />
+    <img src="{{ b.src }}" alt="" width="100%" height="auto"/>
     {% else %}
     <p class="empty-section">[Figura importada sem imagem vinculada]</p>
     {% endif %}

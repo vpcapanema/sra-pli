@@ -28,19 +28,6 @@
     "--rcfile=d:\\sistema_relatorio_mensal_atividades\\pyproject.toml"
   ],
 
-  "djlint.enableLinting": true,
-  "djlint.useNewLinter": true,
-  "djlint.pythonPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
-  "djlint.ignore": [
-    "**/*.py",
-    "**/*.js",
-    "**/*.css",
-    "**/.github/**/*.md",
-    "**/.cursor/**/*.md",
-    "**/.cursor/*.md",
-    "**/tmp/**/*.html"
-  ],
-
   "vscode-edge-devtools.webhint": false,
 
   "files.associations": {
@@ -58,8 +45,7 @@
   },
 
   "[jinja-html]": {
-    "editor.tabSize": 2,
-    "editor.defaultFormatter": "monosans.djlint"
+    "editor.tabSize": 2
   },
 
   "[python]": {

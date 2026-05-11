@@ -1,13 +1,13 @@
-{% extends "base.html" %} {% block head_extra %}
+{% extends "base.html" %}
+{% block head_extra %}
 <link href="/static/vendor/quill.snow.css" rel="stylesheet" />
 <link href="/static/css/secao_edit_conteudo_upload.css" rel="stylesheet" />
-<link href="/static/css/relatorio_detail.css" rel="stylesheet" />
 <script src="/static/vendor/quill.min.js"></script>
-{% endblock %} {% block body_class %}page-conteudo-upload page-rel-com-preview{%
-endblock %} {% block title %}Gerenciador e editor de seção e upload · {{
-sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block header
-%}{{ rel.codigo }} · Gerenciador e editor de seção e upload · {{ sec.numero }} –
-{{ sec.titulo }}{% endblock %} {% block content %}
+{% endblock %}
+{% block body_class %}page-conteudo-upload page-rel-com-preview{% endblock %}
+{% block title %}Gerenciador e editor de seção e upload · {{ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %}
+{% block header %}{{ rel.codigo }} · Gerenciador e editor de seção e upload · {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
+{% block content %}
 <section class="sec-hero">
   <h1>
     Gerenciador e editor de seção e upload — Seção {{ sec.numero }} – {{
@@ -24,8 +24,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     <a href="/modelos-word-importacao">Modelos Word e tutorial de importação</a>
   </p>
 </section>
-<div class="upload-layout">
-  <div class="upload-main">
+<div class="conteudo-upload-layout">
+  <div class="conteudo-upload-main">
     <section class="ss active-tab upload-coord-ss" id="ss-coord">
       <div class="ss-hdr">
         <span class="sn">1</span>
@@ -54,111 +54,47 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               aria-label="Seção alvo do upload"
             >
               {% for s in rel.secoes %}
-              <option
-                value="{{ s.id }}"
-                {%
-                if
-                s.id=""
-                ="sec.id"
-                %}selected{%
-                endif
-                %}
-              >
-                {{ s.numero }} — {{ s.titulo }}
-              </option>
+              <option value="{{ s.id }}" data-numero="{{ s.numero }}"{% if s.id == sec.id %} selected{% endif %}>{{ s.numero }} — {{ s.titulo }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="ucr-field ucr-coord-resp" id="ucr-wrap-resp">
             <label for="sel-sec-responsavel">
-              Responsável{% if sec_tem_upload %}
-              <span aria-hidden="true" class="required-asterisk">*</span>{%
-              endif %}
+              Responsável{% if sec_tem_upload %}<span aria-hidden="true" class="required-asterisk">*</span>{% endif %}
             </label>
             <div class="ucr-input-wrap">
-              <select
-                id="sel-sec-responsavel"
-                data-sec-tem-upload="{{ '1' if sec_tem_upload else '0' }}"
-                title="Responsável pela seção{%- if sec_tem_upload -%} (obrigatório quando há conteúdo inserido pelo autor){%- endif -%}"
-                {%
-                if
-                sec_tem_upload
-                %}required{%
-                endif
-                %}
-              >
-                {% if not sec_tem_upload %}
-                <option value="">—</option>
-                {% endif %} {% for a in autores %} {% set _resp_none =
-                sec.responsavel_id == None %} {% set _sel_autor =
-                sec.responsavel_id == a.id or (_resp_none and user.role ==
-                'autor' and a.id == user.id) %}
-                <option
-                  value="{{ a.id }}"
-                  {%
-                  if
-                  a.id
-                  !="user.id"
-                  and
-                  user.role=""
-                  ="autor"
-                  ="autor"
-                  %}disabled{%
-                  endif
-                  %}
-                  {%
-                  if
-                  _sel_autor
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  {{ a.nome }}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
+  {% set titulo_responsavel = "Responsável pela seção (obrigatório quando há conteúdo inserido pelo autor)" if sec_tem_upload else "Responsável pela seção" %}
+
+  <select
+    id="sel-sec-responsavel"
+    data-sec-tem-upload="{{ '1' if sec_tem_upload else '0' }}"
+    title="{{ titulo_responsavel }}"
+    {% if sec_tem_upload %}required{% endif %}
+  >
+    {% if not sec_tem_upload %}
+    <option value="">—</option>
+    {% endif %}
+
+    {% for a in autores %}
+    <option
+      value="{{ a.id }}"
+      {% if a.id != user.id and user.role == 'autor' %}disabled{% endif %}
+      {% if a.id == sec.responsavel_id or (sec.responsavel_id is none and user.role == 'autor' and a.id == user.id) %}selected{% endif %}
+    >
+      {{ a.nome }}
+    </option>
+    {% endfor %}
+  </select>
+</div>
+
           </div>
           <div class="ucr-field ucr-coord-st" id="ucr-wrap-st">
             <label for="sel-sec-status">Status</label>
             <div class="ucr-side-wrap">
               <select id="sel-sec-status" title="Status da seção">
-                <option
-                  value="pendente"
-                  {%
-                  if
-                  status_sel=""
-                  ="pendente"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Pendente
-                </option>
-                <option
-                  value="em_andamento"
-                  {%
-                  if
-                  status_sel=""
-                  ="em_andamento"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Em andamento
-                </option>
-                <option
-                  value="aprovada"
-                  {%
-                  if
-                  status_sel=""
-                  ="aprovada"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Aprovada
-                </option>
+                <option value="pendente"{% if status_sel == 'pendente' %} selected{% endif %}>Pendente</option>
+                <option value="em_andamento"{% if status_sel == 'em_andamento' %} selected{% endif %}>Em andamento</option>
+                <option value="aprovada"{% if status_sel == 'aprovada' %} selected{% endif %}>Aprovada</option>
               </select>
             </div>
           </div>
@@ -556,36 +492,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           >
             <div class="ucr-field">
               <label for="sec-nav">Seção atual</label>
-              <select
-                id="sec-nav"
-                title="Selecionar seção para carregar blocos"
-              >
-                {% for s in rel.secoes %} {% set pode_sec = user.role in
-                ['admin','coordenador'] or (user.role == 'autor' and
-                (s.responsavel_id is none or s.responsavel_id == user.id)) %} {%
-                if pode_sec %}
-                <option
-                  value="{{ s.id }}"
-                  {%
-                  if
-                  s.id=""
-                  ="sec.id"
-                  ="sec.id"
-                  ="sec.id"
-                  ="sec.id"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  {{ s.numero }} – {{ s.titulo }}
-                </option>
-                {% endif %} {% endfor %} {% if user.role in
-                ['admin','coordenador'] %}
-                <option value="__todas_confirmadas__">
-                  Todas (blocos confirmados)
-                </option>
-                {% endif %}
+              <select id="sec-nav" title="Selecionar seção para carregar blocos">
+                {% for s in rel.secoes %}
+                {% set pode_sec = user.role in ['admin','coordenador'] or (user.role == 'autor' and (s.responsavel_id is none or s.responsavel_id == user.id)) %}
+                {% if pode_sec %}<option value="{{ s.id }}"{% if s.id == sec.id %} selected{% endif %}>{{ s.numero }} – {{ s.titulo }}</option>{% endif %}
+                {% endfor %}
+                {% if user.role in ['admin','coordenador'] %}<option value="__todas_confirmadas__">Todas (blocos confirmados)</option>{% endif %}
               </select>
+            </div>
             </div>
             <div class="edit-bloco-actions">
               <button
@@ -955,7 +869,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     {% endfor %}
                   </select>
                   <div id="ins-fig-preview" class="mini-fig-preview is-hidden">
-                    <img alt="prévia da figura" id="ins-fig-img" />
+                    <img alt="prévia da figura" id="ins-fig-img" height="200" width="200" />
                   </div>
                   <label class="mini-label" for="ins-fig-leg">Legenda</label>
                   <textarea
@@ -1143,7 +1057,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               <div class="tab-editor-scroll">
                 <table id="tab-editor-table" class="tab-editor-table">
                   <thead></thead>
-                  <tbody></tbody>
+                  <tbody class="is-empty"></tbody>
                 </table>
               </div>
             </div>
@@ -1168,8 +1082,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       </div>
     </section>
   </div>
-  <aside class="upload-preview" aria-label="Pré-visualização do relatório">
-    <section class="ss active-tab upload-preview-inner" id="ss-preview">
+  <aside class="conteudo-upload-preview" aria-label="Pré-visualização do relatório">
+    <section class="conteudo-upload-preview-inner" id="ss-preview">
       <div class="ss-hdr">
         <span class="sn">4</span>
         <span class="st">Pré-visualização do conteúdo</span>
@@ -1221,9 +1135,6 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           id="btn-preview-fullscreen"
           class="secondary-mini"
           title="Abrir pré-visualização em tela inteira em nova aba"
-          onclick="
-            window.open(document.getElementById('preview-frame').src, '_blank')
-          "
         >
           ⛶ Tela inteira
         </button>
@@ -1305,20 +1216,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                       aria-label="Recolher seção {{ s.numero }}"
                     ></button>
                     <label class="export-section-check">
-                      <input
-                        type="checkbox"
-                        name="secao_ids"
-                        value="{{ s.id }}"
-                        {%
-                        if
-                        s.id
-                        in
-                        sec_ids_subarvore
-                        %}checked="checked"
-                        {%
-                        endif
-                        %}
-                      />
+                      <input type="checkbox" name="secao_ids" value="{{ s.id }}"{% if s.id in sec_ids_subarvore %} checked="checked"{% endif %} />
                       <span>{{ s.numero }} – {{ s.titulo }}</span>
                     </label>
                   </div>
@@ -1342,8 +1240,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           <div class="preview-zoom-inner" id="preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="{{ preview_url }}{% if '?' in preview_url %}&{% else %}?{% endif %}contexto=upload"
-              data-src="{{ preview_url }}{% if '?' in preview_url %}&{% else %}?{% endif %}contexto=upload"
+              src="{{ preview_url }}"
+              data-src="{{ preview_url }}"
               class="preview-frame"
               title="Pré-visualização da seção {{ sec.numero }} – {{ sec.titulo }} no relatório"
             ></iframe>
@@ -1353,9 +1251,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     </section>
   </aside>
 </div>
-
 <!-- Modal para verificação de índices e referências -->
-<div id="modal-verificacao-sec" class="rev-modal" style="display: none">
+<div id="modal-verificacao-sec" class="rev-modal is-hidden">
   <div class="rev-modal__overlay" data-action="close-modal"></div>
   <div class="rev-modal__dialog rev-modal__dialog--wide">
     <div class="rev-modal__header">
@@ -1367,15 +1264,13 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     <div class="rev-modal__body">
       <div
         id="verificacao-sec-loading"
-        class="rev-loading"
-        style="display: none"
+        class="rev-loading is-hidden"
       >
         <p>Verificando...</p>
       </div>
       <div
         id="verificacao-sec-results"
-        class="rev-verificacao-results"
-        style="display: none"
+        class="rev-verificacao-results is-hidden"
       >
         <div class="rev-verificacao-summary">
           <p id="verificacao-sec-summary"></p>
@@ -1384,8 +1279,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       </div>
       <div
         id="verificacao-sec-empty"
-        class="rev-verificacao-empty"
-        style="display: none"
+        class="rev-verificacao-empty is-hidden"
       >
         <p>Nenhum problema encontrado.</p>
       </div>

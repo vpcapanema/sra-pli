@@ -87,7 +87,7 @@ class Secao(Base):
     id = Column(Integer, primary_key=True)
     relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
     numero = Column(String(16), nullable=False)  # 1, 2, 4.1, 4.4...
-    titulo = Column(String(255), nullable=False)
+    titulo = Column(String(1000), nullable=False)
     ordem = Column(Integer, nullable=False, default=0)
     responsavel_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String(32), nullable=False, default="pendente")  # pendente, em_andamento, aprovada

@@ -65,14 +65,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 14px;
+  padding: 5px 14px;
   background: #11294d;
   color: #fff;
-  border-bottom: 1px solid #0c1d3a;
+  border-top: 1px solid #0c1d3a;
 }
 .rev-banner--warn {
-  background: #b45309;
-  border-bottom-color: #d97706;
+  background: #fffbeb;
+  color: #78350f;
+  border-top: 2px solid #f59e0b;
 }
 .rev-banner__meta,
 .rev-banner__actions {
@@ -166,9 +167,9 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  background: #f3f4f6;
-  border-bottom: 1px solid #d1d5db;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: #f4f7fb;
+  border-bottom: 1px solid #c8d5e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -176,37 +177,43 @@
 .rev-ribbon__menus {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  background: #e5e7eb;
-  border-bottom: 1px solid #d1d5db;
-  min-height: 32px;
+  gap: 2px;
+  padding: 0 10px;
+  background: linear-gradient(180deg, #1d3b65 0%, #162e52 100%);
+  border-bottom: 1px solid #0f2040;
+  min-height: 28px;
 }
 .rev-ribbon-btn--menu {
   background: none;
   border: none;
-  color: #1e3a5f;
-  font-weight: bold;
-  font-size: 13px;
-  font-family: Arial, sans-serif;
-  padding: 4px 12px;
+  color: #bdd0ee;
+  font-weight: 500;
+  font-size: 12.5px;
+  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: 3px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  line-height: 1;
 }
 .rev-ribbon-btn--menu:hover {
-  background: #d1d5db;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 .rev-ribbon-btn--menu[aria-expanded="true"] {
-  background: #d1d5db;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 .rev-ribbon__toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 5px 10px;
   overflow-x: auto;
   flex-wrap: nowrap;
-  background: #f3f4f6;
+  background: #f4f7fb;
 }
 .rev-ribbon__actions {
   display: flex;
@@ -220,23 +227,25 @@
 .rev-toolbar-card {
   display: flex;
   flex-direction: column;
-  min-width: 80px;
-  min-height: 80px;
-  max-width: 80px;
-  max-height: 80px;
-  background: #d1d5db;
-  border: 1px solid #0d1f33;
-  border-radius: 4px;
-  padding: 4px;
+  min-width: 76px;
+  min-height: 70px;
+  max-width: 76px;
+  max-height: 70px;
+  background: #ffffff;
+  border: 1px solid #dde6f3;
+  border-radius: 6px;
+  padding: 4px 3px 2px;
   gap: 2px;
   flex-shrink: 0;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.15s;
 }
 .rev-toolbar-card__header {
   display: block;
-  font-size: 9px;
-  font-weight: bold;
-  color: #1e3a5f;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #8099b8;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -262,6 +271,8 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  background: linear-gradient(160deg, #eef5ff 0%, #e6f0fd 100%);
+  border-color: #c8daf4;
 }
 .rev-toolbar-card--action .rev-toolbar-btn {
   flex-direction: column;
@@ -274,14 +285,14 @@
   justify-content: center;
   gap: 2px;
   padding: 2px;
-  border: 1px solid #0d1f33;
-  border-radius: 3px;
-  background: #6b7280;
-  color: #1e3a5f;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: #2d4f82;
   cursor: pointer;
   font-size: 9px;
-  font-weight: bold;
-  transition: all 0.15s ease;
+  font-weight: 600;
+  transition: background 0.12s;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -289,51 +300,52 @@
   height: 100%;
 }
 .rev-toolbar-btn:hover {
-  background: #9ca3af;
-  border-color: #1e3a5f;
+  background: rgba(59, 130, 246, 0.1);
 }
 .rev-toolbar-btn--icon-only {
   border: none;
   background: none;
   padding: 4px;
+  border-radius: 4px;
 }
 .rev-toolbar-btn--icon-only:hover {
-  background: #9ca3af;
+  background: rgba(59, 130, 246, 0.1);
 }
 .rev-toolbar-btn--action.rev-toolbar-btn--icon-only svg {
-  stroke: #1e3a5f;
+  stroke: #1e4282;
 }
 .rev-toolbar-btn--action.rev-toolbar-btn--icon-only span {
-  color: #1e3a5f;
+  color: #1e4282;
 }
 .rev-toolbar-btn span {
   flex-shrink: 0;
   font-size: 8px;
-  font-weight: bold;
+  font-weight: 600;
   line-height: 1;
   margin-bottom: 1px;
-  color: #1e3a5f;
+  color: #2d4f82;
 }
 .rev-toolbar-btn svg {
-  width: 18px;
-  height: 18px;
-  stroke: #1e3a5f;
+  width: 16px;
+  height: 16px;
+  stroke: #2d4f82;
   flex-shrink: 0;
 }
 .rev-toolbar-btn--action {
   font-size: 10px;
-  font-weight: bold;
-  color: #1e3a5f;
+  font-weight: 600;
+  color: #1e4282;
   background: none;
+  border-radius: 4px;
 }
 .rev-toolbar-btn--action:hover {
-  background: #9ca3af;
+  background: rgba(30, 66, 130, 0.1);
 }
 .rev-toolbar-btn--action span {
-  color: #1e3a5f;
+  color: #1e4282;
 }
 .rev-toolbar-btn--action svg {
-  stroke: #1e3a5f;
+  stroke: #1e4282;
 }
 
 /* ---------- Dropdown menus ---------- */
@@ -349,9 +361,9 @@
   left: 0;
   min-width: 200px;
   background: #ffffff;
-  border: 1px solid #0d1f33;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid #c8d5e8;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   z-index: 100;
   padding: 4px 0;
   margin-top: 4px;
@@ -362,9 +374,9 @@
   left: 100%;
   min-width: 200px;
   background: #ffffff;
-  border: 1px solid #0d1f33;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid #c8d5e8;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   z-index: 101;
   padding: 4px 0;
   margin-left: 4px;
@@ -383,42 +395,42 @@
 }
 .rev-dropdown-group__title {
   display: block;
-  font-size: 11px;
-  font-weight: bold;
-  color: #1e3a5f;
-  padding: 4px 8px;
-  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8099b8;
+  padding: 4px 16px;
+  margin-bottom: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 .rev-dropdown-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 8px 16px;
+  padding: 7px 16px;
   border: none;
   background: none;
   color: #1e3a5f;
-  font-size: 13px;
-  font-weight: bold;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.12s;
 }
 .rev-dropdown-item:hover {
-  background: #e8f0fe;
+  background: #eef4fd;
 }
 
 /* Responsividade dos cards */
 @media (max-width: 1200px) {
   .rev-toolbar-card {
-    min-width: 70px;
-    min-height: 70px;
-    max-width: 70px;
-    max-height: 70px;
+    min-width: 68px;
+    min-height: 65px;
+    max-width: 68px;
+    max-height: 65px;
   }
   .rev-toolbar-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
   }
   .rev-toolbar-btn span {
     font-size: 7px;
@@ -426,17 +438,17 @@
 }
 @media (max-width: 768px) {
   .rev-toolbar-card {
-    min-width: 60px;
-    min-height: 60px;
-    max-width: 60px;
-    max-height: 60px;
+    min-width: 58px;
+    min-height: 56px;
+    max-width: 58px;
+    max-height: 56px;
   }
   .rev-toolbar-btn span {
     font-size: 6px;
   }
   .rev-toolbar-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 }
 .rev-ribbon-group {
@@ -527,9 +539,9 @@
   left: 0;
   min-width: 180px;
   background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #c8d5e8;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   z-index: 20;
   padding: 4px 0;
   margin-top: 2px;
@@ -978,14 +990,15 @@
 }
 
 .rev-banner {
-  padding: 8px 14px;
-  font-size: 12.5px;
-  border-bottom: 1px solid transparent;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  border-bottom: none;
 }
 .rev-banner--warn {
-  background: #fff7e6;
-  color: #80561b;
-  border-bottom-color: #f0c987;
+  background: #fffbeb;
+  color: #78350f;
+  border-top: 2px solid #f59e0b;
+  border-bottom: none;
 }
 .rev-block__save-state {
   color: #1e7e34;
@@ -1649,4 +1662,13 @@
   .rev-dock {
     display: none;
   }
+}
+
+/* Modal de verificação - classes para esconder elementos */
+.rev-modal.is-hidden,
+.rev-loading.is-hidden,
+.rev-verificacao-results.is-hidden,
+.rev-verificacao-empty.is-hidden,
+button.is-hidden {
+  display: none;
 }

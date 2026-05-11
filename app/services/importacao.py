@@ -987,6 +987,8 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             continue
         text = element.text.strip()
         if text:
+            if _get_w_numpr(element) is not None:
+                continue
             match = _SECTION_NUMBER_RE.match(text)
             if match:
                 numero = match.group(1).strip()
@@ -1063,27 +1065,6 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             last_media_idx = None
             continue
 
-        sec_from_line = _match_secao_linha(
-            secoes, text, usa_numeracao_relativa=usa_numeracao_relativa, sec_base=sec_original
-        )
-        if sec_from_line:
-            _flush_text(blocks, current_sec, buf, current_destino)
-            current_destino = sec_from_line
-            if current_destino.secao is not None:
-                current_sec = current_destino.secao
-            pending_figure_idx = None
-            last_media_idx = None
-            continue
-
-        w_num = _get_w_numpr(element)
-        if w_num is not None:
-            il, nid = w_num
-            numfmt_word = _read_numfmt_from_docx(document, nid, il)
-            if buf and not all(line_is_list_item(ln) for ln in buf):
-                _flush_text(blocks, current_sec, buf, current_destino)
-            buf.append(_word_list_canonical_line(text, il, numfmt_word, nid, word_list_counters))
-            continue
-
         style = (element.style.name or "").lower() if element.style else ""
         if style.startswith("heading") or style.startswith("título"):
             sec_destino = _section_from_heading(secoes, text)
@@ -1097,6 +1078,45 @@ def _parse_docx(raw: bytes, db: Session, rel_id: int, sec_id: int) -> list[dict]
             prefix = "# " if any(x in style for x in ("1", "título 1")) else "## "
             buf.append(prefix + text)
             _flush_text(blocks, current_sec, buf, current_destino)
+            continue
+
+        w_num = _get_w_numpr(element)
+        if w_num is not None:
+            il, nid = w_num
+            numfmt_word = _read_numfmt_from_docx(document, nid, il)
+            if not blocks and not buf:
+                sec_from_list_heading = _match_secao_linha(
+                    secoes,
+                    text,
+                    heading_context=True,
+                    usa_numeracao_relativa=usa_numeracao_relativa,
+                    sec_base=sec_original,
+                )
+                if sec_from_list_heading:
+                    current_destino = sec_from_list_heading
+                    if current_destino.secao is not None:
+                        current_sec = current_destino.secao
+                    continue
+                heading = _normalize_heading_line(text)
+                if heading:
+                    buf.append(heading)
+                    _flush_text(blocks, current_sec, buf, current_destino)
+                    continue
+            if buf and not all(line_is_list_item(ln) for ln in buf):
+                _flush_text(blocks, current_sec, buf, current_destino)
+            buf.append(_word_list_canonical_line(text, il, numfmt_word, nid, word_list_counters))
+            continue
+
+        sec_from_line = _match_secao_linha(
+            secoes, text, usa_numeracao_relativa=usa_numeracao_relativa, sec_base=sec_original
+        )
+        if sec_from_line:
+            _flush_text(blocks, current_sec, buf, current_destino)
+            current_destino = sec_from_line
+            if current_destino.secao is not None:
+                current_sec = current_destino.secao
+            pending_figure_idx = None
+            last_media_idx = None
             continue
 
         heading = _normalize_heading_line(text)

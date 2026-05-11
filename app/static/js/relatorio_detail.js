@@ -289,6 +289,7 @@
     var tdNum = document.createElement("td");
     var sel = document.createElement("select");
     sel.className = "sub-modo";
+    sel.name = "sub-modo";
     sel.title = "Selecione o índice da nova seção";
     sel.setAttribute("aria-label", "Índice da nova seção");
     opcoes.forEach(function (op) {
@@ -308,6 +309,7 @@
     input.placeholder = "Título da nova seção";
     input.maxLength = 200;
     input.className = "sub-titulo";
+    input.name = "sub-titulo";
     input.setAttribute("aria-label", "Título da nova seção");
     tdTit.appendChild(input);
     var tdResp = document.createElement("td");

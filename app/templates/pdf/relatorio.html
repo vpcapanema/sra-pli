@@ -550,7 +550,7 @@
         color: #102246;
         display: inline-block;
         min-width: 4.7mm;
-        margin-right: 0;
+        margin-right: 2mm;
       }
       .secao.lvl-2 h1 {
         font-size: 12pt;
@@ -955,7 +955,11 @@
         </svg>
       </button>
     </nav>
-    <div class="preview-root" id="preview-root" data-preview-loaded="false">
+    <div
+      class="preview-root"
+      id="preview-root"
+      data-preview-loaded="{{ 'true' if preview_context == 'upload' else 'false' }}"
+    >
       <div class="preview-placeholder" id="preview-placeholder">
         <p>
           Clique no botão "Carregar visualização" para exibir o conteúdo do

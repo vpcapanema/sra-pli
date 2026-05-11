@@ -84,6 +84,7 @@ def preview_html(
     request: Request,
     db: Session,
     secao_ids: list[int],
+    bloco_ids: list[int] | None = None,
     contexto: str = "default",
 ):
     user = current_user(request, db)
@@ -99,7 +100,7 @@ def preview_html(
         if chosen:
             section_filter = chosen
     preview_context = contexto if contexto in {"sumario", "upload", "revisao"} else "default"
-    html = render_html(db, rel, section_filter, preview_context)
+    html = render_html(db, rel, section_filter, preview_context, bloco_ids=bloco_ids)
     return HTMLResponse(html)
 
 

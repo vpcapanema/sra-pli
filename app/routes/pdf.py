@@ -25,9 +25,12 @@ def preview_html(
     request: Request,
     db: Session = Depends(get_db),
     secao_ids: list[int] = Query(default=[]),
+    bloco_ids: list[int] = Query(default=[]),
     contexto: str = Query("default"),
 ):
-    return pdf_service.preview_html(rel_id=rel_id, request=request, db=db, secao_ids=secao_ids, contexto=contexto)
+    return pdf_service.preview_html(
+        rel_id=rel_id, request=request, db=db, secao_ids=secao_ids, bloco_ids=bloco_ids, contexto=contexto
+    )
 
 
 @router.get("/relatorios/{rel_id}/exportar")

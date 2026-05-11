@@ -312,6 +312,7 @@ def _render_bloco_item(
     contadores: dict[str, int],
     sec_top: str,
     sec_numero: str,
+    sec_titulo: str,
 ) -> dict:
     """Renderiza um unico bloco em sua representacao de template, atualizando
     ``contadores`` (chaves ``"fig"``/``"tab"``) in-place. Centraliza a logica
@@ -326,10 +327,13 @@ def _render_bloco_item(
     bruto = bloco.conteudo or ""
     tem_marcador_estrutural = "[[FIGURA:" in bruto or "[[TABELA" in bruto or "[[REF:" in bruto
     editavel_inline = bloco.tipo in ("texto", "lista") and not tem_marcador_estrutural
+    titulo_bloco = bloco.titulo
+    if _normalizar_titulo(titulo_bloco) == _normalizar_titulo(sec_titulo):
+        titulo_bloco = None
     item: dict = {
         "bloco_id": bloco.id,
         "tipo": bloco.tipo,
-        "titulo": bloco.titulo,
+        "titulo": titulo_bloco,
         "conteudo": bruto,
         "legenda": legenda,
         "fonte": bloco.fonte,
@@ -367,10 +371,30 @@ def _render_bloco_item(
             sec_numero,
         )
         if srh.is_rich_html_storage(bloco.conteudo or ""):
-            item["html"] = html_render
+            item["html"] = _remover_titulo_inicial_duplicado(html_render, sec_titulo)
         else:
-            item["html"] = _sanitize_pdf_html_fragment(html_render)
+            item["html"] = _remover_titulo_inicial_duplicado(_sanitize_pdf_html_fragment(html_render), sec_titulo)
     return item
+
+
+def _normalizar_titulo(valor: str | None) -> str:
+    texto = re.sub(r"<[^>]+>", " ", valor or "")
+    texto = _html.unescape(texto)
+    texto = re.sub(r"^\s*#+\s*", "", texto)
+    texto = re.sub(r"\s+", " ", texto).strip().casefold()
+    return texto
+
+
+def _remover_titulo_inicial_duplicado(html_fragment: str, sec_titulo: str) -> str:
+    if not html_fragment:
+        return html_fragment
+    padrao = re.compile(r"^\s*<(h[1-6]|p)\b[^>]*>(.*?)</\1>\s*", re.IGNORECASE | re.DOTALL)
+    match = padrao.match(html_fragment)
+    if not match:
+        return html_fragment
+    if _normalizar_titulo(match.group(2)) != _normalizar_titulo(sec_titulo):
+        return html_fragment
+    return html_fragment[match.end() :]
 
 
 def _preview_sheet_groups(secoes: list[dict]) -> list[list[dict]]:
@@ -395,11 +419,15 @@ def _montar_contexto(  # pylint: disable=too-many-locals
     rel: Relatorio,
     section_ids: set[int] | None = None,
     preview_context: str = "default",
+    bloco_ids: list[int] | None = None,
 ):
     figura_ids: set[int] = set()
     secoes_relatorio = [sec for sec in rel.secoes if section_ids is None or sec.id in section_ids]
     for sec in secoes_relatorio:
-        for b in sec.blocos:
+        blocos_filtrados = sec.blocos
+        if bloco_ids:
+            blocos_filtrados = [b for b in sec.blocos if b.id in bloco_ids]
+        for b in blocos_filtrados:
             if b.figura_id:
                 figura_ids.add(b.figura_id)
             figura_ids.update(_figura_ids_no_texto(b.conteudo or ""))
@@ -423,7 +451,12 @@ def _montar_contexto(  # pylint: disable=too-many-locals
             "fig": fig_by_top.get(sec_top, 0),
             "tab": tab_by_top.get(sec_top, 0),
         }
-        blocos_render = [_render_bloco_item(b, ctx, contadores, sec_top, sec.numero) for b in sec.blocos]
+        blocos_para_render = sec.blocos
+        if bloco_ids:
+            blocos_para_render = [b for b in sec.blocos if b.id in bloco_ids]
+        blocos_render = [
+            _render_bloco_item(b, ctx, contadores, sec_top, sec.numero, sec.titulo) for b in blocos_para_render
+        ]
         fig_by_top[sec_top] = contadores["fig"]
         tab_by_top[sec_top] = contadores["tab"]
         secoes.append(
@@ -470,6 +503,7 @@ def render_html(
     rel: Relatorio,
     section_ids: set[int] | None = None,
     preview_context: str = "default",
+    bloco_ids: list[int] | None = None,
 ) -> str:
     template = _env.get_template("pdf/relatorio.html")
-    return template.render(**_montar_contexto(db, rel, section_ids, preview_context))
+    return template.render(**_montar_contexto(db, rel, section_ids, preview_context, bloco_ids))

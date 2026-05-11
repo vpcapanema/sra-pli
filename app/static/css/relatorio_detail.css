@@ -1,4 +1,4 @@
-.page-rel-com-preview #content {
+.page-relatorio-detail.page-rel-com-preview #content {
   max-width: none;
   width: 100%;
   flex: 1 1 auto;
@@ -10,37 +10,37 @@
   box-sizing: border-box;
 }
 @media (max-width: 1100px) {
-  .page-rel-com-preview #content {
+  .page-relatorio-detail.page-rel-com-preview #content {
     width: 100%;
   }
 }
-.upload-layout {
+.relatorio-upload-layout {
   width: 100%;
   box-sizing: border-box;
 }
-.page-rel-com-preview .upload-layout {
+.page-relatorio-detail.page-rel-com-preview .relatorio-upload-layout {
   display: grid;
   width: 100%;
   grid-template-columns: minmax(0, 7fr) minmax(260px, 3fr);
   gap: 12px 16px;
   align-items: start;
 }
-.upload-main {
+.relatorio-upload-main {
   min-width: 0;
   box-sizing: border-box;
   padding-right: 4px;
 }
-.upload-preview {
+.relatorio-upload-preview {
   min-width: 0;
   box-sizing: border-box;
   position: sticky;
   top: 12px;
   align-self: start;
 }
-.upload-preview-inner {
+.relatorio-upload-preview-inner {
   width: 100%;
 }
-.upload-preview-inner .preview-frame-zoom-outer {
+.relatorio-upload-preview-inner .preview-frame-zoom-outer {
   overflow: auto;
   width: 100%;
 }

@@ -12,14 +12,16 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
   data-editavel="{{ '1' if relatorio_editavel else '0' }}"
 >
   <!-- Seletor de relatório -->
-  <div class="rev-rel-selector">
-    <label for="rev-rel-select">Relatório:</label>
-    <select id="rev-rel-select" class="rev-rel-select" data-rev-navigate>
-      {% for r in relatorios_opcao %}
-      <option value="/relatorios/{{ r.id }}/revisao-edicao"{% if r.id == rel.id %} selected{% endif %}>{{ r.codigo }} — {{ r.mes_referencia or r.titulo }}</option>
-      {% endfor %}
-    </select>
-  </div>
+   <div class="rev-rel-selector">
+  <label for="rev-rel-select">Relatório:</label>
+  <select id="rev-rel-select" class="rev-rel-select" data-rev-navigate>
+    {% for r in relatorios_opcao %}
+    <option value="/relatorios/{{ r.id }}/revisao-edicao" {% if r.id == rel.id %}selected{% endif %}>
+      {{ r.codigo }} — {{ r.mes_referencia or r.titulo }}
+    </option>
+    {% endfor %}
+  </select>
+</div>
 
   <!-- Ribbon estilo Word (barra de menus em largura total) -->
   <div class="rev-ribbon">
@@ -706,8 +708,12 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
             stroke="currentColor"
             stroke-width="2"
           >
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            <path
+              d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+            ></path>
+            <path
+              d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+            ></path>
           </svg>
           <span>Refs</span>
         </button>
@@ -730,7 +736,9 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           ‹
         </button>
       </div>
-      <div class="rev-tree__list" role="list">{%- for node in arvore_revisao -%}<div
+      <div class="rev-tree__list" role="list">
+        {%- for node in arvore_revisao -%}
+        <div
           role="listitem"
           class="rev-tree__item rev-tree__item--lvl-{{ node.nivel }}{% if node.tem_erro %} rev-has-erro{% elif node.tem_aviso %} rev-has-aviso{% endif %}{% if loop.first %} rev-active{% endif %}"
         >
@@ -751,7 +759,9 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
             >
             {% endif %}
           </a>
-        </div>{%- endfor -%}</div>
+        </div>
+        {%- endfor -%}
+      </div>
     </nav>
 
     <!-- Documento (scrollável) -->
@@ -761,7 +771,15 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           <!-- CAPA -->
           <div class="rev-sheet rev-sheet--capa">
             <section class="capa">
-              <img src="{{ cover_bg_src }}" class="capa-bg" alt="" />
+              <img
+                src="{{"
+                cover_bg_src
+                }}
+                class="capa-bg"
+                alt=""
+                height="200"
+                width="200"
+              />
               <div class="subt">
                 <span
                   >RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or ''
@@ -1048,9 +1066,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       <span class="rev-chip">{{ rel.mes_referencia }}</span>
     </div>
     <div class="rev-banner__actions">
-      <a
-        href="/relatorios/{{ rel.id }}"
-        class="rev-btn rev-btn--ghost"
+      <a href="/relatorios/{{ rel.id }}" class="rev-btn rev-btn--ghost"
         >Voltar ao relatório</a
       >
     </div>
@@ -1273,7 +1289,13 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       <div class="rev-secoes-list">
         {% for s in rel.secoes %}
         <label class="rev-secao-item">
-          <input type="checkbox" id="export-secao-{{ s.id }}" name="secoes" value="{{ s.id }}" checked />
+          <input
+            type="checkbox"
+            id="export-secao-{{ s.id }}"
+            name="secoes"
+            value="{{ s.id }}"
+            checked
+          />
           <span>{{ s.numero }} - {{ s.titulo }}</span>
         </label>
         {% endfor %}
@@ -1292,7 +1314,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
 </div>
 
 <!-- Modal para verificação de índices e referências -->
-<div id="modal-verificacao" class="rev-modal" style="display: none;">
+<div id="modal-verificacao" class="rev-modal is-hidden">
   <div class="rev-modal__overlay" data-action="close-modal"></div>
   <div class="rev-modal__dialog rev-modal__dialog--wide">
     <div class="rev-modal__header">
@@ -1302,16 +1324,16 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       </button>
     </div>
     <div class="rev-modal__body">
-      <div id="verificacao-loading" class="rev-loading" style="display: none;">
+      <div id="verificacao-loading" class="rev-loading is-hidden">
         <p>Verificando...</p>
       </div>
-      <div id="verificacao-results" class="rev-verificacao-results" style="display: none;">
+      <div id="verificacao-results" class="rev-verificacao-results is-hidden">
         <div class="rev-verificacao-summary">
           <p id="verificacao-summary"></p>
         </div>
         <div id="verificacao-list" class="rev-verificacao-list"></div>
       </div>
-      <div id="verificacao-empty" class="rev-verificacao-empty" style="display: none;">
+      <div id="verificacao-empty" class="rev-verificacao-empty is-hidden">
         <p>Nenhum problema encontrado.</p>
       </div>
     </div>
@@ -1319,7 +1341,11 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
       <button type="button" class="rev-btn" data-action="close-modal">
         Fechar
       </button>
-      <button type="button" id="verificacao-action-btn" class="rev-btn rev-btn--primary" style="display: none;">
+      <button
+        type="button"
+        id="verificacao-action-btn"
+        class="rev-btn rev-btn--primary is-hidden"
+      >
         Aplicar correções
       </button>
     </div>

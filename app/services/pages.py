@@ -362,12 +362,14 @@ def _response_secao_page(
             b.id,
         )
     )
-    # Preview do upload-conteudo: mostra o RELATORIO INTEIRO e posiciona
-    # via ancora na secao selecionada (fallback: primeira secao do relatorio).
+    # Preview do upload-conteudo: mostra a subárvore da seção selecionada
+    # (seção + todas as subseções) e posiciona via âncora na seção raiz.
     _ancora_sec = sec if (sec and (sec.numero or "").strip()) else (rel.secoes[0] if rel.secoes else None)
     _ancora = f"#sec-{(_ancora_sec.numero or '').replace('.', '-')}" if _ancora_sec else ""
-    # Mostrar apenas a seção alvo no preview
-    preview_url = f"/relatorios/{rel.id}/preview?secao_ids={sec.id}{_ancora}"
+    _ids_param = (
+        "&".join(f"secao_ids={sid}" for sid in sorted(sec_ids_escopo)) if sec_ids_escopo else f"secao_ids={sec.id}"
+    )
+    preview_url = f"/relatorios/{rel.id}/preview?{_ids_param}&contexto=upload{_ancora}"
     # "Upado" = qualquer bloco cuja origem NÃO seja clone/importação do DOCX/PDF.
     origens_clonadas = {"clonado", "docx_import", "pdf_import"}
     sec_tem_upload = any((b.origem or "manual") not in origens_clonadas for b in blocos_escopo)
