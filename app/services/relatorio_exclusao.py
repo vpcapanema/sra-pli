@@ -10,7 +10,6 @@ from starlette.responses import RedirectResponse
 from ..db import tx_session
 from ..models import Relatorio, Secao
 from ..numeracao import consolidar_referencias, renumerar_relatorio
-from .pages import response_relatorio_detail
 from .relatorios import (
     _admin_coord_ou_login,
     _admin_coord_relatorio_mutavel,
@@ -57,4 +56,5 @@ def excluir_subsecao(rel_id: int, sec_id: int, request: Request, db: Session):
             txdb.delete(sec_tx)
             txdb.flush()
         renumerar_relatorio(txdb, rel_id)
-    return response_relatorio_detail(request, db, rel_id)
+    db.expire_all()
+    return RedirectResponse(url=f"/relatorios/{rel_id}", status_code=303)
