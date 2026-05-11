@@ -61,7 +61,11 @@ rel.mes_referencia }}{% endblock %} {% block content %}
               <div class="coord-field-row">
                 <div class="coord-field">
                   <label for="coord-rel-status">Alterar estado para</label>
-                  <select id="coord-rel-status" name="status" title="Novo estado do relatório">
+                  <select
+                    id="coord-rel-status"
+                    name="status"
+                    title="Novo estado do relatório"
+                  >
                     <option value="aberto"{% if rel.status == "aberto" %} selected{% endif %}>
                       Aberto — edição pelos autores
                     </option>
@@ -203,6 +207,8 @@ rel.mes_referencia }}{% endblock %} {% block content %}
                     {{ s.responsavel.nome if s.responsavel else '—' }}
                   </button>
                   <select
+                    id="sumario-responsavel-{{ s.id }}"
+                    name="responsavel_id_{{ s.id }}"
                     class="sumario-responsavel-select"
                     data-rel-id="{{ rel.id }}"
                     data-sec-id="{{ s.id }}"
