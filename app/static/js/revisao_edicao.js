@@ -994,6 +994,7 @@
 
       fetch("/relatorios/" + REL_ID + "/docx_export", {
         signal: controller.signal,
+        credentials: "same-origin",
       })
         .then(function (response) {
           clearTimeout(timeoutId);
