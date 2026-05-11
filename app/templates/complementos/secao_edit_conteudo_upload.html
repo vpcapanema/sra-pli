@@ -76,10 +76,11 @@
     {% endif %}
 
     {% for a in autores %}
+    {% set responsavel_selecionado = a.id == sec.responsavel_id or (sec.responsavel_id is none and user.role == 'autor' and a.id == user.id) %}
     <option
       value="{{ a.id }}"
       {% if a.id != user.id and user.role == 'autor' %}disabled{% endif %}
-      {% if a.id == sec.responsavel_id or (sec.responsavel_id is none and user.role == 'autor' and a.id == user.id) %}selected{% endif %}
+      {% if responsavel_selecionado %}selected{% endif %}
     >
       {{ a.nome }}
     </option>
