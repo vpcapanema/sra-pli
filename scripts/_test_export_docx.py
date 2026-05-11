@@ -1,4 +1,4 @@
-"""Testa rota de exportação DOCX via HTTP."""
+"""Testa novo endpoint docx_export."""
 
 import base64
 import json
@@ -39,14 +39,21 @@ cookie_value = admin_session_cookie()
 session = requests.Session()
 session.cookies.set("session", cookie_value, domain="127.0.0.1")
 
-print("Fazendo requisição para rota de exportação...")
-response = session.get(
-    f"http://127.0.0.1:8001/relatorios/{rel_id}/exportar?formato=docx&escopo=inteiro",
-    timeout=300,  # 5 minutos
-)
-print(f"Status: {response.status_code}")
-print(f"Content-Type: {response.headers.get('content-type')}")
-if response.status_code == 200 and "wordprocessingml" in response.headers.get("content-type", ""):
-    print("Exportação DOCX via HTTP funcionou!")
+print("Testando autenticação com /dashboard...")
+resp = session.get("http://127.0.0.1:8001/dashboard", timeout=10)
+print(f"Dashboard status: {resp.status_code}")
+
+if resp.status_code == 200:
+    print("Autenticação OK. Testando novo endpoint /docx_export...")
+    response = session.get(
+        f"http://127.0.0.1:8001/relatorios/{rel_id}/docx_export",
+        timeout=300,  # 5 minutos
+    )
+    print(f"Status: {response.status_code}")
+    print(f"Content-Type: {response.headers.get('content-type')}")
+    if response.status_code == 200 and "wordprocessingml" in response.headers.get("content-type", ""):
+        print("Exportação DOCX via novo endpoint funcionou!")
+    else:
+        print(f"Body (primeiros 500 chars): {response.text[:500]}")
 else:
-    print(f"Body (primeiros 500 chars): {response.text[:500]}")
+    print("Autenticação falhou")

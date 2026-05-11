@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
+from ..auth import current_user
 from ..db import get_db
 from ..services import pdf as pdf_service
-from ..services.pdf import ExportarQuery, exportar_query_params
+from ..services.pdf import ExportarQuery, docx_export, exportar_query_params
+from ..services.pages import response_login
 
 router = APIRouter()
 
@@ -41,6 +43,31 @@ def exportar_relatorio(
     db: Session = Depends(get_db),
 ):
     return pdf_service.exportar_relatorio(rel_id, request, query, db)
+
+
+@router.get("/relatorios/{rel_id}/docx_export")
+def docx_export_route(
+    rel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    try:
+        user = current_user(request, db)
+        if not user:
+            return response_login(request)
+        docx = docx_export(rel_id, db)
+        return Response(
+            content=docx,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="relatorio-{rel_id}.docx"'},
+        )
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).exception("Error exporting docx")
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=500, content={"error": "Failed to generate document", "detail": str(e)})
 
 
 @router.get("/relatorios/{rel_id}/exportar-assinatura")

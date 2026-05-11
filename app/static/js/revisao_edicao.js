@@ -136,7 +136,7 @@
       if (window.Quill) {
         clearInterval(iv);
         cb();
-      } else if (attempts > 60) {
+      } else if (attempts > 200) {
         clearInterval(iv);
         console.warn("Quill não carregou em tempo hábil.");
       }
@@ -985,10 +985,49 @@
     else if (action === "revisar") rodarRevisao();
     else if (action === "verificar-indices") verificarIndices();
     else if (action === "verificar-referencias") verificarReferencias();
-    else if (action === "export-docx-todo")
-      window.location.href =
-        "/relatorios/" + REL_ID + "/exportar?formato=docx&escopo=inteiro";
-    else if (action === "export-docx-secoes")
+    else if (action === "export-docx-todo") {
+      console.log("Export DOCX clicked, REL_ID:", REL_ID);
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function () {
+        controller.abort();
+      }, 300000); // 5 minutos
+
+      fetch("/relatorios/" + REL_ID + "/docx_export", {
+        signal: controller.signal,
+      })
+        .then(function (response) {
+          clearTimeout(timeoutId);
+          console.log("Export response status:", response.status);
+          if (!response.ok) throw new Error("Server error: " + response.status);
+          return response.blob();
+        })
+        .then(function (blob) {
+          console.log("Export blob size:", blob.size);
+          var url = window.URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = "relatorio-" + REL_ID + ".docx";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          console.log("Export completed");
+        })
+        .catch(function (err) {
+          clearTimeout(timeoutId);
+          console.error("Export error:", err);
+          if (err.name === "AbortError") {
+            alert(
+              "O tempo limite de exportação foi excedido. O documento pode ser muito grande.",
+            );
+          } else {
+            alert(
+              "Ocorreu um erro ao exportar o documento. Verifique o console do servidor.",
+            );
+            console.error(err);
+          }
+        });
+    } else if (action === "export-docx-secoes")
       openModal("modal-export-docx-secoes");
 
     ev.stopPropagation();
