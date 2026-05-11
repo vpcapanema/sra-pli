@@ -1,5 +1,6 @@
 """Service de relatorios: toda a logica das rotas em ``app/routes/relatorios.py``."""
 
+from html import escape
 import re
 import threading
 from pathlib import Path
@@ -22,6 +23,7 @@ from ..docx_clone_extractor import (
     extrair_relatorio_docx_disponivel,
 )
 from .. import progress_jobs
+from ..sra_rich_html import body_to_storage
 
 from .blocos import (
     _hook_recompute_entrega,
@@ -45,6 +47,96 @@ from .secao_responsaveis import (
     aplicar_responsaveis_padrao,
     secao_estatica_sistema,
 )
+
+
+_CONTRATANTE_PADRAO = (
+    "Departamento de Estradas de Rodagem do Estado de São Paulo - DER/SP"
+)
+_CONTRATADO_PADRAO = "Consórcio CONCREMAT - TRANSPLAN"
+_PROJETO_PADRAO = (
+    "Plano de Logística e Investimentos do Estado de São Paulo - PLI/SP"
+)
+_CONTRATO_PADRAO = "PLI/SP-2050"
+
+
+def _formatar_data_br(valor) -> str:
+    return valor.strftime("%d/%m/%Y") if valor else ""
+
+
+def _pluralizar_mes(qtd: int) -> str:
+    return "mês" if qtd == 1 else "meses"
+
+
+def _html_paragrafo_secao1(rotulo: str, valor: str) -> str:
+    return (
+        '<p style="text-align:justify;margin-bottom:12.0pt">'
+        f'<span style="font-size:10.0pt;font-family:Verdana">'
+        f"{escape(rotulo)}: {escape(valor)}</span></p>"
+    )
+
+
+def _html_callout_secao1(rel: Relatorio) -> str:
+    medicao = rel.numero_medicao or 0
+    codigo = rel.codigo or ""
+    return (
+        '<div class="sra-docx-callout">'
+        '<p style="text-align:justify;margin-bottom:12.0pt">'
+        '<strong><span style="font-size:10.0pt;font-family:Verdana">'
+        f"Este relatório é um item da Medição {medicao}, composta pelo "
+        f"presente relatório ({escape(codigo)}), atendendo ao Apêndice C: "
+        "Discriminação do Preço do Contrato e ao item 3.1 do contrato."
+        "</span></strong></p></div>"
+    )
+
+
+def _conteudo_apresentacao_clone(rel: Relatorio) -> str:
+    medicao = rel.numero_medicao or 0
+    periodo = (
+        f"{_formatar_data_br(rel.periodo_inicio)} a "
+        f"{_formatar_data_br(rel.periodo_fim)}"
+    )
+    prazo = f"{medicao} {_pluralizar_mes(medicao)}"
+    partes = [
+        _html_paragrafo_secao1("Contratante", _CONTRATANTE_PADRAO),
+        _html_paragrafo_secao1("Contratado", _CONTRATADO_PADRAO),
+        _html_paragrafo_secao1("Contrato", _CONTRATO_PADRAO),
+        _html_paragrafo_secao1("Projeto", _PROJETO_PADRAO),
+        _html_paragrafo_secao1(
+            "Nº do Relatório Mensal (D20)",
+            str(medicao),
+        ),
+        _html_paragrafo_secao1("Código do relatório", rel.codigo or ""),
+        _html_paragrafo_secao1("Medições realizadas", str(medicao)),
+        _html_paragrafo_secao1("Prazo corrido", prazo),
+        _html_paragrafo_secao1("Período abrangido pelo Relatório", periodo),
+        _html_paragrafo_secao1(
+            "Status de acompanhamento",
+            rel.status or "aberto",
+        ),
+        _html_callout_secao1(rel),
+    ]
+    return body_to_storage("".join(partes))
+
+
+def _atualizar_apresentacao_docx_clone(
+    secoes_com_conteudo: list[dict] | None,
+    rel: Relatorio,
+) -> None:
+    if not secoes_com_conteudo:
+        return
+    for sec_data in secoes_com_conteudo:
+        if (sec_data.get("secao_numero") or "").strip() != "1":
+            continue
+        blocos = sec_data.setdefault("blocos", [])
+        bloco_apresentacao = {
+            "tipo": "texto",
+            "conteudo": _conteudo_apresentacao_clone(rel),
+        }
+        if blocos:
+            blocos[0] = bloco_apresentacao
+        else:
+            blocos.append(bloco_apresentacao)
+        return
 
 
 def _exigir_relatorio_editavel(db: Session, rel_id: int) -> Relatorio:
@@ -376,6 +468,7 @@ def _criar_relatorio_core(  # pylint: disable=too-many-arguments,too-many-positi
             elif secoes_com_conteudo:
                 from ..models import Figura
 
+                _atualizar_apresentacao_docx_clone(secoes_com_conteudo, rel)
                 _vistos_nums: set[str] = set()
                 _secoes_unicas: list[dict] = []
                 for _sd in secoes_com_conteudo:

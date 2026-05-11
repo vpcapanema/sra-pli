@@ -533,6 +533,15 @@
       .secao.lvl-1 {
         page-break-before: always;
       }
+      .secao.secao-num-1,
+      .secao.secao-num-2 {
+        break-before: auto;
+        page-break-before: auto;
+      }
+      .secao.secao-num-3 {
+        break-before: page;
+        page-break-before: always;
+      }
       .secao h1 {
         font-family: Verdana, Arial, Helvetica, sans-serif;
         font-size: 13pt;
@@ -639,6 +648,17 @@
         line-height: 1.15;
         text-align: justify;
         margin: 0 0 10pt;
+      }
+      .sra-docx-callout {
+        border: 3pt solid #09101d;
+        border-radius: 7mm;
+        margin: 8pt 0 12pt;
+        padding: 7mm 9mm;
+        page-break-inside: avoid;
+      }
+      .sra-docx-callout p {
+        font-weight: 700;
+        margin: 0;
       }
       .bloco .ql-align-center {
         text-align: center;
@@ -816,7 +836,7 @@
     {% macro secao_conteudo(s) -%} {% set nivel = s.numero.count('.') + 1 %}
     <section
       id="sec-{{ s.numero|replace('.', '-') }}"
-      class="secao lvl-{{ nivel }}"
+      class="secao lvl-{{ nivel }} secao-num-{{ s.numero|replace('.', '-') }}"
       data-sra-flow-block
     >
       <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>

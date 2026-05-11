@@ -75,6 +75,10 @@ Layout autenticado: em `base.html`, o documento autenticado aplica a classe `sra
 - Sessão e roles `admin`, `coordenador`, `autor`. No `User`, mesmo e-mail pode existir mais de uma vez se o **perfil** for diferente: unicidade `(email, role)`. Login (`POST /login`) exige e-mail + senha + perfil. Recuperação de senha: `GET/POST /recuperar-senha` e `GET/POST /recuperar-senha/definir`; passo válido fica em sessão (`sra_pwd_reset_*`) por até 1h; rotas públicas no guard de autor.
 - Cadastro/edição de relatórios D20 com período, mês de referência, número de medição, versão e status.
 - Criação a partir de sumário de PDF (entregue/disponível ou upload).
+- Criação a partir de DOCX entregue atualiza automaticamente a seção 1
+  (Apresentação) com dados do novo relatório: contrato/projeto padrão PLI,
+  código D20, número da medição, período, medições realizadas, prazo corrido
+  e status de acompanhamento, preservando o callout visual da apresentação.
 - Criação automática e gestão de seções padrão (subseções, responsáveis e status por seção).
 - Edição por blocos estruturados (`texto`, `lista`, `figura`, `tabela`) com ordem, autor, bloqueio e ações em lote.
 - Inserção manual de figuras/tabelas por marcadores no conteúdo, com contagem coerente por seção e global.

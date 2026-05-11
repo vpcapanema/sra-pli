@@ -227,6 +227,7 @@ def _append_figura_para_secao(sec: dict, legenda: str, fonte: str, dados: bytes 
             "legenda": legenda.strip(),
             "fonte": fonte.strip(),
             "dados": dados,
+            "dados_imagem": dados,
             "mime": mime,
         }
     )
@@ -254,6 +255,10 @@ def _eh_ruido_modelo(text: str) -> bool:
 # ---------------------------------------------------------------------------
 
 RICH_HTML_MARKER = "<!--SRA_RICH-->"
+_CALLOUT_APRESENTACAO_RE = re.compile(
+    r"este relat[oó]rio\s+[ée]\s+um item da medi[cç][aã]o\s+\d+",
+    re.IGNORECASE,
+)
 
 
 def _run_to_html(run) -> str:
@@ -351,8 +356,12 @@ def _paragraph_to_html(paragraph) -> str:
     styles.extend(_paragraph_format_styles(paragraph))
 
     if styles:
-        return f'<p style="{";".join(styles)}">{inner}</p>'  # noqa: H025
-    return f"<p>{inner}</p>"
+        p_html = f'<p style="{";".join(styles)}">{inner}</p>'  # noqa: H025
+    else:
+        p_html = f"<p>{inner}</p>"
+    if _CALLOUT_APRESENTACAO_RE.search(paragraph.text or ""):
+        return f'<div class="sra-docx-callout">{p_html}</div>'
+    return p_html
 
 
 # ---------------------------------------------------------------------------
@@ -653,7 +662,9 @@ def extrair_relatorio_docx(raw: bytes) -> list[dict]:  # noqa: C901
             for img in imgs:
                 dados = _b64_to_bytes(img.get("image_b64") or "")
                 mime = img.get("image_mime") or "image/png"
-                pending_figure_idx = _append_figura_para_secao(_sec_ref(), "", "", dados, mime)
+                pending_figure_idx = _append_figura_para_secao(
+                    _sec_ref(), "", "", dados, mime
+                )
                 if pending_figure_idx is not None:
                     last_media_idx = pending_figure_idx
                     last_media_kind = "figura"
