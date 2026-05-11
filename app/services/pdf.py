@@ -8,6 +8,7 @@ resolução de escopo de seções e montagem de respostas binárias/HTML.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
@@ -21,6 +22,8 @@ from ..models import Relatorio
 from ..pdf_render import render_html
 from ..ref_resolve import carregar_relatorio_com_secoes_e_blocos
 from .pages import response_dashboard, response_login
+
+_log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -110,12 +113,20 @@ def exportar_relatorio(
     query: ExportarQuery,
     db: Session,
 ):
+    import time
+
+    t0 = time.perf_counter()
+    _log.info("exportar_relatorio inicio rel_id=%s formato=%s", rel_id, query.formato)
     user = current_user(request, db)
     if not user:
         return response_login(request)
+    t1 = time.perf_counter()
+    _log.info("exportar_relatorio autenticado user_id=%s ms=%.1f", user.id, (t1 - t0) * 1000)
     rel = carregar_relatorio_com_secoes_e_blocos(db, rel_id)
     if not rel:
         raise HTTPException(404)
+    t2 = time.perf_counter()
+    _log.info("exportar_relatorio relatorio carregado ms=%.1f", (t2 - t1) * 1000)
     section_ids = _section_filter(rel, query.escopo, query.secao_ids)
     suffix = "-importadas" if query.escopo == "importadas" else ("-secoes" if section_ids else "")
     if query.formato == "pdf":
@@ -126,7 +137,10 @@ def exportar_relatorio(
             status_code=307,
         )
     if query.formato == "docx":
+        t3 = time.perf_counter()
         docx = render_docx(db, rel, section_ids)
+        t4 = time.perf_counter()
+        _log.info("exportar_relatorio render_docx ms=%.1f tamanho=%d", (t4 - t3) * 1000, len(docx))
         fname = f"{rel.codigo}-{rel.versao}{suffix}.docx"
         return Response(
             content=docx,
