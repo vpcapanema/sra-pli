@@ -1,32 +1,26 @@
-{% extends "base.html" %}
-{% block head_extra %}
-<link
-  href="/static/vendor/quill.snow.css"
-  rel="stylesheet"
-/>
-<link
-  href="/static/css/secao_edit_conteudo_upload.css"
-  rel="stylesheet"
-/>
-<link
-  href="/static/css/relatorio_detail.css"
-  rel="stylesheet"
-/>
+{% extends "base.html" %} {% block head_extra %}
+<link href="/static/vendor/quill.snow.css" rel="stylesheet" />
+<link href="/static/css/secao_edit_conteudo_upload.css" rel="stylesheet" />
+<link href="/static/css/relatorio_detail.css" rel="stylesheet" />
 <script src="/static/vendor/quill.min.js"></script>
-{% endblock %}
-{% block body_class %}page-conteudo-upload
-page-rel-com-preview{% endblock %} {% block title %}Gerenciador e editor de seção e upload · {{
+{% endblock %} {% block body_class %}page-conteudo-upload page-rel-com-preview{%
+endblock %} {% block title %}Gerenciador e editor de seção e upload · {{
 sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block header
-%}{{ rel.codigo }} · Gerenciador e editor de seção e upload · {{ sec.numero }} – {{ sec.titulo }}{% endblock %}
-{% block content %}
+%}{{ rel.codigo }} · Gerenciador e editor de seção e upload · {{ sec.numero }} –
+{{ sec.titulo }}{% endblock %} {% block content %}
 <section class="sec-hero">
-  <h1>Gerenciador e editor de seção e upload — Seção {{ sec.numero }} – {{ sec.titulo }}</h1>
-  <div class="subtitle">{{ rel.codigo }} · {{ rel.mes_referencia }} · blocos e pré-visualização incluem esta secção e todas as subsecções abaixo dela ({{ sec.numero }}.*)</div>
+  <h1>
+    Gerenciador e editor de seção e upload — Seção {{ sec.numero }} – {{
+    sec.titulo }}
+  </h1>
+  <div class="subtitle">
+    {{ rel.codigo }} · {{ rel.mes_referencia }} · blocos e pré-visualização
+    incluem esta secção e todas as subsecções abaixo dela ({{ sec.numero }}.*)
+  </div>
   <p>
     {% if user.role in ['admin','coordenador'] %}
     <a href="/relatorios/{{ rel.id }}">← sumário do relatório</a>
-    ·
-    {% endif %}
+    · {% endif %}
     <a href="/modelos-word-importacao">Modelos Word e tutorial de importação</a>
   </p>
 </section>
@@ -38,10 +32,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         <span class="st">Coordenação da seção e destino do upload</span>
       </div>
       <div class="sb2 upload-coord-wrap">
-        {% set status_sel = sec.status %}
-        {% if user.role == 'autor' and sec.status == 'pendente' %}
-        {% set status_sel = "em_andamento" %}
-        {% endif %}
+        {% set status_sel = sec.status %} {% if user.role == 'autor' and
+        sec.status == 'pendente' %} {% set status_sel = "em_andamento" %} {%
+        endif %}
         <script type="application/json" id="upload-coord-expect">
           {{ {
             "relId": rel.id,
@@ -63,7 +56,13 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               {% for s in rel.secoes %}
               <option
                 value="{{ s.id }}"
-                {% if s.id == sec.id %}selected{% endif %}
+                {%
+                if
+                s.id=""
+                ="sec.id"
+                %}selected{%
+                endif
+                %}
               >
                 {{ s.numero }} — {{ s.titulo }}
               </option>
@@ -72,25 +71,47 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           </div>
           <div class="ucr-field ucr-coord-resp" id="ucr-wrap-resp">
             <label for="sel-sec-responsavel">
-              Responsável{% if sec_tem_upload %} <span aria-hidden="true" class="required-asterisk">*</span>{% endif %}
+              Responsável{% if sec_tem_upload %}
+              <span aria-hidden="true" class="required-asterisk">*</span>{%
+              endif %}
             </label>
             <div class="ucr-input-wrap">
               <select
                 id="sel-sec-responsavel"
                 data-sec-tem-upload="{{ '1' if sec_tem_upload else '0' }}"
                 title="Responsável pela seção{%- if sec_tem_upload -%} (obrigatório quando há conteúdo inserido pelo autor){%- endif -%}"
-                {%- if sec_tem_upload %} required{%- endif %}
+                {%
+                if
+                sec_tem_upload
+                %}required{%
+                endif
+                %}
               >
                 {% if not sec_tem_upload %}
                 <option value="">—</option>
-                {% endif %}
-                {% for a in autores %}
-                {% set _resp_none = sec.responsavel_id == None %}
-                {% set _sel_autor = sec.responsavel_id == a.id or (_resp_none and user.role == 'autor' and a.id == user.id) %}
+                {% endif %} {% for a in autores %} {% set _resp_none =
+                sec.responsavel_id == None %} {% set _sel_autor =
+                sec.responsavel_id == a.id or (_resp_none and user.role ==
+                'autor' and a.id == user.id) %}
                 <option
                   value="{{ a.id }}"
-                  {% if a.id != user.id and user.role == 'autor' %}disabled{% endif %}
-                  {% if _sel_autor %}selected{% endif %}
+                  {%
+                  if
+                  a.id
+                  !="user.id"
+                  and
+                  user.role=""
+                  ="autor"
+                  ="autor"
+                  %}disabled{%
+                  endif
+                  %}
+                  {%
+                  if
+                  _sel_autor
+                  %}selected{%
+                  endif
+                  %}
                 >
                   {{ a.nome }}
                 </option>
@@ -104,19 +125,37 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               <select id="sel-sec-status" title="Status da seção">
                 <option
                   value="pendente"
-                  {% if status_sel == 'pendente' %}selected{% endif %}
+                  {%
+                  if
+                  status_sel=""
+                  ="pendente"
+                  %}selected{%
+                  endif
+                  %}
                 >
                   Pendente
                 </option>
                 <option
                   value="em_andamento"
-                  {% if status_sel == 'em_andamento' %}selected{% endif %}
+                  {%
+                  if
+                  status_sel=""
+                  ="em_andamento"
+                  %}selected{%
+                  endif
+                  %}
                 >
                   Em andamento
                 </option>
                 <option
                   value="aprovada"
-                  {% if status_sel == 'aprovada' %}selected{% endif %}
+                  {%
+                  if
+                  status_sel=""
+                  ="aprovada"
+                  %}selected{%
+                  endif
+                  %}
                 >
                   Aprovada
                 </option>
@@ -153,7 +192,11 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               required
             />
             <button type="submit">Analisar arquivo</button>
-            <span id="import-status" class="import-status" aria-live="polite"></span>
+            <span
+              id="import-status"
+              class="import-status"
+              aria-live="polite"
+            ></span>
           </div>
         </form>
         <div id="import-review" class="import-review is-hidden">
@@ -187,7 +230,12 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               >
                 ✗ nenhum
               </button>
-              <button type="button" id="import-confirm" name="import-confirm" class="primary-mini">
+              <button
+                type="button"
+                id="import-confirm"
+                name="import-confirm"
+                class="primary-mini"
+              >
                 Importar selecionados
               </button>
             </div>
@@ -205,8 +253,18 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       id="ss-blocos"
     >
       <div class="ss-hdr ss-hdr-clickable" id="ss-blocos-hdr">
-        <span class="sn">2.1</span><span class="st">Blocos extraídos (subsecções incluídas)</span>
-        <button type="button" id="ss-blocos-toggle" name="ss-blocos-toggle" class="ss-toggle-btn" aria-expanded="true" title="Recolher/expandir">▾</button>
+        <span class="sn">2.1</span
+        ><span class="st">Blocos extraídos (subsecções incluídas)</span>
+        <button
+          type="button"
+          id="ss-blocos-toggle"
+          name="ss-blocos-toggle"
+          class="ss-toggle-btn"
+          aria-expanded="true"
+          title="Recolher/expandir"
+        >
+          ▾
+        </button>
       </div>
       <div class="sb2 blocos-table-wrap">
         {% if blocos_escopo %}
@@ -264,46 +322,79 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
         </div>
         <table class="blocos-table">
           <colgroup>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
-            <col>
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
           </colgroup>
           <thead>
             <tr>
               <th class="select-col">
-                <input type="checkbox" id="bulk-select-all" name="bulk-select-all" title="Selecionar todos">
+                <input
+                  type="checkbox"
+                  id="bulk-select-all"
+                  name="bulk-select-all"
+                  title="Selecionar todos"
+                />
               </th>
               <th class="th-filterable th-wrap" data-col="indice">
                 <span class="th-label">Índice da seção</span>
-                <button type="button" class="th-filter-btn" data-col="indice" title="Filtrar por índice">▾</button>
+                <button
+                  type="button"
+                  class="th-filter-btn"
+                  data-col="indice"
+                  title="Filtrar por índice"
+                >
+                  ▾
+                </button>
                 <div class="th-filter-dropdown" id="th-drop-indice">
                   <ul class="th-filter-list" id="th-list-indice"></ul>
                 </div>
               </th>
               <th class="th-filterable th-wrap" data-col="titulo">
                 <span class="th-label">Título da seção</span>
-                <button type="button" class="th-filter-btn" data-col="titulo" title="Filtrar por título">▾</button>
+                <button
+                  type="button"
+                  class="th-filter-btn"
+                  data-col="titulo"
+                  title="Filtrar por título"
+                >
+                  ▾
+                </button>
                 <div class="th-filter-dropdown" id="th-drop-titulo">
                   <ul class="th-filter-list" id="th-list-titulo"></ul>
                 </div>
               </th>
               <th class="th-filterable th-wrap" data-col="tipo">
                 <span class="th-label">Tipo</span>
-                <button type="button" class="th-filter-btn" data-col="tipo" title="Filtrar por tipo">▾</button>
+                <button
+                  type="button"
+                  class="th-filter-btn"
+                  data-col="tipo"
+                  title="Filtrar por tipo"
+                >
+                  ▾
+                </button>
                 <div class="th-filter-dropdown" id="th-drop-tipo">
                   <ul class="th-filter-list" id="th-list-tipo"></ul>
                 </div>
               </th>
               <th class="th-filterable th-wrap" data-col="classe">
                 <span class="th-label">Classe</span>
-                <button type="button" class="th-filter-btn" data-col="classe" title="Filtrar por classe">▾</button>
+                <button
+                  type="button"
+                  class="th-filter-btn"
+                  data-col="classe"
+                  title="Filtrar por classe"
+                >
+                  ▾
+                </button>
                 <div class="th-filter-dropdown" id="th-drop-classe">
                   <ul class="th-filter-list" id="th-list-classe"></ul>
                 </div>
@@ -316,12 +407,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             </tr>
           </thead>
           <tbody>
-            {% set pode_ign_bloqueio = user.role == 'admin' or modo_edicao_blocos %}
-            {% set pode_desbloquear = user.role in ['admin','coordenador'] or (user.role == 'autor' and sec.responsavel_id == user.id) %}
-            {% for b in blocos_escopo %} {% set conteudo_bloco = b.conteudo or ''
-            %} {% set conteudo_limpo = conteudo_bloco.strip() %} {% if b.tipo ==
-            'texto' and conteudo_limpo.startswith('## ') %} {% set
-            categoria_bloco = "subtítulo" %} {% elif b.tipo == 'texto' and
+            {% set pode_ign_bloqueio = user.role == 'admin' or
+            modo_edicao_blocos %} {% set pode_desbloquear = user.role in
+            ['admin','coordenador'] or (user.role == 'autor' and
+            sec.responsavel_id == user.id) %} {% for b in blocos_escopo %} {%
+            set conteudo_bloco = b.conteudo or '' %} {% set conteudo_limpo =
+            conteudo_bloco.strip() %} {% if b.tipo == 'texto' and
+            conteudo_limpo.startswith('## ') %} {% set categoria_bloco =
+            "subtítulo" %} {% elif b.tipo == 'texto' and
             conteudo_limpo.startswith('# ') %} {% set categoria_bloco = "título"
             %} {% elif b.tipo == 'texto' %} {% set categoria_bloco = "parágrafo"
             %} {% elif b.tipo == 'lista' %} {% set categoria_bloco = "lista" %}
@@ -349,7 +442,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               <td>{{ categoria_bloco | default('—') }}</td>
               <td>
                 <small>
-                  {{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length }} car.)
+                  {{ conteudo_bloco|wordcount }} pal. ({{ conteudo_bloco|length
+                  }} car.)
                 </small>
               </td>
               <td>{{ b.autor.nome if b.autor else '—' }}</td>
@@ -372,9 +466,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     ✓
                   </button>
                 </form>
-                {% endif %}
-                {% if b.bloqueado %}
-                {% if pode_desbloquear %}
+                {% endif %} {% if b.bloqueado %} {% if pode_desbloquear %}
                 <form
                   method="post"
                   action="/relatorios/{{ rel.id }}/secoes/{{ b.secao.id }}/blocos/{{ b.id }}/desbloquear"
@@ -390,16 +482,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     ↩
                   </button>
                 </form>
-                {% endif %}
-                {% if pode_ign_bloqueio %}
-                <span class="locked-lbl modo-edicao-tag" title="Modo edição: alteração e exclusão permitidas para o coordenador">
+                {% endif %} {% if pode_ign_bloqueio %}
+                <span
+                  class="locked-lbl modo-edicao-tag"
+                  title="Modo edição: alteração e exclusão permitidas para o coordenador"
+                >
                   Modo edição
                 </span>
                 {% else %}
                 <span class="locked-lbl">Bloqueado</span>
-                {% endif %}
-                {% endif %}
-                {% if not b.bloqueado or pode_ign_bloqueio %}
+                {% endif %} {% endif %} {% if not b.bloqueado or
+                pode_ign_bloqueio %}
                 <button
                   type="button"
                   class="bloco-action edit-bloco-btn"
@@ -412,8 +505,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 >
                   ✎
                 </button>
-                {% endif %}
-                {% if not b.bloqueado or pode_ign_bloqueio %}
+                {% endif %} {% if not b.bloqueado or pode_ign_bloqueio %}
                 <form
                   method="post"
                   action="/relatorios/{{ rel.id }}/secoes/{{ b.secao.id }}/blocos/{{ b.id }}/excluir"
@@ -449,7 +541,10 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
     <section class="ss active-tab" id="ss-editar">
       <div class="ss-hdr">
         <span class="sn">3</span>
-        <span class="st">Editar bloco existente · Seção {{ sec.numero }} – {{ sec.titulo }}</span>
+        <span class="st"
+          >Editar bloco existente · Seção {{ sec.numero }} – {{ sec.titulo
+          }}</span
+        >
       </div>
       <div class="sb2">
         <div class="sec-control">
@@ -465,18 +560,27 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 id="sec-nav"
                 title="Selecionar seção para carregar blocos"
               >
-                {% for s in rel.secoes %}
-                {% set pode_sec = user.role in ['admin','coordenador'] or (user.role == 'autor' and (s.responsavel_id is none or s.responsavel_id == user.id)) %}
-                {% if pode_sec %}
+                {% for s in rel.secoes %} {% set pode_sec = user.role in
+                ['admin','coordenador'] or (user.role == 'autor' and
+                (s.responsavel_id is none or s.responsavel_id == user.id)) %} {%
+                if pode_sec %}
                 <option
                   value="{{ s.id }}"
-                  {% if s.id == sec.id %}selected{% endif %}
+                  {%
+                  if
+                  s.id=""
+                  ="sec.id"
+                  ="sec.id"
+                  ="sec.id"
+                  ="sec.id"
+                  %}selected{%
+                  endif
+                  %}
                 >
                   {{ s.numero }} – {{ s.titulo }}
                 </option>
-                {% endif %}
-                {% endfor %}
-                {% if user.role in ['admin','coordenador'] %}
+                {% endif %} {% endfor %} {% if user.role in
+                ['admin','coordenador'] %}
                 <option value="__todas_confirmadas__">
                   Todas (blocos confirmados)
                 </option>
@@ -484,10 +588,22 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </select>
             </div>
             <div class="edit-bloco-actions">
-              <button type="button" class="ucr-side-btn" id="btn-verificar-indices-sec" name="btn-verificar-indices-sec" title="Verificar índices hierarquizados da seção atual">
+              <button
+                type="button"
+                class="ucr-side-btn"
+                id="btn-verificar-indices-sec"
+                name="btn-verificar-indices-sec"
+                title="Verificar índices hierarquizados da seção atual"
+              >
                 Índices
               </button>
-              <button type="button" class="ucr-side-btn" id="btn-verificar-referencias-sec" name="btn-verificar-referencias-sec" title="Verificar referências cruzadas da seção atual">
+              <button
+                type="button"
+                class="ucr-side-btn"
+                id="btn-verificar-referencias-sec"
+                name="btn-verificar-referencias-sec"
+                title="Verificar referências cruzadas da seção atual"
+              >
                 Refs
               </button>
               {% if mostrar_botao_modo_edicao %}
@@ -497,9 +613,19 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 class="form-modo-edicao-blocos-inline"
                 title="{%- if modo_edicao_blocos -%}Desativar modo edição (voltar a tratar blocos confirmados como bloqueados na interface){%- else -%}Permitir ao coordenador editar, mover e excluir blocos já confirmados neste relatório{%- endif -%}"
               >
-                <input type="hidden" name="ativo" id="modo-edicao-ativo" value="{%- if modo_edicao_blocos -%}0{%- else -%}1{%- endif -%}" />
-                <button type="submit" class="ucr-side-btn{% if modo_edicao_blocos %} ucr-side-btn-modo-ativo{% endif %}" id="btn-modo-edicao-blocos">
-                  {% if modo_edicao_blocos %}Sair do modo edição{% else %}Modo edição{% endif %}
+                <input
+                  type="hidden"
+                  name="ativo"
+                  id="modo-edicao-ativo"
+                  value="{%- if modo_edicao_blocos -%}0{%- else -%}1{%- endif -%}"
+                />
+                <button
+                  type="submit"
+                  class="ucr-side-btn{% if modo_edicao_blocos %} ucr-side-btn-modo-ativo{% endif %}"
+                  id="btn-modo-edicao-blocos"
+                >
+                  {% if modo_edicao_blocos %}Sair do modo edição{% else %}Modo
+                  edição{% endif %}
                 </button>
               </form>
               {% endif %}
@@ -581,7 +707,23 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 title="Gravar no servidor todos os rascunhos locais pendentes (última carga de blocos e texto em edição)"
                 aria-label="Salvar tudo no servidor"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="16 16 12 12 8 16"></polyline>
+                  <line x1="12" y1="12" x2="12" y2="21"></line>
+                  <path
+                    d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"
+                  ></path>
+                </svg>
               </button>
               {% if user.role in ['admin','coordenador'] %}
               <button
@@ -595,7 +737,11 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </button>
               {% endif %}
             </div>
-            <span id="edit-bloco-status" class="edit-bloco-status" aria-live="polite"></span>
+            <span
+              id="edit-bloco-status"
+              class="edit-bloco-status"
+              aria-live="polite"
+            ></span>
           </div>
         </div>
         <div
@@ -612,33 +758,54 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           </div>
           <table class="bloco-table edit-bloco-tabela blocos-table">
             <colgroup>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
-              <col>
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
             </colgroup>
             <thead>
               <tr>
                 <th class="th-filterable" data-col="sec">
                   <span class="th-label">Nº seção</span>
-                  <button type="button" class="th-filter-btn" data-col="sec" title="Filtrar por nº seção">▾</button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    data-col="sec"
+                    title="Filtrar por nº seção"
+                  >
+                    ▾
+                  </button>
                   <div class="th-filter-dropdown" id="th-drop-edit-sec">
                     <ul class="th-filter-list" id="th-list-edit-sec"></ul>
                   </div>
                 </th>
                 <th class="th-filterable" data-col="edit-tipo">
                   <span class="th-label">Tipo</span>
-                  <button type="button" class="th-filter-btn" data-col="edit-tipo" title="Filtrar por tipo">▾</button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    data-col="edit-tipo"
+                    title="Filtrar por tipo"
+                  >
+                    ▾
+                  </button>
                   <div class="th-filter-dropdown" id="th-drop-edit-tipo">
                     <ul class="th-filter-list" id="th-list-edit-tipo"></ul>
                   </div>
                 </th>
                 <th class="th-filterable" data-col="edit-classe">
                   <span class="th-label">Classe</span>
-                  <button type="button" class="th-filter-btn" data-col="edit-classe" title="Filtrar por classe">▾</button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    data-col="edit-classe"
+                    title="Filtrar por classe"
+                  >
+                    ▾
+                  </button>
                   <div class="th-filter-dropdown" id="th-drop-edit-classe">
                     <ul class="th-filter-list" id="th-list-edit-classe"></ul>
                   </div>
@@ -669,9 +836,14 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             id="add-bloco-titulo"
             value="{{ sec.numero }} – {{ sec.titulo }}"
           />
-          <div class="full add-bloco-grid is-hidden" id="add-bloco-editor-subsec">
+          <div
+            class="full add-bloco-grid is-hidden"
+            id="add-bloco-editor-subsec"
+          >
             <div class="add-bloco-conteudo-head bloco-toolbar-wrap">
-              <span id="add-bloco-conteudo-lbl" class="mini-label">Conteúdo</span>
+              <span id="add-bloco-conteudo-lbl" class="mini-label"
+                >Conteúdo</span
+              >
               <div class="bloco-toolbar-row">
                 <div
                   class="bloco-toolbar bloco-toolbar-structural"
@@ -771,7 +943,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                   <span>🖼 Figura</span>
                 </div>
                 <div class="mini-card-body">
-                  <label class="mini-label" for="ins-fig-sel">Figura existente</label>
+                  <label class="mini-label" for="ins-fig-sel"
+                    >Figura existente</label
+                  >
                   <select id="ins-fig-sel" title="Figura disponível">
                     <option value="">— selecione —</option>
                     {% for f in figuras %}
@@ -790,7 +964,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     placeholder="Ex.: Vista aérea da obra"
                   ></textarea>
                   <div class="mini-fmt-sel">
-                    <label class="mini-label" for="fig-est">Estilo de indexação</label>
+                    <label class="mini-label" for="fig-est"
+                      >Estilo de indexação</label
+                    >
                     <select id="fig-est">
                       <option id="fig-opt-R" value="R">
                         Por seção (Ex: FIGURA {{ sec.numero.split(".")[0] }}.1)
@@ -801,14 +977,21 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     </select>
                   </div>
                   <div class="mini-fmt-sel">
-                    <label class="mini-label" for="fig-pos">Posição da legenda</label>
+                    <label class="mini-label" for="fig-pos"
+                      >Posição da legenda</label
+                    >
                     <select id="fig-pos">
                       <option value="S">Superior</option>
                       <option value="I" selected>Inferior</option>
                     </select>
                   </div>
                   <div class="mini-actions">
-                    <button type="button" id="ins-fig-btn" name="ins-fig-btn" class="primary-mini">
+                    <button
+                      type="button"
+                      id="ins-fig-btn"
+                      name="ins-fig-btn"
+                      class="primary-mini"
+                    >
                       Inserir figura
                     </button>
                     <button
@@ -823,6 +1006,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                   <input
                     type="file"
                     id="ins-fig-upload-file"
+                    aria-label="Arquivo de figura para inserir no bloco"
+                    title="Arquivo de figura para inserir no bloco"
                     accept="image/png,image/jpeg,image/svg+xml,image/webp"
                     class="is-hidden"
                   />
@@ -835,7 +1020,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 <div class="mini-card-body">
                   <div class="mini-row">
                     <div>
-                      <label class="mini-label" for="ins-tab-rows">Linhas</label>
+                      <label class="mini-label" for="ins-tab-rows"
+                        >Linhas</label
+                      >
                       <input
                         type="number"
                         id="ins-tab-rows"
@@ -846,7 +1033,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                       />
                     </div>
                     <div>
-                      <label class="mini-label" for="ins-tab-cols">Colunas</label>
+                      <label class="mini-label" for="ins-tab-cols"
+                        >Colunas</label
+                      >
                       <input
                         type="number"
                         id="ins-tab-cols"
@@ -864,7 +1053,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     placeholder="Ex.: Quantitativo de serviços"
                   ></textarea>
                   <div class="mini-fmt-sel">
-                    <label class="mini-label" for="tab-est">Estilo de indexação</label>
+                    <label class="mini-label" for="tab-est"
+                      >Estilo de indexação</label
+                    >
                     <select id="tab-est">
                       <option id="tab-opt-R" value="R">
                         Por seção (Ex: TABELA {{ sec.numero.split(".")[0] }}.1)
@@ -875,14 +1066,21 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                     </select>
                   </div>
                   <div class="mini-fmt-sel">
-                    <label class="mini-label" for="tab-pos">Posição da legenda</label>
+                    <label class="mini-label" for="tab-pos"
+                      >Posição da legenda</label
+                    >
                     <select id="tab-pos">
                       <option value="S">Superior</option>
                       <option value="I">Inferior</option>
                     </select>
                   </div>
                   <div class="mini-actions">
-                    <button type="button" id="ins-tab-btn" name="ins-tab-btn" class="primary-mini">
+                    <button
+                      type="button"
+                      id="ins-tab-btn"
+                      name="ins-tab-btn"
+                      class="primary-mini"
+                    >
                       Nova tabela
                     </button>
                     <button
@@ -924,7 +1122,9 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
               </button>
             </div>
             <div class="tab-editor-body">
-              <label class="mini-label" for="tab-editor-leg">Legenda da tabela</label>
+              <label class="mini-label" for="tab-editor-leg"
+                >Legenda da tabela</label
+              >
               <input
                 type="text"
                 id="tab-editor-leg"
@@ -935,7 +1135,10 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                 <button type="button" data-tab-act="del-row">− Linha</button>
                 <button type="button" data-tab-act="add-col">+ Coluna</button>
                 <button type="button" data-tab-act="del-col">− Coluna</button>
-                <span class="tab-editor-hint">Dica: clique na célula para editar. Tab para próxima célula.</span>
+                <span class="tab-editor-hint"
+                  >Dica: clique na célula para editar. Tab para próxima
+                  célula.</span
+                >
               </div>
               <div class="tab-editor-scroll">
                 <table id="tab-editor-table" class="tab-editor-table">
@@ -965,10 +1168,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       </div>
     </section>
   </div>
-  <aside
-    class="upload-preview"
-    aria-label="Pré-visualização do relatório"
-  >
+  <aside class="upload-preview" aria-label="Pré-visualização do relatório">
     <section class="ss active-tab upload-preview-inner" id="ss-preview">
       <div class="ss-hdr">
         <span class="sn">4</span>
@@ -1016,15 +1216,17 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             />
           </svg>
         </button>
-              <button
-                type="button"
-                id="btn-preview-fullscreen"
-                class="secondary-mini"
-                title="Abrir pré-visualização em tela inteira em nova aba"
-                onclick="window.open(document.getElementById('preview-frame').src, '_blank')"
-              >
-                ⛶ Tela inteira
-              </button>
+        <button
+          type="button"
+          id="btn-preview-fullscreen"
+          class="secondary-mini"
+          title="Abrir pré-visualização em tela inteira em nova aba"
+          onclick="
+            window.open(document.getElementById('preview-frame').src, '_blank')
+          "
+        >
+          ⛶ Tela inteira
+        </button>
       </div>
       <div class="sb2">
         <details class="export-menu">
@@ -1083,7 +1285,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
             <div class="export-panels">
               <div class="export-panel export-panel-all" role="tabpanel"></div>
               <div class="export-panel export-panel-imported" role="tabpanel">
-                Exporta apenas seções com blocos criados pelo upload/importação assistida.
+                Exporta apenas seções com blocos criados pelo upload/importação
+                assistida.
               </div>
               <div class="export-panel export-panel-selected" role="tabpanel">
                 <div class="export-sections" aria-label="Seções para exportar">
@@ -1106,7 +1309,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
                         type="checkbox"
                         name="secao_ids"
                         value="{{ s.id }}"
-                        {% if s.id in sec_ids_subarvore %}checked="checked"{% endif %}
+                        {%
+                        if
+                        s.id
+                        in
+                        sec_ids_subarvore
+                        %}checked="checked"
+                        {%
+                        endif
+                        %}
                       />
                       <span>{{ s.numero }} – {{ s.titulo }}</span>
                     </label>
@@ -1131,8 +1342,8 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
           <div class="preview-zoom-inner" id="preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="{{ preview_url }}"
-              data-src="{{ preview_url }}"
+              src="{{ preview_url }}{% if '?' in preview_url %}&{% else %}?{% endif %}contexto=upload"
+              data-src="{{ preview_url }}{% if '?' in preview_url %}&{% else %}?{% endif %}contexto=upload"
               class="preview-frame"
               title="Pré-visualização da seção {{ sec.numero }} – {{ sec.titulo }} no relatório"
             ></iframe>
@@ -1144,7 +1355,7 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
 </div>
 
 <!-- Modal para verificação de índices e referências -->
-<div id="modal-verificacao-sec" class="rev-modal" style="display: none;">
+<div id="modal-verificacao-sec" class="rev-modal" style="display: none">
   <div class="rev-modal__overlay" data-action="close-modal"></div>
   <div class="rev-modal__dialog rev-modal__dialog--wide">
     <div class="rev-modal__header">
@@ -1154,16 +1365,28 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
       </button>
     </div>
     <div class="rev-modal__body">
-      <div id="verificacao-sec-loading" class="rev-loading" style="display: none;">
+      <div
+        id="verificacao-sec-loading"
+        class="rev-loading"
+        style="display: none"
+      >
         <p>Verificando...</p>
       </div>
-      <div id="verificacao-sec-results" class="rev-verificacao-results" style="display: none;">
+      <div
+        id="verificacao-sec-results"
+        class="rev-verificacao-results"
+        style="display: none"
+      >
         <div class="rev-verificacao-summary">
           <p id="verificacao-sec-summary"></p>
         </div>
         <div id="verificacao-sec-list" class="rev-verificacao-list"></div>
       </div>
-      <div id="verificacao-sec-empty" class="rev-verificacao-empty" style="display: none;">
+      <div
+        id="verificacao-sec-empty"
+        class="rev-verificacao-empty"
+        style="display: none"
+      >
         <p>Nenhum problema encontrado.</p>
       </div>
     </div>
@@ -1175,5 +1398,15 @@ sec.numero }} {{ sec.titulo }} — {{ rel.codigo }}{% endblock %} {% block heade
   </div>
 </div>
 
-<script src="/static/js/secao_edit_conteudo_upload.js" data-rel-id="{{ rel.id }}" data-sec-numero="{{ sec.numero }}" data-sec-titulo="{{ sec.titulo }}" data-sec-id="{{ sec.id }}" data-fig-base="{{ fig_base }}" data-tab-base="{{ tab_base }}" data-fig-global-base="{{ fig_global_base }}" data-tab-global-base="{{ tab_global_base }}"></script>
+<script
+  src="/static/js/secao_edit_conteudo_upload.js"
+  data-rel-id="{{ rel.id }}"
+  data-sec-numero="{{ sec.numero }}"
+  data-sec-titulo="{{ sec.titulo }}"
+  data-sec-id="{{ sec.id }}"
+  data-fig-base="{{ fig_base }}"
+  data-tab-base="{{ tab_base }}"
+  data-fig-global-base="{{ fig_global_base }}"
+  data-tab-global-base="{{ tab_global_base }}"
+></script>
 {% endblock %}

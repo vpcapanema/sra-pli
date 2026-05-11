@@ -67,3 +67,6 @@ pnpm-lock.yaml
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Scripts temporarios de fix
+fix_*.py

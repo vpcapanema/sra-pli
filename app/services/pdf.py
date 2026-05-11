@@ -48,15 +48,9 @@ def exportar_query_params(
 # ---------------------------------------------------------------------------
 
 
-def _section_filter(
-    rel: Relatorio, escopo: str, secao_ids: list[int]
-) -> set[int] | None:
+def _section_filter(rel: Relatorio, escopo: str, secao_ids: list[int]) -> set[int] | None:
     if escopo == "importadas":
-        imported = {
-            sec.id
-            for sec in rel.secoes
-            if any((bloco.origem or "") == "upload" for bloco in sec.blocos)
-        }
+        imported = {sec.id for sec in rel.secoes if any((bloco.origem or "") == "upload" for bloco in sec.blocos)}
         if not imported:
             raise HTTPException(400, detail="Nenhuma seção importada encontrada.")
         return imported
@@ -85,7 +79,13 @@ def gerar_pdf(rel_id: int, request: Request, db: Session, secao_ids: list[int]):
     return RedirectResponse(url=destino, status_code=307)
 
 
-def preview_html(rel_id: int, request: Request, db: Session, secao_ids: list[int]):
+def preview_html(
+    rel_id: int,
+    request: Request,
+    db: Session,
+    secao_ids: list[int],
+    contexto: str = "default",
+):
     user = current_user(request, db)
     if not user:
         return response_login(request)
@@ -98,7 +98,8 @@ def preview_html(rel_id: int, request: Request, db: Session, secao_ids: list[int
         chosen = {sid for sid in secao_ids if sid in ids_rel}
         if chosen:
             section_filter = chosen
-    html = render_html(db, rel, section_filter)
+    preview_context = contexto if contexto in {"sumario", "upload", "revisao"} else "default"
+    html = render_html(db, rel, section_filter, preview_context)
     return HTMLResponse(html)
 
 
@@ -115,11 +116,7 @@ def exportar_relatorio(
     if not rel:
         raise HTTPException(404)
     section_ids = _section_filter(rel, query.escopo, query.secao_ids)
-    suffix = (
-        "-importadas"
-        if query.escopo == "importadas"
-        else ("-secoes" if section_ids else "")
-    )
+    suffix = "-importadas" if query.escopo == "importadas" else ("-secoes" if section_ids else "")
     if query.formato == "pdf":
         params = [("formato", "docx"), ("escopo", query.escopo)]
         params.extend(("secao_ids", s) for s in query.secao_ids)
@@ -132,10 +129,7 @@ def exportar_relatorio(
         fname = f"{rel.codigo}-{rel.versao}{suffix}.docx"
         return Response(
             content=docx,
-            media_type=(
-                "application/vnd.openxmlformats-officedocument"
-                ".wordprocessingml.document"
-            ),
+            media_type=("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
             headers={"Content-Disposition": f'attachment; filename="{fname}"'},
         )
     raise HTTPException(400, detail="Formato de exportação inválido.")

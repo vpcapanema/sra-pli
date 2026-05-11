@@ -1,11 +1,9 @@
-{% extends "base.html" %}
-{% block head_extra %}
+{% extends "base.html" %} {% block head_extra %}
 <link href="/static/css/relatorio_detail.css" rel="stylesheet" />
-{% endblock %}
-{% block body_class %}page-rel-com-preview{% endblock %}
-{% block title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock %}
-{% block header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %}
-{% block content %}
+{% endblock %} {% block body_class %}page-rel-com-preview{% endblock %} {% block
+title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock %} {% block
+header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock %} {% block
+content %}
 <section class="hero">
   <h1>{{ rel.titulo }}</h1>
   <div class="subtitle">
@@ -31,35 +29,58 @@
       </div>
       <div class="sb2 coord-actions-body">
         <p class="coord-actions-intro">
-          Defina o estado editorial do relatório, registe uma nova versão na sequência D20 ou envie o e-mail de abertura aos responsáveis pelas seções já atribuídas.
+          Defina o estado editorial do relatório, registe uma nova versão na
+          sequência D20 ou envie o e-mail de abertura aos responsáveis pelas
+          seções já atribuídas.
         </p>
         <div class="coord-actions-grid">
           <article class="coord-panel">
             <header class="coord-panel-h">
               <h3 class="coord-panel-title">Estado do relatório</h3>
               {% if rel.status == 'finalizado' %}
-                <span class="coord-panel-badge sbadge s-completo">Finalizado</span>
+              <span class="coord-panel-badge sbadge s-completo"
+                >Finalizado</span
+              >
               {% elif rel.status == 'em_revisao' %}
-                <span class="coord-panel-badge sbadge s-andamento">Em revisão</span>
+              <span class="coord-panel-badge sbadge s-andamento"
+                >Em revisão</span
+              >
               {% else %}
-                <span class="coord-panel-badge sbadge s-pendente">Aberto</span>
+              <span class="coord-panel-badge sbadge s-pendente">Aberto</span>
               {% endif %}
             </header>
             <p class="coord-panel-desc">
-              O estado controla se os autores podem alterar estrutura e conteúdo; «Finalizado» corresponde ao PDF contratual entregue.
+              O estado controla se os autores podem alterar estrutura e
+              conteúdo; «Finalizado» corresponde ao PDF contratual entregue.
             </p>
-            <form method="post" action="/relatorios/{{ rel.id }}/status" class="coord-form coord-form--status">
+            <form
+              method="post"
+              action="/relatorios/{{ rel.id }}/status"
+              class="coord-form coord-form--status"
+            >
               <div class="coord-field-row">
                 <div class="coord-field">
                   <label for="coord-rel-status">Alterar estado para</label>
-                  <select id="coord-rel-status" name="status" title="Novo estado do relatório">
-                    <option value="aberto" {% if rel.status == 'aberto' %}selected{% endif %}>Aberto — edição pelos autores</option>
-                    <option value="em_revisao" {% if rel.status == 'em_revisao' %}selected{% endif %}>Em revisão — coordenação</option>
-                    <option value="finalizado" {% if rel.status == 'finalizado' %}selected{% endif %}>Finalizado — fechado para alterações estruturais</option>
+                  <select
+                    id="coord-rel-status"
+                    name="status"
+                    title="Novo estado do relatório"
+                  >
+                    <option value="aberto"{% if rel.status == "aberto" %} selected{% endif %}>
+                      Aberto — edição pelos autores
+                    </option>
+                    <option value="em_revisao"{% if rel.status == "em_revisao" %} selected{% endif %}>
+                      Em revisão — coordenação
+                    </option>
+                    <option value="finalizado"{% if rel.status == "finalizado" %} selected{% endif %}>
+                      Finalizado — fechado para alterações estruturais
+                    </option>
                   </select>
                 </div>
                 <div class="coord-submit-wrap">
-                  <button type="submit" class="coord-btn-primary">Aplicar estado</button>
+                  <button type="submit" class="coord-btn-primary">
+                    Aplicar estado
+                  </button>
                 </div>
               </div>
             </form>
@@ -67,13 +88,22 @@
           <article class="coord-panel">
             <header class="coord-panel-h">
               <h3 class="coord-panel-title">Versão registada</h3>
-              <span class="coord-panel-tag tag accent">atual: {{ rel.versao }}</span>
+              <span class="coord-panel-tag tag accent"
+                >atual: {{ rel.versao }}</span
+              >
             </header>
             <p class="coord-panel-desc">
-              Incrementa o sufixo da versão (ex.: R00 → R01) após revisões relevantes, sem alterar o código do relatório.
+              Incrementa o sufixo da versão (ex.: R00 → R01) após revisões
+              relevantes, sem alterar o código do relatório.
             </p>
-            <form method="post" action="/relatorios/{{ rel.id }}/versao" class="coord-form coord-form--stack">
-              <button type="submit" class="secondary coord-btn-block">Nova versão (+1)</button>
+            <form
+              method="post"
+              action="/relatorios/{{ rel.id }}/versao"
+              class="coord-form coord-form--stack"
+            >
+              <button type="submit" class="secondary coord-btn-block">
+                Nova versão (+1)
+              </button>
             </form>
           </article>
           <article class="coord-panel">
@@ -81,7 +111,9 @@
               <h3 class="coord-panel-title">Notificar autores</h3>
             </header>
             <p class="coord-panel-desc">
-              Envia e-mail de abertura do período a todos os autores ativos. Reenvia também a quem já tinha recebido — útil quando precisar reforçar.
+              Envia e-mail de abertura do período a todos os autores ativos.
+              Reenvia também a quem já tinha recebido — útil quando precisar
+              reforçar.
             </p>
             <form
               method="post"
@@ -90,7 +122,11 @@
               data-sra-confirm="notificar_autores_abertura"
               data-sra-iniciar-acompanhamento="1"
             >
-              <button type="submit" class="secondary coord-btn-block" title="Envia e-mail de abertura a todos os autores ativos, incluindo quem já recebeu antes">
+              <button
+                type="submit"
+                class="secondary coord-btn-block"
+                title="Envia e-mail de abertura a todos os autores ativos, incluindo quem já recebeu antes"
+              >
                 Notificar autores (abertura)
               </button>
             </form>
@@ -106,10 +142,12 @@
           %}</span
         ><span class="st">Sumário do relatório</span>
         {% if user.role in ['admin','coordenador'] %}
-          <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
-            >Entregas dos autores</a
-          >
-          <button type="button" class="btn-pdf" id="btn-editar-lote-sumario">Editar em lote</button>
+        <a href="/relatorios/{{ rel.id }}/entregas" class="btn-pdf"
+          >Entregas dos autores</a
+        >
+        <button type="button" class="btn-pdf" id="btn-editar-lote-sumario">
+          Editar em lote
+        </button>
         {% endif %}
       </div>
       <div class="sb2">
@@ -131,12 +169,9 @@
           </thead>
           <tbody>
             {% for s in rel.secoes %} {% set nivel = s.numero.count('.') + 1 %}
-            {% set ns = namespace(has_children=false) %}
-            {% for child in rel.secoes %}
-              {% if child.numero.startswith(s.numero ~ '.') %}
-                {% set ns.has_children = true %}
-              {% endif %}
-            {% endfor %}
+            {% set ns = namespace(has_children=false) %} {% for child in
+            rel.secoes %} {% if child.numero.startswith(s.numero ~ '.') %} {%
+            set ns.has_children = true %} {% endif %} {% endfor %}
             <tr
               class="lvl-{{ nivel }}"
               data-sumario-row
@@ -146,49 +181,61 @@
             >
               <td>
                 {% if ns.has_children %}
-                  <button
-                    type="button"
-                    class="sumario-toggle"
-                    aria-expanded="false"
-                    aria-label="Expandir seção {{ s.numero }}"
-                  >▸</button>
+                <button
+                  type="button"
+                  class="sumario-toggle"
+                  aria-expanded="false"
+                  aria-label="Expandir seção {{ s.numero }}"
+                >
+                  ▸
+                </button>
                 {% else %}
-                  <span class="sumario-toggle-spacer" aria-hidden="true"></span>
+                <span class="sumario-toggle-spacer" aria-hidden="true"></span>
                 {% endif %}
                 <strong>{{ s.numero }}</strong>
               </td>
               <td>{{ s.titulo }}</td>
               <td>
                 {% if user.role in ['admin','coordenador'] %}
-                  <div class="responsavel-picker">
-                    <button
-                      type="button"
-                      class="responsavel-display"
-                      aria-expanded="false"
-                      aria-label="Selecionar responsável pela seção {{ s.numero }}"
-                    >{{ s.responsavel.nome if s.responsavel else '—' }}</button>
-                    <select
-                      class="sumario-responsavel-select"
-                      data-rel-id="{{ rel.id }}"
-                      data-sec-id="{{ s.id }}"
-                      aria-label="Responsável pela seção {{ s.numero }}"
-                      title="Responsável pela seção {{ s.numero }}"
-                    >
-                      <option value="">—</option>
-                      {% for a in autores %}
-                        <option value="{{ a.id }}" {% if s.responsavel_id == a.id %}selected{% endif %}>{{ a.nome }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                {% else %}
-                  {{ s.responsavel.nome if s.responsavel else '—' }}
-                {% endif %}
+                <div class="responsavel-picker">
+                  <button
+                    type="button"
+                    class="responsavel-display"
+                    aria-expanded="false"
+                    aria-label="Selecionar responsável pela seção {{ s.numero }}"
+                  >
+                    {{ s.responsavel.nome if s.responsavel else '—' }}
+                  </button>
+                  <select
+                    class="sumario-responsavel-select"
+                    data-rel-id="{{ rel.id }}"
+                    data-sec-id="{{ s.id }}"
+                    aria-label="Responsável pela seção {{ s.numero }}"
+                    title="Responsável pela seção {{ s.numero }}"
+                  >
+                    <option value="">—</option>
+                    {% for a in autores %}
+                    <option value="{{ a.id }}"{% if s.responsavel_id == a.id %} selected{% endif %}>
+                      {{ a.nome }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% else %} {{ s.responsavel.nome if s.responsavel else '—' }} {%
+                endif %}
               </td>
               <td>
-                {% set ns_b = contagens_blocos.get(s.id, {'clonados': 0, 'autorados': 0}) %}
-                <span title="Blocos clonados" class="blocos-clonados">{{ ns_b.clonados }}</span>
+                {% set ns_b = contagens_blocos.get(s.id, {'clonados': 0,
+                'autorados': 0}) %}
+                <span title="Blocos clonados" class="blocos-clonados"
+                  >{{ ns_b.clonados }}</span
+                >
                 <span aria-hidden="true" class="blocos-separator"> / </span>
-                <span title="Blocos inseridos pelo autor" class="blocos-autorados">{{ ns_b.autorados }}</span>
+                <span
+                  title="Blocos inseridos pelo autor"
+                  class="blocos-autorados"
+                  >{{ ns_b.autorados }}</span
+                >
               </td>
               <td class="status-col">
                 {% if s.status == 'aprovada' %}
@@ -206,59 +253,79 @@
                     class="link-quiet action-edit"
                     title="Gerenciador e editor de seção e upload — {{ s.numero }}"
                     aria-label="Gerenciador e editor de seção e upload — {{ s.numero }}"
-                    ><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>
-                  {% if user.role in ['admin','coordenador'] and rel.status != 'finalizado' %}
+                    ><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i
+                  ></a>
+                  {% if user.role in ['admin','coordenador'] and rel.status !=
+                  'finalizado' %}
+                  <button
+                    type="button"
+                    class="link-quiet btn-add-sub action-add"
+                    data-add-sub-rel="{{ rel.id }}"
+                    data-add-sub-pai="{{ s.id }}"
+                    aria-label="Adicionar nova seção a partir de {{ s.numero }}"
+                    title="Adicionar nova seção a partir de {{ s.numero }}"
+                  >
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                  </button>
+                  {% endif %} {% if user.role in ['admin','coordenador'] and '.'
+                  in s.numero and rel.status != 'finalizado' %}
+                  <form
+                    method="post"
+                    action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover"
+                    class="inline-form"
+                    title="Mover para cima"
+                  >
+                    <input
+                      type="hidden"
+                      name="direcao"
+                      id="mover-direcao-cima"
+                      value="cima"
+                    />
                     <button
-                      type="button"
-                      class="link-quiet btn-add-sub action-add"
-                      data-add-sub-rel="{{ rel.id }}"
-                      data-add-sub-pai="{{ s.id }}"
-                      aria-label="Adicionar nova seção a partir de {{ s.numero }}"
-                      title="Adicionar nova seção a partir de {{ s.numero }}"
-                    ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
-                  {% endif %}
-                  {% if user.role in ['admin','coordenador'] and '.' in s.numero and rel.status != 'finalizado' %}
-                    <form
-                      method="post"
-                      action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover"
-                      class="inline-form"
-                      title="Mover para cima"
+                      type="submit"
+                      class="link-quiet action-move"
+                      aria-label="Mover seção {{ s.numero }} para cima"
                     >
-                      <input type="hidden" name="direcao" id="mover-direcao-cima" value="cima" />
-                      <button
-                        type="submit"
-                        class="link-quiet action-move"
-                        aria-label="Mover seção {{ s.numero }} para cima"
-                      ><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-                    </form>
-                    <form
-                      method="post"
-                      action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover"
-                      class="inline-form"
-                      title="Mover para baixo"
+                      <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+                    </button>
+                  </form>
+                  <form
+                    method="post"
+                    action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/mover"
+                    class="inline-form"
+                    title="Mover para baixo"
+                  >
+                    <input
+                      type="hidden"
+                      name="direcao"
+                      id="mover-direcao-baixo"
+                      value="baixo"
+                    />
+                    <button
+                      type="submit"
+                      class="link-quiet action-move"
+                      aria-label="Mover seção {{ s.numero }} para baixo"
                     >
-                      <input type="hidden" name="direcao" id="mover-direcao-baixo" value="baixo" />
-                      <button
-                        type="submit"
-                        class="link-quiet action-move"
-                        aria-label="Mover seção {{ s.numero }} para baixo"
-                      ><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
-                    </form>
-                    <form
-                      method="post"
-                      action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir"
-                      class="inline-form"
-                      data-sra-confirm="secao_excluir"
-                      data-sra-iniciar-acompanhamento="1"
-                      data-sra-detail="Secção {{ s.numero }} – {{ s.titulo|e }} — os números seguintes no sumário serão reajustados automaticamente."
+                      <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                    </button>
+                  </form>
+                  <form
+                    method="post"
+                    action="/relatorios/{{ rel.id }}/secoes/{{ s.id }}/excluir"
+                    class="inline-form"
+                    data-sra-confirm="secao_excluir"
+                    data-sra-iniciar-acompanhamento="1"
+                    data-sra-detail="Secção {{ s.numero }} – {{ s.titulo|e }} — os números seguintes no sumário serão reajustados automaticamente."
+                  >
+                    <button
+                      type="submit"
+                      class="link-danger action-delete"
+                      title="Excluir seção {{ s.numero }}"
+                      aria-label="Excluir seção {{ s.numero }}"
                     >
-                      <button
-                        type="submit"
-                        class="link-danger action-delete"
-                        title="Excluir seção {{ s.numero }}"
-                        aria-label="Excluir seção {{ s.numero }}"
-                      ><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
-                    </form>
+                      <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    </button>
+                  </form>
                   {% endif %}
                 </div>
               </td>
@@ -269,10 +336,7 @@
       </div>
     </section>
   </div>
-  <aside
-    class="upload-preview"
-    aria-label="Pré-visualização do relatório"
-  >
+  <aside class="upload-preview" aria-label="Pré-visualização do relatório">
     <section class="ss active-tab upload-preview-inner" id="ss-preview">
       <div class="ss-hdr">
         <span class="sn"
@@ -285,7 +349,16 @@
           id="rel-sum-preview-zoom-out"
           title="Diminuir zoom na pré-visualização"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
         </button>
         <button
           type="button"
@@ -293,7 +366,17 @@
           id="rel-sum-preview-zoom-in"
           title="Aumentar zoom na pré-visualização"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
         </button>
         <button
           type="button"
@@ -301,7 +384,20 @@
           id="rel-sum-btn-preview-reload"
           title="Atualizar pré-visualização"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path
+              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+            ></path>
+          </svg>
         </button>
         <button
           type="button"
@@ -309,7 +405,18 @@
           id="rel-sum-btn-preview-fullscreen"
           title="Tela cheia"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+            ></path>
+          </svg>
         </button>
       </div>
       <div class="sb2">
@@ -370,7 +477,8 @@
             <div class="export-panels">
               <div class="export-panel export-panel-all" role="tabpanel"></div>
               <div class="export-panel export-panel-imported" role="tabpanel">
-                Exporta apenas seções com blocos criados pelo upload/importação assistida.
+                Exporta apenas seções com blocos criados pelo upload/importação
+                assistida.
               </div>
               <div class="export-panel export-panel-selected" role="tabpanel">
                 <div class="export-sections" aria-label="Seções para exportar">
@@ -417,8 +525,8 @@
           <div class="preview-zoom-inner" id="rel-sum-preview-zoom-inner">
             <iframe
               id="preview-frame"
-              src="/relatorios/{{ rel.id }}/preview"
-              data-src="/relatorios/{{ rel.id }}/preview"
+              src="/relatorios/{{ rel.id }}/preview?contexto=sumario"
+              data-src="/relatorios/{{ rel.id }}/preview?contexto=sumario"
               class="preview-frame"
               title="Pré-visualização do relatório"
             ></iframe>
@@ -434,7 +542,14 @@
   <div class="modal-content modal-content--wide">
     <div class="modal-header">
       <h2>Editar sumário em lote</h2>
-      <button type="button" class="modal-close" id="fechar-modal-editar-lote" aria-label="Fechar">×</button>
+      <button
+        type="button"
+        class="modal-close"
+        id="fechar-modal-editar-lote"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
     </div>
     <div class="modal-body">
       <div class="edit-lote-layout">
@@ -442,19 +557,32 @@
           <div class="secoes-col-header">
             <h3>Seções</h3>
             <label class="select-all-label">
-              <input type="checkbox" id="select-all-secoes" name="select-all-secoes">
+              <input
+                type="checkbox"
+                id="select-all-secoes"
+                name="select-all-secoes"
+              />
               Selecionar todas
             </label>
           </div>
           <div class="secoes-list" id="secoes-list">
             {% for s in rel.secoes %}
             <label class="secao-item">
-              <input type="checkbox" id="secao-{{ s.id }}" name="secao_ids" value="{{ s.id }}" data-secao-numero="{{ s.numero }}" data-secao-titulo="{{ s.titulo }}">
+              <input
+                type="checkbox"
+                id="secao-{{ s.id }}"
+                name="secao_ids"
+                value="{{ s.id }}"
+                data-secao-numero="{{ s.numero }}"
+                data-secao-titulo="{{ s.titulo }}"
+              />
               <div class="secao-info">
                 <span class="secao-numero">{{ s.numero }}</span>
                 <span class="secao-titulo">{{ s.titulo }}</span>
                 <span class="secao-responsavel-atual">
-                  Responsável: {{ s.responsavel.nome if s.responsavel else '<em>não atribuído</em>'|safe }}
+                  Responsável: {{ s.responsavel.nome if s.responsavel else '<em
+                    >não atribuído</em
+                  >'|safe }}
                 </span>
               </div>
             </label>
@@ -481,7 +609,14 @@
             <span id="selecionados-count">0 seções selecionadas</span>
           </div>
           <div class="edit-lote-actions">
-            <button type="button" class="btn-primary" id="btn-aplicar-lote" disabled>Aplicar às seções selecionadas</button>
+            <button
+              type="button"
+              class="btn-primary"
+              id="btn-aplicar-lote"
+              disabled
+            >
+              Aplicar às seções selecionadas
+            </button>
           </div>
         </div>
       </div>
@@ -490,19 +625,19 @@
 </dialog>
 
 <script type="application/json" id="edit-lote-data">
-{
-  "relId": {{ rel.id }},
-  "autores": [
-    {% for a in autores %}
-    {"id": {{ a.id }}, "nome": {{ a.nome|tojson }}}{% if not loop.last %},{% endif %}
-    {% endfor %}
-  ],
-  "statusOptions": [
-    {"value": "pendente", "label": "Pendente"},
-    {"value": "em_andamento", "label": "Em andamento"},
-    {"value": "aprovada", "label": "Aprovada"}
-  ]
-}
+  {
+    "relId": {{ rel.id }},
+    "autores": [
+      {% for a in autores %}
+      {"id": {{ a.id }}, "nome": {{ a.nome|tojson }}}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    "statusOptions": [
+      {"value": "pendente", "label": "Pendente"},
+      {"value": "em_andamento", "label": "Em andamento"},
+      {"value": "aprovada", "label": "Aprovada"}
+    ]
+  }
 </script>
 
 <script src="/static/js/relatorio_detail.js"></script>

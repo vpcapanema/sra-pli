@@ -1,7 +1,11 @@
 (function () {
   var root = document.documentElement;
+  var context =
+    document.body && document.body.dataset.previewContext
+      ? document.body.dataset.previewContext
+      : "default";
   var label = document.querySelector('[data-sra-preview="zoom-label"]');
-  var STORAGE_KEY = "sraPreviewZoom";
+  var STORAGE_KEY = "sraPreviewZoom:" + context;
   var MIN = 0.4,
     MAX = 1.6,
     STEP = 0.1;

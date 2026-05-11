@@ -390,7 +390,12 @@ def _preview_sheet_groups(secoes: list[dict]) -> list[list[dict]]:
     return groups
 
 
-def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None = None):  # pylint: disable=too-many-locals
+def _montar_contexto(  # pylint: disable=too-many-locals
+    db: Session,
+    rel: Relatorio,
+    section_ids: set[int] | None = None,
+    preview_context: str = "default",
+):
     figura_ids: set[int] = set()
     secoes_relatorio = [sec for sec in rel.secoes if section_ids is None or sec.id in section_ids]
     for sec in secoes_relatorio:
@@ -456,9 +461,15 @@ def _montar_contexto(db: Session, rel: Relatorio, section_ids: set[int] | None =
         "cover_produto": _produto_codigo_capa(rel.codigo),
         "header_logos_src": _modelo_asset_data_uri("image2.png"),
         "pli_line_src": _modelo_asset_data_uri("image3.png"),
+        "preview_context": preview_context,
     }
 
 
-def render_html(db: Session, rel: Relatorio, section_ids: set[int] | None = None) -> str:
+def render_html(
+    db: Session,
+    rel: Relatorio,
+    section_ids: set[int] | None = None,
+    preview_context: str = "default",
+) -> str:
     template = _env.get_template("pdf/relatorio.html")
-    return template.render(**_montar_contexto(db, rel, section_ids))
+    return template.render(**_montar_contexto(db, rel, section_ids, preview_context))

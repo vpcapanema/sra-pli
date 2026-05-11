@@ -1,368 +1,994 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ rel.codigo }} – {{ rel.titulo }}</title>
     <style>
-@page {
-  size: A4;
-  margin: 22.2mm 20mm 25mm 20mm;
-  @top-left {
-    content: "";
-  }
-  @top-right {
-    content: "";
-  }
-  @bottom-left {
-    content: "Plano de Logística e Investimentos do Estado de SP | PLI 2050";
-    font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 7.4pt; color: #a8a8a8;
-    border-top: 1pt dotted #cfcfcf; padding-top: 5pt;
-  }
-  @bottom-right {
-    content: counter(page);
-    font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 8pt; color: #777; font-weight: 700;
-    border-top: 1pt dotted #cfcfcf; padding-top: 5pt;
-  }
-}
-@page :first {
-  margin: 0;
-  @top-left { content: ""; border: none; }
-  @top-right { content: ""; border: none; }
-  @bottom-left { content: ""; border: none; }
-  @bottom-right { content: ""; border: none; }
-}
-@page sumario {
-  @top-left { content: ""; }
-  @top-right { content: ""; }
-}
-@page ficha {
-  @top-left { content: ""; }
-  @top-right { content: ""; }
-}
-body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-height: 1.15; color: #141414; }
-@media screen {
-  html{ background:#dfe5ec; }
-  body{ margin:0; padding:12px clamp(12px, 3vw, 28px); background:#dfe5ec; box-sizing:border-box; }
-  body *, body *::before, body *::after { box-sizing: inherit; }
-  /* Barra de controles (zoom / fit) fixa no topo da tela. */
-  .preview-toolbar{
-    position:sticky; top:0; z-index:10;
-    display:flex; gap:6px; align-items:center; justify-content:center;
-    padding:8px clamp(8px, 2vw, 16px); margin:-12px -12px 12px;
-    background:rgba(255,255,255,.92); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
-    border-bottom:1px solid #c9d2dd;
-    font-family:Verdana, Arial, Helvetica, sans-serif; font-size:12px; color:#334;
-    flex-wrap:wrap;
-  }
-  .preview-toolbar button{
-    appearance:none; border:1px solid #b2bccb; background:#fff; color:#1e293b;
-    padding:8px; border-radius:6px; cursor:pointer; font:inherit;
-    min-width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0;
-  }
-  .preview-toolbar button svg{ width:16px; height:16px; display:block; }
-  .preview-toolbar button:hover{ background:#eef2f7; }
-  .preview-toolbar button.active{ background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
-  .preview-toolbar .zoom-label{ min-width:52px; text-align:center; font-weight:600; padding:0 4px; }
-  .preview-toolbar .sep{ width:1px; height:20px; background:#c9d2dd; margin:0 4px; flex-shrink:0; }
-  .preview-placeholder{
-    display:flex; align-items:center; justify-content:center;
-    padding:60px 20px; text-align:center;
-    background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px;
-    color:#64748b; font-size:14px;
-  }
-  .preview-placeholder.hidden{ display:none; }
-  .preview-root[data-preview-loaded="true"] .preview-placeholder{ display:none; }
-  .preview-root[data-preview-loaded="false"] .preview-sheet{ display:none; }
-  .preview-root[data-preview-loaded="false"] .page-header{ display:none; }
-  .preview-root[data-preview-loaded="false"] .page-footer-line{ display:none; }
-  .preview-root{
-    width:100%; max-width:none; margin:0 auto;
-    display:flex; flex-direction:column; align-items:center; gap:20px;
-  }
-  /* Wrapper que aplica transform:scale em cada folha - preserva proporcao A4
-     e ajusta tamanho visivel sem distorcer conteudo interno. */
-  .preview-sheet-wrap{
-    display:flex; justify-content:center;
-    /* reserva espaco para a folha escalada */
-    width:calc(210mm * var(--sra-preview-zoom, 1));
-    max-width:100%;
-  }
-  .preview-sheet{
-    position:relative;
-    width:210mm;
-    height:297mm;
-    min-height:297mm;
-    margin:0;
-    padding:22.2mm 20mm 25mm 20mm;
-    box-sizing:border-box;
-    background:#fff;
-    box-shadow:0 10px 35px rgba(0,0,0,.22);
-    border-radius:2px;
-    overflow:hidden;
-    transform:scale(var(--sra-preview-zoom, 1));
-    transform-origin:top center;
-    /* compensa o espaco vertical que o scale "consome" */
-    margin-bottom:calc((1 - var(--sra-preview-zoom, 1)) * -297mm);
-  }
-  .preview-sheet--capa{
-    padding:0;
-    overflow:hidden;
-  }
-  .sheet-body{
-    height:100%;
-    max-height:100%;
-    overflow:hidden;
-  }
-  .secao{ scroll-margin-top: 56px; }
-  .secao:target{
-    animation: sra-preview-target-flash 1.8s ease-out 1;
-  }
-  @keyframes sra-preview-target-flash{
-    0%   { background: rgba(29, 78, 216, 0.18); box-shadow: 0 0 0 4px rgba(29,78,216,0.18); }
-    60%  { background: rgba(29, 78, 216, 0.08); box-shadow: 0 0 0 4px rgba(29,78,216,0.08); }
-    100% { background: transparent; box-shadow: none; }
-  }
-  .preview-sheet--capa .capa{
-    margin:0;
-    width:100%;
-    max-width:210mm;
-  }
-  .sheet-running-header{
-    position:absolute; top:10mm; right:20mm; left:auto;
-    width:50mm; z-index:2; text-align:right; pointer-events:none;
-  }
-  .sheet-running-header img{ width:50mm; height:auto; display:inline-block; }
-  .preview-sheet--capa .sheet-running-header{ display:none; }
-  .sheet-running-footer{
-    position:absolute; left:20mm; right:20mm; bottom:12mm; z-index:2;
-    display:flex; justify-content:space-between; align-items:flex-start;
-    padding-top:5pt; border-top:1pt dotted #cfcfcf;
-    font-family:Verdana, Arial, Helvetica, sans-serif; font-size:7.4pt;
-    color:#a8a8a8; pointer-events:none;
-  }
-  .sheet-ftr-right{
-    font-size:8pt; color:#777; font-weight:700;
-  }
-  .preview-sheet--capa .sheet-running-footer{ display:none; }
-  .page-header,.page-footer-line{ display:none !important; }
-}
-@media print {
-  body{ margin:0; padding:0; background:#fff; }
-  .preview-root{ display:block; width:auto; max-width:none; margin:0; padding:0; }
-  .preview-sheet,.sheet-body{ display:contents; }
-  .sheet-running-header,.sheet-running-footer{ display:none !important; }
-  .page-header,.page-footer-line{ display:block; }
-}
+      @page {
+        size: A4;
+        margin: 22.2mm 20mm 25mm 20mm;
+        @top-left {
+          content: "";
+        }
+        @top-right {
+          content: "";
+        }
+        @bottom-left {
+          content: "Plano de Logística e Investimentos do Estado de SP | PLI 2050";
+          font-family: Verdana, Arial, Helvetica, sans-serif;
+          font-size: 7.4pt;
+          color: #a8a8a8;
+          border-top: 1pt dotted #cfcfcf;
+          padding-top: 5pt;
+        }
+        @bottom-right {
+          content: counter(page);
+          font-family: Verdana, Arial, Helvetica, sans-serif;
+          font-size: 8pt;
+          color: #777;
+          font-weight: 700;
+          border-top: 1pt dotted #cfcfcf;
+          padding-top: 5pt;
+        }
+      }
+      @page :first {
+        margin: 0;
+        @top-left {
+          content: "";
+          border: none;
+        }
+        @top-right {
+          content: "";
+          border: none;
+        }
+        @bottom-left {
+          content: "";
+          border: none;
+        }
+        @bottom-right {
+          content: "";
+          border: none;
+        }
+      }
+      @page sumario {
+        @top-left {
+          content: "";
+        }
+        @top-right {
+          content: "";
+        }
+      }
+      @page ficha {
+        @top-left {
+          content: "";
+        }
+        @top-right {
+          content: "";
+        }
+      }
+      body {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        line-height: 1.15;
+        color: #141414;
+      }
+      @media screen {
+        html {
+          background: #dfe5ec;
+        }
+        body {
+          margin: 0;
+          padding: 12px clamp(12px, 3vw, 28px);
+          background: #dfe5ec;
+          box-sizing: border-box;
+        }
+        body *,
+        body *::before,
+        body *::after {
+          box-sizing: inherit;
+        }
+        /* Barra de controles (zoom / fit) fixa no topo da tela. */
+        .preview-toolbar {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          justify-content: center;
+          padding: 8px clamp(8px, 2vw, 16px);
+          margin: -12px -12px 12px;
+          background: rgba(255, 255, 255, 0.92);
+          -webkit-backdrop-filter: blur(6px);
+          backdrop-filter: blur(6px);
+          border-bottom: 1px solid #c9d2dd;
+          font-family: Verdana, Arial, Helvetica, sans-serif;
+          font-size: 12px;
+          color: #334;
+          flex-wrap: wrap;
+        }
+        .preview-toolbar button {
+          appearance: none;
+          border: 1px solid #b2bccb;
+          background: #fff;
+          color: #1e293b;
+          padding: 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          font: inherit;
+          min-width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .preview-toolbar button svg {
+          width: 16px;
+          height: 16px;
+          display: block;
+        }
+        .preview-toolbar button:hover {
+          background: #eef2f7;
+        }
+        .preview-toolbar button.active {
+          background: #1d4ed8;
+          color: #fff;
+          border-color: #1d4ed8;
+        }
+        .preview-toolbar .zoom-label {
+          min-width: 52px;
+          text-align: center;
+          font-weight: 600;
+          padding: 0 4px;
+        }
+        .preview-toolbar .sep {
+          width: 1px;
+          height: 20px;
+          background: #c9d2dd;
+          margin: 0 4px;
+          flex-shrink: 0;
+        }
+        .preview-placeholder {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          text-align: center;
+          background: #f8fafc;
+          border: 2px dashed #cbd5e1;
+          border-radius: 8px;
+          color: #64748b;
+          font-size: 14px;
+        }
+        .preview-placeholder.hidden {
+          display: none;
+        }
+        .preview-root[data-preview-loaded="true"] .preview-placeholder {
+          display: none;
+        }
+        .preview-root[data-preview-loaded="false"] .preview-sheet {
+          display: none;
+        }
+        .preview-root[data-preview-loaded="false"] .page-header {
+          display: none;
+        }
+        .preview-root[data-preview-loaded="false"] .page-footer-line {
+          display: none;
+        }
+        .preview-root {
+          width: 100%;
+          max-width: none;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 20px;
+        }
+        /* Wrapper que aplica transform:scale em cada folha - preserva proporcao A4
+           e ajusta tamanho visivel sem distorcer conteudo interno. */
+        .preview-sheet-wrap {
+          display: flex;
+          justify-content: center;
+          /* reserva espaco para a folha escalada */
+          width: calc(210mm * var(--sra-preview-zoom, 1));
+          max-width: 100%;
+        }
+        .preview-sheet {
+          position: relative;
+          width: 210mm;
+          height: 297mm;
+          min-height: 297mm;
+          margin: 0;
+          padding: 22.2mm 20mm 25mm 20mm;
+          box-sizing: border-box;
+          background: #fff;
+          box-shadow: 0 10px 35px rgba(0, 0, 0, 0.22);
+          border-radius: 2px;
+          overflow: hidden;
+          transform: scale(var(--sra-preview-zoom, 1));
+          transform-origin: top center;
+          /* compensa o espaco vertical que o scale "consome" */
+          margin-bottom: calc((1 - var(--sra-preview-zoom, 1)) * -297mm);
+        }
+        .preview-sheet--capa {
+          padding: 0;
+          overflow: hidden;
+        }
+        .sheet-body {
+          height: 100%;
+          max-height: 100%;
+          overflow: hidden;
+        }
+        .secao {
+          scroll-margin-top: 56px;
+        }
+        .secao:target {
+          animation: sra-preview-target-flash 1.8s ease-out 1;
+        }
+        @keyframes sra-preview-target-flash {
+          0% {
+            background: rgba(29, 78, 216, 0.18);
+            box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.18);
+          }
+          60% {
+            background: rgba(29, 78, 216, 0.08);
+            box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.08);
+          }
+          100% {
+            background: transparent;
+            box-shadow: none;
+          }
+        }
+        .preview-sheet--capa .capa {
+          margin: 0;
+          width: 100%;
+          max-width: 210mm;
+        }
+        .sheet-running-header {
+          position: absolute;
+          top: 10mm;
+          right: 20mm;
+          left: auto;
+          width: 50mm;
+          z-index: 2;
+          text-align: right;
+          pointer-events: none;
+        }
+        .sheet-running-header img {
+          width: 50mm;
+          height: auto;
+          display: inline-block;
+        }
+        .preview-sheet--capa .sheet-running-header {
+          display: none;
+        }
+        .sheet-running-footer {
+          position: absolute;
+          left: 20mm;
+          right: 20mm;
+          bottom: 12mm;
+          z-index: 2;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding-top: 5pt;
+          border-top: 1pt dotted #cfcfcf;
+          font-family: Verdana, Arial, Helvetica, sans-serif;
+          font-size: 7.4pt;
+          color: #a8a8a8;
+          pointer-events: none;
+        }
+        .sheet-ftr-right {
+          font-size: 8pt;
+          color: #777;
+          font-weight: 700;
+        }
+        .preview-sheet--capa .sheet-running-footer {
+          display: none;
+        }
+        .page-header,
+        .page-footer-line {
+          display: none !important;
+        }
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+        .preview-root {
+          display: block;
+          width: auto;
+          max-width: none;
+          margin: 0;
+          padding: 0;
+        }
+        .preview-sheet,
+        .sheet-body {
+          display: contents;
+        }
+        .sheet-running-header,
+        .sheet-running-footer {
+          display: none !important;
+        }
+        .page-header,
+        .page-footer-line {
+          display: block;
+        }
+      }
 
-.page-header{ position:fixed; top:-15.5mm; right:0; width:50mm; height:8.4mm; text-align:right; z-index:10; }
-.page-header img{ width:50mm; height:auto; display:inline-block; }
-.page-footer-line{ position:fixed; left:0; right:0; bottom:-9mm; height:3mm; z-index:10; }
-.page-footer-line img{ width:100%; height:1mm; object-fit:fill; opacity:.7; }
-.brand-row{ display:block; text-align:right; height:12mm; margin-bottom:10mm; }
-.brand-row img{ display:none; }
-.report-footer-spacer{ height:2mm; }
+      .page-header {
+        position: fixed;
+        top: -15.5mm;
+        right: 0;
+        width: 50mm;
+        height: 8.4mm;
+        text-align: right;
+        z-index: 10;
+      }
+      .page-header img {
+        width: 50mm;
+        height: auto;
+        display: inline-block;
+      }
+      .page-footer-line {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: -9mm;
+        height: 3mm;
+        z-index: 10;
+      }
+      .page-footer-line img {
+        width: 100%;
+        height: 1mm;
+        object-fit: fill;
+        opacity: 0.7;
+      }
+      .brand-row {
+        display: block;
+        text-align: right;
+        height: 12mm;
+        margin-bottom: 10mm;
+      }
+      .brand-row img {
+        display: none;
+      }
+      .report-footer-spacer {
+        height: 2mm;
+      }
 
-/* Capa */
-.capa{
-  page: capa; height: 297mm; width: 210mm; margin: 0; padding: 0; background:#fff;
-  color: #fff; position: relative; page-break-after: always;
-}
-.capa-bg{ position:absolute; inset:0; width:210mm; height:297mm; object-fit:cover; }
-.capa .subt{ position:absolute; top:127.5mm; left:37.6mm; right:38mm; font-size:11pt; color:#fff; line-height:1.8; font-weight:700; }
-.capa .subt span{ display:block; }
+      /* Capa */
+      .capa {
+        page: capa;
+        height: 297mm;
+        width: 210mm;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        color: #fff;
+        position: relative;
+        page-break-after: always;
+      }
+      .capa-bg {
+        position: absolute;
+        inset: 0;
+        width: 210mm;
+        height: 297mm;
+        object-fit: cover;
+      }
+      .capa .subt {
+        position: absolute;
+        top: 127.5mm;
+        left: 37.6mm;
+        right: 38mm;
+        font-size: 11pt;
+        color: #fff;
+        line-height: 1.8;
+        font-weight: 700;
+      }
+      .capa .subt span {
+        display: block;
+      }
 
-/* Ficha técnica */
-.ficha{ page: ficha; page-break-after: always; padding-top: 2mm; }
-.ficha h2{ color:#111; font-size:15pt; font-weight:800; margin:0 0 3mm 2mm; text-transform:uppercase; }
-.ficha table{ width:100%; border-collapse:collapse; font-size:10.5pt; border-top:1.7pt solid #111; }
-.ficha td{ padding:1.3mm 2mm 2mm; border-bottom:1.4pt solid #111; vertical-align:top; }
-.ficha td:first-child{ width:42mm; font-weight:800; color:#111; text-transform:uppercase; padding-bottom:.2mm; }
-.ficha .valor{ display:block; font-weight:400; text-transform:none; margin-top:.8mm; }
-.versoes{ width:100%; border-collapse:collapse; margin-top:36mm; font-size:10.5pt; }
-.versoes th,.versoes td{ border-top:.7pt solid #111; border-bottom:.7pt solid #111; padding:2mm 3mm; text-align:center; }
-.versoes th{ font-weight:800; }
-.versoes td:first-child,.versoes th:first-child{ width:22mm; }
-.versoes td:nth-child(2),.versoes th:nth-child(2){ width:32mm; }
+      /* Ficha técnica */
+      .ficha {
+        page: ficha;
+        page-break-after: always;
+        padding-top: 2mm;
+      }
+      .ficha h2 {
+        color: #111;
+        font-size: 15pt;
+        font-weight: 800;
+        margin: 0 0 3mm 2mm;
+        text-transform: uppercase;
+      }
+      .ficha table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10.5pt;
+        border-top: 1.7pt solid #111;
+      }
+      .ficha td {
+        padding: 1.3mm 2mm 2mm;
+        border-bottom: 1.4pt solid #111;
+        vertical-align: top;
+      }
+      .ficha td:first-child {
+        width: 42mm;
+        font-weight: 800;
+        color: #111;
+        text-transform: uppercase;
+        padding-bottom: 0.2mm;
+      }
+      .ficha .valor {
+        display: block;
+        font-weight: 400;
+        text-transform: none;
+        margin-top: 0.8mm;
+      }
+      .versoes {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 36mm;
+        font-size: 10.5pt;
+      }
+      .versoes th,
+      .versoes td {
+        border-top: 0.7pt solid #111;
+        border-bottom: 0.7pt solid #111;
+        padding: 2mm 3mm;
+        text-align: center;
+      }
+      .versoes th {
+        font-weight: 800;
+      }
+      .versoes td:first-child,
+      .versoes th:first-child {
+        width: 22mm;
+      }
+      .versoes td:nth-child(2),
+      .versoes th:nth-child(2) {
+        width: 32mm;
+      }
 
-/* Sumário */
-.sumario{ page: sumario; page-break-after: always; padding-top: 0; }
-.sumario .brand-row{ display:none; height:0; margin:0; }
-.sumario h2{ color:#0F1E3D; font-family:Verdana, Arial, Helvetica, sans-serif; font-size:13.5pt; font-weight:800; text-align:center; margin:0 0 8mm; text-transform:uppercase; }
-.sumario ol{ list-style:none; padding:0; margin:0; counter-reset:item; font-family:Arial, Verdana, Helvetica, sans-serif; }
-.sumario li{ font-size:10.5pt; line-height:12pt; margin:0 0 4.23mm; }
-.sumario li a{ color:#111; text-decoration:none; display:block; }
-.sumario li a::after{ content: leader('.') target-counter(attr(href), page); }
-.sumario li .num{ display:inline; margin-right:2.4mm; text-align:left; vertical-align:top; }
-.sumario li .ttl{ display:inline; }
-.sumario li .dots,.sumario li .pg{ display:none; }
-.sumario li.lvl-1{ padding-left:0; text-indent:0; text-transform:uppercase; }
-.sumario li.lvl-2{ padding-left:3.88mm; text-indent:0; }
-.sumario li.lvl-3{ padding-left:7.76mm; text-indent:0; }
-.sumario li.deep .ttl{ font-style:italic; }
+      /* Sumário */
+      .sumario {
+        page: sumario;
+        page-break-after: always;
+        padding-top: 0;
+      }
+      .sumario .brand-row {
+        display: none;
+        height: 0;
+        margin: 0;
+      }
+      .sumario h2 {
+        color: #0f1e3d;
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13.5pt;
+        font-weight: 800;
+        text-align: center;
+        margin: 0 0 8mm;
+        text-transform: uppercase;
+      }
+      .sumario ol {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        counter-reset: item;
+        font-family: Arial, Verdana, Helvetica, sans-serif;
+      }
+      .sumario li {
+        font-size: 10.5pt;
+        line-height: 12pt;
+        margin: 0 0 4.23mm;
+      }
+      .sumario li a {
+        color: #111;
+        text-decoration: none;
+        display: block;
+      }
+      .sumario li a::after {
+        content: leader(".") target-counter(attr(href), page);
+      }
+      .sumario li .num {
+        display: inline;
+        margin-right: 2.4mm;
+        text-align: left;
+        vertical-align: top;
+      }
+      .sumario li .ttl {
+        display: inline;
+      }
+      .sumario li .dots,
+      .sumario li .pg {
+        display: none;
+      }
+      .sumario li.lvl-1 {
+        padding-left: 0;
+        text-indent: 0;
+        text-transform: uppercase;
+      }
+      .sumario li.lvl-2 {
+        padding-left: 3.88mm;
+        text-indent: 0;
+      }
+      .sumario li.lvl-3 {
+        padding-left: 7.76mm;
+        text-indent: 0;
+      }
+      .sumario li.deep .ttl {
+        font-style: italic;
+      }
 
-/* Seções */
-.secao{ page-break-before: auto; }
-.secao.lvl-1{ page-break-before: always; }
-.secao h1{
-  font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 13pt; line-height:1.15; color:#102246;
-  padding: 0; margin:0 0 10pt; border-bottom: 0; text-transform:uppercase;
-  font-weight:800; letter-spacing:0; page-break-after:avoid;
-}
-.secao h1 .num{ color:#102246; display:inline-block; min-width:4.7mm; margin-right:1mm; }
-.secao.lvl-2 h1{ font-size:12pt; text-transform:none; margin-top:10pt; padding-left:0; }
-.secao.lvl-3 h1{ font-size:11pt; text-transform:none; margin-top:10pt; padding-left:5mm; }
-.secao.lvl-4 h1{ font-size:10pt; text-transform:none; font-style:italic; margin-top:10pt; padding-left:10mm; }
-.secao.lvl-5 h1,.secao.lvl-6 h1{ font-size:10pt; text-transform:none; font-style:italic; margin-top:10pt; padding-left:15mm; }
-.secao.lvl-2 h1 .num{ min-width:6mm; }
-.secao.lvl-3 h1 .num{ min-width:7.3mm; }
-.secao.lvl-4 h1 .num{ min-width:8.7mm; }
-.secao.lvl-5 h1 .num,.secao.lvl-6 h1 .num{ min-width:10mm; }
-.bloco{ margin: 0; }
-.bloco h2{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:12pt; line-height:1.15; color:#102246; margin:10pt 0 10pt; font-weight:800; page-break-after:avoid; }
-.bloco h3{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 11pt; line-height:1.15; color:#102246; margin:10pt 0 10pt; font-weight:700; page-break-after:avoid; }
-.bloco h4{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10.5pt; line-height:1.15; color:#102246; margin:8pt 0 8pt; font-weight:700; page-break-after:avoid; }
-.bloco h5,.bloco h6{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.15; color:#102246; margin:6pt 0 6pt; font-weight:700; font-style:italic; page-break-after:avoid; }
-.bloco p{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.15; text-align: justify; margin:0 0 10pt; }
-.bloco .ql-align-center{ text-align:center; }
-.bloco .ql-align-right{ text-align:right; }
-.bloco .ql-align-justify{ text-align:justify; }
-.bloco .ql-align-left{ text-align:left; }
-.bloco table { width:100%; border-collapse:collapse; margin:0 0 10pt; font-size:9.5pt; }
-.bloco th,
-.bloco td { border:1pt solid #ccc; padding:4pt 6pt; vertical-align:top; }
-.bloco img { max-width:100%; height:auto; display:block; margin:0 0 8pt; }
-.bloco blockquote { margin:0 0 10pt 10pt; padding-left:8pt; border-left:2.5pt solid #cfd6e6; font-size:9.8pt; }
-.bloco hr { border:none; border-top:1pt solid #ccc; margin:8pt 0; }
-.bloco ul,.bloco ol{
-  font-family:Verdana, Arial, Helvetica, sans-serif;
-  font-size:10pt;
-  line-height:1.15;
-  padding-left:12.7mm;
-  margin:0 0 6pt;
-  text-align:justify;
-}
-.bloco ul li,.bloco ol li{ margin:0 0 6pt; line-height:1.15; padding-left:0; text-align:justify; }
-.empty-section{ color:#7a8694; font-style:italic; }
-.figura{ text-align:center; margin: 10pt auto 14pt; page-break-inside: avoid; }
-.figura img{ max-width: 100%; max-height: 112mm; border: 0; display:block; margin:0 auto; }
-.figura .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 9pt; line-height:1.15; color:#111; margin-top: 10pt; margin-bottom:10pt; font-weight:700; text-align:center; }
-.figura .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size: 8.5pt; line-height:1.15; color:#111; margin:0 0 10pt; text-align:center; }
-.tabela{ margin: 8pt auto 14pt; page-break-inside: avoid; text-align:center; }
-.tabela .cap{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9pt; line-height:1.15; color:#111; font-weight:700; margin-bottom:10pt; text-align:center; }
-.tabela table{ width:100%; border-collapse:collapse; font-family:Verdana, Arial, Helvetica, sans-serif; font-size:9.5pt; line-height:1.15; margin:0 auto; }
-.tabela th{ background:#fff; color:#111; padding:4pt 6pt; text-align:left; font-size:8.8pt; font-weight:800; border:0.7pt solid #111; }
-.tabela td{ padding:4pt 6pt; border:0.5pt solid #111; vertical-align:top; text-align:left; }
-.tabela .src{ font-family:Verdana, Arial, Helvetica, sans-serif; font-size:8.5pt; line-height:1.15; color:#111; margin-top:10pt; margin-bottom:10pt; text-align:center; }
+      /* Seções */
+      .secao {
+        page-break-before: auto;
+      }
+      .secao.lvl-1 {
+        page-break-before: always;
+      }
+      .secao h1 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 13pt;
+        line-height: 1.15;
+        color: #102246;
+        padding: 0;
+        margin: 0 0 10pt;
+        border-bottom: 0;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 0;
+        page-break-after: avoid;
+      }
+      .secao h1 .num {
+        color: #102246;
+        display: inline-block;
+        min-width: 4.7mm;
+        margin-right: 0;
+      }
+      .secao.lvl-2 h1 {
+        font-size: 12pt;
+        text-transform: none;
+        margin-top: 10pt;
+        padding-left: 0;
+      }
+      .secao.lvl-3 h1 {
+        font-size: 11pt;
+        text-transform: none;
+        margin-top: 10pt;
+        padding-left: 5mm;
+      }
+      .secao.lvl-4 h1 {
+        font-size: 10pt;
+        text-transform: none;
+        font-style: italic;
+        margin-top: 10pt;
+        padding-left: 10mm;
+      }
+      .secao.lvl-5 h1,
+      .secao.lvl-6 h1 {
+        font-size: 10pt;
+        text-transform: none;
+        font-style: italic;
+        margin-top: 10pt;
+        padding-left: 15mm;
+      }
+      .secao.lvl-2 h1 .num {
+        min-width: 6mm;
+      }
+      .secao.lvl-3 h1 .num {
+        min-width: 7.3mm;
+      }
+      .secao.lvl-4 h1 .num {
+        min-width: 8.7mm;
+      }
+      .secao.lvl-5 h1 .num,
+      .secao.lvl-6 h1 .num {
+        min-width: 10mm;
+      }
+      .bloco {
+        margin: 0;
+      }
+      .bloco h2 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 12pt;
+        line-height: 1.15;
+        color: #102246;
+        margin: 10pt 0 10pt;
+        font-weight: 800;
+        page-break-after: avoid;
+      }
+      .bloco h3 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 11pt;
+        line-height: 1.15;
+        color: #102246;
+        margin: 10pt 0 10pt;
+        font-weight: 700;
+        page-break-after: avoid;
+      }
+      .bloco h4 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.15;
+        color: #102246;
+        margin: 8pt 0 8pt;
+        font-weight: 700;
+        page-break-after: avoid;
+      }
+      .bloco h5,
+      .bloco h6 {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        line-height: 1.15;
+        color: #102246;
+        margin: 6pt 0 6pt;
+        font-weight: 700;
+        font-style: italic;
+        page-break-after: avoid;
+      }
+      .bloco p {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        line-height: 1.15;
+        text-align: justify;
+        margin: 0 0 10pt;
+      }
+      .bloco .ql-align-center {
+        text-align: center;
+      }
+      .bloco .ql-align-right {
+        text-align: right;
+      }
+      .bloco .ql-align-justify {
+        text-align: justify;
+      }
+      .bloco .ql-align-left {
+        text-align: left;
+      }
+      .bloco table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 10pt;
+        font-size: 9.5pt;
+      }
+      .bloco th,
+      .bloco td {
+        border: 1pt solid #ccc;
+        padding: 4pt 6pt;
+        vertical-align: top;
+      }
+      .bloco img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 0 8pt;
+      }
+      .bloco blockquote {
+        margin: 0 0 10pt 10pt;
+        padding-left: 8pt;
+        border-left: 2.5pt solid #cfd6e6;
+        font-size: 9.8pt;
+      }
+      .bloco hr {
+        border: none;
+        border-top: 1pt solid #ccc;
+        margin: 8pt 0;
+      }
+      .bloco ul,
+      .bloco ol {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        line-height: 1.15;
+        padding-left: 12.7mm;
+        margin: 0 0 6pt;
+        text-align: justify;
+      }
+      .bloco ul li,
+      .bloco ol li {
+        margin: 0 0 6pt;
+        line-height: 1.15;
+        padding-left: 0;
+        text-align: justify;
+      }
+      .empty-section {
+        color: #7a8694;
+        font-style: italic;
+      }
+      .figura {
+        text-align: center;
+        margin: 10pt auto 14pt;
+        page-break-inside: avoid;
+      }
+      .figura img {
+        max-width: 170mm;
+        max-height: 112mm;
+        border: 0;
+        display: block;
+        margin: 0 auto;
+      }
+      .figura .cap {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+        line-height: 1.15;
+        color: #111;
+        margin-top: 10pt;
+        margin-bottom: 10pt;
+        font-weight: 700;
+        text-align: center;
+      }
+      .figura .src {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 8.5pt;
+        line-height: 1.15;
+        color: #111;
+        margin-top: 10pt;
+        margin-bottom: 10pt;
+        text-align: center;
+      }
+      .tabela {
+        margin: 8pt auto 14pt;
+        page-break-inside: avoid;
+        text-align: center;
+      }
+      .tabela .cap {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+        line-height: 1.15;
+        color: #111;
+        font-weight: 700;
+        margin-bottom: 10pt;
+        text-align: center;
+      }
+      .tabela table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 9.5pt;
+        line-height: 1.15;
+        margin: 0 auto;
+      }
+      .tabela th {
+        background: #fff;
+        color: #111;
+        padding: 4pt 6pt;
+        text-align: left;
+        font-size: 8.8pt;
+        font-weight: 800;
+        border: 0.7pt solid #111;
+      }
+      .tabela td {
+        padding: 4pt 6pt;
+        border: 0.5pt solid #111;
+        vertical-align: top;
+        text-align: left;
+      }
+      .tabela .src {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: 8.5pt;
+        line-height: 1.15;
+        color: #111;
+        margin-top: 10pt;
+        margin-bottom: 10pt;
+        text-align: center;
+      }
 
-/* Página de assinaturas */
-.assinaturas{ page-break-before: always; padding-top: 10mm; }
-.assinaturas h2{ color:#1c3d59; font-size:14pt; border-bottom:2pt solid #3ec26e; padding-bottom:4pt; margin-bottom:18pt; }
-.assinaturas .sig-row{ margin-top: 30pt; }
-.assinaturas .linha{ border-top: 1pt solid #1c3d59; width: 80mm; margin-top: 35pt; padding-top: 4pt; font-size: 9.5pt; }
-.assinaturas .nota{ margin-top: 30pt; font-size: 8.5pt; color:#4f5d6e; line-height:1.6; }
+      /* Página de assinaturas */
+      .assinaturas {
+        page-break-before: always;
+        padding-top: 10mm;
+      }
+      .assinaturas h2 {
+        color: #1c3d59;
+        font-size: 14pt;
+        border-bottom: 2pt solid #3ec26e;
+        padding-bottom: 4pt;
+        margin-bottom: 18pt;
+      }
+      .assinaturas .sig-row {
+        margin-top: 30pt;
+      }
+      .assinaturas .linha {
+        border-top: 1pt solid #1c3d59;
+        width: 80mm;
+        margin-top: 35pt;
+        padding-top: 4pt;
+        font-size: 9.5pt;
+      }
+      .assinaturas .nota {
+        margin-top: 30pt;
+        font-size: 8.5pt;
+        color: #4f5d6e;
+        line-height: 1.6;
+      }
     </style>
   </head>
-  <body>
-    {% macro secao_conteudo(s) -%}
-        {% set nivel = s.numero.count('.') + 1 %}
-        <section id="sec-{{ s.numero|replace('.', '-') }}" class="secao lvl-{{ nivel }}" data-sra-flow-block>
-          <h1>
-            <span class="num">{{ s.numero }}</span>{{ s.titulo }}
-          </h1>
-          {% if s.blocos %}
-            {% for b in s.blocos %}
-              <div class="bloco">
-                {% if b.titulo %}<h3>{{ b.titulo }}</h3>{% endif %}
-                {% if b.tipo == 'texto' %}
-                  {{ b.html|safe }}
-                {% elif b.tipo == 'lista' %}
-                  {{ b.lista_html|safe }}
-                {% elif b.tipo == 'figura' %}
-                  <div class="figura">
-                    {% if b.src %}
-                      <img src="{{ b.src }}" alt="">
-                    {% else %}
-                      <p class="empty-section">[Figura importada sem imagem vinculada]</p>
-                    {% endif %}
-                    <div class="cap">
-                      Figura {{ b.numero }}
-                      {% if b.legenda %}— {{ b.legenda }}{% endif %}
-                    </div>
-                    {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
-                  </div>
-                {% elif b.tipo == 'tabela' %}
-                  <div class="tabela">
-                    {% if b.tabela_html %}
-                      {{ b.tabela_html|safe }}
-                    {% else %}
-                      <div class="cap">
-                        Tabela {{ b.numero }}
-                        {% if b.legenda %}— {{ b.legenda }}{% endif %}
-                      </div>
-                    {% endif %}
-                    {% if b.fonte %}<div class="src">Fonte: {{ b.fonte }}</div>{% endif %}
-                  </div>
-                {% endif %}
-              </div>
-            {% endfor %}
+  <body
+    class="preview-context-{{ preview_context|default('default') }}"
+    data-preview-context="{{ preview_context|default('default') }}"
+  >
+    {% macro secao_conteudo(s) -%} {% set nivel = s.numero.count('.') + 1 %}
+    <section
+      id="sec-{{ s.numero|replace('.', '-') }}"
+      class="secao lvl-{{ nivel }}"
+      data-sra-flow-block
+    >
+      <h1><span class="num">{{ s.numero }}</span>{{ s.titulo }}</h1>
+      {% if s.blocos %} {% for b in s.blocos %}
+      <div class="bloco">
+        {% if b.titulo %}
+        <h3>{{ b.titulo }}</h3>
+        {% endif %} {% if b.tipo == 'texto' %} {{ b.html|safe }} {% elif b.tipo
+        == 'lista' %} {{ b.lista_html|safe }} {% elif b.tipo == 'figura' %}
+        <div class="figura">
+          {% if b.src %}
+          <img src="{{ b.src }}" alt="" />
           {% else %}
-            <p class="empty-section">— sem conteúdo nesta seção —</p>
+          <p class="empty-section">[Figura importada sem imagem vinculada]</p>
           {% endif %}
-        </section>
+          <div class="cap">
+            Figura {{ b.numero }} {% if b.legenda %}— {{ b.legenda }}{% endif %}
+          </div>
+          {% if b.fonte %}
+          <div class="src">Fonte: {{ b.fonte }}</div>
+          {% endif %}
+        </div>
+        {% elif b.tipo == 'tabela' %}
+        <div class="tabela">
+          {% if b.tabela_html %} {{ b.tabela_html|safe }} {% else %}
+          <div class="cap">
+            Tabela {{ b.numero }} {% if b.legenda %}— {{ b.legenda }}{% endif %}
+          </div>
+          {% endif %} {% if b.fonte %}
+          <div class="src">Fonte: {{ b.fonte }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %} {% else %}
+      <p class="empty-section">— sem conteúdo nesta seção —</p>
+      {% endif %}
+    </section>
     {%- endmacro %}
     <nav class="preview-toolbar" aria-label="Controles de visualização">
-      <button type="button" data-sra-preview="load-preview" title="Carregar visualização">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <button
+        type="button"
+        data-sra-preview="load-preview"
+        title="Carregar visualização"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
       </button>
       <span class="sep"></span>
       <button type="button" data-sra-preview="zoom-out" title="Diminuir zoom">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
       </button>
       <span class="zoom-label" data-sra-preview="zoom-label">100%</span>
       <button type="button" data-sra-preview="zoom-in" title="Aumentar zoom">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
       </button>
       <span class="sep"></span>
-      <button type="button" data-sra-preview="fit-width" title="Ajustar largura">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+      <button
+        type="button"
+        data-sra-preview="fit-width"
+        title="Ajustar largura"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M15 3h6v6"></path>
+          <path d="M9 21H3v-6"></path>
+          <path d="M21 3l-7 7"></path>
+          <path d="M3 21l7-7"></path>
+        </svg>
       </button>
       <button type="button" data-sra-preview="fit-100" title="Tamanho real">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
       </button>
-      <button type="button" data-sra-preview="print" title="Imprimir / salvar como PDF pelo navegador">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      <button
+        type="button"
+        data-sra-preview="print"
+        title="Imprimir / salvar como PDF pelo navegador"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path
+            d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+          ></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
       </button>
     </nav>
     <div class="preview-root" id="preview-root" data-preview-loaded="false">
       <div class="preview-placeholder" id="preview-placeholder">
-        <p>Clique no botão "Carregar visualização" para exibir o conteúdo do relatório.</p>
+        <p>
+          Clique no botão "Carregar visualização" para exibir o conteúdo do
+          relatório.
+        </p>
       </div>
       <!-- ===================== CAPA ===================== -->
       <div class="preview-sheet preview-sheet--capa">
         <section class="capa">
-          <img src="{{ cover_bg_src }}" class="capa-bg" alt="">
+          <img src="{{ cover_bg_src }}" class="capa-bg" alt="" />
           <div class="subt">
-            <span>RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or '' }}</span><span>Produto {{ cover_produto }}</span>
+            <span
+              >RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or ''
+              }}</span
+            ><span>Produto {{ cover_produto }}</span>
           </div>
         </section>
       </div>
       <div class="page-header">
-        <img src="{{ header_logos_src }}" alt="">
+        <img src="{{ header_logos_src }}" alt="" />
       </div>
       <div class="page-footer-line">
-        <img src="{{ pli_line_src }}" alt="">
+        <img src="{{ pli_line_src }}" alt="" />
       </div>
       <!-- ===================== FICHA TÉCNICA ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="">
+          <img src="{{ header_logos_src }}" alt="" />
         </div>
         <div class="sheet-body">
           <section class="ficha">
             <div class="brand-row">
-              <img src="{{ header_logos_src }}" alt="">
+              <img src="{{ header_logos_src }}" alt="" />
             </div>
             <h2>Relatório Mensal {{ rel.codigo }}</h2>
             <table>
@@ -372,33 +998,39 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
                 </td>
               </tr>
               <tr>
+                <td>Título<span class="valor">RELATÓRIO MENSAL</span></td>
+              </tr>
+              <tr>
                 <td>
-                  Título<span class="valor">RELATÓRIO MENSAL</span>
+                  Elaboração<span class="valor"
+                    >Consórcio Concremat / Transplan</span
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td>Contrato<span class="valor">Contrato Nº 22.607-5</span></td>
+              </tr>
+              <tr>
+                <td>
+                  Contratação<span class="valor"
+                    >Secretaria de Meio Ambiente, Infraestrutura e Logística –
+                    SEMIL – Governo do Estado de São Paulo</span
+                  >
                 </td>
               </tr>
               <tr>
                 <td>
-                  Elaboração<span class="valor">Consórcio Concremat / Transplan</span>
+                  Financiamento<span class="valor"
+                    >Banco Interamericano de Desenvolvimento (BID)</span
+                  >
                 </td>
               </tr>
               <tr>
                 <td>
-                  Contrato<span class="valor">Contrato Nº 22.607-5</span>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Contratação<span class="valor">Secretaria de Meio Ambiente, Infraestrutura e Logística – SEMIL – Governo do Estado de São Paulo</span>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Financiamento<span class="valor">Banco Interamericano de Desenvolvimento (BID)</span>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Observações<span class="valor">Este Relatório corresponde ao entregável {{ rel.codigo }}.</span>
+                  Observações<span class="valor"
+                    >Este Relatório corresponde ao entregável {{ rel.codigo
+                    }}.</span
+                  >
                 </td>
               </tr>
             </table>
@@ -431,54 +1063,60 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
           </section>
         </div>
         <div class="sheet-running-footer">
-          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-left"
+            >Plano de Logística e Investimentos do Estado de SP | PLI 2050</span
+          >
           <span class="sheet-ftr-right">2</span>
         </div>
       </div>
       <!-- ===================== SUMÁRIO ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="">
+          <img src="{{ header_logos_src }}" alt="" />
         </div>
         <div class="sheet-body">
           <section class="sumario">
             <div class="brand-row">
-              <img src="{{ header_logos_src }}" alt="">
+              <img src="{{ header_logos_src }}" alt="" />
             </div>
             <h2>Sumário</h2>
             {{ sumario_html|safe }}
           </section>
         </div>
         <div class="sheet-running-footer">
-          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-left"
+            >Plano de Logística e Investimentos do Estado de SP | PLI 2050</span
+          >
           <span class="sheet-ftr-right">3</span>
         </div>
       </div>
       <!-- ===================== SEÇÕES (prévia paginada A4) ===================== -->
       <div class="preview-sheet" data-sra-content-source="secoes">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="">
+          <img src="{{ header_logos_src }}" alt="" />
         </div>
         <div class="sheet-body" data-sra-paginate-source>
-          {% for grupo in secoes_preview_grupos %}
-            {% for s in grupo %}
-              {{ secao_conteudo(s) }}
-            {% endfor %}
-          {% endfor %}
+          {% for grupo in secoes_preview_grupos %} {% for s in grupo %} {{
+          secao_conteudo(s) }} {% endfor %} {% endfor %}
         </div>
         <div class="sheet-running-footer">
-          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+          <span class="sheet-ftr-left"
+            >Plano de Logística e Investimentos do Estado de SP | PLI 2050</span
+          >
           <span class="sheet-ftr-right">4</span>
         </div>
       </div>
       <template id="sra-preview-sheet-template">
         <div class="preview-sheet">
           <div class="sheet-running-header">
-            <img src="{{ header_logos_src }}" alt="">
+            <img src="{{ header_logos_src }}" alt="" />
           </div>
           <div class="sheet-body"></div>
           <div class="sheet-running-footer">
-            <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
+            <span class="sheet-ftr-left"
+              >Plano de Logística e Investimentos do Estado de SP | PLI
+              2050</span
+            >
             <span class="sheet-ftr-right"></span>
           </div>
         </div>
@@ -486,29 +1124,39 @@ body{ font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; line-
       <!-- ===================== ASSINATURAS ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="">
+          <img src="{{ header_logos_src }}" alt="" />
         </div>
         <div class="sheet-body">
           <section class="assinaturas">
             <h2>Página de assinaturas</h2>
             <p>
-              Este documento foi compilado automaticamente pelo SRA — Sistema de Relatórios de Atividades — em {{ hoje.strftime("%d/%m/%Y") }}, e está pronto para assinatura eletrônica via plataforma D4Sign.
+              Este documento foi compilado automaticamente pelo SRA — Sistema de
+              Relatórios de Atividades — em {{ hoje.strftime("%d/%m/%Y") }}, e
+              está pronto para assinatura eletrônica via plataforma D4Sign.
             </p>
             <div class="sig-row">
-              <div class="linha">Coordenação Técnica — Consórcio Concremat–Transplan</div>
+              <div class="linha">
+                Coordenação Técnica — Consórcio Concremat–Transplan
+              </div>
             </div>
             <div class="sig-row">
               <div class="linha">Fiscalização — SEMIL/DER-SP</div>
             </div>
             <div class="nota">
-              Documento gerado a partir das submissões individuais da equipe multidisciplinar, consolidado pelo editor responsável.
-              Versão {{ rel.versao }} · Código de referência: {{ rel.codigo }} · Status: {{ rel.status }}.
+              Documento gerado a partir das submissões individuais da equipe
+              multidisciplinar, consolidado pelo editor responsável. Versão {{
+              rel.versao }} · Código de referência: {{ rel.codigo }} · Status:
+              {{ rel.status }}.
             </div>
           </section>
         </div>
         <div class="sheet-running-footer">
-          <span class="sheet-ftr-left">Plano de Logística e Investimentos do Estado de SP | PLI 2050</span>
-          <span class="sheet-ftr-right" data-sra-assinaturas-page>{{ 3 + (secoes_preview_grupos|length) + 1 }}</span>
+          <span class="sheet-ftr-left"
+            >Plano de Logística e Investimentos do Estado de SP | PLI 2050</span
+          >
+          <span class="sheet-ftr-right" data-sra-assinaturas-page
+            >{{ 3 + (secoes_preview_grupos|length) + 1 }}</span
+          >
         </div>
       </div>
     </div>
