@@ -887,7 +887,11 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
           </div>
 
           <!-- SUMÁRIO -->
-          <div class="rev-sheet">
+          <div
+            class="rev-sheet"
+            data-rev-secoes-pagina="3"
+            data-rev-paginate-source-root
+          >
             <div class="rev-sheet__hdr">
               <img
                 class="rev-sheet__logo"
@@ -895,7 +899,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
                 alt=""
               />
             </div>
-            <div class="rev-sheet__body">
+            <div class="rev-sheet__body" data-rev-paginate-source>
               <section class="sumario">
                 <h2>Sumário</h2>
                 {{ sumario_html|safe }}
@@ -918,6 +922,7 @@ header %}Revisão Editorial — {{ rel.codigo }}{% endblock %} {% block head_ext
             class="rev-sheet{% if grupo_orient == 'landscape' %} rev-sheet--landscape{% endif %}"
             data-orientacao="{{ grupo_orient }}"
             data-rev-secoes-pagina="{{ 4 + loop.index0 }}"
+            data-rev-paginate-source-root
           >
             <div class="rev-sheet__hdr">
               <img

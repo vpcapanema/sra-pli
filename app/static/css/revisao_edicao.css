@@ -697,12 +697,9 @@
 .rev-tree__item--lvl-5 {
   padding-left: 48px;
 }
-.rev-has-erro > .rev-tree__link {
-  color: #c62828;
-}
-.rev-has-aviso > .rev-tree__link {
-  color: #b45309;
-}
+/* Classes `.rev-has-erro` / `.rev-has-aviso` são MANTIDAS no DOM (usadas
+   por filtros e contadores), porém NÃO aplicam cor sobre o texto do link
+   da árvore — a hierarquia visual usa apenas a tipografia padrão. */
 
 /* ---------- Documento (folhas A4) ----------
    Reaproveita CSS do PDF: classes .preview-sheet, .secao, .bloco vêm do
@@ -735,7 +732,7 @@
   position: relative;
   width: 210mm;
   max-width: 210mm;
-  height: 297mm;
+  min-height: 297mm;
   background: #fff;
   border: 1px solid #c8ced6;
   border-radius: 4px;
@@ -746,22 +743,23 @@
   font-size: 10pt;
   line-height: 1.15;
   color: #141414;
-  overflow: hidden;
   flex-shrink: 0;
 }
 .rev-sheet--landscape {
   width: 297mm;
   max-width: 297mm;
-  height: 210mm;
+  min-height: 210mm;
   padding: 20mm 25mm 20mm 22.2mm;
 }
-/* Wrapper de corpo: ocupa exatamente o miolo entre as margens da folha;
-   o overflow é controlado em `.rev-sheet` (overflow:hidden) — a paginação
-   JS move blocos overflow para uma nova folha durante o load. */
+/* Folhas SEMPRE têm `min-height: 297mm` (já definido em `.rev-sheet`).
+   Não usamos `height: 297mm` fixo porque ele força `offsetHeight = 297mm`
+   independentemente do conteúdo, quebrando a detecção de overflow do JS
+   de paginação. Após o JS terminar, cada folha contém apenas o conteúdo
+   que cabe, então a folha respeita o `min-height` (ficando exatamente
+   em A4). Folhas vazias residuais (sem conteúdo) ficam com 297mm.
+   Marcador `data-rev-paginated="1"` é mantido só para inspeção/debug. */
 .rev-sheet__body {
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
+  min-height: 100%;
 }
 .rev-sheet--capa {
   padding: 0;
@@ -829,38 +827,31 @@
   display: none;
 }
 
-/* Reaproveita a tipografia das classes .secao/.bloco do PDF, mas reseta
-   `text-align` para esquerda em headings (PDF usa center; aqui é revisão). */
+/* Tipografia dos títulos das seções — espelha o DOCX de referência
+   (D20-13). Padronizada para TODOS os níveis: numeração + título usam a
+   MESMA cor e o MESMO espaçamento (gap 4mm = ~7.5mm tab do Word). Cores
+   por nível seguem a hierarquia visual do contrato. */
 .rev-sheet .secao h1 {
   font-family: Verdana, Arial, Helvetica, sans-serif;
-  font-size: 13pt;
-  color: #102246;
-  margin: 14pt 0 8pt;
-  font-weight: 800;
-  border-bottom: 1.2pt solid #102246;
-  padding-bottom: 4pt;
+  font-weight: 700;
   display: flex;
-  gap: 8px;
+  gap: 4mm;
+  color: #0f1e3d;
+  margin: 14pt 0 8pt;
+  padding-bottom: 0;
+  border-bottom: none;
+  font-size: 12pt;
 }
 .rev-sheet .secao h1 .num {
-  color: #2b6cb0;
-  min-width: 20mm;
-}
-/* Seções de nível 1 (1, 2, 3, ...) — espelham o estilo Ttulo1/Nvel1 do
-   DOCX de referência (D20-13): Verdana 14pt bold, cor #0F1E3D, sem borda
-   inferior e numeração colada ao título (tab ~7.5mm = 426 twips). */
-.rev-sheet .secao.lvl-1 h1 {
-  font-size: 14pt;
-  color: #0f1e3d;
-  font-weight: 700;
-  border-bottom: none;
-  padding-bottom: 0;
-  margin: 18pt 0 12pt;
-  gap: 4mm;
-}
-.rev-sheet .secao.lvl-1 h1 .num {
   color: inherit;
   min-width: 7.5mm;
+}
+/* Nível 1 (1, 2, 3, ...) — Verdana, cor #0F1E3D. Tamanho conforme D20-13. */
+.rev-sheet .secao.lvl-1 h1 {
+  font-size: 14pt;
+  font-weight: 700;
+  color: #0f1e3d;
+  margin: 18pt 0 12pt;
 }
 .rev-sheet .secao.lvl-1 .bloco p,
 .rev-sheet .secao.lvl-1 .bloco .ql-editor p {
@@ -882,20 +873,23 @@
 }
 .rev-sheet .secao.lvl-2 h1 {
   font-size: 12pt;
-  border-bottom-width: 0.8pt;
+  font-weight: 400;
+  color: #102246;
+  margin: 12pt 0 6pt;
 }
 .rev-sheet .secao.lvl-3 h1 {
   font-size: 11pt;
-  border-bottom: none;
   color: #143a6b;
+  margin: 10pt 0 5pt;
 }
 .rev-sheet .secao.lvl-4 h1,
 .rev-sheet .secao.lvl-5 h1,
 .rev-sheet .secao.lvl-6 h1 {
-  font-size: 10.5pt;
-  border-bottom: none;
+  font-size: 11pt;
   color: #143a6b;
   font-style: italic;
+  font-weight: 400;
+  margin: 8pt 0 4pt;
 }
 
 .rev-sheet .bloco {
@@ -1042,16 +1036,9 @@
   color: #80561b;
   text-decoration: underline;
 }
-.rev-block--complexo {
-  border-left-color: #c62828;
-  background: rgba(198, 40, 40, 0.03);
-}
-.rev-block--complexo:hover,
-.rev-block--complexo:focus,
-.rev-block--complexo:focus-within {
-  background: rgba(198, 40, 40, 0.05);
-  border-left-color: #c62828;
-}
+/* `.rev-block--complexo` é mantido no DOM (filtros / contadores), mas
+   sem destaque cromático no visualizador — a página renderizada deve
+   refletir somente a tipografia da referência editorial. */
 
 .rev-banner {
   padding: 5px 14px;
