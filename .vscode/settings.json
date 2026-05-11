@@ -1,5 +1,5 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "python.defaultInterpreterPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
   "python.terminal.activateEnvironment": true,
   "python.analysis.diagnosticMode": "openFilesOnly",
   "python.analysis.exclude": [
@@ -11,14 +11,18 @@
   ],
   "python.analysis.typeCheckingMode": "off",
 
-  "flake8.interpreter": ["${workspaceFolder}\\.venv\\Scripts\\python.exe"],
+  "flake8.interpreter": [
+    "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe"
+  ],
   "flake8.importStrategy": "fromEnvironment",
   "flake8.args": [
     "--max-line-length=120",
     "--extend-ignore=E501,E402,W503,E203"
   ],
 
-  "pylint.interpreter": ["${workspaceFolder}\\.venv\\Scripts\\python.exe"],
+  "pylint.interpreter": [
+    "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe"
+  ],
   "pylint.importStrategy": "fromEnvironment",
   "pylint.args": [
     "--rcfile=d:\\sistema_relatorio_mensal_atividades\\pyproject.toml"
@@ -26,7 +30,7 @@
 
   "djlint.enableLinting": true,
   "djlint.useNewLinter": true,
-  "djlint.pythonPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "djlint.pythonPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",
   "djlint.ignore": [
     "**/*.py",
     "**/*.js",
