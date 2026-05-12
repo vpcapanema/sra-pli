@@ -46,10 +46,7 @@ def _referenciado_em_codigo(nome_ficheiro: str) -> bool:
 
 
 def _meta_padrao(nome_ficheiro: str) -> PaginaComplementoMeta:
-    curto = (
-        nome_ficheiro.removesuffix(".html").replace("_", " ").strip()
-        or nome_ficheiro
-    )
+    curto = nome_ficheiro.removesuffix(".html").replace("_", " ").strip() or nome_ficheiro
     titulo = curto[:1].upper() + curto[1:] if curto else nome_ficheiro
     return PaginaComplementoMeta(
         nome_ficheiro,
@@ -87,5 +84,5 @@ def mapa_aplicacao_pagina(request: Request, db: Session):
     return templates.TemplateResponse(
         request,
         "mapa_aplicacao.html",
-        {"user": user, "paginas": paginas},
+        {"user": user, "paginas": paginas or []},
     )

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="format-detection" content="telephone=no,address=no,email=no,date=no">
+    <title>SRA · URGENTE {{ relatorio_codigo }}</title>
+    <!--[if mso]>
+    <style type="text/css">
+      table,td,div,p,a {font-family:Arial,Helvetica,sans-serif !important;}
+    </style>
+    <![endif]-->
+    <style>
+      @media only screen and (max-width:600px) {
+        .sra-email-shell {width:100% !important;max-width:100% !important;border-radius:0 !important;}
+        .sra-email-pad {padding:16px !important;}
+        .sra-email-h {padding:14px 16px !important;}
+        .sra-email-h-tit {font-size:16px !important;}
+        .sra-email-paragrafo {font-size:13.5px !important;line-height:1.5 !important;}
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1f5;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" class="sra-email-shell" width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:3px solid #7a1212;border-radius:6px;width:600px;max-width:100%;">
+            <tr>
+              <td class="sra-email-h" style="background:#7a1212;color:#ffffff;padding:18px 22px;border-top-left-radius:6px;border-top-right-radius:6px;">
+                <div style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#fff;font-weight:700;">SRA · PLI-SP · URGENTE</div>
+                <div class="sra-email-h-tit" style="font-size:18px;font-weight:700;margin-top:4px;">{{ relatorio_codigo }} — Entrega Atrasada</div>
+              </td>
+            </tr>
+            <tr>
+              <td class="sra-email-pad sra-email-paragrafo" style="padding:22px;font-size:14px;line-height:1.55;text-align:justify;border-bottom-left-radius:6px;border-bottom-right-radius:6px;">
+                <p style="margin:0 0 12px;text-align:justify;">ATENÇÃO, <strong>{{ destinatario_nome }}</strong>.</p>
+                
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 18px;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:16px 18px;border:3px solid #7a1212;border-radius:6px;background-color:#ffe8e8;font-size:14px;line-height:1.55;color:#5c0f0f;font-weight:700;text-align:center;">
+                      <span style="display:block;font-size:17px;font-weight:900;margin-bottom:10px;letter-spacing:.02em;">🚨 URGENTE: Entrega em Atraso</span>
+                      Sua entrega ao relatório <strong>{{ relatorio_codigo }}</strong> está EM ATRASO desde <strong>{{ prazo_limite_conteudo_autor }}</strong>.
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 12px;text-align:justify;">
+                  O prazo de tolerência encerrou em <strong>{{ prazo_envio }}</strong>. Este atraso compromete:
+                </p>
+
+                <ul style="margin:0 0 14px;padding-left:20px;font-size:14px;line-height:1.6;">
+                  <li style="margin:0 0 8px;"><strong>A medição mensal da Concremat</strong></li>
+                  <li style="margin:0 0 8px;"><strong>O cumprimento do contrato PLI/SP-2050</strong></li>
+                  <li style="margin:0 0 8px;"><strong>A pontuação da equipe</strong></li>
+                </ul>
+
+                <p style="margin:0 0 12px;text-align:justify;">
+                  Você <strong>PRECISA entregar IMEDIATAMENTE</strong>.
+                </p>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;border-collapse:separate;">
+                  <tr>
+                    <td align="center" style="padding:14px 16px;border:2px solid #7a1212;border-radius:6px;background-color:#7a1212;">
+                      <a href="{{ link_relatorio_painel }}" style="display:inline-block;padding:12px 24px;background:#ffffff;color:#7a1212;text-decoration:none;font-weight:700;font-size:14px;border-radius:4px;">ACESSE AGORA</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 12px;text-align:justify;">
+                  Se houver impedimento, comunique o coordenador <strong>URGENTEMENTE</strong>.
+                </p>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:12px 16px;border:2px solid #7a1212;border-radius:6px;background-color:#ffe8e8;font-size:13px;line-height:1.5;color:#5c0f0f;text-align:center;font-weight:700;">
+                      Este é um aviso de não conformidade formal.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

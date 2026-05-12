@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session, joinedload
 from ..db import tx_session
 from ..models import Bloco, Relatorio, Secao, User
 from ..numeracao import chave_numero, consolidar_referencias, secao_ids_na_subarvore
-from ..notificacoes.service import recompute_status_enviado
 from .. import ref_resolve
 from ..modo_edicao_blocos import modo_edicao_coordenador_rel, pode_mutar_apesar_de_bloqueado
 from .pages import response_conteudo_upload, user_or_login_page
@@ -25,6 +24,10 @@ def _hook_recompute_entrega(db: Session, rel_id: int, sec_id: int) -> None:
     sec = db.get(Secao, sec_id)
     if not sec or not sec.responsavel_id:
         return
+    # pylint: disable=import-outside-toplevel
+    from ..notificacoes.service import recompute_status_enviado, recompute_status_secao_enviado
+
+    recompute_status_secao_enviado(db, sec_id)
     recompute_status_enviado(db, sec.responsavel_id, rel_id)
 
 

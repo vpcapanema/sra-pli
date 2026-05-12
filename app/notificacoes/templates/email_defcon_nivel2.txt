@@ -1,0 +1,22 @@
+SRA · URGENTE — {{ relatorio_codigo }}
+========================================
+
+ATENÇÃO, {{ destinatario_nome }}.
+
+🚨 URGENTE: Entrega em Atraso
+Sua entrega ao relatório {{ relatorio_codigo }} está EM ATRASO desde
+{{ prazo_limite_conteudo_autor }}.
+
+O prazo de tolerância encerrou em {{ prazo_envio }}. Este atraso
+compromete:
+- A medição mensal da Concremat
+- O cumprimento do contrato PLI/SP-2050
+- A pontuação da equipe
+
+Você PRECISA entregar IMEDIATAMENTE.
+
+Acesse AGORA: {{ link_relatorio_painel }}
+
+Se houver impedimento, comunique o coordenador URGENTEMENTE.
+
+Este é um aviso de não conformidade formal.

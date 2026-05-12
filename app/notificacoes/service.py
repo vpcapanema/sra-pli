@@ -117,6 +117,7 @@ class ResumoLembretes:
     emails_enviados: int = 0
     emails_falhados: int = 0
     pulados_intervalo: int = 0
+    pulados_secoes_enviadas: int = 0
     avisos: list[str] = field(default_factory=list)
 
 
@@ -871,6 +872,10 @@ def enviar_lembretes(  # pylint: disable=too-many-locals
             entrega = _entrega_para(db, rel.id, user_obj.id)
             if entrega.status in ("enviado", "validado"):
                 continue
+            # Verificar se todas as seções do usuário estão "enviadas"
+            if all(s.status == "enviado" for s in secoes_user):
+                resumo.pulados_secoes_enviadas += 1
+                continue
             ultimo = _ultimo_envio_sucesso(entrega)
             if ultimo and (agora - ultimo.enviada_em) < _INTERVALO_MIN_ENTRE_ENVIOS:
                 resumo.pulados_intervalo += 1
@@ -991,11 +996,32 @@ def recompute_status_enviado(db: Session, user_id: int, rel_id: int) -> bool:
     entrega.data_envio = datetime.utcnow()
     db.commit()
     log.info(
-        "[notif/recompute] entrega=%s user=%d rel=%d -> enviado",
+        "Promovido entrega %d para 'enviado' (user=%d, rel=%d)",
         entrega.id,
         user_id,
         rel_id,
     )
+    return True
+
+
+def recompute_status_secao_enviado(db: Session, sec_id: int) -> bool:
+    """Promove a seção para ``enviado`` se todos os blocos estão ``bloqueado=true``.
+    Retorna ``True`` se mudou.
+    """
+    secao = db.get(Secao, sec_id)
+    if not secao or secao.status in ("enviado", "aprovada"):
+        return False
+
+    blocos = db.query(Bloco).filter(Bloco.secao_id == sec_id).all()
+    if not blocos:
+        return False
+
+    if not all(b.bloqueado for b in blocos):
+        return False
+
+    secao.status = "enviado"
+    db.commit()
+    log.info("Promovido seção %d para 'enviado'", sec_id)
     return True
 
 

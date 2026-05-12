@@ -1,0 +1,568 @@
+{% macro fmt_dt(val) -%} {{- fmt_dt_sp(val) -}} {%- endmacro %} {% macro
+tag_modo_envio(modo) -%} {%- if modo == "real" -%}
+<span class="tag tag-err" title="Envia e-mails de produção via SendGrid"
+  >{{ modo }}</span
+>
+{%- elif modo == "sandbox" -%}
+<span
+  class="tag tag-warn"
+  title="SendGrid em sandbox: nada chega ao destinatário"
+  >{{ modo }}</span
+>
+{%- else -%}
+<span
+  class="tag tag-neutral"
+  title="NOTIFICAR_HABILITADO=false: envio desligado"
+  >{{ modo }}</span
+>
+{%- endif -%} {%- endmacro %}
+
+<section class="ss active-tab" id="ss-geracao">
+  <div class="ss-hdr">
+    <span class="sn">01</span>
+    <span class="st">Utilizadores, ciclo e notificações</span>
+    <span class="sbadge">modo de envio: {{ modo_envio }}</span>
+  </div>
+  <div class="sb2">
+    <p class="sdesc">
+      Diretório de utilizadores no topo (autores que recebem o ciclo,
+      coordenação e administração). Em seguida, acompanhamento do ciclo,
+      histórico de envios reais e console para disparar manualmente as rotinas.
+      Os parâmetros do ciclo ficam no painel à direita.
+    </p>
+
+    <details class="bloco" open id="ss-lista-entregas">
+      <summary>
+        <strong>Tabela 1 · Lista de entregas</strong>
+        <span class="meta-inline">
+          espelho da tabela publicada em {% if lista_entregas_rel %}
+          <code>/relatorios/{{ lista_entregas_rel.id }}/entregas</code>
+          {% else %}
+          <code>/relatorios/&lt;id&gt;/entregas</code>
+          {% endif %} · qualquer alteração reflete nos dois lugares
+        </span>
+      </summary>
+      <div class="det-body">
+        {% if lista_entregas_rel %}
+        <p class="meta-inline">
+          Abrir tabela publicada:
+          <a href="/relatorios/{{ lista_entregas_rel.id }}/entregas"
+            >/relatorios/{{ lista_entregas_rel.id }}/entregas</a
+          >
+        </p>
+        {% endif %}
+        <p class="sdesc">
+          Lista oficial dos autores que enviam conteúdo para o relatório
+          selecionado, com o status de cada entrega e os carimbos das
+          notificações já confirmadas pelo SendGrid.
+          <strong>Coordenação aprova/reprova</strong> aplicando o status pelo
+          menu <strong>⋮</strong> (use <em>validado</em> para aprovar — encerra
+          o ciclo de notificação para o autor; volte para
+          <em>aguardando_envio</em> ou <em>notificado</em> para reabrir e
+          disparar lembrete). Para gerenciar utilizadores e senhas, use
+          <a href="/usuarios">Equipe e permissões</a>.
+        </p>
+
+        <form
+          method="get"
+          action="/governanca-relatorio#ss-lista-entregas"
+          class="gov-filter-form"
+        >
+          <label for="gov-filter-lista">Filtrar por relatório</label>
+          <select
+            id="gov-filter-lista"
+            name="relatorio_id"
+            onchange="this.form.submit()"
+          >
+            {% for r in relatorios_filtro %}
+            <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
+              {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+            </option>
+            {% endfor %}
+          </select>
+        </form>
+
+        {% if lista_entregas_rel %} {% with rel=lista_entregas_rel,
+        linhas=lista_entregas_linhas, pode_acoes=lista_entregas_pode_acoes,
+        redirect_to="/governanca-relatorio#ss-lista-entregas" %} {% include
+        "complementos/_lista_entregas_partial.html" %} {% endwith %} {% else %}
+        <p class="empty-section">
+          Nenhum relatório disponível. Crie um relatório para ver a lista de
+          entregas.
+        </p>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="bloco" open id="ss-status-cron">
+      <summary>
+        <strong>1.1. Acompanhamento do ciclo</strong>
+        <span class="meta-inline">relatório, avisos e próximos envios</span>
+      </summary>
+      <div class="det-body">
+        <p class="sdesc">
+          Mostra apenas o que o sistema consegue provar.
+          <strong>Envio solicitado</strong> significa que o SendGrid aceitou
+          processar a mensagem; <strong>Entregue</strong> exige evento de
+          entrega do provedor; <strong>Visualização detectada</strong> é só um
+          sinal técnico do provedor e pode ser bloqueado pelo cliente de e-mail.
+          Clique nos autores para ver o detalhe.
+        </p>
+        <form
+          method="get"
+          action="/governanca-relatorio#ss-status-cron"
+          class="gov-filter-form"
+        >
+          <label for="gov-filter-ciclo">Filtrar por relatório</label>
+          <select
+            id="gov-filter-ciclo"
+            name="relatorio_id"
+            onchange="this.form.submit()"
+          >
+            {% for r in relatorios_filtro %}
+            <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
+              {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+            </option>
+            {% endfor %}
+          </select>
+        </form>
+        <table class="gov-ciclo-table">
+          <thead>
+            <tr>
+              <th>Etapa</th>
+              <th>Situação</th>
+              <th>Quando aconteceu</th>
+              <th>Autores</th>
+              <th>Próxima vez</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in ciclo_execucao_rows %}
+            <tr>
+              <td>
+                <strong>{{ row.titulo }}</strong>
+              </td>
+              <td>
+                <span class="tag {{ row.tag }}">{{ row.estado }}</span>
+              </td>
+              <td>{{ fmt_dt(row.quando) }}</td>
+              <td>
+                {% if row.modal_id %}
+                <button
+                  type="button"
+                  class="gov-link-button"
+                  data-open-gov-modal="{{ row.modal_id }}"
+                >
+                  {{ row.autores_texto }}
+                </button>
+                {% else %}
+                <span class="muted-dash">{{ row.autores_texto }}</span>
+                {% endif %}
+              </td>
+              <td>{{ fmt_dt(row.proxima_execucao) }}</td>
+              <td>{{ row.mensagem }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% for row in ciclo_execucao_rows %} {% if row.modal_id %}
+        <div
+          class="gov-modal is-hidden"
+          id="{{ row.modal_id }}"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="{{ row.modal_id }}-title"
+        >
+          <div class="gov-modal-box">
+            <div class="gov-modal-hdr">
+              <strong id="{{ row.modal_id }}-title"
+                >{{ row.titulo }} · autores</strong
+              >
+              <button
+                type="button"
+                class="gov-modal-close"
+                data-close-gov-modal="{{ row.modal_id }}"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div class="gov-modal-body">
+              <p class="sdesc">
+                A lista separa tentativa, entrega e visualização detectada. O
+                sistema não inventa recebimento: sem evento do SendGrid, a
+                situação fica como envio solicitado ou ainda não enviado.
+                Autores pausados aparecem para auditoria, mas não entram na
+                contagem.
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Autor</th>
+                    <th>E-mails cadastrados</th>
+                    <th>Situação</th>
+                    <th>Quando</th>
+                    <th>Explicação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for autor in row.detalhes %}
+                  <tr>
+                    <td><strong>{{ autor.nome }}</strong></td>
+                    <td>
+                      {% if autor.emails_status %} {% for item in
+                      autor.emails_status %}
+                      <div title="{{ item.mensagem }}">
+                        {{ item.email }}
+                        <span class="tag {{ item.tag }}"
+                          >{{ item.estado }}</span
+                        >
+                      </div>
+                      {% endfor %} {% else %} {{ autor.email }} {% if
+                      autor.email2 and autor.email2 != autor.email %}
+                      <br />
+                      <span class="muted-dash">{{ autor.email2 }}</span>
+                      {% endif %} {% endif %}
+                    </td>
+                    <td>
+                      <span class="tag {{ autor.tag }}"
+                        >{{ autor.estado }}</span
+                      >
+                    </td>
+                    <td>{{ fmt_dt(autor.quando) }}</td>
+                    <td>{{ autor.motivo }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+    </details>
+
+    <details class="bloco" open id="ss-envio-notificacoes">
+      <summary>
+        <strong>1.2. Envio de notificações</strong>
+        <span class="meta-inline"
+          >tabela <code>notificacao_envio</code> · últimas {{ limite_notifs
+          }}</span
+        >
+      </summary>
+      <div class="det-body">
+        <p class="sdesc">
+          Histórico de e-mails disparados pelo SendGrid.
+          <strong>Solicitado</strong> quer dizer aceite para processamento;
+          <strong>Entregue</strong> e
+          <strong>Visualização detectada</strong> vêm do webhook do provedor.
+          <strong>Erro</strong> mostra o motivo informado pelo provedor ou pelo
+          envio quando houver falha.
+        </p>
+        <form
+          method="get"
+          action="/governanca-relatorio#ss-envio-notificacoes"
+          class="gov-filter-form"
+        >
+          <label for="gov-filter-notifs">Filtrar por relatório</label>
+          <select
+            id="gov-filter-notifs"
+            name="relatorio_id"
+            onchange="this.form.submit()"
+          >
+            {% for r in relatorios_filtro %}
+            <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
+              {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+            </option>
+            {% endfor %}
+          </select>
+        </form>
+        {% if notificacoes %}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Entrega</th>
+              <th>Tipo</th>
+              <th>Enviada em</th>
+              <th>Resultado</th>
+              <th>Destinatário</th>
+              <th>SendGrid id</th>
+              <th>Erro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in notificacoes %} {% set ent = n.entrega %} {% set rel =
+            ent.relatorio if ent else None %} {% set autor = ent.user if ent
+            else None %}
+            <tr>
+              <td>{{ n.id }}</td>
+              <td>
+                <strong>{{ rel.codigo if rel else '#' ~ n.entrega_id }}</strong>
+                {% if autor %} · {{ autor.nome }}{% endif %}
+              </td>
+              <td>{{ n.tipo }}</td>
+              <td>{{ fmt_dt(n.enviada_em) }}</td>
+              <td>
+                {% if n.provedor_status == "open" or n.aberto_em %}
+                <span class="tag tag-ok" title="{{ n.provedor_motivo or '' }}"
+                  >Visualização detectada</span
+                >
+                {% elif n.provedor_status == "delivered" %}
+                <span class="tag tag-ok" title="{{ n.provedor_motivo or '' }}"
+                  >Entregue</span
+                >
+                {% elif n.sucesso %}
+                <span
+                  class="tag tag-warn"
+                  title="SendGrid aceitou processar; entrega ainda não confirmada"
+                  >Solicitado</span
+                >
+                {% else %}
+                <span
+                  class="tag tag-err"
+                  title="{{ n.erro or 'Falha no envio' }}"
+                  >Falhou</span
+                >
+                {% endif %}
+              </td>
+              <td title="{{ n.destinatario_email }}">
+                {{ n.destinatario_email }}
+              </td>
+              <td title="{{ n.sendgrid_message_id or '' }}">
+                {{ n.sendgrid_message_id or '—' }}
+              </td>
+              <td
+                class="gov-erro-col"
+                title="{{ n.erro or n.provedor_motivo or '' }}"
+              >
+                {% set msg_erro = n.erro or n.provedor_motivo %} {% if msg_erro
+                %}
+                <span class="gov-erro-msg">{{ msg_erro }}</span>
+                {% else %}
+                <span class="muted-dash">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty-section">
+          Sem notificações registradas para este filtro.
+        </p>
+        {% endif %}
+
+        <div class="sub-bloco" id="ss-testar-sistema">
+          <div class="sub-bloco-hdr">
+            <strong>1.2.1. Notificação assistida de usuários</strong>
+            <span class="meta-inline"
+              >modo de envio: {{ tag_modo_envio(modo_envio) }}</span
+            >
+          </div>
+          <p class="sdesc">
+            Console para executar rotinas reais fora do horário agendado.
+            Escolha a ação, o relatório base ou alvo, e o tipo de notificação
+            quando aplicável. <strong>Atenção:</strong> em modo
+            <code>real</code> os e-mails são enviados de fato pelo SendGrid; em
+            <code>sandbox</code> a chamada vai à API mas não chega ao
+            destinatário; em <code>desligado</code> o sistema apenas registra a
+            tentativa.
+          </p>
+
+          {% if resultado_teste %}
+          <div class="alert alert-ok">
+            <strong>{{ resultado_teste.rotulo }}</strong>
+            · executado em {{ resultado_teste.executado_em }} · modo de envio:
+            {{ tag_modo_envio(resultado_teste.modo_envio) }}
+            <div class="mt-8" role="list">
+              {%- for k, v in resultado_teste.dados.items() -%}{%- if k ==
+              "avisos" -%}{%- if v -%}
+              <div role="listitem">
+                <strong>avisos:</strong>
+                <div role="list">
+                  {%- for av in v -%}
+                  <div role="listitem">{{ av }}</div>
+                  {%- endfor -%}
+                </div>
+              </div>
+              {%- endif -%}{%- else -%}
+              <div role="listitem">
+                <strong>{{ k }}:</strong> {{ v if v is not none else '—' }}
+              </div>
+              {%- endif -%}{%- endfor -%}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="coord-actions-grid">
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Abrir período do mês</h3>
+                  <button
+                    type="button"
+                    class="coord-help-btn"
+                    aria-label="Ajuda sobre abrir período"
+                    aria-expanded="false"
+                    data-coord-help="coord-help-abrir"
+                  >
+                    ?
+                  </button>
+                </div>
+                <span class="coord-panel-badge"
+                  ><span class="tag tag-warn">cria relatório</span></span
+                >
+              </div>
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-abrir">
+                Cria o relatório do mês corrente clonando a estrutura do
+                relatório base selecionado e dispara
+                <strong>Mensagem 1 (abertura)</strong> para cada autor com
+                <em>Notificações = Ativas</em>. Idempotente sem
+                <code>force</code>; com <code>force</code> reabre mesmo se já
+                existir.
+              </p>
+              <form
+                method="post"
+                action="/governanca-relatorio/testar/abrir-periodo"
+                class="coord-form coord-form--stack"
+                onsubmit="
+                  return confirm(
+                    'Confirma abrir período do mês?\n\nNo modo de envio real isto cria relatório novo e dispara e-mails de produção via SendGrid para todos os autores com Notificações = Ativas.',
+                  );
+                "
+              >
+                <div class="coord-field-row">
+                  <div class="coord-field">
+                    <label for="t-ab-base">Relatório base para clonar</label>
+                    <select id="t-ab-base" name="base_relatorio_id" required>
+                      {% for r in relatorios_filtro %}
+                      <option value="{{ r.id }}"{% if loop.first %} selected{% endif %}>
+                        {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <input type="hidden" name="force" value="1" />
+                <button type="submit" class="coord-btn-block">
+                  Executar (force=true)
+                </button>
+              </form>
+            </div>
+
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Notificar usuário</h3>
+                  <button
+                    type="button"
+                    class="coord-help-btn"
+                    aria-label="Ajuda sobre notificar usuário"
+                    aria-expanded="false"
+                    data-coord-help="coord-help-notificar"
+                  >
+                    ?
+                  </button>
+                </div>
+                <span class="coord-panel-badge"
+                  ><span class="tag tag-ok">e-mail</span></span
+                >
+              </div>
+              <p
+                class="coord-panel-desc coord-help-pop"
+                id="coord-help-notificar"
+              >
+                Dispara manualmente uma das três mensagens do ciclo para um
+                relatório existente. A decisão do coordenador é soberana para os
+                tipos manuais, com uma exceção operacional:
+                <strong>Abertura</strong> respeita idempotência por relatório
+                (se já foi disparada para o relatório, o sistema bloqueia novo
+                disparo e orienta usar outro tipo). <strong>Lembrete</strong> e
+                <strong>Última chamada</strong> disparam a Mensagem 2 para
+                entregas ainda pendentes, ignorando o calendário do ciclo
+                (executa fora do dia configurado).
+              </p>
+              <form
+                id="gov-form-testar-notificar"
+                method="post"
+                action="/governanca-relatorio/testar/notificar"
+                class="coord-form coord-form--stack"
+                data-sra-confirm="notificar_autores_abertura"
+                data-sra-iniciar-acompanhamento="1"
+              >
+                <div class="coord-field-row">
+                  <div class="coord-field">
+                    <label for="t-not-tipo">Tipo de notificação</label>
+                    <select id="t-not-tipo" name="tipo" required>
+                      <option value="abertura">Aviso de abertura</option>
+                      <option value="lembrete">Lembrete</option>
+                      <option value="ultima_chamada">Última chamada</option>
+                    </select>
+                  </div>
+                  <div class="coord-field">
+                    <label for="t-not-rel">Relatório alvo</label>
+                    <select id="t-not-rel" name="relatorio_id" required>
+                      {% if relatorios_abertos %} {% for r in relatorios_abertos
+                      %}
+                      <option value="{{ r.id }}">
+                        {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+                      </option>
+                      {% endfor %} {% else %}
+                      <option value="" disabled>
+                        nenhum relatório em aberto
+                      </option>
+                      {% endif %}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  class="coord-btn-block"
+                  {% if not relatorios_abertos %}disabled{% endif %}
+                >
+                  Executar
+                </button>
+              </form>
+            </div>
+
+            <div class="coord-panel">
+              <div class="coord-panel-h">
+                <div class="coord-panel-title-row">
+                  <h3 class="coord-panel-title">Retry · falhas recentes</h3>
+                  <button
+                    type="button"
+                    class="coord-help-btn"
+                    aria-label="Ajuda sobre retry de falhas"
+                    aria-expanded="false"
+                    data-coord-help="coord-help-retry"
+                  >
+                    ?
+                  </button>
+                </div>
+                <span class="coord-panel-badge"
+                  ><span class="tag tag-warn">retry</span></span
+                >
+              </div>
+              <p class="coord-panel-desc coord-help-pop" id="coord-help-retry">
+                Retenta envios que falharam nos últimos <strong>7 dias</strong>,
+                até <strong>3 tentativas</strong> por par (entrega, tipo). Cria
+                nova linha em <code>notificacao_envio</code> a cada tentativa
+                para audit trail.
+              </p>
+              <form
+                method="post"
+                action="/governanca-relatorio/testar/retry"
+                class="coord-form coord-form--stack"
+              >
+                <button type="submit" class="coord-btn-block">Executar</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>

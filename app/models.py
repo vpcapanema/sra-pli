@@ -18,7 +18,10 @@ from .db import Base
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("email", "role", name="uq_users_email_role"), Index("ix_users_email", "email"))
+    __table_args__ = (
+        UniqueConstraint("email", "role", name="uq_users_email_role"),
+        Index("ix_users_email", "email"),
+    )
     id = Column(Integer, primary_key=True)
     email = Column(String(255), nullable=False)
     # E-mail secundário (obrigatório): contacto alternativo na UI; login continua
@@ -47,7 +50,12 @@ class Relatorio(Base):
     status = Column(String(32), nullable=False, default="aberto")  # aberto, em_revisao, finalizado
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    secoes = relationship("Secao", back_populates="relatorio", cascade="all, delete-orphan", order_by="Secao.ordem")
+    secoes = relationship(
+        "Secao",
+        back_populates="relatorio",
+        cascade="all, delete-orphan",
+        order_by="Secao.ordem",
+    )
 
 
 SECOES_PADRAO = [
@@ -62,8 +70,14 @@ SECOES_PADRAO = [
     ("4.4", "Atividades de Apoio Técnico"),
     ("4.4.1", "Acompanhamento técnico em reuniões de interesse para o PLI"),
     ("4.4.2", "Apoio Administrativo e institucional"),
-    ("4.4.3", "Análise do Panorama de Investimentos Estaduais em Rodovias de São Paulo"),
-    ("4.4.4", "Preenchimento das fichas de obras rodoviárias – Produto D-10 (Caracterização da oferta futura)"),
+    (
+        "4.4.3",
+        "Análise do Panorama de Investimentos Estaduais em Rodovias de São Paulo",
+    ),
+    (
+        "4.4.4",
+        "Preenchimento das fichas de obras rodoviárias – Produto D-10 (Caracterização da oferta futura)",
+    ),
     ("4.4.5", "Protótipos de Aplicações do PLI na SEMIL"),
     ("4.4.6", "Avaliação e ajuste dos VDMA das rodovias paulistas"),
     ("4.4.7", "Atividades de padronização e revisão de documentos"),
@@ -85,12 +99,16 @@ SECOES_PADRAO = [
 class Secao(Base):
     __tablename__ = "secoes"
     id = Column(Integer, primary_key=True)
-    relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
+    relatorio_id = Column(
+        Integer,
+        ForeignKey("relatorios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     numero = Column(String(16), nullable=False)  # 1, 2, 4.1, 4.4...
     titulo = Column(String(1000), nullable=False)
     ordem = Column(Integer, nullable=False, default=0)
     responsavel_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    status = Column(String(32), nullable=False, default="pendente")  # pendente, em_andamento, aprovada
+    status = Column(String(32), nullable=False, default="pendente")  # pendente, em_andamento, enviado, aprovada
     # Orientação da página A4 para a seção. Espelha `w:pgSz w:orient` do
     # DOCX de referência. Valores aceitos: 'portrait' (210x297mm,
     # padrão) e 'landscape' (297x210mm, usado em cronogramas e
@@ -100,7 +118,12 @@ class Secao(Base):
 
     relatorio = relationship("Relatorio", back_populates="secoes")
     responsavel = relationship("User")
-    blocos = relationship("Bloco", back_populates="secao", cascade="all, delete-orphan", order_by="Bloco.ordem")
+    blocos = relationship(
+        "Bloco",
+        back_populates="secao",
+        cascade="all, delete-orphan",
+        order_by="Bloco.ordem",
+    )
     # Rascunho do coordenador na página Validação e Revisão (não entra no PDF).
     observacao_validacao = Column(Text, nullable=True)
 
@@ -132,7 +155,11 @@ class Bloco(Base):
 class Figura(Base):
     __tablename__ = "figuras"
     id = Column(Integer, primary_key=True)
-    relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
+    relatorio_id = Column(
+        Integer,
+        ForeignKey("relatorios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     nome = Column(String(255), nullable=False)
     mime = Column(String(64), nullable=False)
     dados = Column(LargeBinary, nullable=False)
@@ -172,9 +199,18 @@ NOTIFICACAO_TIPOS_VALIDOS = (
 class EntregaRelatorio(Base):
     __tablename__ = "entrega_relatorio"
     id = Column(Integer, primary_key=True)
-    relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=False)
+    relatorio_id = Column(
+        Integer,
+        ForeignKey("relatorios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    status = Column(String(32), nullable=False, default="notificado", server_default="notificado")
+    status = Column(
+        String(32),
+        nullable=False,
+        default="notificado",
+        server_default="notificado",
+    )
     data_envio = Column(DateTime, nullable=True)
     data_validacao = Column(DateTime, nullable=True)
     validado_por_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -207,7 +243,11 @@ class EntregaRelatorio(Base):
 class NotificacaoEnvio(Base):
     __tablename__ = "notificacao_envio"
     id = Column(Integer, primary_key=True)
-    entrega_id = Column(Integer, ForeignKey("entrega_relatorio.id", ondelete="CASCADE"), nullable=False)
+    entrega_id = Column(
+        Integer,
+        ForeignKey("entrega_relatorio.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     tipo = Column(String(32), nullable=False)
     enviada_em = Column(DateTime, nullable=False, default=datetime.utcnow)
     sucesso = Column(Boolean, nullable=False, default=False)
@@ -227,7 +267,8 @@ class NotificacaoEnvio(Base):
 
 
 class ParametrosCicloNotificacao(Base):
-    """Única linha ``id=1``: parâmetros do ciclo mensal editáveis na UI (coord/admin)."""
+    """Única linha ``id=1``: parâmetros do ciclo mensal
+    editáveis na UI (coord/admin)."""
 
     __tablename__ = "parametros_ciclo_notificacao"
 
@@ -244,6 +285,27 @@ class ParametrosCicloNotificacao(Base):
     hora_retry_brt_hhmm = Column(String(5), nullable=False, default="12:00")
     observacoes_internas = Column(Text, nullable=True)
     atualizado_em = Column(DateTime, nullable=True)
+
+
+class DefconConfig(Base):
+    """Configuração do modo DEFCON 4 - notificações
+    emergenciais após prazo encerrado."""
+
+    __tablename__ = "defcon_config"
+
+    id = Column(Integer, primary_key=True)
+    ativo = Column(Boolean, nullable=False, default=False)
+    nivel = Column(Integer, nullable=False, default=1)  # 1 = dia 8-10, 2 = após dia 10
+    relatorio_id = Column(Integer, ForeignKey("relatorios.id", ondelete="CASCADE"), nullable=True)
+    ativado_em = Column(DateTime, nullable=True)
+    ativado_por = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    desativado_em = Column(DateTime, nullable=True)
+    observacoes = Column(Text, nullable=True)
+
+    relatorio = relationship("Relatorio")
+    ativado_por_user = relationship("User", foreign_keys=[ativado_por])
+
+    __table_args__ = (Index("ix_defcon_relatorio", "relatorio_id"),)
 
 
 class VocabularioRevisao(Base):
@@ -263,3 +325,245 @@ class VocabularioRevisao(Base):
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     criado_por = relationship("User")
+
+
+# ---------------------------------------------------------------------------
+# Sistema de Alertas Configuráveis — 3 camadas
+# ---------------------------------------------------------------------------
+
+ALERTA_STATUS_VALIDOS = (
+    "rascunho",
+    "agendado",
+    "ativo",
+    "pausado",
+    "encerrado",
+)
+
+ALERTA_FREQUENCIA_VALIDAS = (
+    "unico",
+    "recorrente",
+)
+
+ALERTA_SUBTIPO_RECORRENCIA_VALIDOS = (
+    "horaria",
+    "diaria",
+    "semanal",
+    "quinzenal",
+    "mensal",
+    "anual",
+    "customizada",
+)
+
+ALERTA_CONDICAO_ENCERRAMENTO_VALIDAS = (
+    "fim_ciclo",
+    "todos_concluiram",
+    "item_validado",
+    "manual",
+    "ultima_mensagem",
+)
+
+ALERTA_TIPO_MENSAGEM_VALIDOS = (
+    "abertura",
+    "lembrete",
+    "ultima_chamada",
+    "customizado",
+    "boas_vindas",
+)
+
+ALERTA_ORIGEM_EXECUCAO_VALIDAS = (
+    "cron",
+    "manual",
+    "retry",
+    "teste",
+)
+
+ALERTA_STATUS_EXECUCAO_VALIDOS = (
+    "pendente",
+    "executando",
+    "sucesso",
+    "falha",
+    "cancelado",
+)
+
+
+class Alerta(Base):
+    """Camada de Definição / Configuração do Alerta."""
+
+    __tablename__ = "alertas"
+    __table_args__ = (Index("ix_alertas_status", "status"),)
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String(255), nullable=False)
+    descricao = Column(Text, nullable=True)
+    status = Column(String(32), nullable=False, default="rascunho")
+    frequencia = Column(String(32), nullable=False, default="unico")
+    subtipo_recorrencia = Column(String(32), nullable=True)
+    timezone = Column(String(64), nullable=False, default="America/Sao_Paulo")
+
+    # Ciclo do evento (A)
+    inicio_evento = Column(DateTime, nullable=True)
+    fim_evento = Column(DateTime, nullable=True)
+
+    # Ciclo do alerta (B)
+    inicio_alerta = Column(DateTime, nullable=True)
+    fim_alerta = Column(DateTime, nullable=True)
+    condicao_encerramento = Column(String(32), nullable=False, default="manual")
+
+    # Regras customizadas (JSON)
+    regras_customizadas_json = Column(Text, nullable=True)
+
+    # Período de disparos
+    data_inicio_disparos = Column(DateTime, nullable=True)
+    dias_semana = Column(String(32), nullable=True)  # "1,2,3,4,5"
+    intervalo_horario_inicio = Column(String(5), nullable=True)  # "HH:MM"
+    intervalo_horario_fim = Column(String(5), nullable=True)
+
+    # Auditoria
+    criado_por_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    atualizado_em = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    criado_por = relationship("User", foreign_keys=[criado_por_id])
+    fluxos = relationship(
+        "AlertaFluxo",
+        back_populates="alerta",
+        cascade="all, delete-orphan",
+        order_by="AlertaFluxo.ordem",
+    )
+    agendamentos = relationship(
+        "AlertaAgendamento",
+        back_populates="alerta",
+        cascade="all, delete-orphan",
+    )
+    execucoes = relationship("AlertaExecucao", back_populates="alerta", cascade="all, delete-orphan")
+    logs = relationship("AlertaLog", back_populates="alerta", cascade="all, delete-orphan")
+
+
+class AlertaFluxo(Base):
+    """Fluxo de mensagens de um alerta."""
+
+    __tablename__ = "alerta_fluxos"
+
+    id = Column(Integer, primary_key=True)
+    alerta_id = Column(Integer, ForeignKey("alertas.id", ondelete="CASCADE"), nullable=False)
+    ordem = Column(Integer, nullable=False, default=0)
+    tipo_mensagem = Column(String(32), nullable=False)
+    perfis_destinatarios_json = Column(Text, nullable=True)  # ["autor","coordenador"]
+    usuarios_destinatarios_json = Column(Text, nullable=True)  # [1,2,3] ou null=todos
+    dia_no_ciclo = Column(Integer, nullable=False, default=1)
+    hora_disparo = Column(String(5), nullable=False, default="09:00")
+    regra_disparo_json = Column(Text, nullable=True)
+    ativo = Column(Boolean, nullable=False, default=True)
+
+    alerta = relationship("Alerta", back_populates="fluxos")
+    execucoes = relationship("AlertaExecucao", back_populates="fluxo", cascade="all, delete-orphan")
+
+    __table_args__ = (Index("ix_fluxo_alerta", "alerta_id"),)
+
+
+class AlertaAgendamento(Base):
+    """Camada de Agendamento / Scheduler."""
+
+    __tablename__ = "alerta_agendamentos"
+
+    id = Column(Integer, primary_key=True)
+    alerta_id = Column(Integer, ForeignKey("alertas.id", ondelete="CASCADE"), nullable=False)
+    status_scheduler = Column(String(32), nullable=False, default="pendente")
+    data_inicio_disparos = Column(DateTime, nullable=True)
+    proxima_execucao = Column(DateTime, nullable=True)
+    ultima_execucao = Column(DateTime, nullable=True)
+    timezone = Column(String(64), nullable=False, default="America/Sao_Paulo")
+    cron_expression = Column(String(128), nullable=True)
+    bloqueado_ate = Column(DateTime, nullable=True)
+    ativo = Column(Boolean, nullable=False, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    atualizado_em = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    alerta = relationship("Alerta", back_populates="agendamentos")
+    execucoes = relationship(
+        "AlertaExecucao",
+        back_populates="agendamento",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_agendamento_alerta", "alerta_id"),
+        Index("ix_agendamento_proxima", "proxima_execucao"),
+    )
+
+
+class AlertaExecucao(Base):
+    """Camada de Execução / Runtime."""
+
+    __tablename__ = "alerta_execucoes"
+
+    id = Column(Integer, primary_key=True)
+    alerta_id = Column(Integer, ForeignKey("alertas.id", ondelete="CASCADE"), nullable=False)
+    fluxo_id = Column(
+        Integer,
+        ForeignKey("alerta_fluxos.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    agendamento_id = Column(
+        Integer,
+        ForeignKey("alerta_agendamentos.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    origem_execucao = Column(String(32), nullable=False, default="cron")
+    horario_programado = Column(DateTime, nullable=False)
+    horario_inicio_real = Column(DateTime, nullable=True)
+    horario_fim_real = Column(DateTime, nullable=True)
+    status = Column(String(32), nullable=False, default="pendente")
+    sucesso = Column(Boolean, nullable=True)
+    erro = Column(Text, nullable=True)
+    tentativa = Column(Integer, nullable=False, default=1)
+    payload_execucao_json = Column(Text, nullable=True)
+    message_id_provedor = Column(String(255), nullable=True)
+    provedor_status = Column(String(32), nullable=True)
+    aberto_em = Column(DateTime, nullable=True)
+    entregue_em = Column(DateTime, nullable=True)
+    destinatarios_processados_json = Column(Text, nullable=True)
+
+    alerta = relationship("Alerta", back_populates="execucoes")
+    fluxo = relationship("AlertaFluxo", back_populates="execucoes")
+    agendamento = relationship("AlertaAgendamento", back_populates="execucoes")
+    logs = relationship("AlertaLog", back_populates="execucao", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_exec_alerta", "alerta_id"),
+        Index("ix_exec_status", "status"),
+        Index("ix_exec_programado", "horario_programado"),
+    )
+
+
+class AlertaLog(Base):
+    """Camada de Logs / Auditoria."""
+
+    __tablename__ = "alerta_logs"
+
+    id = Column(Integer, primary_key=True)
+    alerta_id = Column(Integer, ForeignKey("alertas.id", ondelete="CASCADE"), nullable=False)
+    execucao_id = Column(
+        Integer,
+        ForeignKey("alerta_execucoes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    tipo_evento = Column(String(64), nullable=False)
+    descricao = Column(Text, nullable=True)
+    usuario_acao_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    detalhes_json = Column(Text, nullable=True)
+
+    alerta = relationship("Alerta", back_populates="logs")
+    execucao = relationship("AlertaExecucao", back_populates="logs")
+    usuario_acao = relationship("User")

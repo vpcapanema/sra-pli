@@ -1,0 +1,17 @@
+{% macro fmt_dt(val) -%}
+  {{- fmt_dt_sp(val) -}}
+{%- endmacro %}
+
+{% macro fmt_dt_input(val) -%}
+  {{- fmt_dt_input_sp(val) -}}
+{%- endmacro %}
+
+{% macro tag_modo_envio(modo) -%}
+  {%- if modo == "real" -%}
+    <span class="tag tag-err" title="Envia e-mails de produção via SendGrid">{{ modo }}</span>
+  {%- elif modo == "sandbox" -%}
+    <span class="tag tag-warn" title="SendGrid em sandbox: nada chega ao destinatário">{{ modo }}</span>
+  {%- else -%}
+    <span class="tag tag-neutral" title="NOTIFICAR_HABILITADO=false: envio desligado">{{ modo }}</span>
+  {%- endif -%}
+{%- endmacro %}

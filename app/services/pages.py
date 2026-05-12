@@ -174,7 +174,7 @@ def response_dashboard(request: Request, db: Session) -> Response:
     # LIMIT 50: dashboard mostra apenas relatorios recentes; evita crescimento
     # ilimitado do SELECT conforme o contrato avanca ao longo dos meses.
     relatorios = db.query(Relatorio).order_by(Relatorio.created_at.desc()).limit(50).all()
-    sugestao = _sugestao_proximo_relatorio(db, relatorios)
+    sugestao = _sugestao_proximo_relatorio(db, relatorios) if relatorios else {}
     pdfs_disponiveis = listar_pdfs_disponiveis()
     docxs_disponiveis = listar_docx_disponiveis()
     return templates.TemplateResponse(
@@ -182,10 +182,10 @@ def response_dashboard(request: Request, db: Session) -> Response:
         "complementos/dashboard.html",
         {
             "user": user,
-            "relatorios": relatorios,
+            "relatorios": relatorios or [],
             "sugestao": sugestao,
-            "pdfs_disponiveis": pdfs_disponiveis,
-            "docxs_disponiveis": docxs_disponiveis,
+            "pdfs_disponiveis": pdfs_disponiveis or [],
+            "docxs_disponiveis": docxs_disponiveis or [],
         },
     )
 

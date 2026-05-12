@@ -1,0 +1,41 @@
+SRA — Bem-vindo ao Sistema de Relatórios de Atividades
+=========================================================
+
+Olá, {{ destinatario_nome }}.
+
+Seja bem-vindo ao SRA - Sistema de Relatórios de Atividades, a plataforma
+oficial para documentação e registro das atividades técnicas desenvolvidas
+no contrato PLI/SP-2050.
+
+🔐 Suas Credenciais de Acesso
+Email: {{ destinatario_email }}
+Senha inicial: {{ senha_inicial }}
+
+Recomendamos alterar sua senha após o primeiro acesso por segurança.
+
+Como Funciona o SRA
+-------------------
+O SRA é um sistema mensal que registra as atividades técnicas da equipe.
+A cada mês, um relatório é aberto e os autores devem documentar suas
+seções específicas através de arquivos Word (.docx).
+
+Passo a Passo para Autores
+---------------------------
+1. Acesse o SRA: {{ link_login_sra }} e faça login com suas credenciais
+2. Verifique suas seções: no painel, identifique quais seções do relatório
+   estão sob sua responsabilidade
+3. Baixe o modelo: clique em "Baixar modelo .dotx" para cada seção atribuída
+4. Prepare seu conteúdo: abra o arquivo .docx e adicione suas atividades
+5. Envie ao SRA: faça upload do arquivo preenchido através do painel de upload
+6. Confirme os blocos: revise o conteúdo importado e confirme todos os blocos
+
+Prazo mensal: geralmente até o dia 8 de cada mês. Você receberá notificações
+automáticas.
+
+Links Úteis
+-----------
+- Acessar o SRA: {{ link_login_sra }}
+- Guia de Modelos Word: {{ link_modelos_word_ajuda }}
+- Painel de Upload: {{ link_painel_upload }}
+
+Dúvidas? Entre em contato com o coordenador do relatório.

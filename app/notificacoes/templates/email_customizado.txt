@@ -1,0 +1,13 @@
+SRA — {{ assunto }}
+==================
+
+Olá, {{ destinatario_nome }}.
+
+{{ corpo_mensagem }}
+
+{% if link_relatorio_painel %}
+Para acessar o relatório: {{ link_relatorio_painel }}
+{% endif %}
+
+---
+Esta é uma mensagem personalizada enviada pelo coordenador do relatório.

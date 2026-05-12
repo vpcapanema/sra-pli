@@ -76,7 +76,7 @@
         'ni-grp ni-grp-active' if _on_suporte else 'ni-grp' %} {% set
         _open_suporte = 'open' if _on_suporte else '' %} {% set _hub_rid =
         rel.id if (rel is defined and rel) else request.state.sra_hub_rel_id %}
-        {% set _hub_sid = none %} {% if sec is defined and sec %} {% set
+        {% set _hub_sid = None %} {% if sec is defined and sec %} {% set
         _hub_sid = sec.id %} {% elif rel is defined and rel %} {% set
         _sorted_hub_sec = (rel.secoes | sort(attribute='ordem')) if rel.secoes
         else [] %} {% set _hub_sid = (_sorted_hub_sec[0].id if _sorted_hub_sec
@@ -129,6 +129,9 @@
             <a class="ni-sub-link" href="/usuarios">Equipe e usuários</a>
             <a class="ni-sub-link" href="/governanca-relatorio"
               >Governança do relatório</a
+            >
+            <a class="ni-sub-link" href="/central-notificacoes"
+              >Central de Notificações</a
             >
           </div>
         </details>

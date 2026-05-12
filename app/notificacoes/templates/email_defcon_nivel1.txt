@@ -1,0 +1,22 @@
+SRA · ALERTA — {{ relatorio_codigo }}
+========================================
+
+Olá, {{ destinatario_nome }}.
+
+⚠️ ALERTA: Prazo Encerrado
+O prazo para envio do seu conteúdo ao relatório {{ relatorio_codigo }}
+encerrou em {{ prazo_limite_conteudo_autor }}.
+
+Sua parte ainda NÃO foi entregue. Isso impacta diretamente a medição
+mensal e pode comprometer o cumprimento contratual.
+
+AÇÃO IMEDIATA NECESSÁRIA:
+1. Acesse: {{ link_relatorio_painel }}
+2. Envie seu conteúdo através das seções atribuídas a você
+3. Confirme os blocos para finalizar a entrega
+
+Coordenação aguarda sua entrega para revisão e compilação.
+
+Prazo final de tolerância: {{ prazo_envio }}
+
+Se houver impedimento, comunique o coordenador URGENTEMENTE.

@@ -95,6 +95,10 @@ _ASSUNTOS = {
     "lembrete": "[SRA] Lembrete: sua parte do {codigo} ainda pendente",
     "ultima_chamada": "[SRA] Última chamada: {codigo} fecha em breve",
     "manual": "[SRA] Ação requerida no relatório {codigo}",
+    "defcon_nivel1": "[SRA] ALERTA: Prazo de envio encerrado - {codigo}",
+    "defcon_nivel2": "[SRA] URGENTE: Entrega atrasada - {codigo}",
+    "boas_vindas": "[SRA] Bem-vindo ao Sistema de Relatórios de Atividades",
+    "customizado": "[SRA] {assunto}",
 }
 
 _TIPO_TEMPLATES = {
@@ -102,6 +106,10 @@ _TIPO_TEMPLATES = {
     "lembrete": ("email_notificacao.html", "email_notificacao.txt"),
     "ultima_chamada": ("email_notificacao.html", "email_notificacao.txt"),
     "manual": ("email_notificacao.html", "email_notificacao.txt"),
+    "defcon_nivel1": ("email_defcon_nivel1.html", "email_defcon_nivel1.txt"),
+    "defcon_nivel2": ("email_defcon_nivel2.html", "email_defcon_nivel2.txt"),
+    "boas_vindas": ("email_boas_vindas.html", "email_boas_vindas.txt"),
+    "customizado": ("email_customizado.html", "email_customizado.txt"),
 }
 
 

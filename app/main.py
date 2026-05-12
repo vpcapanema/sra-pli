@@ -35,6 +35,8 @@ from .routes import governanca_relatorio as governanca_relatorio_routes
 from .routes import sendgrid_events as sendgrid_events_routes
 from .routes import mapa_aplicacao as mapa_aplicacao_routes
 from .routes import revisao_edicao as revisao_edicao_routes
+from .routes import central_notificacoes as central_notificacoes_routes
+from .routes import alertas_api as alertas_api_routes
 from .services.pages import response_home
 from .access_control import SraAutorRouteGuardMiddleware
 
@@ -86,7 +88,9 @@ if settings.SENTRY_DSN:
             send_default_pii=False,
         )
     except Exception:  # noqa: BLE001
-        getLogger("app.sentry").exception("Falha ao inicializar Sentry; seguindo sem ele")
+        getLogger("app.sentry").exception(
+            "Falha ao inicializar Sentry; seguindo sem ele"
+        )
 
 
 @asynccontextmanager
@@ -97,7 +101,9 @@ async def lifespan(_app: FastAPI):
         # Falha de DDL nao deve derrubar o processo em loop no healthcheck.
         # Log estruturado e app sobe; rotas que dependem do schema iram falhar
         # de forma observavel, em vez do container reiniciar para sempre.
-        getLogger("app.bootstrap").exception("init_db falhou; app subira mesmo assim")
+        getLogger("app.bootstrap").exception(
+            "init_db falhou; app subira mesmo assim"
+        )
     yield
 
 
@@ -126,14 +132,18 @@ async def sra_http_audit_log(request: Request, call_next):
     response = await call_next(request)
     ms = (perf_counter() - t0) * 1000
     code = getattr(response, "status_code", "?")
-    _HTTP_AUDIT_LOG.info("%s %s → %s (%.0f ms)", request.method, path, code, ms)
+    _HTTP_AUDIT_LOG.info(
+        "%s %s → %s (%.0f ms)", request.method, path, code, ms
+    )
     return response
 
 
 @app.middleware("http")
 async def sra_dev_preview_nav_context(request: Request, call_next):
     """Expõe se rotas /dev de pré-visualização estão ativas (menu lateral)."""
-    request.state.sra_modais_preview_allowed = dev_ui_service.modais_preview_allowed()
+    request.state.sra_modais_preview_allowed = (
+        dev_ui_service.modais_preview_allowed()
+    )
     return await call_next(request)
 
 
@@ -150,16 +160,18 @@ async def sra_hub_sidebar_context(request: Request, call_next):
     request.state.sra_hub_rel_id = None
     request.state.sra_hub_primeira_secao_id = None
     path = request.url.path
-    if request.method == "GET" and request.session.get("user_id") and not path.startswith("/static"):
+    if (
+        request.method == "GET"
+        and request.session.get("user_id")
+        and not path.startswith("/static")
+    ):
         cached = _sidebar_cache_get()
         if cached is not None:
             rel_id, sec_id = cached
         else:
             db = SessionLocal()
             try:
-                row = db.execute(
-                    text(
-                        """
+                row = db.execute(text("""
                         SELECT r.id, (
                             SELECT s.id FROM secoes s
                             WHERE s.relatorio_id = r.id
@@ -169,11 +181,11 @@ async def sra_hub_sidebar_context(request: Request, call_next):
                         FROM relatorios r
                         ORDER BY r.created_at DESC
                         LIMIT 1
-                        """
-                    )
-                ).first()
+                        """)).first()
             except SQLAlchemyError:
-                getLogger("app.sidebar").exception("Falha ao carregar contexto da sidebar")
+                getLogger("app.sidebar").exception(
+                    "Falha ao carregar contexto da sidebar"
+                )
                 row = None
             finally:
                 db.close()
@@ -195,7 +207,9 @@ app.add_middleware(
     https_only=settings.SESSION_COOKIE_SECURE,
 )
 
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount(
+    "/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static"
+)
 
 
 _ERROR_LOG = getLogger("app.error")
@@ -210,7 +224,9 @@ def _erro_html(titulo: str, mensagem: str, status: int) -> HTMLResponse:
         "max-width:640px;margin:12vh auto;padding:0 24px;color:#1f2937}"
         "h1{font-size:1.5rem;margin-bottom:.5rem}"
         "p{color:#4b5563;line-height:1.5}"
-        "a{color:#1d4ed8;text-decoration:none}</style></head><body>" + cabecalho_h1 + "\n"
+        "a{color:#1d4ed8;text-decoration:none}</style></head><body>"
+        + cabecalho_h1
+        + "\n"
         f"<p>{mensagem}</p>"
         '<p><a href="/">Voltar ao início</a></p>'
         "</body></html>"
@@ -224,12 +240,21 @@ async def sra_http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code < 400 or request.url.path.startswith("/admin/cron"):
         raise exc
     if exc.status_code == 404:
-        return _erro_html("Página não encontrada", "O recurso solicitado não existe ou foi movido.", 404)
+        return _erro_html(
+            "Página não encontrada",
+            "O recurso solicitado não existe ou foi movido.",
+            404,
+        )
     if exc.status_code == 403:
-        return _erro_html("Acesso negado", "Você não tem permissão para acessar este recurso.", 403)
+        return _erro_html(
+            "Acesso negado",
+            "Você não tem permissão para acessar este recurso.",
+            403,
+        )
     if exc.status_code == 401:
-        return _erro_html("Sessão expirada", "Faça login novamente para continuar.", 401)
-    raise exc
+        return _erro_html(
+            "Sessão expirada", "Faça login novamente para continuar.", 401
+        )
 
 
 @app.exception_handler(Exception)
@@ -270,11 +295,15 @@ def chrome_devtools_config():
 
 
 app.include_router(auth_routes.router)
+app.include_router(central_notificacoes_routes.router)
+app.include_router(alertas_api_routes.router)
 app.include_router(governanca_relatorio_routes.router)
 app.include_router(page_routes.router)
 app.include_router(mapa_aplicacao_routes.router)
 app.include_router(rel_routes.router)
-app.include_router(relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"])
+app.include_router(
+    relatorio_exclusao_routes.router, prefix="/relatorios", tags=["relatorios"]
+)
 app.include_router(bloco_routes.router)
 app.include_router(cron_admin_routes.router)
 app.include_router(sendgrid_events_routes.router)
