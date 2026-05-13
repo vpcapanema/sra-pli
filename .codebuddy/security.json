@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/olasunkanmi-SE/codebuddy/main/schemas/security-config-v1.json",
+  "version": 1,
+  "allowedPaths": [
+    {
+      "path": "d:\\sistema_relatorio_mensal_atividades",
+      "allowReadWrite": true,
+      "description": "sistema_relatorio_mensal_atividades"
+    }
+  ],
+  "commandDenyPatterns": [],
+  "networkAllowPatterns": [],
+  "networkDenyPatterns": [],
+  "blockedPathPatterns": []
+}

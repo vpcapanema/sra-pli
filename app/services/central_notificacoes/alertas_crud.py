@@ -13,6 +13,7 @@ from ...models import (
     AlertaAgendamento,
     AlertaExecucao,
     AlertaLog,
+    AlertaUnico,
     User,
 )
 
@@ -363,6 +364,58 @@ def reordenar_fluxos(db: Session, alerta_id: int, ordens: list, usuario: User) -
         usuario.id,
     )
     return fluxos
+
+
+# ---------- CRUD Alerta Único ----------
+
+
+def criar_alerta_unico(db: Session, dados: dict) -> AlertaUnico:
+    alerta_unico = AlertaUnico(
+        alerta_id=dados["alerta_id"],
+        tipo_mensagem=dados["tipo_mensagem"],
+        perfis_destinatarios_json=json.dumps(dados.get("perfis_destinatarios") or []),
+        usuarios_destinatarios_json=json.dumps(dados.get("usuarios_destinatarios") or []),
+        data_evento=dados.get("data_evento"),
+        data_alerta=dados.get("data_alerta"),
+        data_inicio_disparos=dados.get("data_inicio_disparos"),
+    )
+    db.add(alerta_unico)
+    db.commit()
+    db.refresh(alerta_unico)
+    return alerta_unico
+
+
+def obter_alerta_unico(db: Session, alerta_unico_id: int) -> Optional[AlertaUnico]:
+    return db.query(AlertaUnico).filter(AlertaUnico.id == alerta_unico_id).first()
+
+
+def obter_alerta_unico_por_alerta(db: Session, alerta_id: int) -> Optional[AlertaUnico]:
+    return db.query(AlertaUnico).filter(AlertaUnico.alerta_id == alerta_id).first()
+
+
+def atualizar_alerta_unico(
+    db: Session, alerta_unico_id: int, dados: dict
+) -> AlertaUnico:
+    alerta_unico = obter_alerta_unico(db, alerta_unico_id)
+    if not alerta_unico:
+        raise HTTPException(404, "Alerta único não encontrado")
+    for key, value in dados.items():
+        if key in ("perfis_destinatarios", "usuarios_destinatarios"):
+            value = json.dumps(value or [])
+        if hasattr(alerta_unico, key):
+            setattr(alerta_unico, key, value)
+    alerta_unico.atualizado_em = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(alerta_unico)
+    return alerta_unico
+
+
+def deletar_alerta_unico(db: Session, alerta_unico_id: int) -> None:
+    alerta_unico = obter_alerta_unico(db, alerta_unico_id)
+    if not alerta_unico:
+        raise HTTPException(404, "Alerta único não encontrado")
+    db.delete(alerta_unico)
+    db.commit()
 
 
 # ---------- Agendamento ----------

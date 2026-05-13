@@ -99,6 +99,7 @@ _ASSUNTOS = {
     "defcon_nivel2": "[SRA] URGENTE: Entrega atrasada - {codigo}",
     "boas_vindas": "[SRA] Bem-vindo ao Sistema de Relatórios de Atividades",
     "customizado": "[SRA] {assunto}",
+    "alerta_configuravel": "[SRA] {alerta_nome}",
 }
 
 _TIPO_TEMPLATES = {
@@ -110,6 +111,10 @@ _TIPO_TEMPLATES = {
     "defcon_nivel2": ("email_defcon_nivel2.html", "email_defcon_nivel2.txt"),
     "boas_vindas": ("email_boas_vindas.html", "email_boas_vindas.txt"),
     "customizado": ("email_customizado.html", "email_customizado.txt"),
+    "alerta_configuravel": (
+        "email_alerta_configuravel.html",
+        "email_alerta_configuravel.txt",
+    ),
 }
 
 
@@ -134,6 +139,8 @@ def _assunto_para(tipo: str, contexto: dict[str, Any]) -> str:
     template = _ASSUNTOS.get(tipo, _ASSUNTOS["manual"])
     if tipo == "customizado":
         return template.format(assunto=contexto.get("assunto", "Notificação"))
+    if tipo == "alerta_configuravel":
+        return template.format(alerta_nome=contexto.get("alerta_nome", "Alerta"))
     return template.format(
         codigo=contexto.get("relatorio_codigo", "—"),
         mes=contexto.get("mes_referencia", "—"),

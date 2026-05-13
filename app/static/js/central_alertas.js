@@ -65,11 +65,13 @@
     if (etapaAtual === 3) {
       toggleEventoForm();
     }
+    if (etapaAtual === 4) {
+      toggleAlertaForm();
+    }
   }
 
   function toggleEventoForm() {
     const freq = document.getElementById("alerta-frequencia").value;
-    const subtipo = document.getElementById("alerta-subtipo").value;
     const unicoForm = document.getElementById("evento-unico-form");
     const recForm = document.getElementById("evento-recorrente-form");
     const hint = document.getElementById("evento-rec-hint");
@@ -77,22 +79,23 @@
     if (freq === "recorrente") {
       unicoForm.style.display = "none";
       recForm.style.display = "block";
-      const labelMap = {
-        horaria: "Minuto do ciclo",
-        diaria: "Dia do ciclo",
-        semanal: "Dia da semana (1=Seg … 7=Dom)",
-        quinzenal: "Dia da semana (1=Seg … 7=Dom)",
-        mensal: "Dia do mês",
-        anual: "Dia e mês (DD/MM)",
-        customizada: "Dia do ciclo",
-      };
-      const label = labelMap[subtipo] || "Dia do ciclo";
-      document.getElementById("evento-rec-dia-ini").placeholder = label;
-      document.getElementById("evento-rec-dia-fim").placeholder = label;
       if (hint) {
-        hint.textContent =
-          "Informe o dia relativo ao ciclo de recorrência e o horário.";
+        hint.textContent = "Defina a posição dentro do ciclo de recorrência (ex: dia 1 ao dia 10 do mês para recorrência mensal).";
       }
+    } else {
+      unicoForm.style.display = "block";
+      recForm.style.display = "none";
+    }
+  }
+
+  function toggleAlertaForm() {
+    const freq = document.getElementById("alerta-frequencia").value;
+    const unicoForm = document.getElementById("alerta-unico-form");
+    const recForm = document.getElementById("alerta-recorrente-form");
+    if (!unicoForm || !recForm) return;
+    if (freq === "recorrente") {
+      unicoForm.style.display = "none";
+      recForm.style.display = "block";
     } else {
       unicoForm.style.display = "block";
       recForm.style.display = "none";
@@ -115,53 +118,15 @@
   window.toggleFrequencia = function () {
     const freq = document.getElementById("alerta-frequencia").value;
     const campoSubtipo = document.getElementById("campo-subtipo");
-    const colunaDireita = document.getElementById("coluna-direita-frequencia");
     campoSubtipo.style.display = freq === "recorrente" ? "block" : "none";
     if (freq !== "recorrente") {
-      colunaDireita.style.display = "none";
       document.getElementById("alerta-subtipo").value = "";
-      document.querySelectorAll('[id^="rec-"]').forEach(function (el) {
-        el.style.display = "none";
-      });
     }
     toggleEventoForm();
   };
 
   window.toggleSubtipoRecorrencia = function () {
-    const subtipo = document.getElementById("alerta-subtipo").value;
-    const colunaDireita = document.getElementById("coluna-direita-frequencia");
-    document.querySelectorAll('[id^="rec-"]').forEach(function (el) {
-      el.style.display = "none";
-    });
-    if (!subtipo) {
-      colunaDireita.style.display = "none";
-      return;
-    }
-    colunaDireita.style.display = "block";
-    switch (subtipo) {
-      case "horaria":
-        document.getElementById("rec-horaria").style.display = "block";
-        document.getElementById("rec-horario").style.display = "block";
-        break;
-      case "diaria":
-      case "semanal":
-      case "quinzenal":
-        document.getElementById("rec-dias-semana").style.display = "block";
-        document.getElementById("rec-horario").style.display = "block";
-        break;
-      case "mensal":
-        document.getElementById("rec-mensal").style.display = "block";
-        document.getElementById("rec-horario").style.display = "block";
-        break;
-      case "anual":
-        document.getElementById("rec-anual").style.display = "block";
-        document.getElementById("rec-horario").style.display = "block";
-        break;
-      case "customizada":
-        document.getElementById("rec-customizada").style.display = "block";
-        break;
-    }
-    toggleEventoForm();
+    // Não é mais necessário, pois não há campos específicos por subtipo
   };
 
   // ---------- Fluxo ----------
@@ -250,21 +215,29 @@
       document.querySelectorAll(".cn-dias-semana input:checked"),
     ).map((c) => parseInt(c.value, 10));
     const freq = document.getElementById("alerta-frequencia").value;
-    let inicioEvento, fimEvento;
+    let inicioEventoPosicao = null;
+    let fimEventoPosicao = null;
+    let inicioAlertaPosicao = null;
+    let fimAlertaPosicao = null;
     if (freq === "recorrente") {
       const dIni = document.getElementById("evento-rec-dia-ini").value;
-      const hIni = document.getElementById("evento-rec-hora-ini").value;
       const dFim = document.getElementById("evento-rec-dia-fim").value;
-      const hFim = document.getElementById("evento-rec-hora-fim").value;
-      if (dIni && hIni) {
-        inicioEvento = "2000-01-" + String(dIni).padStart(2, "0") + "T" + hIni;
+      if (dIni) {
+        inicioEventoPosicao = parseInt(dIni, 10);
       }
-      if (dFim && hFim) {
-        fimEvento = "2000-01-" + String(dFim).padStart(2, "0") + "T" + hFim;
+      if (dFim) {
+        fimEventoPosicao = parseInt(dFim, 10);
       }
-    } else {
-      inicioEvento = document.getElementById("evento-inicio").value || null;
-      fimEvento = document.getElementById("evento-fim").value || null;
+    }
+    if (freq === "recorrente") {
+      const alertaPosIni = document.getElementById("alerta-rec-pos-ini").value;
+      const alertaPosFim = document.getElementById("alerta-rec-pos-fim").value;
+      if (alertaPosIni) {
+        inicioAlertaPosicao = parseInt(alertaPosIni, 10);
+      }
+      if (alertaPosFim) {
+        fimAlertaPosicao = parseInt(alertaPosFim, 10);
+      }
     }
     return {
       nome: document.getElementById("alerta-nome").value,
@@ -274,18 +247,11 @@
       subtipo_recorrencia:
         document.getElementById("alerta-subtipo").value || null,
       timezone: document.getElementById("alerta-timezone").value,
-      inicio_evento: inicioEvento || null,
-      fim_evento: fimEvento || null,
-      inicio_alerta: document.getElementById("alerta-inicio").value || null,
-      fim_alerta: document.getElementById("alerta-fim").value || null,
+      inicio_ciclo_evento_posicao: inicioEventoPosicao || null,
+      fim_ciclo_evento_posicao: fimEventoPosicao || null,
+      inicio_ciclo_alerta_posicao: inicioAlertaPosicao || null,
+      fim_ciclo_alerta_posicao: fimAlertaPosicao || null,
       condicao_encerramento: document.getElementById("alerta-condicao").value,
-      data_inicio_disparos:
-        document.getElementById("alerta-inicio-disparos").value || null,
-      dias_semana: diasSemana.length ? diasSemana : null,
-      intervalo_horario_inicio:
-        document.getElementById("alerta-hora-ini").value || null,
-      intervalo_horario_fim:
-        document.getElementById("alerta-hora-fim").value || null,
       fluxos: fluxosTemp.length ? fluxosTemp : undefined,
     };
   }
@@ -361,46 +327,20 @@
           data.subtipo_recorrencia || "";
         document.getElementById("alerta-timezone").value =
           data.timezone || "America/Sao_Paulo";
-        if (data.frequencia === "recorrente" && data.inicio_evento) {
-          const dtIni = new Date(data.inicio_evento);
-          document.getElementById("evento-rec-dia-ini").value = dtIni.getDate();
-          document.getElementById("evento-rec-hora-ini").value =
-            String(dtIni.getHours()).padStart(2, "0") +
-            ":" +
-            String(dtIni.getMinutes()).padStart(2, "0");
+        if (data.frequencia === "recorrente" && data.inicio_ciclo_evento_posicao) {
+          document.getElementById("evento-rec-dia-ini").value = data.inicio_ciclo_evento_posicao;
         } else {
           document.getElementById("evento-rec-dia-ini").value = "";
-          document.getElementById("evento-rec-hora-ini").value = "08:00";
         }
-        if (data.frequencia === "recorrente" && data.fim_evento) {
-          const dtFim = new Date(data.fim_evento);
-          document.getElementById("evento-rec-dia-fim").value = dtFim.getDate();
-          document.getElementById("evento-rec-hora-fim").value =
-            String(dtFim.getHours()).padStart(2, "0") +
-            ":" +
-            String(dtFim.getMinutes()).padStart(2, "0");
+        if (data.frequencia === "recorrente" && data.fim_ciclo_evento_posicao) {
+          document.getElementById("evento-rec-dia-fim").value = data.fim_ciclo_evento_posicao;
         } else {
           document.getElementById("evento-rec-dia-fim").value = "";
-          document.getElementById("evento-rec-hora-fim").value = "18:00";
         }
-        document.getElementById("evento-inicio").value = data.inicio_evento
-          ? data.inicio_evento.slice(0, 16)
-          : "";
-        document.getElementById("evento-fim").value = data.fim_evento
-          ? data.fim_evento.slice(0, 16)
-          : "";
-        document.getElementById("alerta-inicio").value = data.inicio_alerta
-          ? data.inicio_alerta.slice(0, 16)
-          : "";
-        document.getElementById("alerta-fim").value = data.fim_alerta
-          ? data.fim_alerta.slice(0, 16)
-          : "";
+        document.getElementById("alerta-rec-pos-ini").value = data.inicio_ciclo_alerta_posicao || "";
+        document.getElementById("alerta-rec-pos-fim").value = data.fim_ciclo_alerta_posicao || "";
         document.getElementById("alerta-condicao").value =
           data.condicao_encerramento || "manual";
-        document.getElementById("alerta-inicio-disparos").value =
-          data.data_inicio_disparos
-            ? data.data_inicio_disparos.slice(0, 16)
-            : "";
         toggleFrequencia();
         fluxosTemp = (data.fluxos || []).map((f) => ({
           tipo_mensagem: f.tipo_mensagem,

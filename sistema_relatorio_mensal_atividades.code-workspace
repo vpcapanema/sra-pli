@@ -1,8 +1,11 @@
 {
   "folders": [
     {
-      "path": "d:\\sistema_relatorio_mensal_atividades",
+      "path": "d:\\sistema_relatorio_mensal_atividades"
     },
+    {
+      "path": "."
+    }
   ],
   "settings": {
     "python.defaultInterpreterPath": "d:\\sistema_relatorio_mensal_atividades\\.venv\\Scripts\\python.exe",

@@ -877,7 +877,7 @@
         == 'lista' %} {{ b.lista_html|safe }} {% elif b.tipo == 'figura' %}
         <div class="figura">
           {% if b.src %}
-          <img src="{{ b.src }}" alt="" />
+          <img src="{{ b.src }}" alt="" width="100%" height="auto" />
           {% else %}
           <p class="empty-section">[Figura importada sem imagem vinculada]</p>
           {% endif %}
@@ -1018,7 +1018,7 @@
       <!-- ===================== CAPA ===================== -->
       <div class="preview-sheet preview-sheet--capa">
         <section class="capa">
-          <img src="{{ cover_bg_src }}" class="capa-bg" alt="" />
+          <img src="{{ cover_bg_src }}" class="capa-bg" alt="" width="100%" height="auto" />
           <div class="subt">
             <span
               >RELATÓRIO MENSAL – MÊS {{ medicao or rel.numero_medicao or ''
@@ -1028,20 +1028,20 @@
         </section>
       </div>
       <div class="page-header">
-        <img src="{{ header_logos_src }}" alt="" />
+        <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
       </div>
       <div class="page-footer-line">
-        <img src="{{ pli_line_src }}" alt="" />
+        <img src="{{ pli_line_src }}" alt="" width="100%" height="auto" />
       </div>
       <!-- ===================== FICHA TÉCNICA ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="" />
+          <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
         </div>
         <div class="sheet-body">
           <section class="ficha">
             <div class="brand-row">
-              <img src="{{ header_logos_src }}" alt="" />
+              <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
             </div>
             <h2>Relatório Mensal {{ rel.codigo }}</h2>
             <table>
@@ -1125,12 +1125,12 @@
       <!-- ===================== SUMÁRIO ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="" />
+          <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
         </div>
         <div class="sheet-body">
           <section class="sumario">
             <div class="brand-row">
-              <img src="{{ header_logos_src }}" alt="" />
+              <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
             </div>
             <h2>Sumário</h2>
             {{ sumario_html|safe }}
@@ -1146,7 +1146,7 @@
       <!-- ===================== SEÇÕES (prévia paginada A4) ===================== -->
       <div class="preview-sheet" data-sra-content-source="secoes">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="" />
+          <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
         </div>
         <div class="sheet-body" data-sra-paginate-source>
           {% for grupo in secoes_preview_grupos %} {% for s in grupo %} {{
@@ -1162,7 +1162,7 @@
       <template id="sra-preview-sheet-template">
         <div class="preview-sheet">
           <div class="sheet-running-header">
-            <img src="{{ header_logos_src }}" alt="" />
+            <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
           </div>
           <div class="sheet-body"></div>
           <div class="sheet-running-footer">
@@ -1177,7 +1177,7 @@
       <!-- ===================== ASSINATURAS ===================== -->
       <div class="preview-sheet">
         <div class="sheet-running-header">
-          <img src="{{ header_logos_src }}" alt="" />
+          <img src="{{ header_logos_src }}" alt="" width="100%" height="auto" />
         </div>
         <div class="sheet-body">
           <section class="assinaturas">

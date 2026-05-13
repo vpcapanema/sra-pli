@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SRA · {{ alerta_nome }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#eef1f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1f5;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #d5dce6;border-radius:6px;">
+            <tr>
+              <td style="background:#1c3d59;color:#ffffff;padding:18px 22px;border-top-left-radius:6px;border-top-right-radius:6px;">
+                <div style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#3ec26e;font-weight:700;">SRA · Alerta Configurável</div>
+                <div style="font-size:18px;font-weight:700;margin-top:4px;">{{ alerta_nome }}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px;font-size:14px;line-height:1.55;text-align:justify;">
+                <p style="margin:0 0 12px;">Olá, <strong>{{ destinatario_nome }}</strong>.</p>
+                
+                <p style="margin:0 0 12px;">
+                  Você recebeu este alerta do <strong>Sistema de Relatório de Atividades</strong>.
+                </p>
+
+                <p style="margin:0 0 12px;">
+                  <strong>Alerta:</strong> {{ alerta_nome }}
+                </p>
+
+                {% if alerta_descricao %}
+                <p style="margin:0 0 12px;">
+                  <strong>Descrição:</strong> {{ alerta_descricao }}
+                </p>
+                {% endif %}
+
+                <p style="margin:0 0 12px;">
+                  <strong>Tipo de mensagem:</strong> {{ tipo_mensagem }}
+                </p>
+
+                <p style="margin:0 0 12px;">
+                  <strong>Fluxo:</strong> Ordem {{ fluxo_ordem }}, Dia {{ dia_no_ciclo }} às {{ hora_disparo }}
+                </p>
+
+                {% if evento_inicio %}
+                <p style="margin:0 0 12px;">
+                  <strong>Início do evento:</strong> {{ evento_inicio }}
+                </p>
+                {% endif %}
+
+                {% if evento_fim %}
+                <p style="margin:0 0 12px;">
+                  <strong>Fim do evento:</strong> {{ evento_fim }}
+                </p>
+                {% endif %}
+
+                <hr style="border:0;border-top:1px solid #d5dce6;margin:22px 0 14px;">
+
+                <p style="margin:0 0 6px;font-size:11.5px;color:#4f5d6e;">
+                  Esta é uma notificação automática do Sistema de Relatório de Atividades (SRA).
+                </p>
+                <p style="margin:0 0 6px;font-size:11.5px;color:#4f5d6e;">
+                  Para ajustar suas notificações, entre em contato com o coordenador do relatório.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

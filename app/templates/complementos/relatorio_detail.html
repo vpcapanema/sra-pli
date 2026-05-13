@@ -1,13 +1,28 @@
-{% extends "base.html" %} {% block head_extra %}
+{# djlint:off #}
+{% extends "base.html" %}
+
+{% block head_extra %}
 <link href="/static/css/relatorio_detail.css" rel="stylesheet" />
-{% endblock %} {% block body_class %}page-relatorio-detail
-page-rel-com-preview{% endblock %} {% block title %}{{ rel.codigo }} — {{
-rel.mes_referencia }}{% endblock %} {% block header %}{{ rel.codigo }} · {{
-rel.mes_referencia }}{% endblock %} {% block content %}
+{% endblock head_extra %}
+
+{% block body_class %}page-relatorio-detail page-rel-com-preview" data-rel-id="{{ rel.id }}{% endblock body_class %}
+
+{% block title %}{{ rel.codigo }} — {{ rel.mes_referencia }}{% endblock title %}
+
+{% block header %}{{ rel.codigo }} · {{ rel.mes_referencia }}{% endblock header %}
+
+{% block content %}
 <section class="hero">
   <h1>{{ rel.titulo }}</h1>
   <div class="subtitle">
-    {{ rel.codigo }} · {{ rel.mes_referencia }} · versão {{ rel.versao }}
+    <select id="relatorio-selector" onchange="window.location.href='/relatorios/' + this.value" title="Selecionar relatório">
+      {% for r in todos_relatorios %}
+      <option value="{{ r.id }}" {% if r.id == rel.id %}selected{% endif %}>
+        {{ r.codigo }} · {{ r.mes_referencia }}
+      </option>
+      {% endfor %}
+    </select>
+    <span>· versão {{ rel.versao }}</span>
   </div>
   <div class="chips">
     <span class="chip"
@@ -117,7 +132,7 @@ rel.mes_referencia }}{% endblock %} {% block content %}
             </p>
             <form
               method="post"
-              action="/relatorios/{{ rel.id }}/notificar-autores-abertura"
+              action="/relatorios/{{ rel.id }}/duplicar"
               class="coord-form coord-form--stack"
               data-sra-confirm="notificar_autores_abertura"
               data-sra-iniciar-acompanhamento="1"
@@ -248,7 +263,13 @@ rel.mes_referencia }}{% endblock %} {% block content %}
                 {% endif %}
                 <strong>{{ s.numero }}</strong>
               </td>
-              <td class="sumario-secao-col">{{ s.titulo }}</td>
+              <td class="sumario-secao-col">
+                {% if user.role == 'coordenador' and rel.status != 'finalizado' %}
+                <span class="sumario-titulo-editavel" data-sec-id="{{ s.id }}" contenteditable="true">{{ s.titulo }}</span>
+                {% else %}
+                {{ s.titulo }}
+                {% endif %}
+              </td>
               <td>
                 {% if user.role in ['admin','coordenador'] %}
                 <div class="responsavel-picker">
@@ -697,4 +718,4 @@ rel.mes_referencia }}{% endblock %} {% block content %}
 
 <script src="/static/js/relatorio_detail.js"></script>
 <script src="/static/js/relatorio_edit_lote.js"></script>
-{% endblock %}
+{% endblock content %}

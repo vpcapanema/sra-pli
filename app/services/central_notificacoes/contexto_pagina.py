@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
 from ...auth import current_user
-from ...models import DefconConfig, User, Alerta
+from ...models import DefconConfig, User, Alerta, AlertaUnico, AlertaFluxo
 from ...notificacoes import email_sender
 from ...services.governanca_relatorio import governanca_salvar_parametros_ciclo
 from ...services.governanca.contexto_pagina import montar_contexto_governanca
@@ -22,14 +22,24 @@ def central_notificacoes_page(request: Request, db: Session):
     contexto["title"] = "Central de Notificações"
     alertas = db.query(Alerta).order_by(Alerta.atualizado_em.desc()).all()
     contexto["alertas"] = alertas or []
-    
+
+    alertas_unicos = db.query(AlertaUnico).order_by(AlertaUnico.criado_em.desc()).all()
+    contexto["alertas_unicos"] = alertas_unicos or []
+
+    alerta_fluxos = db.query(AlertaFluxo).order_by(AlertaFluxo.ordem).all()
+    contexto["alerta_fluxos"] = alerta_fluxos or []
+
+    # Cache de usuários para exibição de nomes
+    usuarios = {u.id: u.nome for u in db.query(User).all()}
+    contexto["usuarios_cache"] = usuarios
+
     # Garantir que todas as variáveis necessárias existam
     contexto.setdefault("ciclo_execucao_rows", [])
     contexto.setdefault("notificacoes", [])
     contexto.setdefault("relatorios_filtro", [])
     contexto.setdefault("relatorios_abertos", [])
     contexto.setdefault("modo_envio", "desligado")
-    
+
     return contexto
 
 

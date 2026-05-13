@@ -1,0 +1,23 @@
+SRA · Alerta Configurável
+{{ alerta_nome }}
+
+Olá, {{ destinatario_nome }}.
+
+Você recebeu este alerta do Sistema de Relatório de Atividades.
+
+Alerta: {{ alerta_nome }}
+{% if alerta_descricao %}
+Descrição: {{ alerta_descricao }}
+{% endif %}
+Tipo de mensagem: {{ tipo_mensagem }}
+Fluxo: Ordem {{ fluxo_ordem }}, Dia {{ dia_no_ciclo }} às {{ hora_disparo }}
+{% if evento_inicio %}
+Início do evento: {{ evento_inicio }}
+{% endif %}
+{% if evento_fim %}
+Fim do evento: {{ evento_fim }}
+{% endif %}
+
+---
+Esta é uma notificação automática do Sistema de Relatório de Atividades (SRA).
+Para ajustar suas notificações, entre em contato com o coordenador do relatório.

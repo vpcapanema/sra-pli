@@ -20,6 +20,16 @@ from .datas_horarios import (
     formatar_datetime_input_sao_paulo,
     formatar_datetime_sao_paulo,
 )
+
+
+def tag_modo_envio(modo: str) -> str:
+    """Retorna tag HTML formatada para o modo de envio."""
+    tags = {
+        "real": '<span class="tag tag-err">real</span>',
+        "sandbox": '<span class="tag tag-warn">sandbox</span>',
+        "desligado": '<span class="tag">desligado</span>',
+    }
+    return tags.get(modo, f'<span class="tag">{modo}</span>')
 from .execucao_manual_jobs import RESULTADO_TESTE_SESS_KEY
 from .status_jobs_cron import cron_status_real
 from .status_notificacoes_ciclo import ciclo_execucao_rows
@@ -56,6 +66,8 @@ def montar_contexto_governanca(request: Request, db: Session, user: User) -> dic
         "modo_envio": modo_atual(),
         "fmt_dt_sp": formatar_datetime_sao_paulo,
         "fmt_dt_input_sp": formatar_datetime_input_sao_paulo,
+        "fmt_dt": formatar_datetime_sao_paulo,
+        "tag_modo_envio": tag_modo_envio,
         "formatar_datetime_sao_paulo": formatar_datetime_sao_paulo,
         "formatar_datetime_input_sao_paulo": formatar_datetime_input_sao_paulo,
         "resultado_teste": resultado_teste,

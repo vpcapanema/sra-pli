@@ -13,7 +13,8 @@
 
 {% block content %}
 {% include "complementos/_governanca_macros.html" %}
-{% include "complementos/_secao01_governanca.html" %}
+
+{% include "complementos/_central_notificacoes_conteudo.html" %}
 
 <div class="cn-sender-container">
     <section class="cn-hero">
@@ -128,19 +129,21 @@
           <span><i class="fas fa-globe"></i> {{ a.timezone }}</span>
         </div>
 
-        {% if a.inicio_evento or a.fim_evento %}
-        <div class="cn-card-ciclo">
-          <strong>Ciclo do evento:</strong>
-          {% if a.inicio_evento %}{{ a.inicio_evento.strftime('%d/%m/%Y %H:%M')
-          }}{% endif %} {% if a.fim_evento %}→ {{
-          a.fim_evento.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+        {% if a.inicio_ciclo_evento_posicao or a.fim_ciclo_evento_posicao %}
+        <div class="cn-card-info-row">
+          <span class="cn-card-info-label">Evento (posição):</span>
+          {% if a.inicio_ciclo_evento_posicao %}posição {{
+          a.inicio_ciclo_evento_posicao
+          }}{% endif %} {% if a.fim_ciclo_evento_posicao %}→ {{
+          a.fim_ciclo_evento_posicao }}{% endif %}
         </div>
-        {% endif %} {% if a.inicio_alerta or a.fim_alerta %}
-        <div class="cn-card-ciclo">
-          <strong>Ciclo do alerta:</strong>
-          {% if a.inicio_alerta %}{{ a.inicio_alerta.strftime('%d/%m/%Y %H:%M')
-          }}{% endif %} {% if a.fim_alerta %}→ {{
-          a.fim_alerta.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+        {% endif %} {% if a.inicio_ciclo_alerta_posicao or a.fim_ciclo_alerta_posicao %}
+        <div class="cn-card-info-row">
+          <span class="cn-card-info-label">Alerta (posição):</span>
+          {% if a.inicio_ciclo_alerta_posicao %}posição {{
+          a.inicio_ciclo_alerta_posicao
+          }}{% endif %} {% if a.fim_ciclo_alerta_posicao %}→ {{
+          a.fim_ciclo_alerta_posicao }}{% endif %}
         </div>
         {% endif %} {% if a.condicao_encerramento %}
         <div class="cn-card-ciclo">
@@ -315,14 +318,7 @@
               </div>
               <div class="cn-form-col">
                 <div class="cn-field">
-                  <label>Timezone</label>
-                  <select id="alerta-timezone" class="cn-select" title="Timezone">
-                    <option value="America/Sao_Paulo">America/Sao_Paulo</option>
-                    <option value="UTC">UTC</option>
-                  </select>
-                </div>
-                <div class="cn-field">
-                  <label>Status inicial</label>
+                  <label class="cn-label-bold">Status Inicial</label>
                   <select id="alerta-status" class="cn-select" title="Status inicial">
                     <option value="rascunho">Rascunho</option>
                     <option value="agendado">Agendado</option>
@@ -332,32 +328,20 @@
             </div>
           </div>
 
-          <!-- Etapa 2: Frequência e regras temporais -->
+          <!-- Etapa 2: Frequência e Tipo de Recorrência -->
           <div class="cn-step-panel cn-hidden" data-step="2">
             <div class="cn-form-grid">
               <div class="cn-form-col">
                 <div class="cn-field">
-                  <label class="cn-label-bold"
-                    >Frequência <span class="cn-required">*</span></label
-                  >
-                  <select
-                    id="alerta-frequencia"
-                    class="cn-select"
-                    title="Frequência"
-                    onchange="toggleFrequencia()"
-                  >
+                  <label class="cn-label-bold">Frequência <span class="cn-required">*</span></label>
+                  <select id="alerta-frequencia" class="cn-select" title="Frequência" onchange="toggleFrequencia()">
                     <option value="unico">Único</option>
                     <option value="recorrente">Recorrente</option>
                   </select>
                 </div>
                 <div class="cn-field cn-hidden" id="campo-subtipo">
-                  <label>Recorrência</label>
-                  <select
-                    id="alerta-subtipo"
-                    class="cn-select"
-                    title="Recorrência"
-                    onchange="toggleSubtipoRecorrencia()"
-                  >
+                  <label class="cn-label-bold">Tipo de Recorrência <span class="cn-required">*</span></label>
+                  <select id="alerta-subtipo" class="cn-select" title="Tipo de Recorrência">
                     <option value="">Selecione...</option>
                     <option value="horaria">Horária</option>
                     <option value="diaria">Diária</option>
@@ -369,226 +353,104 @@
                   </select>
                 </div>
               </div>
-              <div
-                class="cn-form-col cn-hidden"
-                id="coluna-direita-frequencia"
-              >
-                <div id="rec-dias-semana" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Dias da semana</label>
-                    <div class="cn-dias-semana">
-                      <label><input type="checkbox" value="1" /> Seg</label>
-                      <label><input type="checkbox" value="2" /> Ter</label>
-                      <label><input type="checkbox" value="3" /> Qua</label>
-                      <label><input type="checkbox" value="4" /> Qui</label>
-                      <label><input type="checkbox" value="5" /> Sex</label>
-                      <label><input type="checkbox" value="6" /> Sáb</label>
-                      <label><input type="checkbox" value="7" /> Dom</label>
-                    </div>
-                  </div>
-                </div>
-                <div id="rec-horario" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Intervalo de horário</label>
-                    <div class="cn-horario-intervalo">
-                      <input
-                        type="time"
-                        id="alerta-hora-ini"
-                        class="cn-input"
-                        title="Hora início"
-                        value="08:00"
-                      />
-                      <span>até</span>
-                      <input
-                        type="time"
-                        id="alerta-hora-fim"
-                        class="cn-input"
-                        title="Hora fim"
-                        value="18:00"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div id="rec-horaria" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Intervalo (minutos)</label>
-                    <input
-                      type="number"
-                      id="alerta-intervalo-min"
-                      class="cn-input"
-                      title="Intervalo em minutos"
-                      value="60"
-                      min="1"
-                    />
-                  </div>
-                </div>
-                <div id="rec-mensal" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Dia do mês</label>
-                    <input
-                      type="number"
-                      id="alerta-dia-mes"
-                      class="cn-input"
-                      title="Dia do mês"
-                      value="1"
-                      min="1"
-                      max="31"
-                    />
-                  </div>
-                </div>
-                <div id="rec-anual" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Dia e mês</label>
-                    <input
-                      type="text"
-                      id="alerta-dia-mes-ano"
-                      class="cn-input"
-                      title="Dia e mês"
-                      placeholder="DD/MM"
-                      value="01/01"
-                    />
-                  </div>
-                </div>
-                <div id="rec-customizada" class="cn-hidden">
-                  <div class="cn-field">
-                    <label>Regras customizadas (JSON)</label>
-                    <textarea
-                      id="alerta-regras-json"
-                      class="cn-textarea"
-                      rows="3"
-                      placeholder='{"intervalo_dias": 15}'
-                    ></textarea>
-                  </div>
+              <div class="cn-form-col">
+                <div class="cn-field">
+                  <label class="cn-label-bold">Fuso Horário</label>
+                  <select id="alerta-timezone" class="cn-select" title="Fuso Horário">
+                    <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                    <option value="UTC">UTC</option>
+                  </select>
                 </div>
               </div>
             </div>
+            <p class="cn-hint">Para alertas recorrentes, o ciclo é definido pelas posições nas etapas seguintes.</p>
           </div>
 
-          <!-- Etapa 3: Ciclo do evento -->
+          <!-- Etapa 3: Janela do Evento -->
           <div class="cn-step-panel cn-hidden" data-step="3">
-            <!-- Evento único: data e hora completas -->
-            <div id="evento-unico-form">
-              <div class="cn-form-grid">
-                <div class="cn-form-col">
-                  <div class="cn-field">
-                    <label class="cn-label-bold">Início do evento</label>
-                    <input
-                      type="datetime-local"
-                      id="evento-inicio"
-                      class="cn-input"
-                      title="Início do evento"
-                    />
-                  </div>
-                </div>
-                <div class="cn-form-col">
-                  <div class="cn-field">
-                    <label class="cn-label-bold">Fim do evento</label>
-                    <input
-                      type="datetime-local"
-                      id="evento-fim"
-                      class="cn-input"
-                      title="Fim do evento"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Evento recorrente: dia e hora relativos ao ciclo -->
             <div id="evento-recorrente-form" class="cn-hidden">
               <div class="cn-form-grid">
                 <div class="cn-form-col">
                   <div class="cn-field">
-                    <label class="cn-label-bold">Início do ciclo</label>
-                    <div class="cn-horario-intervalo">
-                      <input
-                        type="number"
-                        id="evento-rec-dia-ini"
-                        class="cn-input"
-                        title="Dia início"
-                        min="1"
-                        max="31"
-                        placeholder="Dia"
-                      />
-                      <input
-                        type="time"
-                        id="evento-rec-hora-ini"
-                        class="cn-input"
-                        title="Hora início"
-                        value="08:00"
-                      />
-                    </div>
+                    <label class="cn-label-bold">Posição de Início do Ciclo <span class="cn-required">*</span></label>
+                    <input
+                      type="number"
+                      id="evento-rec-dia-ini"
+                      class="cn-input"
+                      title="Posição de início no ciclo"
+                      min="1"
+                      placeholder="Ex: 1 (dia 1)"
+                    />
                   </div>
                 </div>
                 <div class="cn-form-col">
                   <div class="cn-field">
-                    <label class="cn-label-bold">Fim do ciclo</label>
-                    <div class="cn-horario-intervalo">
-                      <input
-                        type="number"
-                        id="evento-rec-dia-fim"
-                        class="cn-input"
-                        title="Dia fim"
-                        min="1"
-                        max="31"
-                        placeholder="Dia"
-                      />
-                      <input
-                        type="time"
-                        id="evento-rec-hora-fim"
-                        class="cn-input"
-                        title="Hora fim"
-                        value="18:00"
-                      />
-                    </div>
+                    <label class="cn-label-bold">Posição de Término do Ciclo <span class="cn-required">*</span></label>
+                    <input
+                      type="number"
+                      id="evento-rec-dia-fim"
+                      class="cn-input"
+                      title="Posição de término no ciclo"
+                      min="1"
+                      placeholder="Ex: 10 (dia 10)"
+                    />
                   </div>
                 </div>
               </div>
-              <p class="cn-hint" id="evento-rec-hint"></p>
+              <p class="cn-hint" id="evento-rec-hint">Defina a posição dentro do ciclo de recorrência (ex: dia 1 ao dia 10 do mês para recorrência mensal).</p>
+            </div>
+            <div id="evento-unico-form" class="cn-hidden">
+              <p class="cn-hint">Para alertas únicos, utilize a funcionalidade de Alerta Único separadamente após criar o alerta base.</p>
             </div>
           </div>
 
-          <!-- Etapa 4: Ciclo do alerta -->
+          <!-- Etapa 4: Janela do Alerta -->
           <div class="cn-step-panel cn-hidden" data-step="4">
+            <div id="alerta-recorrente-form" class="cn-hidden">
+              <div class="cn-form-grid">
+                <div class="cn-form-col">
+                  <div class="cn-field">
+                    <label class="cn-label-bold">Posição de Início do Alerta <span class="cn-required">*</span></label>
+                    <input
+                      type="number"
+                      id="alerta-rec-pos-ini"
+                      class="cn-input"
+                      title="Posição de início do alerta"
+                      min="1"
+                      placeholder="Ex: 1 (dia 1)"
+                    />
+                  </div>
+                </div>
+                <div class="cn-form-col">
+                  <div class="cn-field">
+                    <label class="cn-label-bold">Posição de Término do Alerta <span class="cn-required">*</span></label>
+                    <input
+                      type="number"
+                      id="alerta-rec-pos-fim"
+                      class="cn-input"
+                      title="Posição de término do alerta"
+                      min="1"
+                      placeholder="Ex: 10 (dia 10)"
+                    />
+                  </div>
+                </div>
+              </div>
+              <p class="cn-hint">Define a posição dentro do ciclo de recorrência para disparo do alerta (ex: dia 1 ao dia 10 do mês).</p>
+            </div>
+            <div id="alerta-unico-form" class="cn-hidden">
+              <p class="cn-hint">Para alertas únicos, utilize a funcionalidade de Alerta Único separadamente após criar o alerta base.</p>
+            </div>
             <div class="cn-form-grid">
               <div class="cn-form-col">
                 <div class="cn-field">
-                  <label class="cn-label-bold">Início do alerta</label>
-                  <input
-                    type="datetime-local"
-                    id="alerta-inicio"
-                    class="cn-input"
-                    title="Início do alerta"
-                  />
-                </div>
-                <div class="cn-field">
-                  <label>Fim do alerta</label>
-                  <input
-                    type="datetime-local"
-                    id="alerta-fim"
-                    class="cn-input"
-                    title="Fim do alerta"
-                  />
-                </div>
-              </div>
-              <div class="cn-form-col">
-                <div class="cn-field">
-                  <label class="cn-label-bold">Condição de encerramento</label>
-                  <select id="alerta-condicao" class="cn-select" title="Condição de encerramento">
-                    <option value="manual">Encerramento manual</option>
-                    <option value="fim_ciclo">Fim do ciclo</option>
-                    <option value="todos_concluiram">Todos concluíram</option>
-                    <option value="item_validado">Item validado</option>
-                    <option value="ultima_mensagem">Última mensagem</option>
+                  <label class="cn-label-bold">Condição de Encerramento</label>
+                  <select id="alerta-condicao" class="cn-select" title="Condição de Encerramento">
+                    <option value="manual">Encerramento Manual</option>
+                    <option value="fim_ciclo">Fim do Ciclo</option>
+                    <option value="todos_concluiram">Todos Concluíram</option>
+                    <option value="item_validado">Item Validado</option>
+                    <option value="ultima_mensagem">Última Mensagem</option>
                   </select>
-                </div>
-                <div class="cn-field">
-                  <label>Data de início dos disparos</label>
-                  <input
-                    type="datetime-local"
-                    id="alerta-inicio-disparos"
-                    class="cn-input"
-                    title="Data de início dos disparos"
-                  />
                 </div>
               </div>
             </div>
@@ -750,5 +612,143 @@
       </div>
     </div>
   </div>
+
+  <!-- Seção de Tabelas de Alertas -->
+  <section class="ss active-tab" id="ss-alertas-tabelas">
+    <div class="ss-hdr">
+      <span class="sn">02</span>
+      <span class="st">Tabelas de Alertas</span>
+    </div>
+    <div class="sb2">
+      <details class="bloco" open id="ss-tabela-alertas">
+        <summary>
+          <strong>Tabela 2 · Alertas Recorrentes</strong>
+          <span class="meta-inline">configurações de alertas recorrentes</span>
+        </summary>
+        <div class="det-body">
+          {% if alertas %}
+          <table class="gov-ciclo-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Frequência</th>
+                <th>Subtipo</th>
+                <th>Início Evento (Pos)</th>
+                <th>Fim Evento (Pos)</th>
+                <th>Início Alerta (Pos)</th>
+                <th>Fim Alerta (Pos)</th>
+                <th>Status</th>
+                <th>Criado Por</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in alertas %}
+              <tr>
+                <td>{{ a.id }}</td>
+                <td><strong>{{ a.nome }}</strong></td>
+                <td>{{ a.frequencia }}</td>
+                <td>{{ a.subtipo_recorrencia or '—' }}</td>
+                <td>{{ a.inicio_ciclo_evento_posicao or '—' }}</td>
+                <td>{{ a.fim_ciclo_evento_posicao or '—' }}</td>
+                <td>{{ a.inicio_ciclo_alerta_posicao or '—' }}</td>
+                <td>{{ a.fim_ciclo_alerta_posicao or '—' }}</td>
+                <td>
+                  <span class="tag {{ 'tag-ok' if a.status == 'ativo' else 'tag-warn' }}">{{ a.status }}</span>
+                </td>
+                <td>{{ usuarios_cache.get(a.criado_por_id, '—') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="empty-section">Nenhum alerta recorrente configurado.</p>
+          {% endif %}
+        </div>
+      </details>
+
+      <details class="bloco" open id="ss-tabela-alertas-unicos">
+        <summary>
+          <strong>Tabela 3 · Alertas Únicos</strong>
+          <span class="meta-inline">alertas pontuais com data/hora específica</span>
+        </summary>
+        <div class="det-body">
+          {% if alertas_unicos %}
+          <table class="gov-ciclo-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Alerta Base</th>
+                <th>Data Disparo</th>
+                <th>Status</th>
+                <th>Criado Por</th>
+                <th>Criado Em</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for au in alertas_unicos %}
+              <tr>
+                <td>{{ au.id }}</td>
+                <td><strong>{{ au.alerta.nome if au.alerta else '—' }}</strong></td>
+                <td>{{ au.data_disparo.strftime('%d/%m/%Y %H:%M') if au.data_disparo else '—' }}</td>
+                <td>
+                  <span class="tag {{ 'tag-ok' if au.status == 'agendado' else 'tag-warn' }}">{{ au.status }}</span>
+                </td>
+                <td>{{ usuarios_cache.get(au.criado_por_id, '—') }}</td>
+                <td>{{ au.criado_em.strftime('%d/%m/%Y %H:%M') if au.criado_em else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="empty-section">Nenhum alerta único configurado.</p>
+          {% endif %}
+        </div>
+      </details>
+
+      <details class="bloco" open id="ss-tabela-alerta-fluxos">
+        <summary>
+          <strong>Tabela 4 · Fluxos de Mensagens</strong>
+          <span class="meta-inline">mensagens e destinatários dos alertas</span>
+        </summary>
+        <div class="det-body">
+          {% if alerta_fluxos %}
+          <table class="gov-ciclo-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Alerta</th>
+                <th>Ordem</th>
+                <th>Tipo Mensagem</th>
+                <th>Dia no Ciclo</th>
+                <th>Hora Disparo</th>
+                <th>Perfis Destinatários</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for af in alerta_fluxos %}
+              <tr>
+                <td>{{ af.id }}</td>
+                <td><strong>{{ af.alerta.nome if af.alerta else '—' }}</strong></td>
+                <td>{{ af.ordem }}</td>
+                <td>{{ af.tipo_mensagem }}</td>
+                <td>{{ af.dia_no_ciclo }}</td>
+                <td>{{ af.hora_disparo }}</td>
+                <td>{{ af.perfis_destinatarios_json or '—' }}</td>
+                <td>
+                  <span class="tag {{ 'tag-ok' if af.ativo else 'tag-warn' }}">{{ 'Ativo' if af.ativo else 'Inativo' }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="empty-section">Nenhum fluxo de mensagem configurado.</p>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  </section>
 </div>
 {% endblock %}

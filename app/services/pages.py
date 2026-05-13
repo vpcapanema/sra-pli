@@ -247,10 +247,24 @@ def response_relatorio_detail(request: Request, db: Session, rel_id: int) -> Res
         db.query(User).options(load_only(User.id, User.nome)).filter(User.role == "autor").order_by(User.nome).all()
     )
 
+    # Carrega todos os relatórios para o dropdown de seleção
+    todos_relatorios = (
+        db.query(Relatorio)
+        .options(load_only(Relatorio.id, Relatorio.codigo, Relatorio.mes_referencia))
+        .order_by(Relatorio.created_at.desc())
+        .all()
+    )
+
     return templates.TemplateResponse(
         request,
         "complementos/relatorio_detail.html",
-        {"user": user, "rel": rel, "contagens_blocos": contagens, "autores": autores},
+        {
+            "user": user,
+            "rel": rel,
+            "contagens_blocos": contagens,
+            "autores": autores,
+            "todos_relatorios": todos_relatorios,
+        },
     )
 
 

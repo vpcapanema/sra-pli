@@ -17,6 +17,9 @@ from ..schemas.alertas import (
     AlertaAgendamentoOut,
     AlertaExecucaoOut,
     AlertaLogOut,
+    AlertaUnicoCreate,
+    AlertaUnicoUpdate,
+    AlertaUnicoOut,
     ReordenarFluxo,
     DuplicarAlerta,
 )
@@ -40,6 +43,11 @@ from ..services.central_notificacoes.alertas_crud import (
     obter_execucao,
     retry_execucao,
     listar_logs,
+    criar_alerta_unico,
+    obter_alerta_unico,
+    obter_alerta_unico_por_alerta,
+    atualizar_alerta_unico,
+    deletar_alerta_unico,
 )
 
 router = APIRouter(prefix="/api", tags=["alertas"])
@@ -458,3 +466,53 @@ def api_retry_execucao(
     user=Depends(require_admin),
 ):
     return retry_execucao(db, execucao_id, user)
+
+
+# ---------- Alerta Único ----------
+
+
+@router.post("/alertas-unico", response_model=AlertaUnicoOut)
+def api_criar_alerta_unico(
+    dados: AlertaUnicoCreate,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    return criar_alerta_unico(db, dados.model_dump())
+
+
+@router.get("/alertas-unico/{id}", response_model=AlertaUnicoOut)
+def api_obter_alerta_unico(
+    id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_user_api),
+):
+    return obter_alerta_unico(db, id)
+
+
+@router.get("/alertas/{alerta_id}/alerta-unico", response_model=Optional[AlertaUnicoOut])
+def api_obter_alerta_unico_por_alerta(
+    alerta_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_user_api),
+):
+    return obter_alerta_unico_por_alerta(db, alerta_id)
+
+
+@router.put("/alertas-unico/{id}", response_model=AlertaUnicoOut)
+def api_atualizar_alerta_unico(
+    id: int,
+    dados: AlertaUnicoUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    return atualizar_alerta_unico(db, id, dados.model_dump(exclude_unset=True))
+
+
+@router.delete("/alertas-unico/{id}")
+def api_deletar_alerta_unico(
+    id: int,
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    deletar_alerta_unico(db, id)
+    return {"ok": True}

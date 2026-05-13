@@ -400,23 +400,17 @@ class Alerta(Base):
     subtipo_recorrencia = Column(String(32), nullable=True)
     timezone = Column(String(64), nullable=False, default="America/Sao_Paulo")
 
-    # Ciclo do evento (A)
-    inicio_evento = Column(DateTime, nullable=True)
-    fim_evento = Column(DateTime, nullable=True)
+    # Ciclo do evento (A) - posições para recorrentes
+    inicio_ciclo_evento_posicao = Column(Integer, nullable=True)
+    fim_ciclo_evento_posicao = Column(Integer, nullable=True)
 
-    # Ciclo do alerta (B)
-    inicio_alerta = Column(DateTime, nullable=True)
-    fim_alerta = Column(DateTime, nullable=True)
+    # Ciclo do alerta (B) - posições para recorrentes
+    inicio_ciclo_alerta_posicao = Column(Integer, nullable=True)
+    fim_ciclo_alerta_posicao = Column(Integer, nullable=True)
     condicao_encerramento = Column(String(32), nullable=False, default="manual")
 
     # Regras customizadas (JSON)
     regras_customizadas_json = Column(Text, nullable=True)
-
-    # Período de disparos
-    data_inicio_disparos = Column(DateTime, nullable=True)
-    dias_semana = Column(String(32), nullable=True)  # "1,2,3,4,5"
-    intervalo_horario_inicio = Column(String(5), nullable=True)  # "HH:MM"
-    intervalo_horario_fim = Column(String(5), nullable=True)
 
     # Auditoria
     criado_por_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -457,6 +451,7 @@ class AlertaFluxo(Base):
     usuarios_destinatarios_json = Column(Text, nullable=True)  # [1,2,3] ou null=todos
     dia_no_ciclo = Column(Integer, nullable=False, default=1)
     hora_disparo = Column(String(5), nullable=False, default="09:00")
+    data_base_inicio_evento = Column(DateTime, nullable=True)
     regra_disparo_json = Column(Text, nullable=True)
     ativo = Column(Boolean, nullable=False, default=True)
 
@@ -464,6 +459,36 @@ class AlertaFluxo(Base):
     execucoes = relationship("AlertaExecucao", back_populates="fluxo", cascade="all, delete-orphan")
 
     __table_args__ = (Index("ix_fluxo_alerta", "alerta_id"),)
+
+
+class AlertaUnico(Base):
+    """Configuração de alerta único (não recorrente)."""
+
+    __tablename__ = "alerta_unico"
+
+    id = Column(Integer, primary_key=True)
+    alerta_id = Column(
+        Integer,
+        ForeignKey("alertas.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    tipo_mensagem = Column(String(32), nullable=False)
+    perfis_destinatarios_json = Column(Text, nullable=True)  # ["autor","coordenador"]
+    usuarios_destinatarios_json = Column(Text, nullable=True)  # [1,2,3]
+    data_evento = Column(DateTime, nullable=True)
+    data_alerta = Column(DateTime, nullable=True)
+    data_inicio_disparos = Column(DateTime, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    atualizado_em = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    alerta = relationship("Alerta")
+
+    __table_args__ = (Index("ix_alerta_unico_alerta", "alerta_id"),)
 
 
 class AlertaAgendamento(Base):

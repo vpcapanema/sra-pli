@@ -203,6 +203,49 @@
   refreshVisibility();
 })();
 
+// Edição inline de títulos de seções (apenas coordenador)
+(function () {
+  var titulosEditaveis = document.querySelectorAll(".sumario-titulo-editavel");
+  if (!titulosEditaveis.length) return;
+
+  titulosEditaveis.forEach(function (span) {
+    var secId = span.getAttribute("data-sec-id");
+    var relId = document.body.getAttribute("data-rel-id");
+    var tituloOriginal = span.textContent;
+
+    span.addEventListener("blur", function () {
+      var novoTitulo = span.textContent.trim();
+      if (novoTitulo === tituloOriginal) return;
+
+      var fd = new FormData();
+      fd.append("titulo", novoTitulo);
+
+      fetch("/relatorios/" + relId + "/secoes/" + secId + "/renomear", {
+        method: "POST",
+        body: fd,
+      })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("Erro ao renomear");
+          return resp.json();
+        })
+        .then(function (data) {
+          tituloOriginal = novoTitulo;
+        })
+        .catch(function (err) {
+          alert("Erro ao salvar título: " + err.message);
+          span.textContent = tituloOriginal;
+        });
+    });
+
+    span.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        span.blur();
+      }
+    });
+  });
+})();
+
 (function () {
   var inner = document.getElementById("rel-sum-preview-zoom-inner");
   var frame = document.getElementById("preview-frame");

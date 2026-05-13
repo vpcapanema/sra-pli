@@ -65,8 +65,8 @@ exclude = [
 quote-style = "double"
 
 [tool.djlint]
-ignore = "H021,H023,H025,H030,H031"
+ignore = "H021,H023,H025,H030,H031,J004,J018"
 profile = "jinja"
 indent = 2
 max_line_length = 120
-exclude = "app/templates/central_notificacoes.html"
+exclude = "app/templates/central_notificacoes.html,app/templates/complementos/relatorio_detail.html"

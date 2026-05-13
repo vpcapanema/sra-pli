@@ -1,0 +1,11 @@
+{
+  "nome": "Teste Alerta",
+  "descricao": "Teste de criação de alerta",
+  "frequencia": "recorrente",
+  "subtipo_recorrencia": "mensal",
+  "inicio_ciclo_evento_posicao": 1,
+  "fim_ciclo_evento_posicao": 10,
+  "inicio_ciclo_alerta_posicao": 1,
+  "fim_ciclo_alerta_posicao": 10,
+  "condicao_encerramento": "manual"
+}
