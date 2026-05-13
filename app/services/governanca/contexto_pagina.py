@@ -56,6 +56,8 @@ def montar_contexto_governanca(request: Request, db: Session, user: User) -> dic
         "modo_envio": modo_atual(),
         "fmt_dt_sp": formatar_datetime_sao_paulo,
         "fmt_dt_input_sp": formatar_datetime_input_sao_paulo,
+        "formatar_datetime_sao_paulo": formatar_datetime_sao_paulo,
+        "formatar_datetime_input_sao_paulo": formatar_datetime_input_sao_paulo,
         "resultado_teste": resultado_teste,
         "ok": request.query_params.get("ok"),
         "erro": unquote_plus(erro_raw) if erro_raw else None,

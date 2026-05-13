@@ -51,7 +51,7 @@
                 </table>
 
                 <p style="margin:0 0 12px;text-align:justify;">
-                  Recomendamos alterar sua senha após o primeiro acesso por segurança.
+                  <strong>Importante:</strong> Se você já alterou sua senha anteriormente, desconsidere a senha inicial acima e utilize sua senha atual. Caso contrário, recomendamos alterar sua senha após o primeiro acesso por segurança.
                 </p>
 
                 <h3 style="margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#1c3d59;text-align:justify;">Como Funciona o SRA</h3>
@@ -99,6 +99,11 @@
                   <li style="margin:0 0 8px;">
                     <a href="{{ link_login_sra }}" style="color:#116593;text-decoration:underline;font-weight:700;">Acessar o SRA</a>
                   </li>
+                  {% if link_tutorial is defined and link_tutorial %}
+                  <li style="margin:0 0 8px;">
+                    <a href="{{ link_tutorial }}" style="color:#116593;text-decoration:underline;font-weight:700;">Tutorial Completo para Autores</a>
+                  </li>
+                  {% endif %}
                   <li style="margin:0 0 8px;">
                     <a href="{{ link_modelos_word_ajuda }}" style="color:#116593;text-decoration:underline;font-weight:700;">Guia de Modelos Word</a>
                   </li>

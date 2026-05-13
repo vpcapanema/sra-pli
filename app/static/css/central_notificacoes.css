@@ -950,6 +950,9 @@
 .cn-required {
   color: var(--danger);
 }
+.cn-hidden {
+  display: none;
+}
 .cn-mt-2 {
   margin-top: 8px;
 }

@@ -63,3 +63,10 @@ exclude = [
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.djlint]
+ignore = "H021,H023,H025,H030,H031"
+profile = "jinja"
+indent = 2
+max_line_length = 120
+exclude = "app/templates/central_notificacoes.html"

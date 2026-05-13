@@ -9,6 +9,7 @@ from ..services.central_notificacoes.contexto_pagina import (
     central_desativar_defcon,
     central_enviar_email,
 )
+from ..services import governanca_relatorio
 from ..services.pages import templates
 
 router = APIRouter(tags=["central_notificacoes"])
@@ -16,15 +17,20 @@ router = APIRouter(tags=["central_notificacoes"])
 
 @router.get("/central-notificacoes")
 def central_notificacoes_page_route(request: Request, db: Session = Depends(get_db)):
-    resultado = central_notificacoes_page(request, db)
-    if hasattr(resultado, "status_code"):
-        return resultado
-    contexto = resultado
-    return templates.TemplateResponse(
-        request,
-        "central_notificacoes.html",
-        contexto,
-    )
+    try:
+        resultado = central_notificacoes_page(request, db)
+        if hasattr(resultado, "status_code"):
+            return resultado
+        return templates.TemplateResponse(
+            request,
+            "central_notificacoes.html",
+            resultado,
+        )
+    except Exception as e:
+        import traceback
+        print("Erro ao renderizar central_notificacoes:")
+        print(traceback.format_exc())
+        raise
 
 
 @router.post("/central-notificacoes/parametros-ciclo")
@@ -93,4 +99,43 @@ def central_enviar_email_route(
         destinatarios=destinatarios,
         agendar=agendar,
         data_agendada=data_agendada,
+    )
+
+
+@router.post("/central-notificacoes/testar/abrir-periodo")
+def central_testar_abrir_periodo_route(
+    request: Request,
+    db: Session = Depends(get_db),
+    base_relatorio_id: str = Form(""),
+    force: str = Form("1"),
+):
+    return governanca_relatorio.governanca_testar_abrir_periodo(
+        request,
+        db,
+        base_relatorio_id=base_relatorio_id,
+        force=force,
+        redirect_base="/central-notificacoes",
+    )
+
+
+@router.post("/central-notificacoes/testar/notificar")
+def central_testar_notificar_route(
+    request: Request,
+    db: Session = Depends(get_db),
+    tipo: str = Form(...),
+    relatorio_id: int = Form(...),
+):
+    return governanca_relatorio.governanca_testar_notificar(
+        request,
+        db,
+        tipo=tipo,
+        relatorio_id=relatorio_id,
+        redirect_base="/central-notificacoes",
+    )
+
+
+@router.post("/central-notificacoes/testar/retry")
+def central_testar_retry_route(request: Request, db: Session = Depends(get_db)):
+    return governanca_relatorio.governanca_testar_retry(
+        request, db, redirect_base="/central-notificacoes"
     )

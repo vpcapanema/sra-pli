@@ -1,27 +1,8 @@
-{% macro fmt_dt(val) -%} {{- fmt_dt_sp(val) -}} {%- endmacro %} {% macro
-tag_modo_envio(modo) -%} {%- if modo == "real" -%}
-<span class="tag tag-err" title="Envia e-mails de produção via SendGrid"
-  >{{ modo }}</span
->
-{%- elif modo == "sandbox" -%}
-<span
-  class="tag tag-warn"
-  title="SendGrid em sandbox: nada chega ao destinatário"
-  >{{ modo }}</span
->
-{%- else -%}
-<span
-  class="tag tag-neutral"
-  title="NOTIFICAR_HABILITADO=false: envio desligado"
-  >{{ modo }}</span
->
-{%- endif -%} {%- endmacro %}
-
 <section class="ss active-tab" id="ss-geracao">
   <div class="ss-hdr">
     <span class="sn">01</span>
     <span class="st">Utilizadores, ciclo e notificações</span>
-    <span class="sbadge">modo de envio: {{ modo_envio }}</span>
+    <span class="sbadge">modo de envio: {{ modo_envio | default('desligado') }}</span>
   </div>
   <div class="sb2">
     <p class="sdesc">
@@ -65,7 +46,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
 
         <form
           method="get"
-          action="/governanca-relatorio#ss-lista-entregas"
+          action="/central-notificacoes#ss-lista-entregas"
           class="gov-filter-form"
         >
           <label for="gov-filter-lista">Filtrar por relatório</label>
@@ -74,17 +55,21 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
             name="relatorio_id"
             onchange="this.form.submit()"
           >
+            {% if relatorios_filtro %}
             {% for r in relatorios_filtro %}
             <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
               {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
             </option>
             {% endfor %}
+            {% else %}
+            <option value="">Nenhum relatório disponível</option>
+            {% endif %}
           </select>
         </form>
 
         {% if lista_entregas_rel %} {% with rel=lista_entregas_rel,
         linhas=lista_entregas_linhas, pode_acoes=lista_entregas_pode_acoes,
-        redirect_to="/governanca-relatorio#ss-lista-entregas" %} {% include
+        redirect_to="/central-notificacoes#ss-lista-entregas" %} {% include
         "complementos/_lista_entregas_partial.html" %} {% endwith %} {% else %}
         <p class="empty-section">
           Nenhum relatório disponível. Crie um relatório para ver a lista de
@@ -110,7 +95,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
         </p>
         <form
           method="get"
-          action="/governanca-relatorio#ss-status-cron"
+          action="/central-notificacoes#ss-status-cron"
           class="gov-filter-form"
         >
           <label for="gov-filter-ciclo">Filtrar por relatório</label>
@@ -119,11 +104,15 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
             name="relatorio_id"
             onchange="this.form.submit()"
           >
+            {% if relatorios_filtro %}
             {% for r in relatorios_filtro %}
             <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
               {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
             </option>
             {% endfor %}
+            {% else %}
+            <option value="">Nenhum relatório disponível</option>
+            {% endif %}
           </select>
         </form>
         <table class="gov-ciclo-table">
@@ -138,6 +127,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
             </tr>
           </thead>
           <tbody>
+            {% if ciclo_execucao_rows %}
             {% for row in ciclo_execucao_rows %}
             <tr>
               <td>
@@ -164,9 +154,15 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
               <td>{{ row.mensagem }}</td>
             </tr>
             {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="6" class="empty-section">Nenhum dado de ciclo disponível</td>
+            </tr>
+            {% endif %}
           </tbody>
         </table>
 
+        {% if ciclo_execucao_rows %}
         {% for row in ciclo_execucao_rows %} {% if row.modal_id %}
         <div
           class="gov-modal is-hidden"
@@ -241,6 +237,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
           </div>
         </div>
         {% endif %} {% endfor %}
+        {% endif %}
       </div>
     </details>
 
@@ -263,7 +260,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
         </p>
         <form
           method="get"
-          action="/governanca-relatorio#ss-envio-notificacoes"
+          action="/central-notificacoes#ss-envio-notificacoes"
           class="gov-filter-form"
         >
           <label for="gov-filter-notifs">Filtrar por relatório</label>
@@ -272,14 +269,18 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
             name="relatorio_id"
             onchange="this.form.submit()"
           >
+            {% if relatorios_filtro %}
             {% for r in relatorios_filtro %}
             <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
               {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
             </option>
             {% endfor %}
+            {% else %}
+            <option value="">Nenhum relatório disponível</option>
+            {% endif %}
           </select>
         </form>
-        {% if notificacoes %}
+        {% if notificacoes and notificacoes | length > 0 %}
         <table>
           <thead>
             <tr>
@@ -426,7 +427,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
               </p>
               <form
                 method="post"
-                action="/governanca-relatorio/testar/abrir-periodo"
+                action="/central-notificacoes/testar/abrir-periodo"
                 class="coord-form coord-form--stack"
                 onsubmit="
                   return confirm(
@@ -438,16 +439,20 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
                   <div class="coord-field">
                     <label for="t-ab-base">Relatório base para clonar</label>
                     <select id="t-ab-base" name="base_relatorio_id" required>
+                      {% if relatorios_filtro %}
                       {% for r in relatorios_filtro %}
                       <option value="{{ r.id }}"{% if loop.first %} selected{% endif %}>
                         {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
                       </option>
                       {% endfor %}
+                      {% else %}
+                      <option value="">Nenhum relatório disponível</option>
+                      {% endif %}
                     </select>
                   </div>
                 </div>
                 <input type="hidden" name="force" value="1" />
-                <button type="submit" class="coord-btn-block">
+                <button type="submit" class="coord-btn-block" {% if not relatorios_filtro %}disabled{% endif %}>
                   Executar (force=true)
                 </button>
               </form>
@@ -488,7 +493,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
               <form
                 id="gov-form-testar-notificar"
                 method="post"
-                action="/governanca-relatorio/testar/notificar"
+                action="/central-notificacoes/testar/notificar"
                 class="coord-form coord-form--stack"
                 data-sra-confirm="notificar_autores_abertura"
                 data-sra-iniciar-acompanhamento="1"
@@ -554,7 +559,7 @@ tag_modo_envio(modo) -%} {%- if modo == "real" -%}
               </p>
               <form
                 method="post"
-                action="/governanca-relatorio/testar/retry"
+                action="/central-notificacoes/testar/retry"
                 class="coord-form coord-form--stack"
               >
                 <button type="submit" class="coord-btn-block">Executar</button>

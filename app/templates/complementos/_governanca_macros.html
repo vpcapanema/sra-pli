@@ -1,9 +1,17 @@
 {% macro fmt_dt(val) -%}
-  {{- fmt_dt_sp(val) -}}
+  {%- if val -%}
+    {{- formatar_datetime_sao_paulo(val) -}}
+  {%- else -%}
+    —
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro fmt_dt_input(val) -%}
-  {{- fmt_dt_input_sp(val) -}}
+  {%- if val -%}
+    {{- formatar_datetime_input_sao_paulo(val) -}}
+  {%- else -%}
+    
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro tag_modo_envio(modo) -%}

@@ -1,14 +1,22 @@
-{% extends "base.html" %} {% block head_extra %}
+<!-- djlint:off -->
+{% extends "base.html" %}
+
+{% block head_extra %}
 <link href="/static/css/governanca.css" rel="stylesheet" />
 <link href="/static/css/central_notificacoes.css" rel="stylesheet" />
 <script src="/static/js/central_alertas.js" defer></script>
-{% endblock %} {% block title %}Central de Notificações{% endblock %} {% block
-header %}Central de Notificações{% endblock %} {% block content %} {% include
-"complementos/_governanca_macros.html" %} {% include
-"complementos/_secao01_governanca.html" %}
+{% endblock %}
+
+{% block title %}Central de Notificações{% endblock %}
+
+{% block header %}Central de Notificações{% endblock %}
+
+{% block content %}
+{% include "complementos/_governanca_macros.html" %}
+{% include "complementos/_secao01_governanca.html" %}
 
 <div class="cn-sender-container">
-  <section class="cn-hero">
+    <section class="cn-hero">
     <h1>SRA Sender — Configurar Alertas</h1>
     <div class="cn-hero-subtitle">
       Sistema administrativo de alertas configuráveis
@@ -251,13 +259,13 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
   </div>
 
   <!-- Modal: Criar/Editar Alerta -->
-  <div id="modal-alerta" class="cn-modal" style="display: none">
+  <div id="modal-alerta" class="cn-modal cn-hidden">
     <div class="cn-modal-overlay" onclick="fecharModalAlerta()"></div>
     <div class="cn-modal-conteudo">
       <div class="cn-modal-hdr">
         <h2 id="modal-titulo">Criar Alerta</h2>
         <button class="cn-modal-fechar" onclick="fecharModalAlerta()">
-          &times;
+          ×
         </button>
       </div>
       <div class="cn-modal-body">
@@ -288,6 +296,8 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     type="text"
                     id="alerta-nome"
                     class="cn-input"
+                    title="Nome do alerta"
+                    placeholder="Nome do alerta"
                     required
                     maxlength="255"
                   />
@@ -297,6 +307,8 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                   <textarea
                     id="alerta-descricao"
                     class="cn-textarea"
+                    title="Descrição do alerta"
+                    placeholder="Descrição do alerta"
                     rows="3"
                   ></textarea>
                 </div>
@@ -304,14 +316,14 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
               <div class="cn-form-col">
                 <div class="cn-field">
                   <label>Timezone</label>
-                  <select id="alerta-timezone" class="cn-select">
+                  <select id="alerta-timezone" class="cn-select" title="Timezone">
                     <option value="America/Sao_Paulo">America/Sao_Paulo</option>
                     <option value="UTC">UTC</option>
                   </select>
                 </div>
                 <div class="cn-field">
                   <label>Status inicial</label>
-                  <select id="alerta-status" class="cn-select">
+                  <select id="alerta-status" class="cn-select" title="Status inicial">
                     <option value="rascunho">Rascunho</option>
                     <option value="agendado">Agendado</option>
                   </select>
@@ -321,7 +333,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
           </div>
 
           <!-- Etapa 2: Frequência e regras temporais -->
-          <div class="cn-step-panel" data-step="2" style="display: none">
+          <div class="cn-step-panel cn-hidden" data-step="2">
             <div class="cn-form-grid">
               <div class="cn-form-col">
                 <div class="cn-field">
@@ -331,17 +343,19 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                   <select
                     id="alerta-frequencia"
                     class="cn-select"
+                    title="Frequência"
                     onchange="toggleFrequencia()"
                   >
                     <option value="unico">Único</option>
                     <option value="recorrente">Recorrente</option>
                   </select>
                 </div>
-                <div class="cn-field" id="campo-subtipo" style="display: none">
+                <div class="cn-field cn-hidden" id="campo-subtipo">
                   <label>Recorrência</label>
                   <select
                     id="alerta-subtipo"
                     class="cn-select"
+                    title="Recorrência"
                     onchange="toggleSubtipoRecorrencia()"
                   >
                     <option value="">Selecione...</option>
@@ -356,11 +370,10 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                 </div>
               </div>
               <div
-                class="cn-form-col"
+                class="cn-form-col cn-hidden"
                 id="coluna-direita-frequencia"
-                style="display: none"
               >
-                <div id="rec-dias-semana" style="display: none">
+                <div id="rec-dias-semana" class="cn-hidden">
                   <div class="cn-field">
                     <label>Dias da semana</label>
                     <div class="cn-dias-semana">
@@ -374,7 +387,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     </div>
                   </div>
                 </div>
-                <div id="rec-horario" style="display: none">
+                <div id="rec-horario" class="cn-hidden">
                   <div class="cn-field">
                     <label>Intervalo de horário</label>
                     <div class="cn-horario-intervalo">
@@ -382,6 +395,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="time"
                         id="alerta-hora-ini"
                         class="cn-input"
+                        title="Hora início"
                         value="08:00"
                       />
                       <span>até</span>
@@ -389,49 +403,53 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="time"
                         id="alerta-hora-fim"
                         class="cn-input"
+                        title="Hora fim"
                         value="18:00"
                       />
                     </div>
                   </div>
                 </div>
-                <div id="rec-horaria" style="display: none">
+                <div id="rec-horaria" class="cn-hidden">
                   <div class="cn-field">
                     <label>Intervalo (minutos)</label>
                     <input
                       type="number"
                       id="alerta-intervalo-min"
                       class="cn-input"
+                      title="Intervalo em minutos"
                       value="60"
                       min="1"
                     />
                   </div>
                 </div>
-                <div id="rec-mensal" style="display: none">
+                <div id="rec-mensal" class="cn-hidden">
                   <div class="cn-field">
                     <label>Dia do mês</label>
                     <input
                       type="number"
                       id="alerta-dia-mes"
                       class="cn-input"
+                      title="Dia do mês"
                       value="1"
                       min="1"
                       max="31"
                     />
                   </div>
                 </div>
-                <div id="rec-anual" style="display: none">
+                <div id="rec-anual" class="cn-hidden">
                   <div class="cn-field">
                     <label>Dia e mês</label>
                     <input
                       type="text"
                       id="alerta-dia-mes-ano"
                       class="cn-input"
+                      title="Dia e mês"
                       placeholder="DD/MM"
                       value="01/01"
                     />
                   </div>
                 </div>
-                <div id="rec-customizada" style="display: none">
+                <div id="rec-customizada" class="cn-hidden">
                   <div class="cn-field">
                     <label>Regras customizadas (JSON)</label>
                     <textarea
@@ -447,7 +465,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
           </div>
 
           <!-- Etapa 3: Ciclo do evento -->
-          <div class="cn-step-panel" data-step="3" style="display: none">
+          <div class="cn-step-panel cn-hidden" data-step="3">
             <!-- Evento único: data e hora completas -->
             <div id="evento-unico-form">
               <div class="cn-form-grid">
@@ -458,6 +476,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                       type="datetime-local"
                       id="evento-inicio"
                       class="cn-input"
+                      title="Início do evento"
                     />
                   </div>
                 </div>
@@ -468,13 +487,14 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                       type="datetime-local"
                       id="evento-fim"
                       class="cn-input"
+                      title="Fim do evento"
                     />
                   </div>
                 </div>
               </div>
             </div>
             <!-- Evento recorrente: dia e hora relativos ao ciclo -->
-            <div id="evento-recorrente-form" style="display: none">
+            <div id="evento-recorrente-form" class="cn-hidden">
               <div class="cn-form-grid">
                 <div class="cn-form-col">
                   <div class="cn-field">
@@ -484,6 +504,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="number"
                         id="evento-rec-dia-ini"
                         class="cn-input"
+                        title="Dia início"
                         min="1"
                         max="31"
                         placeholder="Dia"
@@ -492,6 +513,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="time"
                         id="evento-rec-hora-ini"
                         class="cn-input"
+                        title="Hora início"
                         value="08:00"
                       />
                     </div>
@@ -505,6 +527,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="number"
                         id="evento-rec-dia-fim"
                         class="cn-input"
+                        title="Dia fim"
                         min="1"
                         max="31"
                         placeholder="Dia"
@@ -513,6 +536,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                         type="time"
                         id="evento-rec-hora-fim"
                         class="cn-input"
+                        title="Hora fim"
                         value="18:00"
                       />
                     </div>
@@ -524,7 +548,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
           </div>
 
           <!-- Etapa 4: Ciclo do alerta -->
-          <div class="cn-step-panel" data-step="4" style="display: none">
+          <div class="cn-step-panel cn-hidden" data-step="4">
             <div class="cn-form-grid">
               <div class="cn-form-col">
                 <div class="cn-field">
@@ -533,6 +557,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     type="datetime-local"
                     id="alerta-inicio"
                     class="cn-input"
+                    title="Início do alerta"
                   />
                 </div>
                 <div class="cn-field">
@@ -541,13 +566,14 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     type="datetime-local"
                     id="alerta-fim"
                     class="cn-input"
+                    title="Fim do alerta"
                   />
                 </div>
               </div>
               <div class="cn-form-col">
                 <div class="cn-field">
                   <label class="cn-label-bold">Condição de encerramento</label>
-                  <select id="alerta-condicao" class="cn-select">
+                  <select id="alerta-condicao" class="cn-select" title="Condição de encerramento">
                     <option value="manual">Encerramento manual</option>
                     <option value="fim_ciclo">Fim do ciclo</option>
                     <option value="todos_concluiram">Todos concluíram</option>
@@ -561,6 +587,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     type="datetime-local"
                     id="alerta-inicio-disparos"
                     class="cn-input"
+                    title="Data de início dos disparos"
                   />
                 </div>
               </div>
@@ -568,13 +595,13 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
           </div>
 
           <!-- Etapa 5: Fluxo de mensagens -->
-          <div class="cn-step-panel" data-step="5" style="display: none">
+          <div class="cn-step-panel cn-hidden" data-step="5">
             <div class="cn-fluxo-builder">
               <div class="cn-form-grid">
                 <div class="cn-form-col">
                   <div class="cn-field">
                     <label>Tipo de mensagem</label>
-                    <select id="fluxo-tipo" class="cn-select">
+                    <select id="fluxo-tipo" class="cn-select" title="Tipo de mensagem">
                       <option value="abertura">Abertura</option>
                       <option value="lembrete">Lembrete</option>
                       <option value="ultima_chamada">Última Chamada</option>
@@ -584,7 +611,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                   </div>
                   <div class="cn-field">
                     <label>Destinatários por perfil</label>
-                    <select id="fluxo-perfis" class="cn-select" multiple>
+                    <select id="fluxo-perfis" class="cn-select" multiple title="Destinatários por perfil">
                       <option value="autor">Autor</option>
                       <option value="coordenador">Coordenador</option>
                       <option value="admin">Administrador</option>
@@ -598,6 +625,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                       type="number"
                       id="fluxo-dia"
                       class="cn-input"
+                      title="Dia no ciclo"
                       value="1"
                       min="0"
                     />
@@ -608,6 +636,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                       type="time"
                       id="fluxo-hora"
                       class="cn-input"
+                      title="Hora do disparo"
                       value="09:00"
                     />
                   </div>
@@ -634,13 +663,13 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                     <th>Ações</th>
                   </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody class="cn-fluxo-tbody"></tbody>
               </table>
             </div>
           </div>
 
           <!-- Etapa 6: Revisão e agendamento -->
-          <div class="cn-step-panel" data-step="6" style="display: none">
+          <div class="cn-step-panel cn-hidden" data-step="6">
             <div class="cn-revisao" id="revisao-resumo">
               <h3>Resumo do alerta</h3>
               <div class="cn-revisao-linha">
@@ -667,10 +696,9 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
       </div>
       <div class="cn-modal-footer">
         <button
-          class="cn-btn cn-btn--ghost"
+          class="cn-btn cn-btn--ghost cn-hidden"
           id="btn-voltar"
           onclick="mudarEtapa(-1)"
-          style="display: none"
         >
           Voltar
         </button>
@@ -678,18 +706,16 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
           Próximo
         </button>
         <button
-          class="cn-btn cn-btn--blue"
+          class="cn-btn cn-btn--blue cn-hidden"
           id="btn-salvar"
           onclick="salvarAlerta()"
-          style="display: none"
         >
           Salvar como rascunho
         </button>
         <button
-          class="cn-btn cn-btn--green"
+          class="cn-btn cn-btn--green cn-hidden"
           id="btn-finalizar"
           onclick="finalizarAlerta()"
-          style="display: none"
         >
           Finalizar e agendar
         </button>
@@ -698,13 +724,13 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
   </div>
 
   <!-- Modal: Logs -->
-  <div id="modal-logs" class="cn-modal" style="display: none">
+  <div id="modal-logs" class="cn-modal cn-hidden">
     <div class="cn-modal-overlay" onclick="fecharModalLogs()"></div>
     <div class="cn-modal-conteudo cn-modal--lg">
       <div class="cn-modal-hdr">
         <h2>Logs e Auditoria</h2>
         <button class="cn-modal-fechar" onclick="fecharModalLogs()">
-          &times;
+          ×
         </button>
       </div>
       <div class="cn-modal-body">
@@ -718,7 +744,7 @@ header %}Central de Notificações{% endblock %} {% block content %} {% include
                 <th>Usuário</th>
               </tr>
             </thead>
-            <tbody></tbody>
+            <tbody class="cn-logs-tbody"></tbody>
           </table>
         </div>
       </div>

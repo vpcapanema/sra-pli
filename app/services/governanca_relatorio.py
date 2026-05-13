@@ -208,6 +208,7 @@ def governanca_testar_abrir_periodo(
     *,
     force: str,
     base_relatorio_id: str,
+    redirect_base: str = "/governanca-relatorio",
 ):
     _user, resposta = _viewer_ou_resposta(request, db)
     if resposta is not None:
@@ -219,7 +220,7 @@ def governanca_testar_abrir_periodo(
         base_relatorio_id=base_relatorio_id,
     )
     return RedirectResponse(
-        url="/governanca-relatorio#ss-testar-sistema",
+        url=f"{redirect_base}#ss-testar-sistema",
         status_code=303,
     )
 
@@ -230,6 +231,7 @@ def governanca_testar_notificar(
     *,
     tipo: str,
     relatorio_id: int,
+    redirect_base: str = "/governanca-relatorio",
 ):
     _user, resposta = _viewer_ou_resposta(request, db)
     if resposta is not None:
@@ -237,7 +239,7 @@ def governanca_testar_notificar(
     if tipo not in TIPOS_NOTIFICACAO_MANUAL:
         return RedirectResponse(
             url=(
-                "/governanca-relatorio?erro=tipo+de+notificacao+invalido"
+                f"{redirect_base}?erro=tipo+de+notificacao+invalido"
                 "#ss-testar-sistema"
             ),
             status_code=303,
@@ -246,17 +248,19 @@ def governanca_testar_notificar(
         request, db, tipo=tipo, relatorio_id=relatorio_id
     )
     return RedirectResponse(
-        url="/governanca-relatorio#ss-testar-sistema",
+        url=f"{redirect_base}#ss-testar-sistema",
         status_code=303,
     )
 
 
-def governanca_testar_retry(request: Request, db: Session):
+def governanca_testar_retry(
+    request: Request, db: Session, redirect_base: str = "/governanca-relatorio"
+):
     _user, resposta = _viewer_ou_resposta(request, db)
     if resposta is not None:
         return resposta
     executar_retry_manual(request, db)
     return RedirectResponse(
-        url="/governanca-relatorio#ss-testar-sistema",
+        url=f"{redirect_base}#ss-testar-sistema",
         status_code=303,
     )

@@ -21,7 +21,15 @@ def central_notificacoes_page(request: Request, db: Session):
     contexto["header"] = "Central de Notificações"
     contexto["title"] = "Central de Notificações"
     alertas = db.query(Alerta).order_by(Alerta.atualizado_em.desc()).all()
-    contexto["alertas"] = alertas
+    contexto["alertas"] = alertas or []
+    
+    # Garantir que todas as variáveis necessárias existam
+    contexto.setdefault("ciclo_execucao_rows", [])
+    contexto.setdefault("notificacoes", [])
+    contexto.setdefault("relatorios_filtro", [])
+    contexto.setdefault("relatorios_abertos", [])
+    contexto.setdefault("modo_envio", "desligado")
+    
     return contexto
 
 

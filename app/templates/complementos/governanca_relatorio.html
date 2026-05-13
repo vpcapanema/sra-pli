@@ -1,475 +1,77 @@
-{% extends "base.html" %} {% block head_extra %}
+{% extends "base.html" %}
+
+{% block head_extra %}
 <link href="/static/css/governanca.css" rel="stylesheet" />
-{% endblock %} {% block title %}Governança do relatório{% endblock %} {% block
-header %}Governança do relatório{% endblock %} {% block content %} {% include
-"complementos/_governanca_macros.html" %}
+{% endblock %}
+
+{% block title %}Governança do relatório{% endblock %}
+
+{% block header %}Governança do relatório{% endblock %}
+
+{% block content %}
+{% include "complementos/_governanca_macros.html" %}
 <section class="hero">
   <h1>Governança do relatório</h1>
   <div class="subtitle">
-    Painel técnico de coordenação · utilizadores, ciclo, notificações e parciais
-    de entrega
-  </div>
-  <p>
-    Visualizar e ajustar dados operacionais sem precisar de acesso direto ao
-    banco. Restrito a coordenação e administração.
-  </p>
-  <div class="chips">
-    <span class="chip"
-      >{{ lista_entregas_linhas | length }} autores na lista de entregas</span
-    >
-    <span class="chip">{{ entregas | length }} parciais</span>
-    <span class="chip">{{ notificacoes | length }} notificações</span>
-    <span class="chip">modo de envio: {{ modo_envio }}</span>
-    {% if relatorio_filtro_id %}
-    <span class="chip">filtro: relatório #{{ relatorio_filtro_id }}</span>
-    {% endif %}
+    Lista de entregas
   </div>
 </section>
 
 {% if erro %}
 <div class="alert">{{ erro }}</div>
-{% endif %} {% if ok == "ciclo" %}
-<div class="alert alert-ok">Parâmetros do ciclo atualizados.</div>
-{% endif %} {% if ok == "entrega" %}
+{% endif %}
+{% if ok == "entrega" %}
 <div class="alert alert-ok">Parcial de entrega atualizada.</div>
-{% endif %} {% if ok == "usuario" %}
-<div class="alert alert-ok">Utilizador atualizado.</div>
-{% endif %} {% if ok == "toggle" %}
-<div class="alert alert-ok">Recebimento de notificações alternado.</div>
-{% endif %} {% set c = ciclo_row %}
+{% endif %}
 
-<div class="gov-layout">
-  <div class="gov-main">
-    {% include "complementos/_secao01_governanca.html" %}
-
-    <section class="ss active-tab" id="ss-parciais">
-      <div class="ss-hdr">
-        <span class="sn">02</span>
-        <span class="st">Parciais de entrega</span>
-        <span class="sbadge">últimas {{ limite_entregas }}</span>
-      </div>
-      <div class="sb2">
-        <p class="sdesc">
-          Tabela <code>entrega_relatorio</code>. Cada linha representa o envio
-          mensal de um autor para uma seção. Use <strong>⋮</strong> para ajustar
-          status, datas e validador.
-        </p>
-        <form
-          method="get"
-          action="/governanca-relatorio#ss-parciais"
-          class="gov-filter-form"
-        >
-          <label for="gov-filter-entregas">Filtrar por relatório</label>
-          <select
-            id="gov-filter-entregas"
-            name="relatorio_id"
-            onchange="this.form.submit()"
-          >
-            {% for r in relatorios_filtro %}
-            <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
-              {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
-            </option>
-            {% endfor %}
-          </select>
-        </form>
-        {% if entregas %}
-        <table>
-          <thead>
-            <tr>
-              <th>Id</th>
-              <th>Relatório</th>
-              <th>Autor</th>
-              <th>Status</th>
-              <th>Envio</th>
-              <th>Validação</th>
-              <th>Validador</th>
-              <th>Atualizado em</th>
-              <th class="acoes-col">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for e in entregas %}
-            <tr>
-              <td>{{ e.id }}</td>
-              <td>
-                <strong
-                  >{{ e.relatorio.codigo if e.relatorio else '—' }}</strong
-                >
-              </td>
-              <td>{{ e.user.nome if e.user else '—' }}</td>
-              <td>
-                <span class="tag tag-status-{{ e.status }}"
-                  >{{ e.status | replace('_', ' ') }}</span
-                >
-              </td>
-              <td>{{ fmt_dt(e.data_envio) }}</td>
-              <td>{{ fmt_dt(e.data_validacao) }}</td>
-              <td>
-                {% if e.validado_por %} {{ e.validado_por.nome }} {% else %}
-                <span class="muted-dash">—</span>
-                {% endif %}
-              </td>
-              <td>{{ fmt_dt(e.atualizado_em) }}</td>
-              <td class="acoes-cell">
-                <details class="acao-menu">
-                  <summary class="acao-menu-trig" title="Editar entrega">
-                    ⋮
-                  </summary>
-                  <div class="acao-menu-pop acao-menu-pop-form">
-                    <p class="acao-form-title">Editar parcial #{{ e.id }}</p>
-                    <form
-                      method="post"
-                      action="/governanca-relatorio/entrega/{{ e.id }}"
-                    >
-                      <input
-                        type="hidden"
-                        name="relatorio_filtro_id"
-                        value="{{ relatorio_filtro_id or '' }}"
-                      />
-                      <div class="acao-form-grid">
-                        <div>
-                          <label for="ent-{{ e.id }}-status">Status</label>
-                          <select id="ent-{{ e.id }}-status" name="status">
-                            {% for st in entrega_status_ops %}
-                            <option value="{{ st }}"{% if e.status == st %} selected{% endif %}>
-                              {{ st | replace('_', ' ') }}
-                            </option>
-                            {% endfor %}
-                          </select>
-                        </div>
-                        <div>
-                          <label for="ent-{{ e.id }}-validador"
-                            >Validador</label
-                          >
-                          <select
-                            id="ent-{{ e.id }}-validador"
-                            name="validado_por_id"
-                          >
-                            <option value="">— nenhum —</option>
-                            {% for u in usuarios_gov %}
-                            <option value="{{ u.id }}"{% if e.validado_por_id == u.id %} selected{% endif %}>
-                              {{ u.nome }}
-                            </option>
-                            {% endfor %}
-                          </select>
-                        </div>
-                        <div>
-                          <label for="ent-{{ e.id }}-envio"
-                            >Data de envio</label
-                          >
-                          <input
-                            id="ent-{{ e.id }}-envio"
-                            type="datetime-local"
-                            name="data_envio"
-                            value="{{ fmt_dt_input(e.data_envio) }}"
-                          />
-                        </div>
-                        <div>
-                          <label for="ent-{{ e.id }}-valid"
-                            >Data de validação</label
-                          >
-                          <input
-                            id="ent-{{ e.id }}-valid"
-                            type="datetime-local"
-                            name="data_validacao"
-                            value="{{ fmt_dt_input(e.data_validacao) }}"
-                          />
-                        </div>
-                        <p class="acao-form-ro">
-                          <strong>Relatório</strong> {{ e.relatorio.codigo if
-                          e.relatorio else '—' }} (#{{ e.relatorio_id }}) ·
-                          <strong>Autor</strong> {{ e.user.nome if e.user else
-                          '—' }} (#{{ e.user_id }})
-                        </p>
-                      </div>
-                      <div class="acao-form-actions">
-                        <button type="submit" class="acao-btn">Aplicar</button>
-                      </div>
-                    </form>
-                  </div>
-                </details>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <p class="empty-section">Sem parciais de entrega registradas.</p>
-        {% endif %}
-      </div>
-    </section>
+<section class="ss active-tab" id="ss-lista-entregas">
+  <div class="ss-hdr">
+    <span class="sn">01</span>
+    <span class="st">Lista de entregas</span>
   </div>
+  <div class="sb2">
+    <p class="sdesc">
+      Lista oficial dos autores que enviam conteúdo para o relatório
+      selecionado, com o status de cada entrega e os carimbos das
+      notificações já confirmadas pelo SendGrid.
+      <strong>Coordenação aprova/reprova</strong> aplicando o status pelo
+      menu <strong>⋮</strong> (use <em>validado</em> para aprovar — encerra
+      o ciclo de notificação para o autor; volte para
+      <em>aguardando_envio</em> ou <em>notificado</em> para reabrir e
+      disparar lembrete).
+    </p>
 
-  <aside class="gov-aside" id="ss-parametros-ciclo">
-    <section class="ss">
-      <div class="ss-hdr">
-        <span class="sn">P</span>
-        <span class="st">Parâmetros do ciclo</span>
-      </div>
-      <div class="sb2">
-        <p class="sdesc">
-          Datas e horários do ciclo mensal. Esses valores governam quando o
-          sistema cria o próximo relatório e dispara cada lembrete. Tabela
-          <code>parametros_ciclo_notificacao</code>.
-        </p>
-        <form
-          method="post"
-          action="/governanca-relatorio/parametros-ciclo"
-          class="gov-params-form"
-        >
-          <fieldset>
-            <legend>Período de coleta</legend>
-            <label for="g-ciclo-prev">
-              <span>Início (dia)</span>
-              <input
-                id="g-ciclo-prev"
-                name="ciclo_dia_prev"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Dia do mês anterior em que o período começa"
-                value="{{ c.ciclo_dia_mes_anterior if c else 11 }}"
-              />
-            </label>
-            <label for="g-ciclo-atual">
-              <span>Fim (dia)</span>
-              <input
-                id="g-ciclo-atual"
-                name="ciclo_dia_atual"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Dia do mês corrente em que o período encerra"
-                value="{{ c.ciclo_dia_mes_atual if c else 11 }}"
-              />
-            </label>
-          </fieldset>
+    <form
+      method="get"
+      action="/governanca-relatorio#ss-lista-entregas"
+      class="gov-filter-form"
+    >
+      <label for="gov-filter-lista">Filtrar por relatório</label>
+      <select
+        id="gov-filter-lista"
+        name="relatorio_id"
+        onchange="this.form.submit()"
+      >
+        {% for r in relatorios_filtro %}
+        <option value="{{ r.id }}"{% if relatorio_filtro_id == r.id %} selected{% endif %}>
+          {{ r.codigo }} · {{ r.mes_referencia }} · {{ r.status }}
+        </option>
+        {% endfor %}
+      </select>
+    </form>
 
-          <fieldset>
-            <legend>Prazos do ciclo</legend>
-            <label for="g-prazo-autor">
-              <span>Autor (dia)</span>
-              <input
-                id="g-prazo-autor"
-                name="prazo_autor"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Limite para o autor enviar o conteúdo"
-                value="{{ c.prazo_autor_dia if c else 8 }}"
-              />
-            </label>
-            <label for="g-prazo-coord">
-              <span>Coordenação (dia)</span>
-              <input
-                id="g-prazo-coord"
-                name="prazo_coord"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Limite para a coordenação validar"
-                value="{{ c.prazo_coordenacao_dia if c else 10 }}"
-              />
-            </label>
-            <label for="g-dia-ultima">
-              <span>Última chamada (dia)</span>
-              <input
-                id="g-dia-ultima"
-                name="dia_ultima"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Reforço final para autores em atraso"
-                value="{{ c.dia_ultima_chamada if c else 10 }}"
-              />
-            </label>
-            <label for="g-dias-lembrete">
-              <span>Lembretes (CSV)</span>
-              <input
-                id="g-dias-lembrete"
-                name="dias_lembrete_csv"
-                required
-                placeholder="5,8"
-                title="Lista CSV com os dias de envio de lembrete"
-                value="{{ c.dias_lembrete_csv if c else '5,8' }}"
-              />
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Próximo ciclo</legend>
-            <label for="g-dia-abertura">
-              <span>Abertura (dia)</span>
-              <input
-                id="g-dia-abertura"
-                name="dia_abertura"
-                type="number"
-                min="1"
-                max="31"
-                required
-                title="Dia em que o ciclo seguinte é aberto automaticamente"
-                value="{{ c.dia_abertura_novo_ciclo if c else 1 }}"
-              />
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Horários (BRT)</legend>
-            <label for="g-hora-aber">
-              <span>Abertura</span>
-              <input
-                id="g-hora-aber"
-                name="hora_aber"
-                required
-                pattern="\d{2}:\d{2}"
-                placeholder="03:00"
-                title="HH:MM (24h, BRT)"
-                value="{{ c.hora_abertura_brt_hhmm if c else '03:00' }}"
-              />
-            </label>
-            <label for="g-hora-lem">
-              <span>Lembretes</span>
-              <input
-                id="g-hora-lem"
-                name="hora_lem"
-                required
-                pattern="\d{2}:\d{2}"
-                placeholder="09:00"
-                title="HH:MM (24h, BRT)"
-                value="{{ c.hora_lembretes_brt_hhmm if c else '09:00' }}"
-              />
-            </label>
-            <label for="g-hora-ret">
-              <span>Retry</span>
-              <input
-                id="g-hora-ret"
-                name="hora_ret"
-                required
-                pattern="\d{2}:\d{2}"
-                placeholder="12:00"
-                title="HH:MM (24h, BRT)"
-                value="{{ c.hora_retry_brt_hhmm if c else '12:00' }}"
-              />
-            </label>
-          </fieldset>
-
-          <fieldset class="full-row">
-            <legend>Notas internas</legend>
-            <label for="g-obs">
-              <span class="visually-hidden">Observações</span>
-              <textarea
-                id="g-obs"
-                name="observacoes"
-                rows="3"
-                maxlength="2048"
-                placeholder="Anotações da coordenação (não visíveis ao autor)"
-              >
-{{ c.observacoes_internas if c and c.observacoes_internas else '' }}</textarea
-              >
-            </label>
-          </fieldset>
-
-          <button type="submit" class="gov-params-save">
-            Guardar parâmetros
-          </button>
-          <p class="gov-params-meta">
-            Atualizado em {{ fmt_dt(c.atualizado_em) if c else '—' }}
-          </p>
-        </form>
-      </div>
-    </section>
-  </aside>
-</div>
-
-<script>
-  (() => {
-    const closeModal = (modal) => {
-      if (modal) modal.classList.add("is-hidden");
-    };
-    document.querySelectorAll("[data-open-gov-modal]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const modal = document.getElementById(btn.dataset.openGovModal);
-        if (modal) modal.classList.remove("is-hidden");
-      });
-    });
-    document.querySelectorAll("[data-close-gov-modal]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        closeModal(document.getElementById(btn.dataset.closeGovModal));
-      });
-    });
-    document.querySelectorAll(".gov-modal").forEach((modal) => {
-      modal.addEventListener("click", (ev) => {
-        if (ev.target === modal) closeModal(modal);
-      });
-    });
-    document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") {
-        document
-          .querySelectorAll(".gov-modal:not(.is-hidden)")
-          .forEach(closeModal);
-        document.querySelectorAll(".coord-help-pop.is-open").forEach((pop) => {
-          pop.classList.remove("is-open");
-        });
-        document
-          .querySelectorAll("[data-coord-help][aria-expanded='true']")
-          .forEach((btn) => {
-            btn.setAttribute("aria-expanded", "false");
-          });
-      }
-    });
-    document.querySelectorAll("[data-coord-help]").forEach((btn) => {
-      btn.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        const pop = document.getElementById(btn.dataset.coordHelp);
-        const opening = pop && !pop.classList.contains("is-open");
-        document.querySelectorAll(".coord-help-pop.is-open").forEach((item) => {
-          if (item !== pop) item.classList.remove("is-open");
-        });
-        document.querySelectorAll("[data-coord-help]").forEach((item) => {
-          if (item !== btn) item.setAttribute("aria-expanded", "false");
-        });
-        if (pop) pop.classList.toggle("is-open", opening);
-        btn.setAttribute("aria-expanded", opening ? "true" : "false");
-      });
-    });
-    document.addEventListener("click", () => {
-      document.querySelectorAll(".coord-help-pop.is-open").forEach((pop) => {
-        pop.classList.remove("is-open");
-      });
-      document
-        .querySelectorAll("[data-coord-help][aria-expanded='true']")
-        .forEach((btn) => {
-          btn.setAttribute("aria-expanded", "false");
-        });
-    });
-
-    const govNotificarChavePorTipo = {
-      abertura: "notificar_autores_abertura",
-      lembrete: "notificar_ciclo_lembrete",
-      ultima_chamada: "notificar_ciclo_ultima_chamada",
-    };
-    const govFormNotificar = document.getElementById(
-      "gov-form-testar-notificar",
-    );
-    const govSelectNotTipo = document.getElementById("t-not-tipo");
-    const syncGovNotificarConfirm = () => {
-      if (!govFormNotificar || !govSelectNotTipo) {
-        return;
-      }
-      const chave =
-        govNotificarChavePorTipo[govSelectNotTipo.value] ||
-        "notificar_autores_abertura";
-      govFormNotificar.setAttribute("data-sra-confirm", chave);
-    };
-    if (govFormNotificar && govSelectNotTipo) {
-      govSelectNotTipo.addEventListener("change", syncGovNotificarConfirm);
-      syncGovNotificarConfirm();
-    }
-  })();
-</script>
+    {% if lista_entregas_rel %}
+    {% with rel=lista_entregas_rel,
+    linhas=lista_entregas_linhas, pode_acoes=lista_entregas_pode_acoes,
+    redirect_to="/governanca-relatorio#ss-lista-entregas" %}
+    {% include "complementos/_lista_entregas_partial.html" %}
+    {% endwith %}
+    {% else %}
+    <p class="empty-section">
+      Nenhum relatório disponível. Crie um relatório para ver a lista de
+      entregas.
+    </p>
+    {% endif %}
+  </div>
+</section>
 {% endblock %}

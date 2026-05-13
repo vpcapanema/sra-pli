@@ -132,6 +132,8 @@ def modo_atual() -> str:
 
 def _assunto_para(tipo: str, contexto: dict[str, Any]) -> str:
     template = _ASSUNTOS.get(tipo, _ASSUNTOS["manual"])
+    if tipo == "customizado":
+        return template.format(assunto=contexto.get("assunto", "Notificação"))
     return template.format(
         codigo=contexto.get("relatorio_codigo", "—"),
         mes=contexto.get("mes_referencia", "—"),
